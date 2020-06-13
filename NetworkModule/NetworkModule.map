@@ -1,0 +1,1103 @@
+
+Map of NetworkModule.sm8 from link file NetworkModule.lkf - Sat Jun 13 05:54:18 2020
+
+
+                               --------
+                               Segments
+                               --------
+
+start 00008000 end 00008080 length   128 segment .vector
+start 00008080 end 0000bf34 length 16052 segment .const
+start 0000bf34 end 0000f58e length 13914 segment .text
+start 00004000 end 0000402f length    47 segment .eeprom
+start 00000000 end 00000000 length     0 segment .bsct
+start 00000000 end 0000000a length    10 segment .ubsct
+start 0000000a end 0000000a length     0 segment .bit
+start 0000000a end 00000010 length     6 segment .data
+start 00000010 end 00000495 length  1157 segment .bss
+start 00000000 end 0000c2a7 length 49831 segment .debug
+start 00000000 end 00000890 length  2192 segment .info.
+
+
+                               -------
+                               Modules
+                               -------
+
+NetworkModule_vector.o:
+start 00000000 end 000000b5 length   181 section .debug
+start 00000000 end 00000086 length   134 section .info.
+start 00008000 end 00008080 length   128 section .vector
+
+C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8:
+start 0000bf34 end 0000bf3d length     9 section .text
+start 00000086 end 000000b9 length    51 section .info.
+
+enc28j60.o:
+start 0000bf3d end 0000c332 length  1013 section .text
+start 000000b5 end 0000230b length  8790 section .debug
+start 000000b9 end 00000133 length   122 section .info.
+
+gpio.o:
+start 0000c332 end 0000c384 length    82 section .text
+start 0000230b end 00003efd length  7154 section .debug
+start 00000133 end 000001a9 length   118 section .info.
+
+httpd.o:
+start 0000c384 end 0000d969 length  5605 section .text
+start 00000010 end 0000001c length    12 section .bss
+start 00003efd end 00004d0d length  3600 section .debug
+start 000001a9 end 00000220 length   119 section .info.
+start 00008080 end 0000bf2a length 16042 section .const
+
+main.o:
+start 0000d969 end 0000e253 length  2282 section .text
+start 0000001c end 00000063 length    71 section .bss
+start 00004d0d end 000074c6 length 10169 section .debug
+start 00000220 end 00000296 length   118 section .info.
+start 00004000 end 0000402f length    47 section .eeprom
+
+spi.o:
+start 0000e253 end 0000e34b length   248 section .text
+start 000074c6 end 000092ae length  7656 section .debug
+start 00000296 end 0000030b length   117 section .info.
+
+timer.o:
+start 0000e34b end 0000e425 length   218 section .text
+start 00000063 end 00000064 length     1 section .bss
+start 000092ae end 0000af64 length  7350 section .debug
+start 0000030b end 00000382 length   119 section .info.
+
+uip.o:
+start 0000e425 end 0000ef88 length  2915 section .text
+start 0000000a end 00000010 length     6 section .data
+start 00000064 end 00000435 length   977 section .bss
+start 0000af64 end 0000bdd5 length  3697 section .debug
+start 00000382 end 000003f7 length   117 section .info.
+
+uip_arp.o:
+start 0000ef88 end 0000f2fc length   884 section .text
+start 00000435 end 00000495 length    96 section .bss
+start 0000bdd5 end 0000c1e3 length  1038 section .debug
+start 000003f7 end 00000470 length   121 section .info.
+start 0000bf2a end 0000bf34 length    10 section .const
+
+uip_tcpapphub.o:
+start 0000f2fc end 0000f321 length    37 section .text
+start 0000c1e3 end 0000c2a7 length   196 section .debug
+start 00000470 end 000004ef length   127 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)atoi.o:
+start 0000f321 end 0000f37b length    90 section .text
+start 000004ef end 00000563 length   116 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)isspac0.o:
+start 0000f37b end 0000f38b length    16 section .text
+start 00000563 end 00000592 length    47 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)bmulx.o:
+start 0000f38b end 0000f399 length    14 section .text
+start 00000592 end 000005c2 length    48 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o:
+start 0000f399 end 0000f3ff length   102 section .text
+start 000005c2 end 000005f3 length    49 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadc.o:
+start 0000f3ff end 0000f40f length    16 section .text
+start 000005f3 end 00000623 length    48 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lreg.o:
+start 00000000 end 00000004 length     4 section .ubsct
+start 00000623 end 00000652 length    47 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ltor.o:
+start 0000f40f end 0000f421 length    18 section .text
+start 00000652 end 00000681 length    47 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o:
+start 0000f421 end 0000f435 length    20 section .text
+start 00000681 end 000006b1 length    48 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o:
+start 0000f435 end 0000f520 length   235 section .text
+start 000006b1 end 000006e0 length    47 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgneg.o:
+start 0000f520 end 0000f533 length    19 section .text
+start 000006e0 end 00000710 length    48 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lneg.o:
+start 0000f533 end 0000f548 length    21 section .text
+start 00000710 end 0000073f length    47 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o:
+start 0000f548 end 0000f562 length    26 section .text
+start 0000073f end 0000076f length    48 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lzmp.o:
+start 0000f562 end 0000f575 length    19 section .text
+start 0000076f end 0000079e length    47 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o:
+start 0000f575 end 0000f587 length    18 section .text
+start 0000079e end 000007cd length    47 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o:
+start 0000f587 end 0000f58e length     7 section .text
+start 000007cd end 000007fd length    48 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)xreg.o:
+start 00000004 end 00000007 length     3 section .ubsct
+start 000007fd end 0000082c length    47 section .info.
+
+(C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)yreg.o:
+start 00000007 end 0000000a length     3 section .ubsct
+start 0000082c end 0000085b length    47 section .info.
+
+
+                             -----------
+                             Stack usage
+                             -----------
+
+enc28j60.o:
+_Enc28j60ChecksumTx              >   23   (12)
+_Enc28j60ClearMaskReg                 8   (4)
+_Enc28j60CopyChecksum            >   19   (8)
+_Enc28j60CopyPacket                  20   (9)
+_Enc28j60Init                        18   (2)
+_Enc28j60ReadPhy                     16   (5)
+_Enc28j60ReadReg                      8   (4)
+_Enc28j60Receive                     19   (8)
+_Enc28j60Send                        10   (2)
+_Enc28j60SetClockPrescaler       >   14   (3)
+_Enc28j60SetMaskReg                   8   (4)
+_Enc28j60SwitchBank                  11   (3)
+_Enc28j60WritePhy                    16   (5)
+_Enc28j60WriteReg                     8   (4)
+_deselect                             2   (2)
+_select                               2   (2)
+
+gpio.o:
+_LEDcontrol                           2   (2)
+_gpio_init                            2   (2)
+
+httpd.o:
+L11_CopyHttpData                     47   (17)
+L3_CopyStringP                        9   (9)
+L5_CopyValue                         38   (8)
+L7_CopyHttpHeader                    48   (10)
+_GpioGetPin                           3   (3)
+_GpioSetPin                           4   (4)
+_HttpDCall                           63   (15)
+_HttpDInit                            6   (2)
+_SetAddresses                        25   (13)
+_SetMAC                               8   (8)
+_SetPort                             29   (17)
+_emb_itoa                            30   (16)
+_reverse                              8   (8)
+_three_alpha_to_uint             >    7   (7)
+_two_alpha_to_uint               >    5   (5)
+
+main.o:
+_check_eeprom_settings                7   (3)
+_check_reset_button                   9   (3)
+_check_runtime_changes               21   (3)
+_debugflash                           9   (3)
+_main                            >   77   (4)
+_unlock_eeprom                        2   (2)
+_update_relay_control_registers       2   (2)
+
+spi.o:
+_SpiReadByte                          4   (4)
+_SpiReadChunk                         8   (8)
+_SpiWriteByte                         4   (4)
+_SpiWriteChunk                        8   (8)
+_spi_init                             9   (3)
+
+timer.o:
+_arp_timer_expired                    2   (2)
+_clock_init                           2   (2)
+_periodic_timer_expired               2   (2)
+_wait_timer                           6   (6)
+
+uip.o:
+L101_chksum                          14   (14)
+L112_upper_layer_chksum              21   (7)
+L733_uip_add_rcv_nxt                 10   (2)
+_htons                                2   (2)
+_uip_add32                            8   (8)
+_uip_chksum                      >   20   (6)
+_uip_init                             2   (2)
+_uip_ipchksum                        18   (4)
+_uip_listen                           4   (4)
+_uip_process                         73   (8)
+_uip_send                             6   (6)
+_uip_setipid                     >    2   (2)
+_uip_tcpchksum                       23   (2)
+_uip_unlisten                    >    4   (4)
+
+uip_arp.o:
+L531_uip_arp_update                  10   (10)
+_uip_arp_arpin                       12   (2)
+_uip_arp_init                         2   (2)
+_uip_arp_out                          4   (4)
+_uip_arp_timer                        4   (4)
+
+uip_tcpapphub.o:
+_uip_TcpAppHubCall                   65   (2)
+
+C:\Program Files (x86:
+_atoi                                12   (8)
+_isspace                              2   (2)
+
+Stack size: 77
+
+
+                              ---------
+                              Call tree
+                              ---------
+   1 > _Enc28j60ChecksumTx: (12)
+   2      + _Enc28j60ReadReg: (4)
+   3      |    + _SpiReadByte: (4)
+   4      |    + _SpiWriteByte: (4)
+   5      |    + _deselect: (2)
+   6      |    + _select: (2)
+          | 
+   7      + _Enc28j60SetMaskReg: (4)
+   8      |    + _SpiWriteByte --> 4
+   9      |    + _deselect --> 5
+  10      |    + _select --> 6
+          | 
+  11      + _Enc28j60SwitchBank: (3)
+  12      |    + _Enc28j60ClearMaskReg: (4)
+  13      |    |    + _SpiWriteByte --> 4
+  14      |    |    + _deselect --> 5
+  15      |    |    + _select --> 6
+          |    | 
+  16      |    + _Enc28j60SetMaskReg --> 7
+          | 
+  17      + _Enc28j60WriteReg: (4)
+  18      |    + _SpiWriteByte --> 4
+  19      |    + _deselect --> 5
+  20      |    + _select --> 6
+          | 
+       
+  21 > _Enc28j60CopyChecksum: (8)
+  22      + _Enc28j60SwitchBank --> 11
+  23      + _Enc28j60WriteReg --> 17
+  24      + _SpiWriteByte --> 4
+  25      + _SpiWriteChunk: (8)
+  26      + _deselect --> 5
+  27      + _select --> 6
+       
+  28 > _Enc28j60SetClockPrescaler: (3)
+  29      + _Enc28j60SwitchBank --> 11
+  30      + _Enc28j60WriteReg --> 17
+       
+  31 > _main: (4)
+  32      + _Enc28j60CopyPacket: (9)
+  33      |    + _Enc28j60ReadReg --> 2
+  34      |    + _Enc28j60SwitchBank --> 11
+  35      |    + _Enc28j60WriteReg --> 17
+  36      |    + _SpiWriteByte --> 4
+  37      |    + _SpiWriteChunk --> 25
+  38      |    + _deselect --> 5
+  39      |    + _select --> 6
+  40      |    + _wait_timer: (6)
+          | 
+  41      + _Enc28j60Init: (2)
+  42      |    + _Enc28j60ReadPhy: (5)
+  43      |    |    + _Enc28j60ClearMaskReg --> 12
+  44      |    |    + _Enc28j60ReadReg --> 2
+  45      |    |    + _Enc28j60SetMaskReg --> 7
+  46      |    |    + _Enc28j60SwitchBank --> 11
+  47      |    |    + _Enc28j60WriteReg --> 17
+          |    | 
+  48      |    + _Enc28j60ReadReg --> 2
+  49      |    + _Enc28j60SetMaskReg --> 7
+  50      |    + _Enc28j60SwitchBank --> 11
+  51      |    + _Enc28j60WritePhy: (5)
+  52      |    |    + _Enc28j60ReadReg --> 2
+  53      |    |    + _Enc28j60SwitchBank --> 11
+  54      |    |    + _Enc28j60WriteReg --> 17
+          |    | 
+  55      |    + _Enc28j60WriteReg --> 17
+  56      |    + _SpiWriteByte --> 4
+  57      |    + _deselect --> 5
+  58      |    + _select --> 6
+  59      |    + _wait_timer --> 40
+          | 
+  60      + _Enc28j60Receive: (8)
+  61      |    + _Enc28j60ReadReg --> 2
+  62      |    + _Enc28j60SetMaskReg --> 7
+  63      |    + _Enc28j60SwitchBank --> 11
+  64      |    + _Enc28j60WriteReg --> 17
+  65      |    + _SpiReadByte --> 3
+  66      |    + _SpiReadChunk: (8)
+  67      |    + _SpiWriteByte --> 4
+  68      |    + _deselect --> 5
+  69      |    + _select --> 6
+          | 
+  70      + _Enc28j60Send: (2)
+  71      |    + _Enc28j60ClearMaskReg --> 12
+  72      |    + _Enc28j60SetMaskReg --> 7
+          | 
+  73      + _HttpDInit: (2)
+  74      |    + _htons: (2)
+  75      |    + _uip_listen: (4)
+          | 
+  76      + _LEDcontrol: (2)
+  77      + _arp_timer_expired: (2)
+  78      + _check_eeprom_settings: (3)
+  79      |    + _update_relay_control_registers: (2)
+          | 
+  80      + _check_reset_button: (3)
+  81      |    + _LEDcontrol --> 76
+  82      |    + _wait_timer --> 40
+          | 
+  83      + _check_runtime_changes: (3)
+  84      |    + _Enc28j60Init --> 41
+  85      |    + _HttpDInit --> 73
+  86      |    + _LEDcontrol --> 76
+  87      |    + _check_eeprom_settings --> 78
+  88      |    + _uip_arp_init: (2)
+  89      |    + _uip_init: (2)
+  90      |    + _update_relay_control_registers --> 79
+  91      |    + _wait_timer --> 40
+          | 
+  92      + _clock_init: (2)
+  93      + _gpio_init: (2)
+  94      + _htons --> 74
+  95      + _periodic_timer_expired: (2)
+  96      + _spi_init: (3)
+  97      |    + _wait_timer --> 40
+          | 
+  98      + _uip_arp_arpin: (2)
+  99      |    + L531_uip_arp_update: (10)
+          | 
+ 100      + _uip_arp_init --> 88
+ 101      + _uip_arp_out: (4)
+ 102      + _uip_arp_timer: (4)
+ 103      + _uip_init --> 89
+ 104      + _uip_process: (8)
+ 105      |    + L733_uip_add_rcv_nxt: (2)
+ 106      |    |    + _uip_add32: (8)
+          |    | 
+ 107      |    + _uip_TcpAppHubCall: (2)
+ 108      |    |    + _HttpDCall: (15)
+ 109      |    |    |    + L11_CopyHttpData: (17)
+ 110      |    |    |    |    + _GpioGetPin: (3)
+ 111      |    |    |    |    + _emb_itoa: (16)
+ 112      |    |    |    |    |    + _reverse: (8)
+          |    |    |    |    | 
+          |    |    |    | 
+ 113      |    |    |    + L7_CopyHttpHeader: (10)
+ 114      |    |    |    |    + L3_CopyStringP: (9)
+ 115      |    |    |    |    + L5_CopyValue: (8)
+ 116      |    |    |    |    |    + _emb_itoa --> 111
+          |    |    |    |    | 
+          |    |    |    | 
+ 117      |    |    |    + _GpioSetPin: (4)
+ 118      |    |    |    + _SetAddresses: (13)
+ 119      |    |    |    |    + _atoi: (8)
+ 120      |    |    |    |    |    + _isspace: (2)
+          |    |    |    |    | 
+          |    |    |    | 
+ 121      |    |    |    + _SetMAC: (8)
+ 122      |    |    |    + _SetPort: (17)
+ 123      |    |    |    |    + _atoi --> 119
+          |    |    |    | 
+ 124      |    |    |    + _debugflash: (3)
+ 125      |    |    |    |    + _LEDcontrol --> 76
+ 126      |    |    |    |    + _wait_timer --> 40
+          |    |    |    | 
+ 127      |    |    |    + _uip_send: (6)
+          |    |    | 
+ 128      |    |    + _htons --> 74
+          |    | 
+ 129      |    + _uip_add32 --> 106
+ 130      |    + _uip_ipchksum: (4)
+ 131      |    |    + L101_chksum: (14)
+ 132      |    |    + _htons --> 74
+          |    | 
+ 133      |    + _uip_tcpchksum: (2)
+ 134      |    |    + L112_upper_layer_chksum: (7)
+ 135      |    |    |    + L101_chksum --> 131
+ 136      |    |    |    + _htons --> 74
+          |    |    | 
+          |    | 
+          | 
+ 137      + _unlock_eeprom: (2)
+       
+ 138 > _three_alpha_to_uint: (7)
+
+ 139 > _two_alpha_to_uint: (5)
+
+ 140 > _uip_chksum: (6)
+ 141      + L101_chksum --> 131
+ 142      + _htons --> 74
+       
+ 143 > _uip_setipid: (2)
+
+ 144 > _uip_unlisten: (4)
+
+ 145   L101_chksum --> 131
+
+ 146   L112_upper_layer_chksum --> 134
+
+ 147   L11_CopyHttpData --> 109
+
+ 148   L3_CopyStringP --> 114
+
+ 149   L531_uip_arp_update --> 99
+
+ 150   L5_CopyValue --> 115
+
+ 151   L733_uip_add_rcv_nxt --> 105
+
+ 152   L7_CopyHttpHeader --> 113
+
+ 153   _Enc28j60ClearMaskReg --> 12
+
+ 154   _Enc28j60CopyPacket --> 32
+
+ 155   _Enc28j60Init --> 41
+
+ 156   _Enc28j60ReadPhy --> 42
+
+ 157   _Enc28j60ReadReg --> 2
+
+ 158   _Enc28j60Receive --> 60
+
+ 159   _Enc28j60Send --> 70
+
+ 160   _Enc28j60SetMaskReg --> 7
+
+ 161   _Enc28j60SwitchBank --> 11
+
+ 162   _Enc28j60WritePhy --> 51
+
+ 163   _Enc28j60WriteReg --> 17
+
+ 164   _GpioGetPin --> 110
+
+ 165   _GpioSetPin --> 117
+
+ 166   _HttpDCall --> 108
+
+ 167   _HttpDInit --> 73
+
+ 168   _LEDcontrol --> 76
+
+ 169   _SetAddresses --> 118
+
+ 170   _SetMAC --> 121
+
+ 171   _SetPort --> 122
+
+ 172   _SpiReadByte --> 3
+
+ 173   _SpiReadChunk --> 66
+
+ 174   _SpiWriteByte --> 4
+
+ 175   _SpiWriteChunk --> 25
+
+ 176   _arp_timer_expired --> 77
+
+ 177   _atoi --> 119
+
+ 178   _check_eeprom_settings --> 78
+
+ 179   _check_reset_button --> 80
+
+ 180   _check_runtime_changes --> 83
+
+ 181   _clock_init --> 92
+
+ 182   _debugflash --> 124
+
+ 183   _deselect --> 5
+
+ 184   _emb_itoa --> 111
+
+ 185   _gpio_init --> 93
+
+ 186   _htons --> 74
+
+ 187   _isspace --> 120
+
+ 188   _periodic_timer_expired --> 95
+
+ 189   _reverse --> 112
+
+ 190   _select --> 6
+
+ 191   _spi_init --> 96
+
+ 192   _uip_TcpAppHubCall --> 107
+
+ 193   _uip_add32 --> 106
+
+ 194   _uip_arp_arpin --> 98
+
+ 195   _uip_arp_init --> 88
+
+ 196   _uip_arp_out --> 101
+
+ 197   _uip_arp_timer --> 102
+
+ 198   _uip_init --> 89
+
+ 199   _uip_ipchksum --> 130
+
+ 200   _uip_listen --> 75
+
+ 201   _uip_process --> 104
+
+ 202   _uip_send --> 127
+
+ 203   _uip_tcpchksum --> 133
+
+ 204   _unlock_eeprom --> 137
+
+ 205   _update_relay_control_registers --> 79
+
+ 206   _wait_timer --> 40
+
+
+
+                               -------
+                               Symbols
+                               -------
+
+_ADC_AWCRH                        0000540e   defined in enc28j60.o
+_ADC_AWCRL                        0000540f   defined in enc28j60.o
+_ADC_AWSRH                        0000540c   defined in enc28j60.o
+_ADC_AWSRL                        0000540d   defined in enc28j60.o
+_ADC_CR1                          00005401   defined in enc28j60.o
+_ADC_CR2                          00005402   defined in enc28j60.o
+_ADC_CR3                          00005403   defined in enc28j60.o
+_ADC_CSR                          00005400   defined in enc28j60.o
+_ADC_DRH                          00005404   defined in enc28j60.o
+_ADC_DRL                          00005405   defined in enc28j60.o
+_ADC_HTRH                         00005408   defined in enc28j60.o
+_ADC_HTRL                         00005409   defined in enc28j60.o
+_ADC_LTRH                         0000540a   defined in enc28j60.o
+_ADC_LTRL                         0000540b   defined in enc28j60.o
+_ADC_TDRH                         00005406   defined in enc28j60.o
+_ADC_TDRL                         00005407   defined in enc28j60.o
+_AWU_APR                          000050f1   defined in enc28j60.o
+_AWU_CSR1                         000050f0   defined in enc28j60.o
+_AWU_TBR                          000050f2   defined in enc28j60.o
+_BEEP_CSR                         000050f3   defined in enc28j60.o
+_CFG_GCR                          00007f60   defined in enc28j60.o
+_CLK_CCOR                         000050c9   defined in enc28j60.o
+_CLK_CKDIVR                       000050c6   defined in enc28j60.o
+_CLK_CMSR                         000050c3   defined in enc28j60.o
+_CLK_CSSR                         000050c8   defined in enc28j60.o
+_CLK_ECKR                         000050c1   defined in enc28j60.o
+_CLK_HSITRIMR                     000050cc   defined in enc28j60.o
+_CLK_ICKR                         000050c0   defined in enc28j60.o
+_CLK_PCKENR1                      000050c7   defined in enc28j60.o
+_CLK_PCKENR2                      000050ca   defined in enc28j60.o
+_CLK_SWCR                         000050c5   defined in enc28j60.o
+_CLK_SWIMCCR                      000050cd   defined in enc28j60.o
+_CLK_SWR                          000050c4   defined in enc28j60.o
+_DM_BK1RE                         00007f90   defined in enc28j60.o
+_DM_BK1RH                         00007f91   defined in enc28j60.o
+_DM_BK1RL                         00007f92   defined in enc28j60.o
+_DM_BK2RE                         00007f93   defined in enc28j60.o
+_DM_BK2RH                         00007f94   defined in enc28j60.o
+_DM_BK2RL                         00007f95   defined in enc28j60.o
+_DM_CR1                           00007f96   defined in enc28j60.o
+_DM_CR2                           00007f97   defined in enc28j60.o
+_DM_CSR1                          00007f98   defined in enc28j60.o
+_DM_CSR2                          00007f99   defined in enc28j60.o
+_DM_ENFCTR                        00007f9a   defined in enc28j60.o
+_EXTI_CR1                         000050a0   defined in enc28j60.o
+_EXTI_CR2                         000050a1   defined in enc28j60.o
+_Enc28j60ChecksumTx               0000c29a   defined in enc28j60.o section .text
+_Enc28j60ClearMaskReg             0000bf91   defined in enc28j60.o section .text
+_Enc28j60CopyChecksum             0000c2fb   defined in enc28j60.o section .text
+_Enc28j60CopyPacket               0000c1e4   defined in enc28j60.o section .text
+                                             used in main.o
+_Enc28j60Init                     0000c02f   defined in enc28j60.o section .text
+                                             used in main.o
+_Enc28j60ReadPhy                  0000bfb6   defined in enc28j60.o section .text
+_Enc28j60ReadReg                  0000bf49   defined in enc28j60.o section .text
+_Enc28j60Receive                  0000c148   defined in enc28j60.o section .text
+                                             used in main.o
+_Enc28j60Send                     0000c249   defined in enc28j60.o section .text
+                                             used in main.o
+_Enc28j60SetClockPrescaler        0000c25b   defined in enc28j60.o section .text
+_Enc28j60SetMaskReg               0000bf7c   defined in enc28j60.o section .text
+_Enc28j60SwitchBank               0000bfa6   defined in enc28j60.o section .text
+_Enc28j60WritePhy                 0000bffd   defined in enc28j60.o section .text
+_Enc28j60WriteReg                 0000bf67   defined in enc28j60.o section .text
+_FLASH_CR1                        0000505a   defined in enc28j60.o
+_FLASH_CR2                        0000505b   defined in enc28j60.o
+                                             used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o
+_FLASH_DUKR                       00005064   defined in enc28j60.o
+_FLASH_FPR                        0000505d   defined in enc28j60.o
+_FLASH_IAPSR                      0000505f   defined in enc28j60.o
+                                             used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o
+_FLASH_NCR2                       0000505c   defined in enc28j60.o
+                                             used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o
+_FLASH_NFPR                       0000505e   defined in enc28j60.o
+_FLASH_PUKR                       00005062   defined in enc28j60.o
+_GpioGetPin                       0000d61e   defined in httpd.o section .text
+_GpioSetPin                       0000d6de   defined in httpd.o section .text
+_HttpDCall                        0000cdfd   defined in httpd.o section .text
+                                             used in uip_tcpapphub.o
+_HttpDInit                        0000cdef   defined in httpd.o section .text
+                                             used in main.o
+_I2C_CCRH                         0000521c   defined in enc28j60.o
+_I2C_CCRL                         0000521b   defined in enc28j60.o
+_I2C_CR1                          00005210   defined in enc28j60.o
+_I2C_CR2                          00005211   defined in enc28j60.o
+_I2C_DR                           00005216   defined in enc28j60.o
+_I2C_FREQR                        00005212   defined in enc28j60.o
+_I2C_ITR                          0000521a   defined in enc28j60.o
+_I2C_OARH                         00005214   defined in enc28j60.o
+_I2C_OARL                         00005213   defined in enc28j60.o
+_I2C_PECR                         0000521e   defined in enc28j60.o
+_I2C_SR1                          00005217   defined in enc28j60.o
+_I2C_SR2                          00005218   defined in enc28j60.o
+_I2C_SR3                          00005219   defined in enc28j60.o
+_I2C_TRISER                       0000521d   defined in enc28j60.o
+_ITC_SPR1                         00007f70   defined in enc28j60.o
+_ITC_SPR2                         00007f71   defined in enc28j60.o
+_ITC_SPR3                         00007f72   defined in enc28j60.o
+_ITC_SPR4                         00007f73   defined in enc28j60.o
+_ITC_SPR5                         00007f74   defined in enc28j60.o
+_ITC_SPR6                         00007f75   defined in enc28j60.o
+_ITC_SPR7                         00007f76   defined in enc28j60.o
+_ITC_SPR8                         00007f77   defined in enc28j60.o
+_IWDG_KR                          000050e0   defined in enc28j60.o
+_IWDG_PR                          000050e1   defined in enc28j60.o
+_IWDG_RLR                         000050e2   defined in enc28j60.o
+_IpAddr                           0000005a   defined in main.o section .bss
+_LEDcontrol                       0000c377   defined in gpio.o section .text
+                                             used in main.o
+_OctetArray                       00000010   defined in httpd.o section .bss
+_PA_CR1                           00005003   defined in enc28j60.o
+_PA_CR2                           00005004   defined in enc28j60.o
+_PA_DDR                           00005002   defined in enc28j60.o
+_PA_IDR                           00005001   defined in enc28j60.o
+_PA_ODR                           00005000   defined in enc28j60.o
+_PB_CR1                           00005008   defined in enc28j60.o
+_PB_CR2                           00005009   defined in enc28j60.o
+_PB_DDR                           00005007   defined in enc28j60.o
+_PB_IDR                           00005006   defined in enc28j60.o
+_PB_ODR                           00005005   defined in enc28j60.o
+_PC_CR1                           0000500d   defined in enc28j60.o
+_PC_CR2                           0000500e   defined in enc28j60.o
+_PC_DDR                           0000500c   defined in enc28j60.o
+_PC_IDR                           0000500b   defined in enc28j60.o
+_PC_ODR                           0000500a   defined in enc28j60.o
+_PD_CR1                           00005012   defined in enc28j60.o
+_PD_CR2                           00005013   defined in enc28j60.o
+_PD_DDR                           00005011   defined in enc28j60.o
+_PD_IDR                           00005010   defined in enc28j60.o
+_PD_ODR                           0000500f   defined in enc28j60.o
+_PE_CR1                           00005017   defined in enc28j60.o
+_PE_CR2                           00005018   defined in enc28j60.o
+_PE_DDR                           00005016   defined in enc28j60.o
+_PE_IDR                           00005015   defined in enc28j60.o
+_PE_ODR                           00005014   defined in enc28j60.o
+_PF_CR1                           0000501c   defined in enc28j60.o
+_PF_CR2                           0000501d   defined in enc28j60.o
+_PF_DDR                           0000501b   defined in enc28j60.o
+_PF_IDR                           0000501a   defined in enc28j60.o
+_PF_ODR                           00005019   defined in enc28j60.o
+_PG_CR1                           00005021   defined in enc28j60.o
+_PG_CR2                           00005022   defined in enc28j60.o
+_PG_DDR                           00005020   defined in enc28j60.o
+_PG_IDR                           0000501f   defined in enc28j60.o
+_PG_ODR                           0000501e   defined in enc28j60.o
+_PH_CR1                           00005026   defined in enc28j60.o
+_PH_CR2                           00005027   defined in enc28j60.o
+_PH_DDR                           00005025   defined in enc28j60.o
+_PH_IDR                           00005024   defined in enc28j60.o
+_PH_ODR                           00005023   defined in enc28j60.o
+_PI_CR1                           0000502b   defined in enc28j60.o
+_PI_CR2                           0000502c   defined in enc28j60.o
+_PI_DDR                           0000502a   defined in enc28j60.o
+_PI_IDR                           00005029   defined in enc28j60.o
+_PI_ODR                           00005028   defined in enc28j60.o
+_Pending_draddr1                  00000030   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_draddr2                  00000031   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_draddr3                  00000032   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_draddr4                  00000033   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_hostaddr1                00000034   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_hostaddr2                00000035   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_hostaddr3                00000036   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_hostaddr4                00000037   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_netmask1                 0000002c   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_netmask2                 0000002d   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_netmask3                 0000002e   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_netmask4                 0000002f   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_port                     0000002a   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_uip_ethaddr1             00000024   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_uip_ethaddr2             00000025   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_uip_ethaddr3             00000026   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_uip_ethaddr4             00000027   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_uip_ethaddr5             00000028   defined in main.o section .bss
+                                             used in httpd.o
+_Pending_uip_ethaddr6             00000029   defined in main.o section .bss
+                                             used in httpd.o
+_Port_Httpd                       00000061   defined in main.o section .bss
+                                             used in httpd.o uip_tcpapphub.o
+_RST_SR                           000050b3   defined in enc28j60.o
+_Relays_16to9                     00000060   defined in main.o section .bss
+                                             used in httpd.o
+_Relays_8to1                      0000005f   defined in main.o section .bss
+                                             used in httpd.o
+_SPI_CR1                          00005200   defined in enc28j60.o
+_SPI_CR2                          00005201   defined in enc28j60.o
+_SPI_CRCPR                        00005205   defined in enc28j60.o
+_SPI_DR                           00005204   defined in enc28j60.o
+_SPI_ICR                          00005202   defined in enc28j60.o
+_SPI_RXCRCR                       00005206   defined in enc28j60.o
+_SPI_SR                           00005203   defined in enc28j60.o
+_SPI_TXCRCR                       00005207   defined in enc28j60.o
+_SWIM_CSR                         00007f80   defined in enc28j60.o
+_SetAddresses                     0000d80a   defined in httpd.o section .text
+_SetMAC                           0000d8cf   defined in httpd.o section .text
+_SetPort                          0000d894   defined in httpd.o section .text
+_SpiReadByte                      0000e2e1   defined in spi.o section .text
+                                             used in enc28j60.o
+_SpiReadChunk                     0000e30b   defined in spi.o section .text
+                                             used in enc28j60.o
+_SpiWriteByte                     0000e278   defined in spi.o section .text
+                                             used in enc28j60.o
+_SpiWriteChunk                    0000e2a2   defined in spi.o section .text
+                                             used in enc28j60.o
+_TIM1_ARRH                        00005262   defined in enc28j60.o
+_TIM1_ARRL                        00005263   defined in enc28j60.o
+_TIM1_BKR                         0000526d   defined in enc28j60.o
+_TIM1_CCER1                       0000525c   defined in enc28j60.o
+_TIM1_CCER2                       0000525d   defined in enc28j60.o
+_TIM1_CCMR1                       00005258   defined in enc28j60.o
+_TIM1_CCMR2                       00005259   defined in enc28j60.o
+_TIM1_CCMR3                       0000525a   defined in enc28j60.o
+_TIM1_CCMR4                       0000525b   defined in enc28j60.o
+_TIM1_CCR1H                       00005265   defined in enc28j60.o
+_TIM1_CCR1L                       00005266   defined in enc28j60.o
+_TIM1_CCR2H                       00005267   defined in enc28j60.o
+_TIM1_CCR2L                       00005268   defined in enc28j60.o
+_TIM1_CCR3H                       00005269   defined in enc28j60.o
+_TIM1_CCR3L                       0000526a   defined in enc28j60.o
+_TIM1_CCR4H                       0000526b   defined in enc28j60.o
+_TIM1_CCR4L                       0000526c   defined in enc28j60.o
+_TIM1_CNTRH                       0000525e   defined in enc28j60.o
+_TIM1_CNTRL                       0000525f   defined in enc28j60.o
+_TIM1_CR1                         00005250   defined in enc28j60.o
+_TIM1_CR2                         00005251   defined in enc28j60.o
+_TIM1_DTR                         0000526e   defined in enc28j60.o
+_TIM1_EGR                         00005257   defined in enc28j60.o
+_TIM1_ETR                         00005253   defined in enc28j60.o
+_TIM1_IER                         00005254   defined in enc28j60.o
+_TIM1_OISR                        0000526f   defined in enc28j60.o
+_TIM1_PSCRH                       00005260   defined in enc28j60.o
+_TIM1_PSCRL                       00005261   defined in enc28j60.o
+_TIM1_RCR                         00005264   defined in enc28j60.o
+_TIM1_SMCR                        00005252   defined in enc28j60.o
+_TIM1_SR1                         00005255   defined in enc28j60.o
+_TIM1_SR2                         00005256   defined in enc28j60.o
+_TIM2_ARRH                        0000530d   defined in enc28j60.o
+_TIM2_ARRL                        0000530e   defined in enc28j60.o
+_TIM2_CCER1                       00005308   defined in enc28j60.o
+_TIM2_CCER2                       00005309   defined in enc28j60.o
+_TIM2_CCMR1                       00005305   defined in enc28j60.o
+_TIM2_CCMR2                       00005306   defined in enc28j60.o
+_TIM2_CCMR3                       00005307   defined in enc28j60.o
+_TIM2_CCR1H                       0000530f   defined in enc28j60.o
+_TIM2_CCR1L                       00005310   defined in enc28j60.o
+_TIM2_CCR2H                       00005311   defined in enc28j60.o
+_TIM2_CCR2L                       00005312   defined in enc28j60.o
+_TIM2_CCR3H                       00005314   defined in enc28j60.o
+_TIM2_CCR3L                       00005314   defined in enc28j60.o
+_TIM2_CNTRH                       0000530a   defined in enc28j60.o
+_TIM2_CNTRL                       0000530b   defined in enc28j60.o
+_TIM2_CR1                         00005300   defined in enc28j60.o
+_TIM2_EGR                         00005304   defined in enc28j60.o
+_TIM2_IER                         00005301   defined in enc28j60.o
+_TIM2_PSCR                        0000530c   defined in enc28j60.o
+_TIM2_SR1                         00005302   defined in enc28j60.o
+_TIM2_SR2                         00005303   defined in enc28j60.o
+_TIM3_ARRH                        0000532b   defined in enc28j60.o
+_TIM3_ARRL                        0000532c   defined in enc28j60.o
+_TIM3_CCER1                       00005327   defined in enc28j60.o
+_TIM3_CCMR1                       00005325   defined in enc28j60.o
+_TIM3_CCMR2                       00005326   defined in enc28j60.o
+_TIM3_CCR1H                       0000532d   defined in enc28j60.o
+_TIM3_CCR1L                       0000532e   defined in enc28j60.o
+_TIM3_CCR2H                       0000532f   defined in enc28j60.o
+_TIM3_CCR2L                       00005330   defined in enc28j60.o
+_TIM3_CNTRH                       00005328   defined in enc28j60.o
+_TIM3_CNTRL                       00005329   defined in enc28j60.o
+_TIM3_CR1                         00005320   defined in enc28j60.o
+_TIM3_EGR                         00005324   defined in enc28j60.o
+_TIM3_IER                         00005321   defined in enc28j60.o
+_TIM3_PSCR                        0000532a   defined in enc28j60.o
+_TIM3_SR1                         00005322   defined in enc28j60.o
+_TIM3_SR2                         00005323   defined in enc28j60.o
+_TIM4_ARR                         00005346   defined in enc28j60.o
+_TIM4_CNTR                        00005344   defined in enc28j60.o
+_TIM4_CR1                         00005340   defined in enc28j60.o
+_TIM4_EGR                         00005343   defined in enc28j60.o
+_TIM4_IER                         00005341   defined in enc28j60.o
+_TIM4_PSCR                        00005345   defined in enc28j60.o
+_TIM4_SR                          00005342   defined in enc28j60.o
+_UART2_BRR1                       00005242   defined in enc28j60.o
+_UART2_BRR2                       00005243   defined in enc28j60.o
+_UART2_CR1                        00005244   defined in enc28j60.o
+_UART2_CR2                        00005245   defined in enc28j60.o
+_UART2_CR3                        00005246   defined in enc28j60.o
+_UART2_CR4                        00005247   defined in enc28j60.o
+_UART2_CR5                        00005248   defined in enc28j60.o
+_UART2_CR6                        00005249   defined in enc28j60.o
+_UART2_DR                         00005241   defined in enc28j60.o
+_UART2_GTR                        0000524a   defined in enc28j60.o
+_UART2_PSCR                       0000524b   defined in enc28j60.o
+_UART2_SR                         00005240   defined in enc28j60.o
+_WWDG_CR                          000050d1   defined in enc28j60.o
+_WWDG_WR                          000050d2   defined in enc28j60.o
+__endzp                           0000000a   defined in command file section .ubsct
+                                             *** not used ***
+__memory                          00000495   defined in command file section .bss
+                                             *** not used ***
+__stack                           000007ff   defined in command file
+                                             used in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8
+__stext                           0000bf34   defined in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8 section .text
+                                             used in NetworkModule_vector.o
+__vectab                          00008000   defined in NetworkModule_vector.o section .vector
+_arp_timer                        00000063   defined in timer.o section .bss
+_arp_timer_expired                0000e3f2   defined in timer.o section .text
+                                             used in main.o
+_atoi                             0000f321   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)atoi.o section .text
+                                             used in httpd.o
+_check_eeprom_settings            0000da33   defined in main.o section .text
+_check_reset_button               0000e1c2   defined in main.o section .text
+_check_runtime_changes            0000ddcc   defined in main.o section .text
+_clock_init                       0000e34b   defined in timer.o section .text
+                                             used in main.o
+_current_webpage                  0000001b   defined in httpd.o section .bss
+_debugflash                       0000e227   defined in main.o section .text
+                                             used in httpd.o
+_deselect                         0000bf43   defined in enc28j60.o section .text
+_devicename_changed               0000001c   defined in main.o section .bss
+_emb_itoa                         0000c410   defined in httpd.o section .text
+_ex_stored_devicename             00000038   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_draddr1                00000052   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_draddr2                00000053   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_draddr3                00000054   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_draddr4                00000055   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_hostaddr1              00000056   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_hostaddr2              00000057   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_hostaddr3              00000058   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_hostaddr4              00000059   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_netmask1               0000004e   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_netmask2               0000004f   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_netmask3               00000050   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_netmask4               00000051   defined in main.o section .bss
+                                             used in httpd.o
+_ex_stored_port                   0000004c   defined in main.o section .bss
+                                             used in httpd.o
+_exit                             0000bf3b   defined in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8 section .text
+_gpio_init                        0000c332   defined in gpio.o section .text
+                                             used in main.o
+_htons                            0000ef63   defined in uip.o section .text
+                                             used in httpd.o main.o
+                                                     uip_tcpapphub.o
+_invert_output                    0000005e   defined in main.o section .bss
+                                             used in httpd.o
+_isspace                          0000f37b   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)isspac0.o section .text
+                                             used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)atoi.o
+_magic1                           0000402b   defined in main.o section .eeprom
+_magic2                           0000402c   defined in main.o section .eeprom
+_magic3                           0000402d   defined in main.o section .eeprom
+_magic4                           0000402e   defined in main.o section .eeprom
+_main                             0000d969   defined in main.o section .text
+                                             used in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8
+_periodic_timer_expired           0000e3d2   defined in timer.o section .text
+                                             used in main.o
+_reverse                          0000c4b0   defined in httpd.o section .text
+_select                           0000bf3d   defined in enc28j60.o section .text
+_spi_init                         0000e253   defined in spi.o section .text
+                                             used in main.o
+_stored_Relays_16to9              00004016   defined in main.o section .eeprom
+_stored_Relays_8to1               00004015   defined in main.o section .eeprom
+_stored_devicename                00004000   defined in main.o section .eeprom
+_stored_draddr1                   00004023   defined in main.o section .eeprom
+_stored_draddr2                   00004024   defined in main.o section .eeprom
+_stored_draddr3                   00004025   defined in main.o section .eeprom
+_stored_draddr4                   00004026   defined in main.o section .eeprom
+_stored_hostaddr1                 00004027   defined in main.o section .eeprom
+_stored_hostaddr2                 00004028   defined in main.o section .eeprom
+_stored_hostaddr3                 00004029   defined in main.o section .eeprom
+_stored_hostaddr4                 0000402a   defined in main.o section .eeprom
+_stored_invert_output             00004014   defined in main.o section .eeprom
+_stored_netmask1                  0000401f   defined in main.o section .eeprom
+_stored_netmask2                  00004020   defined in main.o section .eeprom
+_stored_netmask3                  00004021   defined in main.o section .eeprom
+_stored_netmask4                  00004022   defined in main.o section .eeprom
+_stored_port                      0000401d   defined in main.o section .eeprom
+_stored_uip_ethaddr1              0000401c   defined in main.o section .eeprom
+_stored_uip_ethaddr2              0000401b   defined in main.o section .eeprom
+_stored_uip_ethaddr3              0000401a   defined in main.o section .eeprom
+_stored_uip_ethaddr4              00004019   defined in main.o section .eeprom
+_stored_uip_ethaddr5              00004018   defined in main.o section .eeprom
+_stored_uip_ethaddr6              00004017   defined in main.o section .eeprom
+_submit_changes                   0000001d   defined in main.o section .bss
+                                             used in httpd.o
+_three_alpha_to_uint              0000c4ee   defined in httpd.o section .text
+_two_alpha_to_uint                0000c517   defined in httpd.o section .text
+_uip_TcpAppHubCall                0000f2fc   defined in uip_tcpapphub.o section .text
+                                             used in uip.o
+_uip_acc32                        000000e1   defined in uip.o section .bss
+_uip_add32                        0000e429   defined in uip.o section .text
+_uip_appdata                      000001d9   defined in uip.o section .bss
+                                             used in httpd.o uip_arp.o
+                                                     uip_tcpapphub.o
+_uip_arp_arpin                    0000f102   defined in uip_arp.o section .text
+                                             used in main.o
+_uip_arp_init                     0000ef88   defined in uip_arp.o section .text
+                                             used in main.o
+_uip_arp_out                      0000f1b1   defined in uip_arp.o section .text
+                                             used in main.o
+_uip_arp_timer                    0000efab   defined in uip_arp.o section .text
+                                             used in main.o
+_uip_buf                          000001db   defined in uip.o section .bss
+                                             used in main.o uip_arp.o
+_uip_chksum                       0000e4ce   defined in uip.o section .text
+_uip_conn                         000001d5   defined in uip.o section .bss
+                                             used in httpd.o main.o
+                                                     uip_tcpapphub.o
+_uip_conns                        000000e5   defined in uip.o section .bss
+                                             used in main.o
+_uip_draddr                       0000007c   defined in uip.o section .bss
+                                             used in main.o uip_arp.o
+_uip_ethaddr                      0000000a   defined in uip.o section .data, initialized
+                                             used in main.o uip_arp.o
+_uip_ethaddr1                     0000001e   defined in main.o section .bss
+                                             used in enc28j60.o httpd.o
+_uip_ethaddr2                     0000001f   defined in main.o section .bss
+                                             used in enc28j60.o httpd.o
+_uip_ethaddr3                     00000020   defined in main.o section .bss
+                                             used in enc28j60.o httpd.o
+_uip_ethaddr4                     00000021   defined in main.o section .bss
+                                             used in enc28j60.o httpd.o
+_uip_ethaddr5                     00000022   defined in main.o section .bss
+                                             used in enc28j60.o httpd.o
+_uip_ethaddr6                     00000023   defined in main.o section .bss
+                                             used in enc28j60.o httpd.o
+_uip_flags                        00000088   defined in uip.o section .bss
+                                             used in httpd.o
+_uip_hostaddr                     00000084   defined in uip.o section .bss
+                                             used in main.o uip_arp.o
+_uip_init                         0000e549   defined in uip.o section .text
+                                             used in main.o
+_uip_ipchksum                     0000e4e0   defined in uip.o section .text
+_uip_len                          000001d7   defined in uip.o section .bss
+                                             used in main.o uip_arp.o
+                                                     uip_tcpapphub.o
+_uip_listen                       0000e623   defined in uip.o section .text
+                                             used in httpd.o
+_uip_listenports                  0000006e   defined in uip.o section .bss
+_uip_netmask                      00000080   defined in uip.o section .bss
+                                             used in main.o uip_arp.o
+_uip_process                      0000e66a   defined in uip.o section .text
+                                             used in main.o
+_uip_sappdata                     0000007a   defined in uip.o section .bss
+_uip_send                         0000ef64   defined in uip.o section .text
+                                             used in httpd.o
+_uip_setipid                      0000e425   defined in uip.o section .text
+_uip_slen                         00000078   defined in uip.o section .bss
+_uip_stat                         00000089   defined in uip.o section .bss
+                                             used in httpd.o
+_uip_tcpchksum                    0000e545   defined in uip.o section .text
+_uip_unlisten                     0000e5fd   defined in uip.o section .text
+_unlock_eeprom                    0000da23   defined in main.o section .text
+_update_relay_control_registers   0000dfd8   defined in main.o section .text
+_wait_timer                       0000e402   defined in timer.o section .text
+                                             used in enc28j60.o main.o spi.o
+c_bmulx                           0000f38b   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)bmulx.o section .text
+                                             used in main.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)atoi.o
+c_divsl                           0000f435   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
+                                             *** not used ***
+c_divul                           0000f44c   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
+                                             used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o
+c_eewrc                           0000f3af   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
+                                             used in main.o
+c_eewrd                           0000f3e2   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
+                                             *** not used ***
+c_eewrw                           0000f399   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
+                                             used in main.o
+c_lgadc                           0000f3ff   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadc.o section .text
+                                             used in uip.o
+c_lgneg                           0000f520   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgneg.o section .text
+                                             used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o
+c_lneg                            0000f533   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lneg.o section .text
+                                             used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o
+c_lreg                            00000000   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lreg.o section .ubsct
+                                             used in httpd.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ltor.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lneg.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o
+c_ltor                            0000f40f   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ltor.o section .text
+                                             used in httpd.o
+c_ludv                            0000f421   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o section .text
+                                             used in httpd.o
+c_lumd                            0000f548   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o section .text
+                                             used in httpd.o
+c_lzmp                            0000f562   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lzmp.o section .text
+                                             used in httpd.o
+c_rtol                            0000f575   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o section .text
+                                             used in httpd.o
+c_uitolx                          0000f587   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o section .text
+                                             used in httpd.o
+c_x                               00000004   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)xreg.o section .ubsct
+                                             used in httpd.o uip.o uip_arp.o
+                                                     uip_tcpapphub.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)bmulx.o
+                                                     (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o
+c_y                               00000007   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)yreg.o section .ubsct
+                                             used in httpd.o uip.o uip_arp.o

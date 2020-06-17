@@ -393,7 +393,7 @@ static const char g_HtmlPageHelp2[] =
   " Netmask 255.255.255.0<br>"
   " Port 08080<br>"
   " MAC c2-4d-69-6b-65-00<br><br>"
-  "Code Revision 20200612 0800</p>"
+  "Code Revision 20200617 1113</p>"
   "<a href='%x00http://192.168.001.004:08080/60'><button title='Go to Relay Control Page'>Relay Controls</button></a>"
   "</body></html>";
 
@@ -1039,22 +1039,70 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           *pBuffer = '/'; pBuffer++; nBytes++;
 	    
 	  // Now output the IP Address octets. Each is first converted to 3 digit Decimal
-	  emb_itoa(ex_stored_hostaddr4,  OctetArray, 10, 3); // First IP Address Octet
-	  for(i=0; i<3; i++) { *pBuffer = OctetArray[i]; pBuffer++; nBytes++; }
+          // First IP Address Octet
+          emb_itoa(ex_stored_hostaddr4,  OctetArray, 10, 3);
+	  // Don't send leading zeros
+	  if (OctetArray[0] != '0') {
+	    *pBuffer = OctetArray[0]; pBuffer++; nBytes++;
+	  }
+	  if (OctetArray[0] != '0') {
+            *pBuffer = OctetArray[1]; pBuffer++; nBytes++;
+	  }
+	  else if (OctetArray[1] != '0') {
+            *pBuffer = OctetArray[1]; pBuffer++; nBytes++;
+	  }
+          *pBuffer = OctetArray[2]; pBuffer++; nBytes++;
+	  
           *pBuffer = '.'; pBuffer++; nBytes++; // Output '.'
 	  
-	  emb_itoa(ex_stored_hostaddr3,  OctetArray, 10, 3); // Second IP Address Octet
-	  for(i=0; i<3; i++) { *pBuffer = OctetArray[i]; pBuffer++; nBytes++; }
+          // Second IP Address Octet
+          emb_itoa(ex_stored_hostaddr3,  OctetArray, 10, 3);
+	  // Don't send leading zeros
+	  if (OctetArray[0] != '0') {
+	    *pBuffer = OctetArray[0]; pBuffer++; nBytes++;
+	  }
+	  if (OctetArray[0] != '0') {
+            *pBuffer = OctetArray[1]; pBuffer++; nBytes++;
+	  }
+	  else if (OctetArray[1] != '0') {
+            *pBuffer = OctetArray[1]; pBuffer++; nBytes++;
+	  }
+          *pBuffer = OctetArray[2]; pBuffer++; nBytes++;
+	  
           *pBuffer = '.'; pBuffer++; nBytes++; // Output '.'
 	  
-	  emb_itoa(ex_stored_hostaddr2,  OctetArray, 10, 3); // Third IP Address Octet
-	  for(i=0; i<3; i++) { *pBuffer = OctetArray[i]; pBuffer++; nBytes++; }
+          // Third IP Address Octet
+          emb_itoa(ex_stored_hostaddr2,  OctetArray, 10, 3);
+	  // Don't send leading zeros
+	  if (OctetArray[0] != '0') {
+	    *pBuffer = OctetArray[0]; pBuffer++; nBytes++;
+	  }
+	  if (OctetArray[0] != '0') {
+            *pBuffer = OctetArray[1]; pBuffer++; nBytes++;
+	  }
+	  else if (OctetArray[1] != '0') {
+            *pBuffer = OctetArray[1]; pBuffer++; nBytes++;
+	  }
+          *pBuffer = OctetArray[2]; pBuffer++; nBytes++;
+	  
           *pBuffer = '.'; pBuffer++; nBytes++; // Output '.'
 	  
-	  emb_itoa(ex_stored_hostaddr1,  OctetArray, 10, 3); // Fourth IP Address Octet
-	  for(i=0; i<3; i++) { *pBuffer = OctetArray[i]; pBuffer++; nBytes++; }
+          // Fourth IP Address Octet
+          emb_itoa(ex_stored_hostaddr1,  OctetArray, 10, 3);
+	  // Don't send leading zeros
+	  if (OctetArray[0] != '0') {
+	    *pBuffer = OctetArray[0]; pBuffer++; nBytes++;
+	  }
+	  if (OctetArray[0] != '0') {
+            *pBuffer = OctetArray[1]; pBuffer++; nBytes++;
+	  }
+	  else if (OctetArray[1] != '0') {
+            *pBuffer = OctetArray[1]; pBuffer++; nBytes++;
+	  }
+          *pBuffer = OctetArray[2]; pBuffer++; nBytes++;
+	  
           *pBuffer = ':'; pBuffer++; nBytes++; // Output ':'
-	  
+  
 	  emb_itoa(ex_stored_port, OctetArray, 10, 5); // Now output the Port number
 	  for(i=0; i<5; i++) { *pBuffer = OctetArray[i]; pBuffer++; nBytes++; }
 	  

@@ -1,5 +1,5 @@
 
-Map of NetworkModule.sm8 from link file NetworkModule.lkf - Sat Jun 13 05:54:18 2020
+Map of NetworkModule.sm8 from link file NetworkModule.lkf - Wed Jun 17 11:14:05 2020
 
 
                                --------
@@ -8,7 +8,7 @@ Map of NetworkModule.sm8 from link file NetworkModule.lkf - Sat Jun 13 05:54:18 
 
 start 00008000 end 00008080 length   128 segment .vector
 start 00008080 end 0000bf34 length 16052 segment .const
-start 0000bf34 end 0000f58e length 13914 segment .text
+start 0000bf34 end 0000f616 length 14050 segment .text
 start 00004000 end 0000402f length    47 segment .eeprom
 start 00000000 end 00000000 length     0 segment .bsct
 start 00000000 end 0000000a length    10 segment .ubsct
@@ -43,67 +43,67 @@ start 0000230b end 00003efd length  7154 section .debug
 start 00000133 end 000001a9 length   118 section .info.
 
 httpd.o:
-start 0000c384 end 0000d969 length  5605 section .text
+start 0000c384 end 0000d9f1 length  5741 section .text
 start 00000010 end 0000001c length    12 section .bss
 start 00003efd end 00004d0d length  3600 section .debug
 start 000001a9 end 00000220 length   119 section .info.
 start 00008080 end 0000bf2a length 16042 section .const
 
 main.o:
-start 0000d969 end 0000e253 length  2282 section .text
+start 0000d9f1 end 0000e2db length  2282 section .text
 start 0000001c end 00000063 length    71 section .bss
 start 00004d0d end 000074c6 length 10169 section .debug
 start 00000220 end 00000296 length   118 section .info.
 start 00004000 end 0000402f length    47 section .eeprom
 
 spi.o:
-start 0000e253 end 0000e34b length   248 section .text
+start 0000e2db end 0000e3d3 length   248 section .text
 start 000074c6 end 000092ae length  7656 section .debug
 start 00000296 end 0000030b length   117 section .info.
 
 timer.o:
-start 0000e34b end 0000e425 length   218 section .text
+start 0000e3d3 end 0000e4ad length   218 section .text
 start 00000063 end 00000064 length     1 section .bss
 start 000092ae end 0000af64 length  7350 section .debug
 start 0000030b end 00000382 length   119 section .info.
 
 uip.o:
-start 0000e425 end 0000ef88 length  2915 section .text
+start 0000e4ad end 0000f010 length  2915 section .text
 start 0000000a end 00000010 length     6 section .data
 start 00000064 end 00000435 length   977 section .bss
 start 0000af64 end 0000bdd5 length  3697 section .debug
 start 00000382 end 000003f7 length   117 section .info.
 
 uip_arp.o:
-start 0000ef88 end 0000f2fc length   884 section .text
+start 0000f010 end 0000f384 length   884 section .text
 start 00000435 end 00000495 length    96 section .bss
 start 0000bdd5 end 0000c1e3 length  1038 section .debug
 start 000003f7 end 00000470 length   121 section .info.
 start 0000bf2a end 0000bf34 length    10 section .const
 
 uip_tcpapphub.o:
-start 0000f2fc end 0000f321 length    37 section .text
+start 0000f384 end 0000f3a9 length    37 section .text
 start 0000c1e3 end 0000c2a7 length   196 section .debug
 start 00000470 end 000004ef length   127 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)atoi.o:
-start 0000f321 end 0000f37b length    90 section .text
+start 0000f3a9 end 0000f403 length    90 section .text
 start 000004ef end 00000563 length   116 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)isspac0.o:
-start 0000f37b end 0000f38b length    16 section .text
+start 0000f403 end 0000f413 length    16 section .text
 start 00000563 end 00000592 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)bmulx.o:
-start 0000f38b end 0000f399 length    14 section .text
+start 0000f413 end 0000f421 length    14 section .text
 start 00000592 end 000005c2 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o:
-start 0000f399 end 0000f3ff length   102 section .text
+start 0000f421 end 0000f487 length   102 section .text
 start 000005c2 end 000005f3 length    49 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadc.o:
-start 0000f3ff end 0000f40f length    16 section .text
+start 0000f487 end 0000f497 length    16 section .text
 start 000005f3 end 00000623 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lreg.o:
@@ -111,39 +111,39 @@ start 00000000 end 00000004 length     4 section .ubsct
 start 00000623 end 00000652 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ltor.o:
-start 0000f40f end 0000f421 length    18 section .text
+start 0000f497 end 0000f4a9 length    18 section .text
 start 00000652 end 00000681 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o:
-start 0000f421 end 0000f435 length    20 section .text
+start 0000f4a9 end 0000f4bd length    20 section .text
 start 00000681 end 000006b1 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o:
-start 0000f435 end 0000f520 length   235 section .text
+start 0000f4bd end 0000f5a8 length   235 section .text
 start 000006b1 end 000006e0 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgneg.o:
-start 0000f520 end 0000f533 length    19 section .text
+start 0000f5a8 end 0000f5bb length    19 section .text
 start 000006e0 end 00000710 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lneg.o:
-start 0000f533 end 0000f548 length    21 section .text
+start 0000f5bb end 0000f5d0 length    21 section .text
 start 00000710 end 0000073f length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o:
-start 0000f548 end 0000f562 length    26 section .text
+start 0000f5d0 end 0000f5ea length    26 section .text
 start 0000073f end 0000076f length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lzmp.o:
-start 0000f562 end 0000f575 length    19 section .text
+start 0000f5ea end 0000f5fd length    19 section .text
 start 0000076f end 0000079e length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o:
-start 0000f575 end 0000f587 length    18 section .text
+start 0000f5fd end 0000f60f length    18 section .text
 start 0000079e end 000007cd length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o:
-start 0000f587 end 0000f58e length     7 section .text
+start 0000f60f end 0000f616 length     7 section .text
 start 000007cd end 000007fd length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)xreg.o:
@@ -646,11 +646,11 @@ _FLASH_NCR2                       0000505c   defined in enc28j60.o
                                              used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o
 _FLASH_NFPR                       0000505e   defined in enc28j60.o
 _FLASH_PUKR                       00005062   defined in enc28j60.o
-_GpioGetPin                       0000d61e   defined in httpd.o section .text
-_GpioSetPin                       0000d6de   defined in httpd.o section .text
-_HttpDCall                        0000cdfd   defined in httpd.o section .text
+_GpioGetPin                       0000d6a6   defined in httpd.o section .text
+_GpioSetPin                       0000d766   defined in httpd.o section .text
+_HttpDCall                        0000ce85   defined in httpd.o section .text
                                              used in uip_tcpapphub.o
-_HttpDInit                        0000cdef   defined in httpd.o section .text
+_HttpDInit                        0000ce77   defined in httpd.o section .text
                                              used in main.o
 _I2C_CCRH                         0000521c   defined in enc28j60.o
 _I2C_CCRL                         0000521b   defined in enc28j60.o
@@ -780,16 +780,16 @@ _SPI_RXCRCR                       00005206   defined in enc28j60.o
 _SPI_SR                           00005203   defined in enc28j60.o
 _SPI_TXCRCR                       00005207   defined in enc28j60.o
 _SWIM_CSR                         00007f80   defined in enc28j60.o
-_SetAddresses                     0000d80a   defined in httpd.o section .text
-_SetMAC                           0000d8cf   defined in httpd.o section .text
-_SetPort                          0000d894   defined in httpd.o section .text
-_SpiReadByte                      0000e2e1   defined in spi.o section .text
+_SetAddresses                     0000d892   defined in httpd.o section .text
+_SetMAC                           0000d957   defined in httpd.o section .text
+_SetPort                          0000d91c   defined in httpd.o section .text
+_SpiReadByte                      0000e369   defined in spi.o section .text
                                              used in enc28j60.o
-_SpiReadChunk                     0000e30b   defined in spi.o section .text
+_SpiReadChunk                     0000e393   defined in spi.o section .text
                                              used in enc28j60.o
-_SpiWriteByte                     0000e278   defined in spi.o section .text
+_SpiWriteByte                     0000e300   defined in spi.o section .text
                                              used in enc28j60.o
-_SpiWriteChunk                    0000e2a2   defined in spi.o section .text
+_SpiWriteChunk                    0000e32a   defined in spi.o section .text
                                              used in enc28j60.o
 _TIM1_ARRH                        00005262   defined in enc28j60.o
 _TIM1_ARRL                        00005263   defined in enc28j60.o
@@ -892,17 +892,17 @@ __stext                           0000bf34   defined in C:\Program Files (x86)\C
                                              used in NetworkModule_vector.o
 __vectab                          00008000   defined in NetworkModule_vector.o section .vector
 _arp_timer                        00000063   defined in timer.o section .bss
-_arp_timer_expired                0000e3f2   defined in timer.o section .text
+_arp_timer_expired                0000e47a   defined in timer.o section .text
                                              used in main.o
-_atoi                             0000f321   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)atoi.o section .text
+_atoi                             0000f3a9   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)atoi.o section .text
                                              used in httpd.o
-_check_eeprom_settings            0000da33   defined in main.o section .text
-_check_reset_button               0000e1c2   defined in main.o section .text
-_check_runtime_changes            0000ddcc   defined in main.o section .text
-_clock_init                       0000e34b   defined in timer.o section .text
+_check_eeprom_settings            0000dabb   defined in main.o section .text
+_check_reset_button               0000e24a   defined in main.o section .text
+_check_runtime_changes            0000de54   defined in main.o section .text
+_clock_init                       0000e3d3   defined in timer.o section .text
                                              used in main.o
 _current_webpage                  0000001b   defined in httpd.o section .bss
-_debugflash                       0000e227   defined in main.o section .text
+_debugflash                       0000e2af   defined in main.o section .text
                                              used in httpd.o
 _deselect                         0000bf43   defined in enc28j60.o section .text
 _devicename_changed               0000001c   defined in main.o section .bss
@@ -938,24 +938,24 @@ _ex_stored_port                   0000004c   defined in main.o section .bss
 _exit                             0000bf3b   defined in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8 section .text
 _gpio_init                        0000c332   defined in gpio.o section .text
                                              used in main.o
-_htons                            0000ef63   defined in uip.o section .text
+_htons                            0000efeb   defined in uip.o section .text
                                              used in httpd.o main.o
                                                      uip_tcpapphub.o
 _invert_output                    0000005e   defined in main.o section .bss
                                              used in httpd.o
-_isspace                          0000f37b   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)isspac0.o section .text
+_isspace                          0000f403   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)isspac0.o section .text
                                              used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)atoi.o
 _magic1                           0000402b   defined in main.o section .eeprom
 _magic2                           0000402c   defined in main.o section .eeprom
 _magic3                           0000402d   defined in main.o section .eeprom
 _magic4                           0000402e   defined in main.o section .eeprom
-_main                             0000d969   defined in main.o section .text
+_main                             0000d9f1   defined in main.o section .text
                                              used in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8
-_periodic_timer_expired           0000e3d2   defined in timer.o section .text
+_periodic_timer_expired           0000e45a   defined in timer.o section .text
                                              used in main.o
 _reverse                          0000c4b0   defined in httpd.o section .text
 _select                           0000bf3d   defined in enc28j60.o section .text
-_spi_init                         0000e253   defined in spi.o section .text
+_spi_init                         0000e2db   defined in spi.o section .text
                                              used in main.o
 _stored_Relays_16to9              00004016   defined in main.o section .eeprom
 _stored_Relays_8to1               00004015   defined in main.o section .eeprom
@@ -984,24 +984,24 @@ _submit_changes                   0000001d   defined in main.o section .bss
                                              used in httpd.o
 _three_alpha_to_uint              0000c4ee   defined in httpd.o section .text
 _two_alpha_to_uint                0000c517   defined in httpd.o section .text
-_uip_TcpAppHubCall                0000f2fc   defined in uip_tcpapphub.o section .text
+_uip_TcpAppHubCall                0000f384   defined in uip_tcpapphub.o section .text
                                              used in uip.o
 _uip_acc32                        000000e1   defined in uip.o section .bss
-_uip_add32                        0000e429   defined in uip.o section .text
+_uip_add32                        0000e4b1   defined in uip.o section .text
 _uip_appdata                      000001d9   defined in uip.o section .bss
                                              used in httpd.o uip_arp.o
                                                      uip_tcpapphub.o
-_uip_arp_arpin                    0000f102   defined in uip_arp.o section .text
+_uip_arp_arpin                    0000f18a   defined in uip_arp.o section .text
                                              used in main.o
-_uip_arp_init                     0000ef88   defined in uip_arp.o section .text
+_uip_arp_init                     0000f010   defined in uip_arp.o section .text
                                              used in main.o
-_uip_arp_out                      0000f1b1   defined in uip_arp.o section .text
+_uip_arp_out                      0000f239   defined in uip_arp.o section .text
                                              used in main.o
-_uip_arp_timer                    0000efab   defined in uip_arp.o section .text
+_uip_arp_timer                    0000f033   defined in uip_arp.o section .text
                                              used in main.o
 _uip_buf                          000001db   defined in uip.o section .bss
                                              used in main.o uip_arp.o
-_uip_chksum                       0000e4ce   defined in uip.o section .text
+_uip_chksum                       0000e556   defined in uip.o section .text
 _uip_conn                         000001d5   defined in uip.o section .bss
                                              used in httpd.o main.o
                                                      uip_tcpapphub.o
@@ -1027,51 +1027,51 @@ _uip_flags                        00000088   defined in uip.o section .bss
                                              used in httpd.o
 _uip_hostaddr                     00000084   defined in uip.o section .bss
                                              used in main.o uip_arp.o
-_uip_init                         0000e549   defined in uip.o section .text
+_uip_init                         0000e5d1   defined in uip.o section .text
                                              used in main.o
-_uip_ipchksum                     0000e4e0   defined in uip.o section .text
+_uip_ipchksum                     0000e568   defined in uip.o section .text
 _uip_len                          000001d7   defined in uip.o section .bss
                                              used in main.o uip_arp.o
                                                      uip_tcpapphub.o
-_uip_listen                       0000e623   defined in uip.o section .text
+_uip_listen                       0000e6ab   defined in uip.o section .text
                                              used in httpd.o
 _uip_listenports                  0000006e   defined in uip.o section .bss
 _uip_netmask                      00000080   defined in uip.o section .bss
                                              used in main.o uip_arp.o
-_uip_process                      0000e66a   defined in uip.o section .text
+_uip_process                      0000e6f2   defined in uip.o section .text
                                              used in main.o
 _uip_sappdata                     0000007a   defined in uip.o section .bss
-_uip_send                         0000ef64   defined in uip.o section .text
+_uip_send                         0000efec   defined in uip.o section .text
                                              used in httpd.o
-_uip_setipid                      0000e425   defined in uip.o section .text
+_uip_setipid                      0000e4ad   defined in uip.o section .text
 _uip_slen                         00000078   defined in uip.o section .bss
 _uip_stat                         00000089   defined in uip.o section .bss
                                              used in httpd.o
-_uip_tcpchksum                    0000e545   defined in uip.o section .text
-_uip_unlisten                     0000e5fd   defined in uip.o section .text
-_unlock_eeprom                    0000da23   defined in main.o section .text
-_update_relay_control_registers   0000dfd8   defined in main.o section .text
-_wait_timer                       0000e402   defined in timer.o section .text
+_uip_tcpchksum                    0000e5cd   defined in uip.o section .text
+_uip_unlisten                     0000e685   defined in uip.o section .text
+_unlock_eeprom                    0000daab   defined in main.o section .text
+_update_relay_control_registers   0000e060   defined in main.o section .text
+_wait_timer                       0000e48a   defined in timer.o section .text
                                              used in enc28j60.o main.o spi.o
-c_bmulx                           0000f38b   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)bmulx.o section .text
+c_bmulx                           0000f413   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)bmulx.o section .text
                                              used in main.o
                                                      (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)atoi.o
-c_divsl                           0000f435   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
+c_divsl                           0000f4bd   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
                                              *** not used ***
-c_divul                           0000f44c   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
+c_divul                           0000f4d4   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
                                              used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o
                                                      (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o
-c_eewrc                           0000f3af   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
+c_eewrc                           0000f437   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
                                              used in main.o
-c_eewrd                           0000f3e2   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
+c_eewrd                           0000f46a   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
                                              *** not used ***
-c_eewrw                           0000f399   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
+c_eewrw                           0000f421   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
                                              used in main.o
-c_lgadc                           0000f3ff   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadc.o section .text
+c_lgadc                           0000f487   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadc.o section .text
                                              used in uip.o
-c_lgneg                           0000f520   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgneg.o section .text
+c_lgneg                           0000f5a8   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgneg.o section .text
                                              used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o
-c_lneg                            0000f533   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lneg.o section .text
+c_lneg                            0000f5bb   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lneg.o section .text
                                              used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o
 c_lreg                            00000000   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lreg.o section .ubsct
                                              used in httpd.o
@@ -1082,17 +1082,17 @@ c_lreg                            00000000   defined in (C:\Program Files (x86)\
                                                      (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o
                                                      (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o
                                                      (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o
-c_ltor                            0000f40f   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ltor.o section .text
+c_ltor                            0000f497   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ltor.o section .text
                                              used in httpd.o
-c_ludv                            0000f421   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o section .text
+c_ludv                            0000f4a9   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o section .text
                                              used in httpd.o
-c_lumd                            0000f548   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o section .text
+c_lumd                            0000f5d0   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o section .text
                                              used in httpd.o
-c_lzmp                            0000f562   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lzmp.o section .text
+c_lzmp                            0000f5ea   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lzmp.o section .text
                                              used in httpd.o
-c_rtol                            0000f575   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o section .text
+c_rtol                            0000f5fd   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o section .text
                                              used in httpd.o
-c_uitolx                          0000f587   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o section .text
+c_uitolx                          0000f60f   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o section .text
                                              used in httpd.o
 c_x                               00000004   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)xreg.o section .ubsct
                                              used in httpd.o uip.o uip_arp.o

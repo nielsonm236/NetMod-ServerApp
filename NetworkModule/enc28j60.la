@@ -34,15 +34,15 @@
 2664                     ; 275 	SpiWriteByte((uint8_t)(OPCODE_RCR | (nRegister & REGISTER_MASK)));
 2666  bf4d 7b02          	ld	a,(OFST+1,sp)
 2667  bf4f a41f          	and	a,#31
-2668  bf51 cde278        	call	_SpiWriteByte
+2668  bf51 cde300        	call	_SpiWriteByte
 2670                     ; 276 	if (nRegister & REGISTER_NEEDDUMMY) SpiWriteByte(0);
 2672  bf54 7b02          	ld	a,(OFST+1,sp)
 2673  bf56 2a04          	jrpl	L3661
 2676  bf58 4f            	clr	a
-2677  bf59 cde278        	call	_SpiWriteByte
+2677  bf59 cde300        	call	_SpiWriteByte
 2679  bf5c               L3661:
 2680                     ; 277 	nByte = SpiReadByte();
-2682  bf5c cde2e1        	call	_SpiReadByte
+2682  bf5c cde369        	call	_SpiReadByte
 2684  bf5f 6b01          	ld	(OFST+0,sp),a
 2686                     ; 279 	deselect();
 2688  bf61 ade0          	call	_deselect
@@ -62,10 +62,10 @@
 2752  bf6a 7b01          	ld	a,(OFST+1,sp)
 2753  bf6c a41f          	and	a,#31
 2754  bf6e aa40          	or	a,#64
-2755  bf70 cde278        	call	_SpiWriteByte
+2755  bf70 cde300        	call	_SpiWriteByte
 2757                     ; 292 	SpiWriteByte(nData);
 2759  bf73 7b02          	ld	a,(OFST+2,sp)
-2760  bf75 cde278        	call	_SpiWriteByte
+2760  bf75 cde300        	call	_SpiWriteByte
 2762                     ; 294 	deselect();
 2764  bf78 adc9          	call	_deselect
 2766                     ; 295 }
@@ -83,10 +83,10 @@
 2826  bf7f 7b01          	ld	a,(OFST+1,sp)
 2827  bf81 a41f          	and	a,#31
 2828  bf83 aa80          	or	a,#128
-2829  bf85 cde278        	call	_SpiWriteByte
+2829  bf85 cde300        	call	_SpiWriteByte
 2831                     ; 305 	SpiWriteByte(nMask);
 2833  bf88 7b02          	ld	a,(OFST+2,sp)
-2834  bf8a cde278        	call	_SpiWriteByte
+2834  bf8a cde300        	call	_SpiWriteByte
 2836                     ; 307 	deselect();
 2838  bf8d adb4          	call	_deselect
 2840                     ; 308 }
@@ -104,10 +104,10 @@
 2901  bf94 7b01          	ld	a,(OFST+1,sp)
 2902  bf96 a41f          	and	a,#31
 2903  bf98 aaa0          	or	a,#160
-2904  bf9a cde278        	call	_SpiWriteByte
+2904  bf9a cde300        	call	_SpiWriteByte
 2906                     ; 318 	SpiWriteByte(nMask);
 2908  bf9d 7b02          	ld	a,(OFST+2,sp)
-2909  bf9f cde278        	call	_SpiWriteByte
+2909  bf9f cde300        	call	_SpiWriteByte
 2911                     ; 320 	deselect();
 2913  bfa2 ad9f          	call	_deselect
 2915                     ; 321 }
@@ -243,12 +243,12 @@
 3269  c03e cdbf3d        	call	_select
 3271                     ; 391 	SpiWriteByte(OPCODE_SRC); // Reset command
 3273  c041 a6ff          	ld	a,#255
-3274  c043 cde278        	call	_SpiWriteByte
+3274  c043 cde300        	call	_SpiWriteByte
 3276                     ; 392 	deselect();
 3278  c046 cdbf43        	call	_deselect
 3280                     ; 393 	wait_timer((uint16_t)10000); // delay 10 ms
 3282  c049 ae2710        	ldw	x,#10000
-3283  c04c cde402        	call	_wait_timer
+3283  c04c cde48a        	call	_wait_timer
 3285                     ; 396 	Enc28j60WritePhy(PHY_PHCON1, (uint16_t)(1<<PHY_PHCON1_PRST)); // Reset command
 3287  c04f ae8000        	ldw	x,#32768
 3288  c052 89            	pushw	x
@@ -413,14 +413,14 @@
 3591  c15c cdbf3d        	call	_select
 3593                     ; 559 	SpiWriteByte(OPCODE_RBM);
 3595  c15f a63a          	ld	a,#58
-3596  c161 cde278        	call	_SpiWriteByte
+3596  c161 cde300        	call	_SpiWriteByte
 3598                     ; 562 	nNextPacket = ((uint16_t) SpiReadByte() << 0);
-3600  c164 cde2e1        	call	_SpiReadByte
+3600  c164 cde369        	call	_SpiReadByte
 3602  c167 5f            	clrw	x
 3603  c168 97            	ld	xl,a
 3604  c169 1f03          	ldw	(OFST-1,sp),x
 3606                     ; 563 	nNextPacket |= ((uint16_t) SpiReadByte() << 8);
-3608  c16b cde2e1        	call	_SpiReadByte
+3608  c16b cde369        	call	_SpiReadByte
 3610  c16e 5f            	clrw	x
 3611  c16f 97            	ld	xl,a
 3612  c170 7b04          	ld	a,(OFST+0,sp)
@@ -429,12 +429,12 @@
 3615  c175 01            	rrwa	x,a
 3616  c176 1f03          	ldw	(OFST-1,sp),x
 3618                     ; 566 	nBytes = ((uint16_t) SpiReadByte() << 0);
-3620  c178 cde2e1        	call	_SpiReadByte
+3620  c178 cde369        	call	_SpiReadByte
 3622  c17b 5f            	clrw	x
 3623  c17c 97            	ld	xl,a
 3624  c17d 1f01          	ldw	(OFST-3,sp),x
 3626                     ; 567 	nBytes |= ((uint16_t) SpiReadByte() << 8);
-3628  c17f cde2e1        	call	_SpiReadByte
+3628  c17f cde369        	call	_SpiReadByte
 3630  c182 5f            	clrw	x
 3631  c183 97            	ld	xl,a
 3632  c184 7b02          	ld	a,(OFST-2,sp)
@@ -445,16 +445,16 @@
 3639  c18a 1d0004        	subw	x,#4
 3640  c18d 1f01          	ldw	(OFST-3,sp),x
 3642                     ; 571 	SpiReadByte();
-3644  c18f cde2e1        	call	_SpiReadByte
+3644  c18f cde369        	call	_SpiReadByte
 3646                     ; 572 	SpiReadByte();
-3648  c192 cde2e1        	call	_SpiReadByte
+3648  c192 cde369        	call	_SpiReadByte
 3650                     ; 575 	if (nBytes <= ENC28J60_MAXFRAME) SpiReadChunk(pBuffer, nBytes);
 3652  c195 1e01          	ldw	x,(OFST-3,sp)
 3653  c197 a30259        	cpw	x,#601
 3654  c19a 2407          	jruge	L1702
 3657  c19c 89            	pushw	x
 3658  c19d 1e07          	ldw	x,(OFST+3,sp)
-3659  c19f cde30b        	call	_SpiReadChunk
+3659  c19f cde393        	call	_SpiReadChunk
 3661  c1a2 85            	popw	x
 3662  c1a3               L1702:
 3663                     ; 577 	deselect();
@@ -545,15 +545,15 @@
 3854  c21f cdbf3d        	call	_select
 3856                     ; 628 	SpiWriteByte(OPCODE_WBM);	 // Set ENC28J60 to receive transmit data
 3858  c222 a67a          	ld	a,#122
-3859  c224 cde278        	call	_SpiWriteByte
+3859  c224 cde300        	call	_SpiWriteByte
 3861                     ; 630 	SpiWriteByte(0);		 // Per-packet-control-byte
 3863  c227 4f            	clr	a
-3864  c228 cde278        	call	_SpiWriteByte
+3864  c228 cde300        	call	_SpiWriteByte
 3866                     ; 642 	SpiWriteChunk(pBuffer, nBytes); // Copy data to the ENC28J60 transmit buffer
 3868  c22b 1e08          	ldw	x,(OFST+5,sp)
 3869  c22d 89            	pushw	x
 3870  c22e 1e06          	ldw	x,(OFST+3,sp)
-3871  c230 cde2a2        	call	_SpiWriteChunk
+3871  c230 cde32a        	call	_SpiWriteChunk
 3873  c233 85            	popw	x
 3874                     ; 644 	deselect();
 3876  c234 cdbf43        	call	_deselect
@@ -563,7 +563,7 @@
 3883  c23a               L1312:
 3884                     ; 616 		wait_timer(500);
 3886  c23a ae01f4        	ldw	x,#500
-3887  c23d cde402        	call	_wait_timer
+3887  c23d cde48a        	call	_wait_timer
 3889  c240 7b03          	ld	a,(OFST+0,sp)
 3890  c242               L5212:
 3891                     ; 612 	while (i--)
@@ -732,13 +732,13 @@
 4305  c318 cdbf3d        	call	_select
 4307                     ; 719 	SpiWriteByte(OPCODE_WBM);
 4309  c31b a67a          	ld	a,#122
-4310  c31d cde278        	call	_SpiWriteByte
+4310  c31d cde300        	call	_SpiWriteByte
 4312                     ; 720 	SpiWriteChunk((uint8_t*) &Checksum, sizeof(Checksum));
 4314  c320 ae0002        	ldw	x,#2
 4315  c323 89            	pushw	x
 4316  c324 96            	ldw	x,sp
 4317  c325 1c0009        	addw	x,#OFST+7
-4318  c328 cde2a2        	call	_SpiWriteChunk
+4318  c328 cde32a        	call	_SpiWriteChunk
 4320  c32b 85            	popw	x
 4321                     ; 722 	deselect();
 4323  c32c cdbf43        	call	_deselect

@@ -182,52 +182,58 @@ uint8_t OctetArray[11];		          // Used in conversion of integer values to
 #define PARSEBYTES_DEFAULT	126
 static const unsigned char checked[] = "checked";
 static const char g_HtmlPageDefault[] =
-  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">"
-  "<html><head>"
+  "<!DOCTYPE html>"
+  "<html lang='en'>"
+  "<head>"
   "<title>Relay Control</title>"
-  "<style type='text/css'>"
-  ".s0 { background-color: red; }"
-  ".s1 { background-color: green; }"
-  "td { text-align: center; }"
-  ".tclass { width: 145px; }"
+  "<style>"
+  ".s0 { background-color: red; width: 30px; }"
+  ".s1 { background-color: green; width: 30px; }"
+  ".t1class { width: 100px; }"
+  ".t2class { width: 148px; }"
+  ".t3class { width: 30px; }"
+  ".t4class { width: 120px; }"
+  "td { text-align: center; border: 1px black solid; }"
   "</style>"
-  "</head><body>"
+  "</head>"
+  "<body>"
   "<h1>Relay Control</h1>"
   "<form method='POST' action='/'>"
-  "<table border='1px'><colgroup><col width='100px'><col width='152px'></colgroup>"
-  "<tr><td>Name:</td><td><input type='text' name='a00' class='tclass' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20' size='20'></td></tr>"
+  "<table>"
+  "<tr><td class='t1class'>Name:</td><td><input type='text' name='a00' class='t2class' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20' size='20'></td></tr>"
   "</table>"
-  "<table border='1px'><colgroup><col width='100px'><col width='30px'><col width='120px'></colgroup>"
-  "<tr><td></td><td></td><td>SET</td></tr>"
-  "<tr><td>Relay01</td><td class='s%i00'></td><td><input type='radio' id='relay01on' name='o00' value='1' %o00><label for='relay01on'>ON</label><input type='radio' id='relay01off' name='o00' value='0' %p00><label for='relay01off'>OFF</label></td></tr>"
-  "<tr><td>Relay02</td><td class='s%i01'></td><td><input type='radio' id='relay02on' name='o01' value='1' %o01><label for='relay02on'>ON</label><input type='radio' id='relay02off' name='o01' value='0' %p01><label for='relay02off'>OFF</label></td></tr>"
-  "<tr><td>Relay03</td><td class='s%i02'></td><td><input type='radio' id='relay03on' name='o02' value='1' %o02><label for='relay03on'>ON</label><input type='radio' id='relay03off' name='o02' value='0' %p02><label for='relay03off'>OFF</label></td></tr>"
-  "<tr><td>Relay04</td><td class='s%i03'></td><td><input type='radio' id='relay04on' name='o03' value='1' %o03><label for='relay04on'>ON</label><input type='radio' id='relay04off' name='o03' value='0' %p03><label for='relay04off'>OFF</label></td></tr>"
-  "<tr><td>Relay05</td><td class='s%i04'></td><td><input type='radio' id='relay05on' name='o04' value='1' %o04><label for='relay05on'>ON</label><input type='radio' id='relay05off' name='o04' value='0' %p04><label for='relay05off'>OFF</label></td></tr>"
-  "<tr><td>Relay06</td><td class='s%i05'></td><td><input type='radio' id='relay06on' name='o05' value='1' %o05><label for='relay06on'>ON</label><input type='radio' id='relay06off' name='o05' value='0' %p05><label for='relay06off'>OFF</label></td></tr>"
-  "<tr><td>Relay07</td><td class='s%i06'></td><td><input type='radio' id='relay07on' name='o06' value='1' %o06><label for='relay07on'>ON</label><input type='radio' id='relay07off' name='o06' value='0' %p06><label for='relay07off'>OFF</label></td></tr>"
-  "<tr><td>Relay08</td><td class='s%i07'></td><td><input type='radio' id='relay08on' name='o07' value='1' %o07><label for='relay08on'>ON</label><input type='radio' id='relay08off' name='o07' value='0' %p07><label for='relay08off'>OFF</label></td></tr>"
-  "<tr><td>Relay09</td><td class='s%i08'></td><td><input type='radio' id='relay09on' name='o08' value='1' %o08><label for='relay09on'>ON</label><input type='radio' id='relay09off' name='o08' value='0' %p08><label for='relay09off'>OFF</label></td></tr>"
-  "<tr><td>Relay10</td><td class='s%i09'></td><td><input type='radio' id='relay10on' name='o09' value='1' %o09><label for='relay10on'>ON</label><input type='radio' id='relay10off' name='o09' value='0' %p09><label for='relay10off'>OFF</label></td></tr>"
-  "<tr><td>Relay11</td><td class='s%i10'></td><td><input type='radio' id='relay11on' name='o10' value='1' %o10><label for='relay11on'>ON</label><input type='radio' id='relay11off' name='o10' value='0' %p10><label for='relay11off'>OFF</label></td></tr>"
-  "<tr><td>Relay12</td><td class='s%i11'></td><td><input type='radio' id='relay12on' name='o11' value='1' %o11><label for='relay12on'>ON</label><input type='radio' id='relay12off' name='o11' value='0' %p11><label for='relay12off'>OFF</label></td></tr>"
-  "<tr><td>Relay13</td><td class='s%i12'></td><td><input type='radio' id='relay13on' name='o12' value='1' %o12><label for='relay13on'>ON</label><input type='radio' id='relay13off' name='o12' value='0' %p12><label for='relay13off'>OFF</label></td></tr>"
-  "<tr><td>Relay14</td><td class='s%i13'></td><td><input type='radio' id='relay14on' name='o13' value='1' %o13><label for='relay14on'>ON</label><input type='radio' id='relay14off' name='o13' value='0' %p13><label for='relay14off'>OFF</label></td></tr>"
-  "<tr><td>Relay15</td><td class='s%i14'></td><td><input type='radio' id='relay15on' name='o14' value='1' %o14><label for='relay15on'>ON</label><input type='radio' id='relay15off' name='o14' value='0' %p14><label for='relay15off'>OFF</label></td></tr>"
-  "<tr><td>Relay16</td><td class='s%i15'></td><td><input type='radio' id='relay16on' name='o15' value='1' %o15><label for='relay16on'>ON</label><input type='radio' id='relay16off' name='o15' value='0' %p15><label for='relay16off'>OFF</label></td></tr>"
-  "<tr><td>Invert</td><td></td><td><input type='radio' id='invertOn' name='g00' value='1' %g00><label for='invertOn'>ON</label><input type='radio' id='invertOff' name='g00' value='0' %h00><label for='invertOff'>OFF</label></td></tr>"
+  "<table>"
+  "<tr><td class='t1class'></td><td class='t3class'></td><td class='t4class'>SET</td></tr>"
+  "<tr><td class='t1class'>Relay01</td><td class='s%i00'></td><td class='t4class'><input type='radio' id='relay01on' name='o00' value='1' %o00><label for='relay01on'>ON</label><input type='radio' id='relay01off' name='o00' value='0' %p00><label for='relay01off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay02</td><td class='s%i01'></td><td class='t4class'><input type='radio' id='relay02on' name='o01' value='1' %o01><label for='relay02on'>ON</label><input type='radio' id='relay02off' name='o01' value='0' %p01><label for='relay02off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay03</td><td class='s%i02'></td><td class='t4class'><input type='radio' id='relay03on' name='o02' value='1' %o02><label for='relay03on'>ON</label><input type='radio' id='relay03off' name='o02' value='0' %p02><label for='relay03off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay04</td><td class='s%i03'></td><td class='t4class'><input type='radio' id='relay04on' name='o03' value='1' %o03><label for='relay04on'>ON</label><input type='radio' id='relay04off' name='o03' value='0' %p03><label for='relay04off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay05</td><td class='s%i04'></td><td class='t4class'><input type='radio' id='relay05on' name='o04' value='1' %o04><label for='relay05on'>ON</label><input type='radio' id='relay05off' name='o04' value='0' %p04><label for='relay05off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay06</td><td class='s%i05'></td><td class='t4class'><input type='radio' id='relay06on' name='o05' value='1' %o05><label for='relay06on'>ON</label><input type='radio' id='relay06off' name='o05' value='0' %p05><label for='relay06off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay07</td><td class='s%i06'></td><td class='t4class'><input type='radio' id='relay07on' name='o06' value='1' %o06><label for='relay07on'>ON</label><input type='radio' id='relay07off' name='o06' value='0' %p06><label for='relay07off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay08</td><td class='s%i07'></td><td class='t4class'><input type='radio' id='relay08on' name='o07' value='1' %o07><label for='relay08on'>ON</label><input type='radio' id='relay08off' name='o07' value='0' %p07><label for='relay08off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay09</td><td class='s%i08'></td><td class='t4class'><input type='radio' id='relay09on' name='o08' value='1' %o08><label for='relay09on'>ON</label><input type='radio' id='relay09off' name='o08' value='0' %p08><label for='relay09off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay10</td><td class='s%i09'></td><td class='t4class'><input type='radio' id='relay10on' name='o09' value='1' %o09><label for='relay10on'>ON</label><input type='radio' id='relay10off' name='o09' value='0' %p09><label for='relay10off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay11</td><td class='s%i10'></td><td class='t4class'><input type='radio' id='relay11on' name='o10' value='1' %o10><label for='relay11on'>ON</label><input type='radio' id='relay11off' name='o10' value='0' %p10><label for='relay11off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay12</td><td class='s%i11'></td><td class='t4class'><input type='radio' id='relay12on' name='o11' value='1' %o11><label for='relay12on'>ON</label><input type='radio' id='relay12off' name='o11' value='0' %p11><label for='relay12off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay13</td><td class='s%i12'></td><td class='t4class'><input type='radio' id='relay13on' name='o12' value='1' %o12><label for='relay13on'>ON</label><input type='radio' id='relay13off' name='o12' value='0' %p12><label for='relay13off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay14</td><td class='s%i13'></td><td class='t4class'><input type='radio' id='relay14on' name='o13' value='1' %o13><label for='relay14on'>ON</label><input type='radio' id='relay14off' name='o13' value='0' %p13><label for='relay14off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay15</td><td class='s%i14'></td><td class='t4class'><input type='radio' id='relay15on' name='o14' value='1' %o14><label for='relay15on'>ON</label><input type='radio' id='relay15off' name='o14' value='0' %p14><label for='relay15off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Relay16</td><td class='s%i15'></td><td class='t4class'><input type='radio' id='relay16on' name='o15' value='1' %o15><label for='relay16on'>ON</label><input type='radio' id='relay16off' name='o15' value='0' %p15><label for='relay16off'>OFF</label></td></tr>"
+  "<tr><td class='t1class'>Invert</td><td class='t3class'></td><td class='t4class'><input type='radio' id='invertOn' name='g00' value='1' %g00><label for='invertOn'>ON</label><input type='radio' id='invertOff' name='g00' value='0' %h00><label for='invertOff'>OFF</label></td></tr>"
   "</table>"
   "<button type='submit' title='Saves your changes - does not restart the Network Module'>Save</button>"
   "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
   "</form>"
-  "<a href='%x00http://192.168.001.004:08080/61'><button title='Save first! This button will not save your changes'>Address Settings</button></a>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/61' method='get'><button title='Save first! This button will not save your changes'>Address Settings</button></form>"
 #if UIP_STATISTICS == 1
-  "<a href='%x00http://192.168.001.004:08080/66'><button title='Save first! This button will not save your changes'>Network Statistics</button></a>"
-#endif /* UIP_STATISTICS == 1 */
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='get'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
+#endif // UIP_STATISTICS == 1
 #if HELP_SUPPORT == 1
-  "<a href='%x00http://192.168.001.004:08080/63'><button title='Save first! This button will not save your changes'>Help</button></a>"
-#endif /* HELP_SUPPORT == 1 */
-  "</body></html>";
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='get'><button title='Save first! This button will not save your changes'>Help</button></form>"
+#endif // HELP_SUPPORT == 1
+  "</body>"
+  "</html>";
 
 
 // Address Settings webpage
@@ -268,40 +274,45 @@ static const char g_HtmlPageDefault[] =
 #define WEBPAGE_ADDRESS		1
 #define PARSEBYTES_ADDRESS	147
 static const char g_HtmlPageAddress[] =
-  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">"
-  "<html><head>"
+  "<!DOCTYPE html>"
+  "<html lang='en'>"
+  "<head>"
   "<title>Address Settings</title>"
-  "<style type='text/css'>"
-  "td { text-align: center; }"
-  ".tclass { width: 25px; }"
-  ".tclass1 { width: 30px; }"
-  ".tclass2 { width: 46px; }"
+  "<style>"
+  ".t1class { width: 100px; }"
+  ".t2class { width: 25px; }"
+  ".t3class { width: 18px; }"
+  ".t4class { width: 40px; }"
+  "td { text-align: center; border: 1px black solid; }"
   "</style>"
-  "</head><body>"
+  "</head>"
+  "<body>"
   "<h1>Address Settings</h1>"
   "<form method='POST' action='/'>"
-  "<table border='1px'><colgroup><col width='100px'><col width='45px'><col width='45px'><col width='45px'><col width='44px'></colgroup>"
-  "<tr><td>IP Addr</td><td><input type='text' name='b00' class='tclass1' value='%b00' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-                      "<td><input type='text' name='b01' class='tclass1' value='%b01' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		      "<td><input type='text' name='b02' class='tclass1' value='%b02' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		      "<td><input type='text' name='b03' class='tclass1' value='%b03' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
-  "<tr><td>Gateway</td><td><input type='text' name='b04' class='tclass1' value='%b04' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-                      "<td><input type='text' name='b05' class='tclass1' value='%b05' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		      "<td><input type='text' name='b06' class='tclass1' value='%b06' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		      "<td><input type='text' name='b07' class='tclass1' value='%b07' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
-  "<tr><td>Netmask</td><td><input type='text' name='b08' class='tclass1' value='%b08' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-                      "<td><input type='text' name='b09' class='tclass1' value='%b09' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		      "<td><input type='text' name='b10' class='tclass1' value='%b10' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		      "<td><input type='text' name='b11' class='tclass1' value='%b11' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
-  "<tr><td>Port   </td><td><input type='text' name='c00' class='tclass2' value='%c00' pattern='[0-9]{5}' title='Five digits from 00000 to 65536' maxlength='5' size='5'></td></tr>"
+  "<table>"
+  "<tr><td class='t1class'>IP Addr</td><td><input type='text' name='b00' class='t2class' value='%b00' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
+                                      "<td><input type='text' name='b01' class='t2class' value='%b01' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
+		                      "<td><input type='text' name='b02' class='t2class' value='%b02' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
+		                      "<td><input type='text' name='b03' class='t2class' value='%b03' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
+  "<tr><td class='t1class'>Gateway</td><td><input type='text' name='b04' class='t2class' value='%b04' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
+                                      "<td><input type='text' name='b05' class='t2class' value='%b05' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
+		                      "<td><input type='text' name='b06' class='t2class' value='%b06' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
+		                      "<td><input type='text' name='b07' class='t2class' value='%b07' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
+  "<tr><td class='t1class'>Netmask</td><td><input type='text' name='b08' class='t2class' value='%b08' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
+                                      "<td><input type='text' name='b09' class='t2class' value='%b09' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
+		                      "<td><input type='text' name='b10' class='t2class' value='%b10' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
+		                      "<td><input type='text' name='b11' class='t2class' value='%b11' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
   "</table>"
-  "<table border='1px'><colgroup><col width='100px'><col width='30px'><col width='30px'><col width='30px'><col width='30px'><col width='30px'><col width='30px'></colgroup>"
-  "<tr><td>MAC Address</td><td><input type='text' name='d00' class='tclass' value='%d00' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                          "<td><input type='text' name='d01' class='tclass' value='%d01' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                          "<td><input type='text' name='d02' class='tclass' value='%d02' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                          "<td><input type='text' name='d03' class='tclass' value='%d03' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                          "<td><input type='text' name='d04' class='tclass' value='%d04' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                          "<td><input type='text' name='d05' class='tclass' value='%d05' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td></tr>"
+  "<table>"
+  "<tr><td class='t1class'>Port   </td><td><input type='text' name='c00' class='t4class' value='%c00' pattern='[0-9]{5}' title='Five digits from 00000 to 65536' maxlength='5' size='5'></td></tr>"
+  "</table>"
+  "<table>"
+  "<tr><td class='t1class'>MAC Address</td><td><input type='text' name='d00' class='t3class' value='%d00' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
+                                          "<td><input type='text' name='d01' class='t3class' value='%d01' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
+                                          "<td><input type='text' name='d02' class='t3class' value='%d02' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
+                                          "<td><input type='text' name='d03' class='t3class' value='%d03' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
+                                          "<td><input type='text' name='d04' class='t3class' value='%d04' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
+                                          "<td><input type='text' name='d05' class='t3class' value='%d05' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td></tr>"
   "</table>"
   "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
   "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
@@ -315,16 +326,17 @@ static const char g_HtmlPageAddress[] =
   "If you change the highest octet of the MAC you MUST use an even number to<br>"
   "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
   "multicast and will not work.</p>"
-  "<a href='%x00http://192.168.001.004:08080/91'><button title='Save first! This button will not save your changes'>Reboot</button></a>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/91' method='get'><button title='Save first! This button will not save your changes'>Reboot</button></form>"
   "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
-  "<a href='%x00http://192.168.001.004:08080/60'><button title='Save first! This button will not save your changes'>Relay Controls</button></a>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='get'><button title='Save first! This button will not save your changes'>Relay Controls</button></form>"
 #if UIP_STATISTICS == 1
-  "<a href='%x00http://192.168.001.004:08080/66'><button title='Save first! This button will not save your changes'>Network Statistics</button></a>"
-#endif /* UIP_STATISTICS == 1 */
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='get'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
+#endif // UIP_STATISTICS == 1
 #if HELP_SUPPORT == 1
-  "<a href='%x00http://192.168.001.004:08080/63'><button title='Save first! This button will not save your changes'>Help</button></a>"
-#endif /* HELP_SUPPORT == 1 */
-  "</body></html>";
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='get'><button title='Save first! This button will not save your changes'>Help</button></form>"
+#endif // HELP_SUPPORT == 1
+  "</body>"
+  "</html>";
 
 
 #if HELP_SUPPORT == 1
@@ -332,13 +344,15 @@ static const char g_HtmlPageAddress[] =
 #define WEBPAGE_HELP		3
 #define PARSEBYTES_HELP		0
 static const char g_HtmlPageHelp[] =
-  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">"
-  "<html><head>"
+  "<!DOCTYPE html>"
+  "<html lang='en'>"
+  "<head>"
   "<title>Help Page</title>"
-  "<style type='text/css'>"
+  "<style>"
   "td { width: 140px; padding: 0px; }"
   "</style>"
-  "</head><body>"
+  "</head>"
+  "<body>"
   "<h1>Help Page 1</h1>"
   "<p line-height 20px>"
   "An alternative to using the web interface for changing relay states is to send relay<br>"
@@ -368,20 +382,23 @@ static const char g_HtmlPageHelp[] =
   "91 = Reboot<br>"
   "99 = Show Short Form Relay Settings<br>"
   "</p>"
-  "<a href='%x00http://192.168.001.004:08080/64'><button title='Go to next Help page'>Next Help Page</button></a>"
-  "</body></html>";
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/64' method='get'><button title='Go to next Help page'>Next Help Page</button></form>"
+  "</body>"
+  "</html>";
 
 
 // Help page 2
 #define WEBPAGE_HELP2		4
 #define PARSEBYTES_HELP2	0
 static const char g_HtmlPageHelp2[] =
-  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">"
-  "<html><head>"
-  "<title>Help Page</title>"
-  "<style type='text/css'>"
+  "<!DOCTYPE html>"
+  "<html lang='en'>"
+  "<head>"
+  "<title>Help Page 2</title>"
+  "<style>"
   "</style>"
-  "</head><body>"
+  "</head>"
+  "<body>"
   "<h1>Help Page 2</h1>"
   "<p line-height 20px>"
   "IP Address, Gateway Address, Netmask, Port, and MAC Address can only be<br>"
@@ -393,53 +410,57 @@ static const char g_HtmlPageHelp2[] =
   " Netmask 255.255.255.0<br>"
   " Port 08080<br>"
   " MAC c2-4d-69-6b-65-00<br><br>"
-  "Code Revision 20200617 1113</p>"
-  "<a href='%x00http://192.168.001.004:08080/60'><button title='Go to Relay Control Page'>Relay Controls</button></a>"
-  "</body></html>";
-
-#endif /* HELP_SUPPORT == 1 */
+  "Code Revision 20200617 2110</p>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='get'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
+  "</body>"
+  "</html>";
+#endif // HELP_SUPPORT == 1
 
 
 #if UIP_STATISTICS == 1
 // Statistics page
 #define WEBPAGE_STATS		5
 static const char g_HtmlPageStats[] =
-  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">"
-  "<html><head>"
-  "<title>Statistics</title>"
-  "<style type='text/css'>"
-  ".tclass { width: 450px; }"
+  "<!DOCTYPE html>"
+  "<html lang='en'>"
+  "<head>"
+  "<title>Network Statistics</title>"
+  "<style>"
+  ".t1class { width: 100px; }"
+  ".t2class { width: 450px; }"
+  "td { border: 1px black solid; }"
   "</style>"
-  "</head><body>"
+  "</head>"
+  "<body>"
   "<h1>Network Statistics</h1>"
   "<p>Values shown are since last power on or reset</p>"
-  "<table border='1px'><colgroup><col width='100px'><col width='450px'></colgroup>"
-  "<tr><td>%e00xxxxxxxxxx</td><td class='tclass'>Dropped packets at the IP layer</td></tr>"
-  "<tr><td>%e01xxxxxxxxxx</td><td class='tclass'>Received packets at the IP layer</td></tr>"
-  "<tr><td>%e02xxxxxxxxxx</td><td class='tclass'>Sent packets at the IP layer</td></tr>"
-  "<tr><td>%e03xxxxxxxxxx</td><td class='tclass'>Packets dropped due to wrong IP version or header length</td></tr>"
-  "<tr><td>%e04xxxxxxxxxx</td><td class='tclass'>Packets dropped due to wrong IP length, high byte</td></tr>"
-  "<tr><td>%e05xxxxxxxxxx</td><td class='tclass'>Packets dropped due to wrong IP length, low byte</td></tr>"
-  "<tr><td>%e06xxxxxxxxxx</td><td class='tclass'>Packets dropped since they were IP fragments</td></tr>"
-  "<tr><td>%e07xxxxxxxxxx</td><td class='tclass'>Packets dropped due to IP checksum errors</td></tr>"
-  "<tr><td>%e08xxxxxxxxxx</td><td class='tclass'>Packets dropped since they were not ICMP or TCP</td></tr>"
-  "<tr><td>%e09xxxxxxxxxx</td><td class='tclass'>Dropped ICMP packets</td></tr>"
-  "<tr><td>%e10xxxxxxxxxx</td><td class='tclass'>Received ICMP packets</td></tr>"
-  "<tr><td>%e11xxxxxxxxxx</td><td class='tclass'>Sent ICMP packets</td></tr>"
-  "<tr><td>%e12xxxxxxxxxx</td><td class='tclass'>ICMP packets with a wrong type</td></tr>"
-  "<tr><td>%e13xxxxxxxxxx</td><td class='tclass'>Dropped TCP segments</td></tr>"
-  "<tr><td>%e14xxxxxxxxxx</td><td class='tclass'>Received TCP segments</td></tr>"
-  "<tr><td>%e15xxxxxxxxxx</td><td class='tclass'>Sent TCP segments</td></tr>"
-  "<tr><td>%e16xxxxxxxxxx</td><td class='tclass'>TCP segments with a bad checksum</td></tr>"
-  "<tr><td>%e17xxxxxxxxxx</td><td class='tclass'>TCP segments with a bad ACK number</td></tr>"
-  "<tr><td>%e18xxxxxxxxxx</td><td class='tclass'>Received TCP RST (reset) segments</td></tr>"
-  "<tr><td>%e19xxxxxxxxxx</td><td class='tclass'>Retransmitted TCP segments</td></tr>"
-  "<tr><td>%e20xxxxxxxxxx</td><td class='tclass'>Dropped SYNs due to too few connections avaliable</td></tr>"
-  "<tr><td>%e21xxxxxxxxxx</td><td class='tclass'>SYNs for closed ports, triggering a RST</td></tr>"
+  "<table>"
+  "<tr><td class='t1class'>%e00xxxxxxxxxx</td><td class='t2class'>Dropped packets at the IP layer</td></tr>"
+  "<tr><td class='t1class'>%e01xxxxxxxxxx</td><td class='t2class'>Received packets at the IP layer</td></tr>"
+  "<tr><td class='t1class'>%e02xxxxxxxxxx</td><td class='t2class'>Sent packets at the IP layer</td></tr>"
+  "<tr><td class='t1class'>%e03xxxxxxxxxx</td><td class='t2class'>Packets dropped due to wrong IP version or header length</td></tr>"
+  "<tr><td class='t1class'>%e04xxxxxxxxxx</td><td class='t2class'>Packets dropped due to wrong IP length, high byte</td></tr>"
+  "<tr><td class='t1class'>%e05xxxxxxxxxx</td><td class='t2class'>Packets dropped due to wrong IP length, low byte</td></tr>"
+  "<tr><td class='t1class'>%e06xxxxxxxxxx</td><td class='t2class'>Packets dropped since they were IP fragments</td></tr>"
+  "<tr><td class='t1class'>%e07xxxxxxxxxx</td><td class='t2class'>Packets dropped due to IP checksum errors</td></tr>"
+  "<tr><td class='t1class'>%e08xxxxxxxxxx</td><td class='t2class'>Packets dropped since they were not ICMP or TCP</td></tr>"
+  "<tr><td class='t1class'>%e09xxxxxxxxxx</td><td class='t2class'>Dropped ICMP packets</td></tr>"
+  "<tr><td class='t1class'>%e10xxxxxxxxxx</td><td class='t2class'>Received ICMP packets</td></tr>"
+  "<tr><td class='t1class'>%e11xxxxxxxxxx</td><td class='t2class'>Sent ICMP packets</td></tr>"
+  "<tr><td class='t1class'>%e12xxxxxxxxxx</td><td class='t2class'>ICMP packets with a wrong type</td></tr>"
+  "<tr><td class='t1class'>%e13xxxxxxxxxx</td><td class='t2class'>Dropped TCP segments</td></tr>"
+  "<tr><td class='t1class'>%e14xxxxxxxxxx</td><td class='t2class'>Received TCP segments</td></tr>"
+  "<tr><td class='t1class'>%e15xxxxxxxxxx</td><td class='t2class'>Sent TCP segments</td></tr>"
+  "<tr><td class='t1class'>%e16xxxxxxxxxx</td><td class='t2class'>TCP segments with a bad checksum</td></tr>"
+  "<tr><td class='t1class'>%e17xxxxxxxxxx</td><td class='t2class'>TCP segments with a bad ACK number</td></tr>"
+  "<tr><td class='t1class'>%e18xxxxxxxxxx</td><td class='t2class'>Received TCP RST (reset) segments</td></tr>"
+  "<tr><td class='t1class'>%e19xxxxxxxxxx</td><td class='t2class'>Retransmitted TCP segments</td></tr>"
+  "<tr><td class='t1class'>%e20xxxxxxxxxx</td><td class='t2class'>Dropped SYNs due to too few connections avaliable</td></tr>"
+  "<tr><td class='t1class'>%e21xxxxxxxxxx</td><td class='t2class'>SYNs for closed ports, triggering a RST</td></tr>"
   "</table>"
-  "<a href='%x00http://192.168.001.004:08080/60'><button title='Go to Relay Control Page'>Relay Controls</button></a>"
-  "</body></html>";
-  
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='get'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
+  "</body>"
+  "</html>";
 #endif /* UIP_STATISTICS == 1 */
 
 
@@ -447,13 +468,17 @@ static const char g_HtmlPageStats[] =
 // Mimics original Network Module relay state report
 #define WEBPAGE_RSTATE		6
 static const char g_HtmlPageRstate[] =
-  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">"
-  "<html><head>"
-  "<style type='text/css'>"
+  "<!DOCTYPE html>"
+  "<html lang='en'>"
+  "<head>"
+  "<title>Help Page 2</title>"
+  "<style>"
   "</style>"
-  "</head><body>"
+  "</head>"
+  "<body>"
   "<p>%f00xxxxxxxxxxxxxxxx</p>"
-  "</body></html>";
+  "</body>"
+  "</html>";
 
 
 static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString)
@@ -1102,10 +1127,18 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           *pBuffer = OctetArray[2]; pBuffer++; nBytes++;
 	  
           *pBuffer = ':'; pBuffer++; nBytes++; // Output ':'
-  
-	  emb_itoa(ex_stored_port, OctetArray, 10, 5); // Now output the Port number
-	  for(i=0; i<5; i++) { *pBuffer = OctetArray[i]; pBuffer++; nBytes++; }
 	  
+	  // Now output the Port number
+  	  emb_itoa(ex_stored_port, OctetArray, 10, 5);
+	  // Don't send leading zeros
+	  for(i=0; i<5; i++) {
+	    if (OctetArray[i] != '0') break;
+	  }
+	  while(i<5) {
+	    *pBuffer = OctetArray[i]; pBuffer++; nBytes++;
+	    i++;
+	  }
+
 	  // Advance the source pointers past the placeholder in the source data
 	  // SEE NOTE ABOVE WITH SIMILAR ADVANCE SOURCE POINTERS CODE
           *ppData = *ppData + 28;

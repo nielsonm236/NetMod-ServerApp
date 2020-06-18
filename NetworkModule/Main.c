@@ -714,15 +714,65 @@ void check_reset_button(void)
     LEDcontrol(0);  // turn LED off
     while((PA_IDR & 0x02) == 0) {  // Wait for button release
     }
-                    // Zero out the magic number
-    magic4 = 0x00;  // MSB
-    magic3 = 0x00;  //
-    magic2 = 0x00;  //
-    magic1 = 0x00;  // LSB
+//    // Zero out the magic number
+//    magic4 = 0x00;  // MSB
+//    magic3 = 0x00;  //
+//    magic2 = 0x00;  //
+//    magic1 = 0x00;  // LSB
+    
+    // Zero out the EEPROM
+    magic4 = 0x00;		   // MSB Magic Number stored in EEPROM
+    magic3 = 0x00;		   //
+    magic2 = 0x00;		   //
+    magic1 = 0x00;		   // LSB Magic Number
+    stored_hostaddr4 = 0x00;	   // MSB hostaddr stored in EEPROM
+    stored_hostaddr3 = 0x00;	   //
+    stored_hostaddr2 = 0x00;	   //
+    stored_hostaddr1 = 0x00;	   // LSB hostaddr
+    stored_draddr4 = 0x00;	   // MSB draddr stored in EEPROM
+    stored_draddr3 = 0x00;	   //
+    stored_draddr2 = 0x00;	   //
+    stored_draddr1 = 0x00;	   // LSB draddr
+    stored_netmask4 = 0x00;	   // MSB netmask stored in EEPROM
+    stored_netmask3 = 0x00;	   //
+    stored_netmask2 = 0x00;	   //
+    stored_netmask1 = 0x00;	   // LSB netmask
+    stored_port = 0x0000;	   // Port stored in EEPROM
+    stored_uip_ethaddr1 = 0x00;	   // MAC MSB
+    stored_uip_ethaddr2 = 0x00;	   //
+    stored_uip_ethaddr3 = 0x00;	   //
+    stored_uip_ethaddr4 = 0x00;	   //
+    stored_uip_ethaddr5 = 0x00;	   //
+    stored_uip_ethaddr6 = 0x00;	   // MAC LSB stored in EEPROM
+    stored_Relays_16to9 = 0x00;    // Relay states for relays 16 to 9
+    stored_Relays_8to1 = 0x00;     // Relay states for relays 8 to 1
+    stored_invert_output = 0x00;   // Relay state inversion control
+    stored_devicename[0] = 0x00;   // Device name
+    stored_devicename[1] = 0x00;   // Device name
+    stored_devicename[2] = 0x00;   // Device name
+    stored_devicename[3] = 0x00;   // Device name
+    stored_devicename[4] = 0x00;   // Device name
+    stored_devicename[5] = 0x00;   // Device name
+    stored_devicename[6] = 0x00;   // Device name
+    stored_devicename[7] = 0x00;   // Device name
+    stored_devicename[8] = 0x00;   // Device name
+    stored_devicename[9] = 0x00;   // Device name
+    stored_devicename[10] = 0x00;  // Device name
+    stored_devicename[11] = 0x00;  // Device name
+    stored_devicename[12] = 0x00;  // Device name
+    stored_devicename[13] = 0x00;  // Device name
+    stored_devicename[14] = 0x00;  // Device name
+    stored_devicename[15] = 0x00;  // Device name
+    stored_devicename[16] = 0x00;  // Device name
+    stored_devicename[17] = 0x00;  // Device name
+    stored_devicename[18] = 0x00;  // Device name
+    stored_devicename[19] = 0x00;  // Device name
+    
     WWDG_WR = (uint8_t)0x7f;     // Window register reset
     WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
     WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
                                  // much as we plan to reset
+				 
     wait_timer((uint16_t)50000); // Wait for watchdog to generate reset
     wait_timer((uint16_t)50000);
     wait_timer((uint16_t)50000);

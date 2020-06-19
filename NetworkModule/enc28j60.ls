@@ -322,10 +322,10 @@
 3398  0185 ae8340        	ldw	x,#33600
 3399  0188 cd003f        	call	_Enc28j60SetMaskReg
 3401                     ; 509 	Enc28j60WriteReg(BANK2_MAMXFLL, (uint8_t) ((ENC28J60_MAXFRAME + 4) >> 0));
-3403  018b ae8a5c        	ldw	x,#35420
+3403  018b ae8a88        	ldw	x,#35464
 3404  018e cd002a        	call	_Enc28j60WriteReg
 3406                     ; 510 	Enc28j60WriteReg(BANK2_MAMXFLH, (uint8_t) ((ENC28J60_MAXFRAME + 4) >> 8));
-3408  0191 ae9002        	ldw	x,#36866
+3408  0191 ae9003        	ldw	x,#36867
 3409  0194 cd002a        	call	_Enc28j60WriteReg
 3411                     ; 513 	Enc28j60WriteReg(BANK2_MAIPGL, 0x12);
 3413  0197 ae8612        	ldw	x,#34322
@@ -450,7 +450,7 @@
 3648  0255 cd0000        	call	_SpiReadByte
 3650                     ; 575 	if (nBytes <= ENC28J60_MAXFRAME) SpiReadChunk(pBuffer, nBytes);
 3652  0258 1e01          	ldw	x,(OFST-3,sp)
-3653  025a a30259        	cpw	x,#601
+3653  025a a30385        	cpw	x,#901
 3654  025d 2407          	jruge	L1702
 3657  025f 89            	pushw	x
 3658  0260 1e07          	ldw	x,(OFST+3,sp)

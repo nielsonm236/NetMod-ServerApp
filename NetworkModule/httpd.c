@@ -183,7 +183,7 @@ uint8_t OctetArray[11];		          // Used in conversion of integer values to
 static const unsigned char checked[] = "checked";
 static const char g_HtmlPageDefault[] =
   "<!DOCTYPE html>"
-  "<html lang='en'>"
+  "<html lang='en-US'>"
   "<head>"
   "<title>Relay Control</title>"
   "<style>"
@@ -225,6 +225,61 @@ static const char g_HtmlPageDefault[] =
   "<button type='submit' title='Saves your changes - does not restart the Network Module'>Save</button>"
   "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
   "</form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/61' method='GET'><button title='Save first! This button will not save your changes'>Address Settings</button></form>"
+#if UIP_STATISTICS == 1
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='GET'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
+#endif // UIP_STATISTICS == 1
+#if HELP_SUPPORT == 1
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='GET'><button title='Save first! This button will not save your changes'>Help</button></form>"
+#endif // HELP_SUPPORT == 1
+  "</body>"
+  "</html>";
+
+/*
+// Keep the below experiment for awhile. According to online references the above method
+// where "a table is wrapped by a form" does not conform with html standards. But it works
+// in Chrome, IE, Edge, and Firefox. The below code was developed to "emulate a table" but
+// conform with html rules. Unfortunately it uses up a lot more memory.
+static const char g_HtmlPageDefault[] =
+  "<!DOCTYPE html>"
+  "<html lang='en-US'>"
+  "<head>"
+  "<title>Relay Control</title>"
+  "<style>"
+  ".t2class { width: 149px; }"
+  "#s1{ height: 21px; width: 80px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "#s2{ height: 21px; width: 155px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "#s3w{ height: 21px; width: 30px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "#s3r{ height: 21px; width: 30px; background: red; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "#s3g{ height: 21px; width: 30px; background: green; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "#s4{ height: 21px; width: 120px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "</style>"
+  "</head>"
+  "<body>"
+  "<h1>Relay Control</h1>"
+  "<form method='POST'>"
+  "<div id='s1'>Name:  </div><div id='s2'><input type='text' name='a00' class='t2class' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20' size='20'></div><br>"
+  "<div id='s1'>       </div><div id='s3w'></div><div id='s4'>SET</div><br>"
+  "<div id='s1'>Relay01</div><div id='s%i00'></div><div id='s4'><input type='radio' id='01on' name='o00' value='1' %o00><label for='01on'>ON</label><input type='radio' id='01off' name='o00' value='0' %p00><label for='01off'>OFF</label></div><br>"
+  "<div id='s1'>Relay02</div><div id='s%i01'></div><div id='s4'><input type='radio' id='02on' name='o01' value='1' %o01><label for='02on'>ON</label><input type='radio' id='02off' name='o01' value='0' %p01><label for='02off'>OFF</label></div><br>"
+  "<div id='s1'>Relay03</div><div id='s%i02'></div><div id='s4'><input type='radio' id='03on' name='o02' value='1' %o02><label for='03on'>ON</label><input type='radio' id='03off' name='o02' value='0' %p02><label for='03off'>OFF</label></div><br>"
+  "<div id='s1'>Relay04</div><div id='s%i03'></div><div id='s4'><input type='radio' id='04on' name='o03' value='1' %o03><label for='04on'>ON</label><input type='radio' id='04off' name='o03' value='0' %p03><label for='04off'>OFF</label></div><br>"
+  "<div id='s1'>Relay05</div><div id='s%i04'></div><div id='s4'><input type='radio' id='05on' name='o04' value='1' %o04><label for='05on'>ON</label><input type='radio' id='05off' name='o04' value='0' %p04><label for='05off'>OFF</label></div><br>"
+  "<div id='s1'>Relay06</div><div id='s%i05'></div><div id='s4'><input type='radio' id='06on' name='o05' value='1' %o05><label for='06on'>ON</label><input type='radio' id='06off' name='o05' value='0' %p05><label for='06off'>OFF</label></div><br>"
+  "<div id='s1'>Relay07</div><div id='s%i06'></div><div id='s4'><input type='radio' id='07on' name='o06' value='1' %o06><label for='07on'>ON</label><input type='radio' id='07off' name='o06' value='0' %p06><label for='07off'>OFF</label></div><br>"
+  "<div id='s1'>Relay08</div><div id='s%i07'></div><div id='s4'><input type='radio' id='08on' name='o07' value='1' %o07><label for='08on'>ON</label><input type='radio' id='08off' name='o07' value='0' %p07><label for='08off'>OFF</label></div><br>"
+  "<div id='s1'>Relay09</div><div id='s%i08'></div><div id='s4'><input type='radio' id='09on' name='o08' value='1' %o08><label for='09on'>ON</label><input type='radio' id='09off' name='o08' value='0' %p08><label for='09off'>OFF</label></div><br>"
+  "<div id='s1'>Relay10</div><div id='s%i09'></div><div id='s4'><input type='radio' id='10on' name='o09' value='1' %o09><label for='10on'>ON</label><input type='radio' id='10off' name='o09' value='0' %p09><label for='10off'>OFF</label></div><br>"
+  "<div id='s1'>Relay11</div><div id='s%i10'></div><div id='s4'><input type='radio' id='11on' name='o10' value='1' %o10><label for='11on'>ON</label><input type='radio' id='11off' name='o10' value='0' %p10><label for='11off'>OFF</label></div><br>"
+  "<div id='s1'>Relay12</div><div id='s%i11'></div><div id='s4'><input type='radio' id='12on' name='o11' value='1' %o11><label for='12on'>ON</label><input type='radio' id='12off' name='o11' value='0' %p11><label for='12off'>OFF</label></div><br>"
+  "<div id='s1'>Relay13</div><div id='s%i12'></div><div id='s4'><input type='radio' id='13on' name='o12' value='1' %o12><label for='13on'>ON</label><input type='radio' id='13off' name='o12' value='0' %p12><label for='13off'>OFF</label></div><br>"
+  "<div id='s1'>Relay14</div><div id='s%i13'></div><div id='s4'><input type='radio' id='14on' name='o13' value='1' %o13><label for='14on'>ON</label><input type='radio' id='14off' name='o13' value='0' %p13><label for='14off'>OFF</label></div><br>"
+  "<div id='s1'>Relay15</div><div id='s%i14'></div><div id='s4'><input type='radio' id='15on' name='o14' value='1' %o14><label for='15on'>ON</label><input type='radio' id='15off' name='o14' value='0' %p14><label for='15off'>OFF</label></div><br>"
+  "<div id='s1'>Relay16</div><div id='s%i15'></div><div id='s4'><input type='radio' id='16on' name='o15' value='1' %o15><label for='16on'>ON</label><input type='radio' id='16off' name='o15' value='0' %p15><label for='16off'>OFF</label></div><br>"
+  "<div id='s1'>Invert </div><div id='s3w'></div><div id='s4'><input type='radio' id='invertOn' name='g00' value='1' %g00><label for='invertOn'>ON</label><input type='radio' id='invertOff' name='g00' value='0' %h00><label for='invertOff'>OFF</label></div><br>"
+  "<button type='submit' title='Saves your changes - does not restart the Network Module'>Save</button>"
+  "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
+  "</form>"
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/61' method='get'><button title='Save first! This button will not save your changes'>Address Settings</button></form>"
 #if UIP_STATISTICS == 1
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='get'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
@@ -234,6 +289,11 @@ static const char g_HtmlPageDefault[] =
 #endif // HELP_SUPPORT == 1
   "</body>"
   "</html>";
+*/
+
+
+
+
 
 
 // Address Settings webpage
@@ -275,7 +335,7 @@ static const char g_HtmlPageDefault[] =
 #define PARSEBYTES_ADDRESS	147
 static const char g_HtmlPageAddress[] =
   "<!DOCTYPE html>"
-  "<html lang='en'>"
+  "<html lang='en-US'>"
   "<head>"
   "<title>Address Settings</title>"
   "<style>"
@@ -304,7 +364,7 @@ static const char g_HtmlPageAddress[] =
 		                      "<td><input type='text' name='b11' class='t2class' value='%b11' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
   "</table>"
   "<table>"
-  "<tr><td class='t1class'>Port   </td><td><input type='text' name='c00' class='t4class' value='%c00' pattern='[0-9]{5}' title='Five digits from 00000 to 65536' maxlength='5' size='5'></td></tr>"
+  "<tr><td class='t1class'>Port   </td><td><input type='text' name='c00' class='t4class' value='%c00' pattern='[0-9]{5}' title='Five digits from 00010 to 65536' maxlength='5' size='5'></td></tr>"
   "</table>"
   "<table>"
   "<tr><td class='t1class'>MAC Address</td><td><input type='text' name='d00' class='t3class' value='%d00' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
@@ -326,17 +386,85 @@ static const char g_HtmlPageAddress[] =
   "If you change the highest octet of the MAC you MUST use an even number to<br>"
   "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
   "multicast and will not work.</p>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/91' method='get'><button title='Save first! This button will not save your changes'>Reboot</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/91' method='GET'><button title='Save first! This button will not save your changes'>Reboot</button></form>"
   "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='get'><button title='Save first! This button will not save your changes'>Relay Controls</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Save first! This button will not save your changes'>Relay Controls</button></form>"
 #if UIP_STATISTICS == 1
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='get'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='GET'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
 #endif // UIP_STATISTICS == 1
 #if HELP_SUPPORT == 1
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='get'><button title='Save first! This button will not save your changes'>Help</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='GET'><button title='Save first! This button will not save your changes'>Help</button></form>"
 #endif // HELP_SUPPORT == 1
   "</body>"
   "</html>";
+
+
+/*
+// Keep the below experiment for awhile. According to online references the above method
+// where "a table is wrapped by a form" does not conform with html standards. But it works
+// in Chrome, IE, Edge, and Firefox. The below code was developed to "emulate a table" but
+// conform with html rules. Unfortunately it uses up a lot more memory.
+static const char g_HtmlPageAddress[] =
+  "<!DOCTYPE html>"
+  "<html lang='en-US'>"
+  "<head>"
+  "<title>Address Settings</title>"
+  "<style>"
+  ".t2class { width: 25px; }"
+  ".t3class { width: 18px; }"
+  ".t4class { width: 40px; }"
+  "#s1{ height: 21px; width: 100px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "#s2{ height: 21px; width: 32px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "#s3{ height: 21px; width: 24px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "#s4{ height: 21px; width: 47px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  "</style>"
+  "</head>"
+  "<body>"
+  "<h1>Address Settings</h1>"
+  "<form method='POST'>"
+  "<div id='s1'>IP Addr</div><div id='s2'><input type='text' name='b00' class='t2class' value='%b00' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+                            "<div id='s2'><input type='text' name='b01' class='t2class' value='%b01' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b02' class='t2class' value='%b02' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b03' class='t2class' value='%b03' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
+  "<div id='s1'>Gateway</div><div id='s2'><input type='text' name='b04' class='t2class' value='%b04' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+                            "<div id='s2'><input type='text' name='b05' class='t2class' value='%b05' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b06' class='t2class' value='%b06' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b07' class='t2class' value='%b07' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
+  "<div id='s1'>Netmask</div><div id='s2'><input type='text' name='b08' class='t2class' value='%b08' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+                            "<div id='s2'><input type='text' name='b09' class='t2class' value='%b09' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b10' class='t2class' value='%b10' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b11' class='t2class' value='%b11' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
+  "<div id='s1'>Port   </div><div id='s4'><input type='text' name='c00' class='t4class' value='%c00' pattern='[0-9]{5}' title='Five digits from 00000 to 65536' maxlength='5' size='5'></div><br>"
+  "<div id='s1'>MAC Address</div><div id='s3'><input type='text' name='d00' class='t3class' value='%d00' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d01' class='t3class' value='%d01' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d02' class='t3class' value='%d02' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d03' class='t3class' value='%d03' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d04' class='t3class' value='%d04' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d05' class='t3class' value='%d05' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div><br>"
+  "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
+  "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
+  "</form>"
+  "<p line-height 20px>"
+  "Use caution when changing the above. If you make a mistake you may have to<br>"
+  "restore factory defaults by holding down the reset button for 10 seconds.<br><br>"
+  "Make sure the MAC you assign is unique to your local network. Recommended<br>"
+  "is that you just increment the lowest octet and then label your devices for<br>"
+  "future reference.<br><br>"
+  "If you change the highest octet of the MAC you MUST use an even number to<br>"
+  "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
+  "multicast and will not work.</p>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/91' method='GET'><button title='Save first! This button will not save your changes'>Reboot</button></form>"
+  "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Save first! This button will not save your changes'>Relay Controls</button></form>"
+#if UIP_STATISTICS == 1
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='GET'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
+#endif // UIP_STATISTICS == 1
+#if HELP_SUPPORT == 1
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='GET'><button title='Save first! This button will not save your changes'>Help</button></form>"
+#endif // HELP_SUPPORT == 1
+  "</body>"
+  "</html>";
+*/
 
 
 #if HELP_SUPPORT == 1
@@ -345,7 +473,7 @@ static const char g_HtmlPageAddress[] =
 #define PARSEBYTES_HELP		0
 static const char g_HtmlPageHelp[] =
   "<!DOCTYPE html>"
-  "<html lang='en'>"
+  "<html lang='en-US'>"
   "<head>"
   "<title>Help Page</title>"
   "<style>"
@@ -382,7 +510,7 @@ static const char g_HtmlPageHelp[] =
   "91 = Reboot<br>"
   "99 = Show Short Form Relay Settings<br>"
   "</p>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/64' method='get'><button title='Go to next Help page'>Next Help Page</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/64' method='GET'><button title='Go to next Help page'>Next Help Page</button></form>"
   "</body>"
   "</html>";
 
@@ -392,7 +520,7 @@ static const char g_HtmlPageHelp[] =
 #define PARSEBYTES_HELP2	0
 static const char g_HtmlPageHelp2[] =
   "<!DOCTYPE html>"
-  "<html lang='en'>"
+  "<html lang='en-US'>"
   "<head>"
   "<title>Help Page 2</title>"
   "<style>"
@@ -410,8 +538,8 @@ static const char g_HtmlPageHelp2[] =
   " Netmask 255.255.255.0<br>"
   " Port 08080<br>"
   " MAC c2-4d-69-6b-65-00<br><br>"
-  "Code Revision 20200617 2110</p>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='get'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
+  "Code Revision 20200619 1346</p>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
   "</body>"
   "</html>";
 #endif // HELP_SUPPORT == 1
@@ -422,7 +550,7 @@ static const char g_HtmlPageHelp2[] =
 #define WEBPAGE_STATS		5
 static const char g_HtmlPageStats[] =
   "<!DOCTYPE html>"
-  "<html lang='en'>"
+  "<html lang='en-US'>"
   "<head>"
   "<title>Network Statistics</title>"
   "<style>"
@@ -458,7 +586,7 @@ static const char g_HtmlPageStats[] =
   "<tr><td class='t1class'>%e20xxxxxxxxxx</td><td class='t2class'>Dropped SYNs due to too few connections avaliable</td></tr>"
   "<tr><td class='t1class'>%e21xxxxxxxxxx</td><td class='t2class'>SYNs for closed ports, triggering a RST</td></tr>"
   "</table>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='get'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
   "</body>"
   "</html>";
 #endif /* UIP_STATISTICS == 1 */
@@ -469,7 +597,7 @@ static const char g_HtmlPageStats[] =
 #define WEBPAGE_RSTATE		6
 static const char g_HtmlPageRstate[] =
   "<!DOCTYPE html>"
-  "<html lang='en'>"
+  "<html lang='en-US'>"
   "<head>"
   "<title>Help Page 2</title>"
   "<style>"
@@ -695,11 +823,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   // from this application.
   //
   // So, the following settings seem to work:
-  //   a) #define ENC28J60_MAXFRAME	600 (in enc28j60.h)
+  //   a) #define ENC28J60_MAXFRAME	700 (in enc28j60.h)
   //   b) removed uip_split code
   //   c) if(nMaxBytes > 400) nMaxBytes = 400; (in this file)
   // The exact numbers don't seem to matter so much, but a > c seems required. I
-  // beleive the MAXFRAME could be smaller, or the nMaxBytes larger, but
+  // believe the MAXFRAME could be smaller, or the nMaxBytes larger, but
   //   a) nMaxbytes MUST be smaller than MAXFRAME, and I suggest it be at least
   //      50 bytes smaller due to the need to sometimes exceed nMaxBytes in the
   //      code below.
@@ -796,10 +924,33 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	// state of the pin. So in all cases GpioGetPin is called to determine the
 	// current pin state.
         if (nParsedMode == 'i') {
-	  // This is pin state information (1 character)
+	  // This is pin state information.
+	  // If the GPIO pin is 0 output a "0" for a red square
+	  // If the GPIO pin is 1 output a "1" for a green square
 	  *pBuffer = (uint8_t)(GpioGetPin(nParsedNum) + '0');
           pBuffer++;
           nBytes++;
+
+// Keep this for a while. This is part of the experiment to "emulate a table"
+// (see the Default and Address html at the top of the file).
+//          // If the GPIO pin is 0 output a "3r" for a red square
+//          // If the GPIO pin is 1 output a "3g" for a green square
+//          if ((uint8_t)(GpioGetPin(nParsedNum) == 0)) {
+//            *pBuffer = '3';
+//            pBuffer++;
+//            nBytes++;
+//            *pBuffer = 'r';
+//            pBuffer++;
+//            nBytes++;
+//          }
+//          else {
+//            *pBuffer = '3';
+//            pBuffer++;
+//            nBytes++;
+//            *pBuffer = 'g';
+//            pBuffer++;
+//            nBytes++;
+//          }
 	}
 
         else if (nParsedMode == 'o') {
@@ -1283,38 +1434,31 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     if (pSocket->nState == STATE_GOTPOST) {
       //Search for \r\n\r\n
       while (nBytes != 0) {
-        if (*pBuffer == '\n') {
-          pSocket->nNewlines++;
-        }
-        else if (*pBuffer == '\r') {
-        }
-        else {
-          pSocket->nNewlines = 0;
-        }
+        if (*pBuffer == '\n') pSocket->nNewlines++;
+        else if (*pBuffer == '\r') { }
+        else pSocket->nNewlines = 0;
         pBuffer++;
         nBytes--;
         if (pSocket->nNewlines == 2) {
-          //beginning found.
-          if (pSocket->nState == STATE_GOTPOST) {
-            //Initialize Parsing variables
-            if(current_webpage == WEBPAGE_DEFAULT) pSocket->nParseLeft = PARSEBYTES_DEFAULT;
-            if(current_webpage == WEBPAGE_ADDRESS) pSocket->nParseLeft = PARSEBYTES_ADDRESS;
-            pSocket->ParseState = PARSE_CMD;
-            //start parsing
-            pSocket->nState = STATE_PARSEPOST;
-          }
+          // Beginning found.
+          // Initialize Parsing variables
+          if(current_webpage == WEBPAGE_DEFAULT) pSocket->nParseLeft = PARSEBYTES_DEFAULT;
+          if(current_webpage == WEBPAGE_ADDRESS) pSocket->nParseLeft = PARSEBYTES_ADDRESS;
+          pSocket->ParseState = PARSE_CMD;
+          // Start parsing
+          pSocket->nState = STATE_PARSEPOST;
           break;
         }
       }
     }
 
     if (pSocket->nState == STATE_GOTGET) {
-      //Don't search for \r\n\r\n ... instead parse what we've got
-      //Initialize Parsing variables
-      pSocket->nParseLeft = 6; // Small parse number since we should have short
-                               // filenames
+      // Don't search for \r\n\r\n ... instead parse what we've got
+      // Initialize Parsing variables
+      // Small parse number since we should have short filenames
+      pSocket->nParseLeft = 6;
       pSocket->ParseState = PARSE_SLASH1;
-      //start parsing
+      // Start parsing
       pSocket->nState = STATE_PARSEGET;
     }
     
@@ -1424,8 +1568,8 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  
           else if (pSocket->ParseCmd == 'b') {
             // This code updates the "pending" IP address, Gateway address, and
-	    // Netmask which will then cause the main.c routines to force a
-	    // device reset.
+	    // Netmask which will then cause the main.c routines to restart the
+	    // software.
 	    // The value following the 'bxx=' ParseCmd and ParseNum consists of three
 	    // alpha digits for the IP, Gateway, and Netmask values. This code passes
 	    // the digits to the SetAddress routine.
@@ -1452,7 +1596,7 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  
           else if (pSocket->ParseCmd == 'c') {
             // This code updates the "pending" Port number which will then cause
-	    // the main.c routines to force a device reset. ParseNum isn't used
+	    // the main.c routines to restart the software. ParseNum isn't used
 	    // as this is the only 'c' values.
 	    // The value following the 'cxx=' ParseCmd & ParseNum consists of five alpha
 	    // digits. This code passes the digits to the SetPort routine.
@@ -1497,7 +1641,7 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  
           else if (pSocket->ParseCmd == 'd') {
             // This code updates the MAC address which will then cause the main.c
-	    // routines to force a device reset.
+	    // routines to restart the software.
 	    // The value following the 'dxx=' ParseCmd and ParseNum consists of two
 	    // alpha digits in hex form ('0' to '9' and 'a' to 'f'). This code passes
 	    // the digits to the SetMAC routine.
@@ -2041,6 +2185,8 @@ void SetPort(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2, uint8_t alpha3, ui
     str[5] = 0;
     temp = atoi(str);
   }
+  // Port number cannot be less than 10
+  if(temp < 10) invalid = 1;
 
   if(invalid == 0) { // Make change only if valid entry
     Pending_port = (uint16_t)temp;

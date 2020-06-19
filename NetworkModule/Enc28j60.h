@@ -77,7 +77,18 @@
 #define ENC28J60_LEDB		12
 
 /* Maximum frame length in bytes to prevent possible buffer overflows */
-#define ENC28J60_MAXFRAME	600
+// Note for future reference: In the Network Module application user
+// inputs on the web pages are reported back to the application via
+// POST submittal. The application is fairly naive in processing that
+// data in that it expects the entire POST to be available for
+// processing at one time. A problem noted during development is that
+// some browsers (Firefox in particular) may have larger headers,
+// causing the POST to be larger than MAXFRAME. For that reason
+// MAXFRAME was increased below to allow the entire POST to be and
+// header to be received in the buffer. This may need to be looked at
+// more closely in the future as the code shouldn't be dependent on
+// having a large MAXFRAME.
+#define ENC28J60_MAXFRAME	900
 
 /* Use this for function inlining within the ENC28J60 module */
 #define ENC28J60_INLINE		static inline __attribute__ ((always_inline))

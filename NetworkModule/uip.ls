@@ -1164,9 +1164,9 @@
 2258  06cb 01            	rrwa	x,a
 2259  06cc cf0000        	ldw	L54_tmp16,x
 2260                     ; 768         uip_connr->initialmss = uip_connr->mss = tmp16 > UIP_TCP_MSS ? UIP_TCP_MSS : tmp16;
-2262  06cf a30223        	cpw	x,#547
+2262  06cf a3034f        	cpw	x,#847
 2263  06d2 2503          	jrult	L421
-2264  06d4 ae0222        	ldw	x,#546
+2264  06d4 ae034e        	ldw	x,#846
 2265  06d7               L421:
 2266  06d7 1604          	ldw	y,(OFST-1,sp)
 2267  06d9 90ef12        	ldw	(18,y),x
@@ -1213,9 +1213,9 @@
 2314                     ; 791   BUF->optdata[1] = TCP_OPT_MSS_LEN;
 2316  071d 350401ae      	mov	_uip_buf+55,#4
 2317                     ; 792   BUF->optdata[2] = (UIP_TCP_MSS) / 256;
-2319  0721 350201af      	mov	_uip_buf+56,#2
+2319  0721 350301af      	mov	_uip_buf+56,#3
 2320                     ; 793   BUF->optdata[3] = (UIP_TCP_MSS) & 255;
-2322  0725 352201b0      	mov	_uip_buf+57,#34
+2322  0725 354e01b0      	mov	_uip_buf+57,#78
 2323                     ; 794   uip_len = UIP_IPTCPH_LEN + TCP_OPT_MSS_LEN;
 2325  0729 ae002c        	ldw	x,#44
 2326  072c cf0173        	ldw	_uip_len,x
@@ -1825,9 +1825,9 @@
 3077  0ad5 cc0966        	jra	L324
 3078  0ad8               L1021:
 3079                     ; 1143     BUF->wnd[0] = ((UIP_RECEIVE_WINDOW) >> 8);
-3081  0ad8 350201a7      	mov	_uip_buf+48,#2
+3081  0ad8 350301a7      	mov	_uip_buf+48,#3
 3082                     ; 1144     BUF->wnd[1] = ((UIP_RECEIVE_WINDOW) & 0xff);
-3084  0adc 352201a8      	mov	_uip_buf+49,#34
+3084  0adc 354e01a8      	mov	_uip_buf+49,#78
 3085  0ae0               L134:
 3086                     ; 1148   tcp_send_noconn:
 3086                     ; 1149   BUF->ttl = UIP_TTL;
@@ -1981,7 +1981,7 @@
 3768                     	xdef	_uip_unlisten
 3769                     	xdef	_uip_listen
 3770  0177               _uip_buf:
-3771  0177 000000000000  	ds.b	602
+3771  0177 000000000000  	ds.b	902
 3772                     	xdef	_uip_buf
 3773                     	xdef	_uip_setipid
 3774                     	xdef	_uip_init

@@ -15,12 +15,12 @@ all these settings through a power cycle. Any Relay settings you make are also s
 a power cycle.
 
 Tested with:
-Firefox 77.0.1 64bit
-Chrome 83.0.4103.106 64bit
-Edge 83.0.478.50 64bit
-Edge 83.0.478.54 64bit
-Internet Explorer 11.329.19041.0
-Internet Explorer 11.900.18362.0
+- Firefox 77.0.1 64bit
+- Chrome 83.0.4103.106 64bit
+- Edge 83.0.478.50 64bit
+- Edge 83.0.478.54 64bit
+- Internet Explorer 11.329.19041.0
+- Internet Explorer 11.900.18362.0
 
 IMPORTANT NOTE: The software provided in this project only works with the “Web_Relays_Con V2.0
 HW-584” which is based on the STM8S-005 processor and ENC28J60 ethernet controller. I haven't 

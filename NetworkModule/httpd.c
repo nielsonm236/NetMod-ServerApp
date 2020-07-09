@@ -189,10 +189,10 @@ static const char g_HtmlPageDefault[] =
   "<style>"
   ".s0 { background-color: red; width: 30px; }"
   ".s1 { background-color: green; width: 30px; }"
-  ".t1class { width: 100px; }"
-  ".t2class { width: 148px; }"
-  ".t3class { width: 30px; }"
-  ".t4class { width: 120px; }"
+  ".t1 { width: 100px; }"
+  ".t2 { width: 148px; }"
+  ".t3 { width: 30px; }"
+  ".t4 { width: 120px; }"
   "td { text-align: center; border: 1px black solid; }"
   "</style>"
   "</head>"
@@ -200,27 +200,27 @@ static const char g_HtmlPageDefault[] =
   "<h1>Relay Control</h1>"
   "<form method='POST' action='/'>"
   "<table>"
-  "<tr><td class='t1class'>Name:</td><td><input type='text' name='a00' class='t2class' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20' size='20'></td></tr>"
+  "<tr><td class='t1'>Name:</td><td><input type='text' name='a00' class='t2' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20'></td></tr>"
   "</table>"
   "<table>"
-  "<tr><td class='t1class'></td><td class='t3class'></td><td class='t4class'>SET</td></tr>"
-  "<tr><td class='t1class'>Relay01</td><td class='s%i00'></td><td class='t4class'><input type='radio' id='relay01on' name='o00' value='1' %o00><label for='relay01on'>ON</label><input type='radio' id='relay01off' name='o00' value='0' %p00><label for='relay01off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay02</td><td class='s%i01'></td><td class='t4class'><input type='radio' id='relay02on' name='o01' value='1' %o01><label for='relay02on'>ON</label><input type='radio' id='relay02off' name='o01' value='0' %p01><label for='relay02off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay03</td><td class='s%i02'></td><td class='t4class'><input type='radio' id='relay03on' name='o02' value='1' %o02><label for='relay03on'>ON</label><input type='radio' id='relay03off' name='o02' value='0' %p02><label for='relay03off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay04</td><td class='s%i03'></td><td class='t4class'><input type='radio' id='relay04on' name='o03' value='1' %o03><label for='relay04on'>ON</label><input type='radio' id='relay04off' name='o03' value='0' %p03><label for='relay04off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay05</td><td class='s%i04'></td><td class='t4class'><input type='radio' id='relay05on' name='o04' value='1' %o04><label for='relay05on'>ON</label><input type='radio' id='relay05off' name='o04' value='0' %p04><label for='relay05off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay06</td><td class='s%i05'></td><td class='t4class'><input type='radio' id='relay06on' name='o05' value='1' %o05><label for='relay06on'>ON</label><input type='radio' id='relay06off' name='o05' value='0' %p05><label for='relay06off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay07</td><td class='s%i06'></td><td class='t4class'><input type='radio' id='relay07on' name='o06' value='1' %o06><label for='relay07on'>ON</label><input type='radio' id='relay07off' name='o06' value='0' %p06><label for='relay07off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay08</td><td class='s%i07'></td><td class='t4class'><input type='radio' id='relay08on' name='o07' value='1' %o07><label for='relay08on'>ON</label><input type='radio' id='relay08off' name='o07' value='0' %p07><label for='relay08off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay09</td><td class='s%i08'></td><td class='t4class'><input type='radio' id='relay09on' name='o08' value='1' %o08><label for='relay09on'>ON</label><input type='radio' id='relay09off' name='o08' value='0' %p08><label for='relay09off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay10</td><td class='s%i09'></td><td class='t4class'><input type='radio' id='relay10on' name='o09' value='1' %o09><label for='relay10on'>ON</label><input type='radio' id='relay10off' name='o09' value='0' %p09><label for='relay10off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay11</td><td class='s%i10'></td><td class='t4class'><input type='radio' id='relay11on' name='o10' value='1' %o10><label for='relay11on'>ON</label><input type='radio' id='relay11off' name='o10' value='0' %p10><label for='relay11off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay12</td><td class='s%i11'></td><td class='t4class'><input type='radio' id='relay12on' name='o11' value='1' %o11><label for='relay12on'>ON</label><input type='radio' id='relay12off' name='o11' value='0' %p11><label for='relay12off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay13</td><td class='s%i12'></td><td class='t4class'><input type='radio' id='relay13on' name='o12' value='1' %o12><label for='relay13on'>ON</label><input type='radio' id='relay13off' name='o12' value='0' %p12><label for='relay13off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay14</td><td class='s%i13'></td><td class='t4class'><input type='radio' id='relay14on' name='o13' value='1' %o13><label for='relay14on'>ON</label><input type='radio' id='relay14off' name='o13' value='0' %p13><label for='relay14off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay15</td><td class='s%i14'></td><td class='t4class'><input type='radio' id='relay15on' name='o14' value='1' %o14><label for='relay15on'>ON</label><input type='radio' id='relay15off' name='o14' value='0' %p14><label for='relay15off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Relay16</td><td class='s%i15'></td><td class='t4class'><input type='radio' id='relay16on' name='o15' value='1' %o15><label for='relay16on'>ON</label><input type='radio' id='relay16off' name='o15' value='0' %p15><label for='relay16off'>OFF</label></td></tr>"
-  "<tr><td class='t1class'>Invert</td><td class='t3class'></td><td class='t4class'><input type='radio' id='invertOn' name='g00' value='1' %g00><label for='invertOn'>ON</label><input type='radio' id='invertOff' name='g00' value='0' %h00><label for='invertOff'>OFF</label></td></tr>"
+  "<tr><td class='t1'></td><td class='t3'></td><td class='t4'>SET</td></tr>"
+  "<tr><td class='t1'>Relay01</td><td class='s%i00'></td><td class='t4'><input type='radio' id='01on' name='o00' value='1' %o00><label for='01on'>ON</label><input type='radio' id='01off' name='o00' value='0' %p00><label for='01off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay02</td><td class='s%i01'></td><td class='t4'><input type='radio' id='02on' name='o01' value='1' %o01><label for='02on'>ON</label><input type='radio' id='02off' name='o01' value='0' %p01><label for='02off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay03</td><td class='s%i02'></td><td class='t4'><input type='radio' id='03on' name='o02' value='1' %o02><label for='03on'>ON</label><input type='radio' id='03off' name='o02' value='0' %p02><label for='03off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay04</td><td class='s%i03'></td><td class='t4'><input type='radio' id='04on' name='o03' value='1' %o03><label for='04on'>ON</label><input type='radio' id='04off' name='o03' value='0' %p03><label for='04off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay05</td><td class='s%i04'></td><td class='t4'><input type='radio' id='05on' name='o04' value='1' %o04><label for='05on'>ON</label><input type='radio' id='05off' name='o04' value='0' %p04><label for='05off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay06</td><td class='s%i05'></td><td class='t4'><input type='radio' id='06on' name='o05' value='1' %o05><label for='06on'>ON</label><input type='radio' id='06off' name='o05' value='0' %p05><label for='06off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay07</td><td class='s%i06'></td><td class='t4'><input type='radio' id='07on' name='o06' value='1' %o06><label for='07on'>ON</label><input type='radio' id='07off' name='o06' value='0' %p06><label for='07off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay08</td><td class='s%i07'></td><td class='t4'><input type='radio' id='08on' name='o07' value='1' %o07><label for='08on'>ON</label><input type='radio' id='08off' name='o07' value='0' %p07><label for='08off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay09</td><td class='s%i08'></td><td class='t4'><input type='radio' id='09on' name='o08' value='1' %o08><label for='09on'>ON</label><input type='radio' id='09off' name='o08' value='0' %p08><label for='09off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay10</td><td class='s%i09'></td><td class='t4'><input type='radio' id='10on' name='o09' value='1' %o09><label for='10on'>ON</label><input type='radio' id='10off' name='o09' value='0' %p09><label for='10off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay11</td><td class='s%i10'></td><td class='t4'><input type='radio' id='11on' name='o10' value='1' %o10><label for='11on'>ON</label><input type='radio' id='11off' name='o10' value='0' %p10><label for='11off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay12</td><td class='s%i11'></td><td class='t4'><input type='radio' id='12on' name='o11' value='1' %o11><label for='12on'>ON</label><input type='radio' id='12off' name='o11' value='0' %p11><label for='12off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay13</td><td class='s%i12'></td><td class='t4'><input type='radio' id='13on' name='o12' value='1' %o12><label for='13on'>ON</label><input type='radio' id='13off' name='o12' value='0' %p12><label for='13off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay14</td><td class='s%i13'></td><td class='t4'><input type='radio' id='14on' name='o13' value='1' %o13><label for='14on'>ON</label><input type='radio' id='14off' name='o13' value='0' %p13><label for='14off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay15</td><td class='s%i14'></td><td class='t4'><input type='radio' id='15on' name='o14' value='1' %o14><label for='15on'>ON</label><input type='radio' id='15off' name='o14' value='0' %p14><label for='15off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Relay16</td><td class='s%i15'></td><td class='t4'><input type='radio' id='16on' name='o15' value='1' %o15><label for='16on'>ON</label><input type='radio' id='16off' name='o15' value='0' %p15><label for='16off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Invert</td><td class='t3'></td><td class='t4'><input type='radio' id='invOn' name='g00' value='1' %g00><label for='invOn'>ON</label><input type='radio' id='invOff' name='g00' value='0' %h00><label for='invOff'>OFF</label></td></tr>"
   "</table>"
   "<button type='submit' title='Saves your changes - does not restart the Network Module'>Save</button>"
   "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
@@ -239,14 +239,15 @@ static const char g_HtmlPageDefault[] =
 // Keep the below experiment for awhile. According to online references the above method
 // where "a table is wrapped by a form" does not conform with html standards. But it works
 // in Chrome, IE, Edge, and Firefox. The below code was developed to "emulate a table" but
-// conform with html rules. Unfortunately it uses up a lot more memory.
+// conform with html rules. Unfortunately it uses up a lot more memory and isn't as clean
+// looking in the GUI.
 static const char g_HtmlPageDefault[] =
   "<!DOCTYPE html>"
   "<html lang='en-US'>"
   "<head>"
   "<title>Relay Control</title>"
   "<style>"
-  ".t2class { width: 149px; }"
+  ".t2 { width: 149px; }"
   "#s1{ height: 21px; width: 80px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
   "#s2{ height: 21px; width: 155px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
   "#s3w{ height: 21px; width: 30px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
@@ -258,7 +259,7 @@ static const char g_HtmlPageDefault[] =
   "<body>"
   "<h1>Relay Control</h1>"
   "<form method='POST'>"
-  "<div id='s1'>Name:  </div><div id='s2'><input type='text' name='a00' class='t2class' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20' size='20'></div><br>"
+  "<div id='s1'>Name:  </div><div id='s2'><input type='text' name='a00' class='t2' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20' size='20'></div><br>"
   "<div id='s1'>       </div><div id='s3w'></div><div id='s4'>SET</div><br>"
   "<div id='s1'>Relay01</div><div id='s%i00'></div><div id='s4'><input type='radio' id='01on' name='o00' value='1' %o00><label for='01on'>ON</label><input type='radio' id='01off' name='o00' value='0' %p00><label for='01off'>OFF</label></div><br>"
   "<div id='s1'>Relay02</div><div id='s%i01'></div><div id='s4'><input type='radio' id='02on' name='o01' value='1' %o01><label for='02on'>ON</label><input type='radio' id='02off' name='o01' value='0' %p01><label for='02off'>OFF</label></div><br>"
@@ -339,10 +340,10 @@ static const char g_HtmlPageAddress[] =
   "<head>"
   "<title>Address Settings</title>"
   "<style>"
-  ".t1class { width: 100px; }"
-  ".t2class { width: 25px; }"
-  ".t3class { width: 18px; }"
-  ".t4class { width: 40px; }"
+  ".t1 { width: 100px; }"
+  ".t2 { width: 25px; }"
+  ".t3 { width: 18px; }"
+  ".t4 { width: 40px; }"
   "td { text-align: center; border: 1px black solid; }"
   "</style>"
   "</head>"
@@ -350,29 +351,29 @@ static const char g_HtmlPageAddress[] =
   "<h1>Address Settings</h1>"
   "<form method='POST' action='/'>"
   "<table>"
-  "<tr><td class='t1class'>IP Addr</td><td><input type='text' name='b00' class='t2class' value='%b00' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-                                      "<td><input type='text' name='b01' class='t2class' value='%b01' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		                      "<td><input type='text' name='b02' class='t2class' value='%b02' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		                      "<td><input type='text' name='b03' class='t2class' value='%b03' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
-  "<tr><td class='t1class'>Gateway</td><td><input type='text' name='b04' class='t2class' value='%b04' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-                                      "<td><input type='text' name='b05' class='t2class' value='%b05' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		                      "<td><input type='text' name='b06' class='t2class' value='%b06' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		                      "<td><input type='text' name='b07' class='t2class' value='%b07' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
-  "<tr><td class='t1class'>Netmask</td><td><input type='text' name='b08' class='t2class' value='%b08' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-                                      "<td><input type='text' name='b09' class='t2class' value='%b09' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		                      "<td><input type='text' name='b10' class='t2class' value='%b10' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td>"
-		                      "<td><input type='text' name='b11' class='t2class' value='%b11' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></td></tr>"
+  "<tr><td class='t1'>IP Addr</td><td><input type='text' name='b00' class='t2' value='%b00' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>"
+                                 "<td><input type='text' name='b01' class='t2' value='%b01' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>"
+                                 "<td><input type='text' name='b02' class='t2' value='%b02' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>"
+	                         "<td><input type='text' name='b03' class='t2' value='%b03' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td></tr>"
+  "<tr><td class='t1'>Gateway</td><td><input type='text' name='b04' class='t2' value='%b04' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>"
+                                 "<td><input type='text' name='b05' class='t2' value='%b05' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>"
+                                 "<td><input type='text' name='b06' class='t2' value='%b06' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>"
+                                 "<td><input type='text' name='b07' class='t2' value='%b07' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td></tr>"
+  "<tr><td class='t1'>Netmask</td><td><input type='text' name='b08' class='t2' value='%b08' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>"
+                                 "<td><input type='text' name='b09' class='t2' value='%b09' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>"
+                                 "<td><input type='text' name='b10' class='t2' value='%b10' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>"
+                                 "<td><input type='text' name='b11' class='t2' value='%b11' pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td></tr>"
   "</table>"
   "<table>"
-  "<tr><td class='t1class'>Port   </td><td><input type='text' name='c00' class='t4class' value='%c00' pattern='[0-9]{5}' title='Five digits from 00010 to 65536' maxlength='5' size='5'></td></tr>"
+  "<tr><td class='t1'>Port   </td><td><input type='text' name='c00' class='t4' value='%c00' pattern='[0-9]{5}' title='Enter 00010 to 65536' maxlength='5'></td></tr>"
   "</table>"
   "<table>"
-  "<tr><td class='t1class'>MAC Address</td><td><input type='text' name='d00' class='t3class' value='%d00' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                                          "<td><input type='text' name='d01' class='t3class' value='%d01' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                                          "<td><input type='text' name='d02' class='t3class' value='%d02' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                                          "<td><input type='text' name='d03' class='t3class' value='%d03' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                                          "<td><input type='text' name='d04' class='t3class' value='%d04' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td>"
-                                          "<td><input type='text' name='d05' class='t3class' value='%d05' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></td></tr>"
+  "<tr><td class='t1'>MAC Address</td><td><input type='text' name='d00' class='t3' value='%d00' pattern='[0-9a-f]{2}' title='Enter 00 to ff' maxlength='2'></td>"
+                                     "<td><input type='text' name='d01' class='t3' value='%d01' pattern='[0-9a-f]{2}' title='Enter 00 to ff' maxlength='2'></td>"
+                                     "<td><input type='text' name='d02' class='t3' value='%d02' pattern='[0-9a-f]{2}' title='Enter 00 to ff' maxlength='2'></td>"
+                                     "<td><input type='text' name='d03' class='t3' value='%d03' pattern='[0-9a-f]{2}' title='Enter 00 to ff' maxlength='2'></td>"
+                                     "<td><input type='text' name='d04' class='t3' value='%d04' pattern='[0-9a-f]{2}' title='Enter 00 to ff' maxlength='2'></td>"
+                                     "<td><input type='text' name='d05' class='t3' value='%d05' pattern='[0-9a-f]{2}' title='Enter 00 to ff' maxlength='2'></td></tr>"
   "</table>"
   "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
   "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
@@ -403,16 +404,17 @@ static const char g_HtmlPageAddress[] =
 // Keep the below experiment for awhile. According to online references the above method
 // where "a table is wrapped by a form" does not conform with html standards. But it works
 // in Chrome, IE, Edge, and Firefox. The below code was developed to "emulate a table" but
-// conform with html rules. Unfortunately it uses up a lot more memory.
+// conform with html rules. Unfortunately it uses up a lot more memory and isn't as clean
+// looking in the GUI.
 static const char g_HtmlPageAddress[] =
   "<!DOCTYPE html>"
   "<html lang='en-US'>"
   "<head>"
   "<title>Address Settings</title>"
   "<style>"
-  ".t2class { width: 25px; }"
-  ".t3class { width: 18px; }"
-  ".t4class { width: 40px; }"
+  ".t2 { width: 25px; }"
+  ".t3 { width: 18px; }"
+  ".t4 { width: 40px; }"
   "#s1{ height: 21px; width: 100px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
   "#s2{ height: 21px; width: 32px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
   "#s3{ height: 21px; width: 24px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
@@ -422,25 +424,25 @@ static const char g_HtmlPageAddress[] =
   "<body>"
   "<h1>Address Settings</h1>"
   "<form method='POST'>"
-  "<div id='s1'>IP Addr</div><div id='s2'><input type='text' name='b00' class='t2class' value='%b00' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-                            "<div id='s2'><input type='text' name='b01' class='t2class' value='%b01' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b02' class='t2class' value='%b02' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b03' class='t2class' value='%b03' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
-  "<div id='s1'>Gateway</div><div id='s2'><input type='text' name='b04' class='t2class' value='%b04' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-                            "<div id='s2'><input type='text' name='b05' class='t2class' value='%b05' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b06' class='t2class' value='%b06' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b07' class='t2class' value='%b07' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
-  "<div id='s1'>Netmask</div><div id='s2'><input type='text' name='b08' class='t2class' value='%b08' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-                            "<div id='s2'><input type='text' name='b09' class='t2class' value='%b09' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b10' class='t2class' value='%b10' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b11' class='t2class' value='%b11' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
-  "<div id='s1'>Port   </div><div id='s4'><input type='text' name='c00' class='t4class' value='%c00' pattern='[0-9]{5}' title='Five digits from 00000 to 65536' maxlength='5' size='5'></div><br>"
-  "<div id='s1'>MAC Address</div><div id='s3'><input type='text' name='d00' class='t3class' value='%d00' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d01' class='t3class' value='%d01' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d02' class='t3class' value='%d02' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d03' class='t3class' value='%d03' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d04' class='t3class' value='%d04' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d05' class='t3class' value='%d05' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div><br>"
+  "<div id='s1'>IP Addr</div><div id='s2'><input type='text' name='b00' class='t2' value='%b00' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+                            "<div id='s2'><input type='text' name='b01' class='t2' value='%b01' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b02' class='t2' value='%b02' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b03' class='t2' value='%b03' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
+  "<div id='s1'>Gateway</div><div id='s2'><input type='text' name='b04' class='t2' value='%b04' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+                            "<div id='s2'><input type='text' name='b05' class='t2' value='%b05' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b06' class='t2' value='%b06' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b07' class='t2' value='%b07' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
+  "<div id='s1'>Netmask</div><div id='s2'><input type='text' name='b08' class='t2' value='%b08' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+                            "<div id='s2'><input type='text' name='b09' class='t2' value='%b09' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b10' class='t2' value='%b10' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
+		            "<div id='s2'><input type='text' name='b11' class='t2' value='%b11' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
+  "<div id='s1'>Port   </div><div id='s4'><input type='text' name='c00' class='t4' value='%c00' pattern='[0-9]{5}' title='Five digits from 00000 to 65536' maxlength='5' size='5'></div><br>"
+  "<div id='s1'>MAC Address</div><div id='s3'><input type='text' name='d00' class='t3' value='%d00' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d01' class='t3' value='%d01' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d02' class='t3' value='%d02' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d03' class='t3' value='%d03' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d04' class='t3' value='%d04' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
+                                "<div id='s3'><input type='text' name='d05' class='t3' value='%d05' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div><br>"
   "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
   "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
   "</form>"
@@ -507,6 +509,7 @@ static const char g_HtmlPageHelp[] =
   "64 = Show Help Page 2<br>"
   "65 = Flash LED<br>"
   "66 = Show Statistics<br>"
+  "67 = Clear Statistics<br>"
   "91 = Reboot<br>"
   "99 = Show Short Form Relay Settings<br>"
   "</p>"
@@ -523,8 +526,6 @@ static const char g_HtmlPageHelp2[] =
   "<html lang='en-US'>"
   "<head>"
   "<title>Help Page 2</title>"
-  "<style>"
-  "</style>"
   "</head>"
   "<body>"
   "<h1>Help Page 2</h1>"
@@ -554,8 +555,8 @@ static const char g_HtmlPageStats[] =
   "<head>"
   "<title>Network Statistics</title>"
   "<style>"
-  ".t1class { width: 100px; }"
-  ".t2class { width: 450px; }"
+  ".t1 { width: 100px; }"
+  ".t2 { width: 450px; }"
   "td { border: 1px black solid; }"
   "</style>"
   "</head>"
@@ -563,30 +564,31 @@ static const char g_HtmlPageStats[] =
   "<h1>Network Statistics</h1>"
   "<p>Values shown are since last power on or reset</p>"
   "<table>"
-  "<tr><td class='t1class'>%e00xxxxxxxxxx</td><td class='t2class'>Dropped packets at the IP layer</td></tr>"
-  "<tr><td class='t1class'>%e01xxxxxxxxxx</td><td class='t2class'>Received packets at the IP layer</td></tr>"
-  "<tr><td class='t1class'>%e02xxxxxxxxxx</td><td class='t2class'>Sent packets at the IP layer</td></tr>"
-  "<tr><td class='t1class'>%e03xxxxxxxxxx</td><td class='t2class'>Packets dropped due to wrong IP version or header length</td></tr>"
-  "<tr><td class='t1class'>%e04xxxxxxxxxx</td><td class='t2class'>Packets dropped due to wrong IP length, high byte</td></tr>"
-  "<tr><td class='t1class'>%e05xxxxxxxxxx</td><td class='t2class'>Packets dropped due to wrong IP length, low byte</td></tr>"
-  "<tr><td class='t1class'>%e06xxxxxxxxxx</td><td class='t2class'>Packets dropped since they were IP fragments</td></tr>"
-  "<tr><td class='t1class'>%e07xxxxxxxxxx</td><td class='t2class'>Packets dropped due to IP checksum errors</td></tr>"
-  "<tr><td class='t1class'>%e08xxxxxxxxxx</td><td class='t2class'>Packets dropped since they were not ICMP or TCP</td></tr>"
-  "<tr><td class='t1class'>%e09xxxxxxxxxx</td><td class='t2class'>Dropped ICMP packets</td></tr>"
-  "<tr><td class='t1class'>%e10xxxxxxxxxx</td><td class='t2class'>Received ICMP packets</td></tr>"
-  "<tr><td class='t1class'>%e11xxxxxxxxxx</td><td class='t2class'>Sent ICMP packets</td></tr>"
-  "<tr><td class='t1class'>%e12xxxxxxxxxx</td><td class='t2class'>ICMP packets with a wrong type</td></tr>"
-  "<tr><td class='t1class'>%e13xxxxxxxxxx</td><td class='t2class'>Dropped TCP segments</td></tr>"
-  "<tr><td class='t1class'>%e14xxxxxxxxxx</td><td class='t2class'>Received TCP segments</td></tr>"
-  "<tr><td class='t1class'>%e15xxxxxxxxxx</td><td class='t2class'>Sent TCP segments</td></tr>"
-  "<tr><td class='t1class'>%e16xxxxxxxxxx</td><td class='t2class'>TCP segments with a bad checksum</td></tr>"
-  "<tr><td class='t1class'>%e17xxxxxxxxxx</td><td class='t2class'>TCP segments with a bad ACK number</td></tr>"
-  "<tr><td class='t1class'>%e18xxxxxxxxxx</td><td class='t2class'>Received TCP RST (reset) segments</td></tr>"
-  "<tr><td class='t1class'>%e19xxxxxxxxxx</td><td class='t2class'>Retransmitted TCP segments</td></tr>"
-  "<tr><td class='t1class'>%e20xxxxxxxxxx</td><td class='t2class'>Dropped SYNs due to too few connections avaliable</td></tr>"
-  "<tr><td class='t1class'>%e21xxxxxxxxxx</td><td class='t2class'>SYNs for closed ports, triggering a RST</td></tr>"
+  "<tr><td class='t1'>%e00xxxxxxxxxx</td><td class='t2'>Dropped packets at the IP layer</td></tr>"
+  "<tr><td class='t1'>%e01xxxxxxxxxx</td><td class='t2'>Received packets at the IP layer</td></tr>"
+  "<tr><td class='t1'>%e02xxxxxxxxxx</td><td class='t2'>Sent packets at the IP layer</td></tr>"
+  "<tr><td class='t1'>%e03xxxxxxxxxx</td><td class='t2'>Packets dropped due to wrong IP version or header length</td></tr>"
+  "<tr><td class='t1'>%e04xxxxxxxxxx</td><td class='t2'>Packets dropped due to wrong IP length, high byte</td></tr>"
+  "<tr><td class='t1'>%e05xxxxxxxxxx</td><td class='t2'>Packets dropped due to wrong IP length, low byte</td></tr>"
+  "<tr><td class='t1'>%e06xxxxxxxxxx</td><td class='t2'>Packets dropped since they were IP fragments</td></tr>"
+  "<tr><td class='t1'>%e07xxxxxxxxxx</td><td class='t2'>Packets dropped due to IP checksum errors</td></tr>"
+  "<tr><td class='t1'>%e08xxxxxxxxxx</td><td class='t2'>Packets dropped since they were not ICMP or TCP</td></tr>"
+  "<tr><td class='t1'>%e09xxxxxxxxxx</td><td class='t2'>Dropped ICMP packets</td></tr>"
+  "<tr><td class='t1'>%e10xxxxxxxxxx</td><td class='t2'>Received ICMP packets</td></tr>"
+  "<tr><td class='t1'>%e11xxxxxxxxxx</td><td class='t2'>Sent ICMP packets</td></tr>"
+  "<tr><td class='t1'>%e12xxxxxxxxxx</td><td class='t2'>ICMP packets with a wrong type</td></tr>"
+  "<tr><td class='t1'>%e13xxxxxxxxxx</td><td class='t2'>Dropped TCP segments</td></tr>"
+  "<tr><td class='t1'>%e14xxxxxxxxxx</td><td class='t2'>Received TCP segments</td></tr>"
+  "<tr><td class='t1'>%e15xxxxxxxxxx</td><td class='t2'>Sent TCP segments</td></tr>"
+  "<tr><td class='t1'>%e16xxxxxxxxxx</td><td class='t2'>TCP segments with a bad checksum</td></tr>"
+  "<tr><td class='t1'>%e17xxxxxxxxxx</td><td class='t2'>TCP segments with a bad ACK number</td></tr>"
+  "<tr><td class='t1'>%e18xxxxxxxxxx</td><td class='t2'>Received TCP RST (reset) segments</td></tr>"
+  "<tr><td class='t1'>%e19xxxxxxxxxx</td><td class='t2'>Retransmitted TCP segments</td></tr>"
+  "<tr><td class='t1'>%e20xxxxxxxxxx</td><td class='t2'>Dropped SYNs due to too few connections avaliable</td></tr>"
+  "<tr><td class='t1'>%e21xxxxxxxxxx</td><td class='t2'>SYNs for closed ports, triggering a RST</td></tr>"
   "</table>"
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/67' method='GET'><button title='Clear Statistics'>Clear Statistics</button></form>"
   "</body>"
   "</html>";
 #endif /* UIP_STATISTICS == 1 */
@@ -600,8 +602,6 @@ static const char g_HtmlPageRstate[] =
   "<html lang='en-US'>"
   "<head>"
   "<title>Help Page 2</title>"
-  "<style>"
-  "</style>"
   "</head>"
   "<body>"
   "<p>%f00xxxxxxxxxxxxxxxx</p>"
@@ -628,12 +628,12 @@ static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString)
 
 static uint16_t CopyValue(uint8_t** ppBuffer, uint32_t nValue)
 {
-// This creates a 5 character "Content-Length:xxxxx" field in the
-// pBuffer, and returns a byte count of 5.
-//
-// The original code created a 10 digit value allowing a transmission
-// of up to 999,999,999 bytes. That seems like overkill for this
-// application, so this simpler routine allows up to 65536 bytes.
+  // This creates a 5 character "Content-Length:xxxxx" field in the
+  // pBuffer, and returns a byte count of 5.
+  //
+  // The original code created a 10 digit value allowing a transmission
+  // of up to 999,999,999 bytes. That seems like overkill for this
+  // application, so this simpler routine allows up to 65536 bytes.
 
   emb_itoa(nValue, OctetArray, 10, 5);
   
@@ -680,7 +680,7 @@ char* emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
   i = 0;
   while (num != 0) {
     rem = (uint8_t)(num % base);
-    if(rem > 9) str[i++] = (uint8_t)(rem - 10 + 'a');
+    if (rem > 9) str[i++] = (uint8_t)(rem - 10 + 'a');
     else str[i++] = (uint8_t)(rem + '0');
     num = num/base;
   }
@@ -727,7 +727,7 @@ uint8_t three_alpha_to_uint(uint8_t alpha1, uint8_t alpha2, uint8_t alpha3)
   digit = (uint8_t)(alpha3 - '0');
   value = (uint8_t)(value + digit);
   
-  if(value >= 255) value = 0;
+  if (value >= 255) value = 0;
   
   return value;
 }
@@ -742,21 +742,21 @@ uint8_t two_alpha_to_uint(uint8_t alpha1, uint8_t alpha2)
   uint8_t value;
 
   if (alpha1 >= '0' && alpha1 <= '9') value = (uint8_t)((alpha1 - '0') << 4);
-  else if(alpha1 == 'a') value = 0xa0;
-  else if(alpha1 == 'b') value = 0xb0;
-  else if(alpha1 == 'c') value = 0xc0;
-  else if(alpha1 == 'd') value = 0xd0;
-  else if(alpha1 == 'e') value = 0xe0;
-  else if(alpha1 == 'f') value = 0xf0;
+  else if (alpha1 == 'a') value = 0xa0;
+  else if (alpha1 == 'b') value = 0xb0;
+  else if (alpha1 == 'c') value = 0xc0;
+  else if (alpha1 == 'd') value = 0xd0;
+  else if (alpha1 == 'e') value = 0xe0;
+  else if (alpha1 == 'f') value = 0xf0;
   else value = 0; // If an invalid entry is made convert it to 0
 
   if (alpha2 >= '0' && alpha2 <= '9') value = (uint8_t)(value + alpha2 - '0');
-  else if(alpha2 == 'a') value = (uint8_t)(value + 0x0a);
-  else if(alpha2 == 'b') value = (uint8_t)(value + 0x0b);
-  else if(alpha2 == 'c') value = (uint8_t)(value + 0x0c);
-  else if(alpha2 == 'd') value = (uint8_t)(value + 0x0d);
-  else if(alpha2 == 'e') value = (uint8_t)(value + 0x0e);
-  else if(alpha2 == 'f') value = (uint8_t)(value + 0x0f);
+  else if (alpha2 == 'a') value = (uint8_t)(value + 0x0a);
+  else if (alpha2 == 'b') value = (uint8_t)(value + 0x0b);
+  else if (alpha2 == 'c') value = (uint8_t)(value + 0x0c);
+  else if (alpha2 == 'd') value = (uint8_t)(value + 0x0d);
+  else if (alpha2 == 'e') value = (uint8_t)(value + 0x0e);
+  else if (alpha2 == 'f') value = (uint8_t)(value + 0x0f);
   else value = 0; // If an invalid entry is made convert it to 0
 
   return value;
@@ -825,7 +825,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   // So, the following settings seem to work:
   //   a) #define ENC28J60_MAXFRAME	700 (in enc28j60.h)
   //   b) removed uip_split code
-  //   c) if(nMaxBytes > 400) nMaxBytes = 400; (in this file)
+  //   c) if (nMaxBytes > 400) nMaxBytes = 400; (in this file)
   // The exact numbers don't seem to matter so much, but a > c seems required. I
   // believe the MAXFRAME could be smaller, or the nMaxBytes larger, but
   //   a) nMaxbytes MUST be smaller than MAXFRAME, and I suggest it be at least
@@ -837,7 +837,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   //
   // Note that complete transmission of the typical webpage in this application
   // is about 2000 bytes.
-  if(nMaxBytes > 400) nMaxBytes = 400; // limit just in case
+  if (nMaxBytes > 400) nMaxBytes = 400; // limit just in case
 
   while (nBytes < nMaxBytes) {
     // This is the main loop for processing the webpages stored in flash and
@@ -956,7 +956,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         else if (nParsedMode == 'o') {
 	  // An "ON" radio buttion is displayed and is shown in the checked
 	  // state if the pin state is 1.
-          if((uint8_t)(GpioGetPin(nParsedNum) == 1)) { // Insert 'checked'
+          if ((uint8_t)(GpioGetPin(nParsedNum) == 1)) { // Insert 'checked'
             for(i=0; i<7; i++) {
               *pBuffer = checked[i];
               pBuffer++;
@@ -970,7 +970,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         else if (nParsedMode == 'p') {
 	  // An "OFF" radio buttion is displayed and is shown in the checked
 	  // state if the pin state is 0.
-          if((uint8_t)(GpioGetPin(nParsedNum) == 0)) { // Insert 'checked'
+          if ((uint8_t)(GpioGetPin(nParsedNum) == 0)) { // Insert 'checked'
             for(i=0; i<7; i++) {
               *pBuffer = checked[i];
               pBuffer++;
@@ -984,7 +984,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         if (nParsedMode == 'a') {
 	  // This is device name information (20 character)
 	  for(i=0; i<20; i++) {
-	    if(ex_stored_devicename[i] != ' ') { // Don't write spaces out - confuses the
+	    if (ex_stored_devicename[i] != ' ') { // Don't write spaces out - confuses the
 	                                         // browser processing of input
               *pBuffer = (uint8_t)(ex_stored_devicename[i]);
               pBuffer++;
@@ -1032,7 +1032,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    default: emb_itoa(0,                   OctetArray, 10, 3); advanceptrs = 1; break;
 	  }
 	  
-	  if(advanceptrs == 1) { // Copy OctetArray and advance pointers if one of the above
+	  if (advanceptrs == 1) { // Copy OctetArray and advance pointers if one of the above
 	                         // occurred
             *pBuffer = (uint8_t)OctetArray[0];
             pBuffer++;
@@ -1068,12 +1068,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // a single integer from storage but put it in the output stream as a character
 	  // representation of the data. For instance, the integer 0xfe needs to be sent
 	  // to the user display as characters "f" and "e".
-	  if(nParsedNum == 0)      emb_itoa(uip_ethaddr1, OctetArray, 16, 2);
-	  else if(nParsedNum == 1) emb_itoa(uip_ethaddr2, OctetArray, 16, 2);
-	  else if(nParsedNum == 2) emb_itoa(uip_ethaddr3, OctetArray, 16, 2);
-	  else if(nParsedNum == 3) emb_itoa(uip_ethaddr4, OctetArray, 16, 2);
-	  else if(nParsedNum == 4) emb_itoa(uip_ethaddr5, OctetArray, 16, 2);
-	  else if(nParsedNum == 5) emb_itoa(uip_ethaddr6, OctetArray, 16, 2);
+	  if (nParsedNum == 0)      emb_itoa(uip_ethaddr1, OctetArray, 16, 2);
+	  else if (nParsedNum == 1) emb_itoa(uip_ethaddr2, OctetArray, 16, 2);
+	  else if (nParsedNum == 2) emb_itoa(uip_ethaddr3, OctetArray, 16, 2);
+	  else if (nParsedNum == 3) emb_itoa(uip_ethaddr4, OctetArray, 16, 2);
+	  else if (nParsedNum == 4) emb_itoa(uip_ethaddr5, OctetArray, 16, 2);
+	  else if (nParsedNum == 5) emb_itoa(uip_ethaddr6, OctetArray, 16, 2);
 	  
           *pBuffer = OctetArray[0];
           pBuffer++;
@@ -1090,28 +1090,28 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // This is the statistics information (10 characters per data item). We need to get
 	  // a single uint32_t from storage but put it in the output stream as a character
 	  // representation of the data.
-	  // uip_stat.ip.drop;      // Number of dropped packets at the IP layer.
-	  // uip_stat.ip.recv;      // Number of received packets at the IP layer.
-	  // uip_stat.ip.sent;      // Number of sent packets at the IP layer.
-	  // uip_stat.ip.vhlerr;    // Number of packets dropped due to wrong IP version or header length.
-	  // uip_stat.ip.hblenerr;  // Number of packets dropped due to wrong IP length, high byte.
-	  // uip_stat.ip.lblenerr;  // Number of packets dropped due to wrong IP length, low byte.
-	  // uip_stat.ip.fragerr;   // Number of packets dropped since they were IP fragments.
-	  // uip_stat.ip.chkerr;    // Number of packets dropped due to IP checksum errors.
-	  // uip_stat.ip.protoerr;  // Number of packets dropped since they were neither ICMP, UDP nor TCP.
-	  // uip_stat.icmp.drop;    // Number of dropped ICMP packets.
-	  // uip_stat.icmp.recv;    // Number of received ICMP packets.
-	  // uip_stat.icmp.sent;    // Number of sent ICMP packets.
-	  // uip_stat.icmp.typeerr; // Number of ICMP packets with a wrong type.
-	  // uip_stat.tcp.drop;     // Number of dropped TCP segments.
-	  // uip_stat.tcp.recv;     // Number of received TCP segments.
-	  // uip_stat.tcp.sent;     // Number of sent TCP segments.
-	  // uip_stat.tcp.chkerr;   // Number of TCP segments with a bad checksum.
-	  // uip_stat.tcp.ackerr;   // Number of TCP segments with a bad ACK number.
-	  // uip_stat.tcp.rst;      // Number of received TCP RST (reset) segments.
-	  // uip_stat.tcp.rexmit;   // Number of retransmitted TCP segments.
-	  // uip_stat.tcp.syndrop;  // Number of dropped SYNs due to too few connections avaliable.
-	  // uip_stat.tcp.synrst;   // Number of SYNs for closed ports, triggering a RST.
+	  // uip_stat.ip.drop       Number of dropped packets at the IP layer.
+	  // uip_stat.ip.recv       Number of received packets at the IP layer.
+	  // uip_stat.ip.sent       Number of sent packets at the IP layer.
+	  // uip_stat.ip.vhlerr     Number of packets dropped due to wrong IP version or header length.
+	  // uip_stat.ip.hblenerr   Number of packets dropped due to wrong IP length, high byte.
+	  // uip_stat.ip.lblenerr   Number of packets dropped due to wrong IP length, low byte.
+	  // uip_stat.ip.fragerr    Number of packets dropped since they were IP fragments.
+	  // uip_stat.ip.chkerr     Number of packets dropped due to IP checksum errors.
+	  // uip_stat.ip.protoerr   Number of packets dropped since they were neither ICMP, UDP nor TCP.
+	  // uip_stat.icmp.drop     Number of dropped ICMP packets.
+	  // uip_stat.icmp.recv     Number of received ICMP packets.
+	  // uip_stat.icmp.sent     Number of sent ICMP packets.
+	  // uip_stat.icmp.typeerr  Number of ICMP packets with a wrong type.
+	  // uip_stat.tcp.drop      Number of dropped TCP segments.
+	  // uip_stat.tcp.recv      Number of received TCP segments.
+	  // uip_stat.tcp.sent      Number of sent TCP segments.
+	  // uip_stat.tcp.chkerr    Number of TCP segments with a bad checksum.
+	  // uip_stat.tcp.ackerr    Number of TCP segments with a bad ACK number.
+	  // uip_stat.tcp.rst       Number of received TCP RST (reset) segments.
+	  // uip_stat.tcp.rexmit    Number of retransmitted TCP segments.
+	  // uip_stat.tcp.syndrop   Number of dropped SYNs due to too few connections avaliable.
+	  // uip_stat.tcp.synrst    Number of SYNs for closed ports, triggering a RST.
 	  
           switch (nParsedNum)
 	  {
@@ -1335,37 +1335,37 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   alpha_4 = '0';
   alpha_5 = '0';
 
-  if(uip_connected()) {
+  if (uip_connected()) {
     //Initialize this connection
-    if(current_webpage == WEBPAGE_DEFAULT) {
+    if (current_webpage == WEBPAGE_DEFAULT) {
       pSocket->pData = g_HtmlPageDefault;
       pSocket->nDataLeft = sizeof(g_HtmlPageDefault)-1;
       // nDataLeft extracted above is used when we get around to calling CopyHttpData
       // in state STATE_SENDDATA
     }
-    else if(current_webpage == WEBPAGE_ADDRESS) {
+    else if (current_webpage == WEBPAGE_ADDRESS) {
       pSocket->pData = g_HtmlPageAddress;
       pSocket->nDataLeft = sizeof(g_HtmlPageAddress)-1;
     }
 
 #if HELP_SUPPORT == 1
-    else if(current_webpage == WEBPAGE_HELP) {
+    else if (current_webpage == WEBPAGE_HELP) {
       pSocket->pData = g_HtmlPageHelp;
       pSocket->nDataLeft = sizeof(g_HtmlPageHelp)-1;
     }
-    else if(current_webpage == WEBPAGE_HELP2) {
+    else if (current_webpage == WEBPAGE_HELP2) {
       pSocket->pData = g_HtmlPageHelp2;
       pSocket->nDataLeft = sizeof(g_HtmlPageHelp2)-1;
     }
 #endif /* HELP_SUPPORT == 1 */
 
 #if UIP_STATISTICS == 1
-    else if(current_webpage == WEBPAGE_STATS) {
+    else if (current_webpage == WEBPAGE_STATS) {
       pSocket->pData = g_HtmlPageStats;
       pSocket->nDataLeft = sizeof(g_HtmlPageStats)-1;
     }
 #endif /* UIP_STATISTICS == 1 */
-    else if(current_webpage == WEBPAGE_RSTATE) {
+    else if (current_webpage == WEBPAGE_RSTATE) {
       pSocket->pData = g_HtmlPageRstate;
       pSocket->nDataLeft = sizeof(g_HtmlPageRstate)-1;
     }
@@ -1442,8 +1442,8 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         if (pSocket->nNewlines == 2) {
           // Beginning found.
           // Initialize Parsing variables
-          if(current_webpage == WEBPAGE_DEFAULT) pSocket->nParseLeft = PARSEBYTES_DEFAULT;
-          if(current_webpage == WEBPAGE_ADDRESS) pSocket->nParseLeft = PARSEBYTES_ADDRESS;
+          if (current_webpage == WEBPAGE_DEFAULT) pSocket->nParseLeft = PARSEBYTES_DEFAULT;
+          if (current_webpage == WEBPAGE_ADDRESS) pSocket->nParseLeft = PARSEBYTES_ADDRESS;
           pSocket->ParseState = PARSE_CMD;
           // Start parsing
           pSocket->nState = STATE_PARSEPOST;
@@ -1542,8 +1542,8 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // Once the '&' is found fill with spaces.
 	    amp_found = 0;
 	    for(i=1; i<20; i++) {
-	      if((uint8_t)(*pBuffer) == 38) amp_found = 1;
-	      if(amp_found == 0) {
+	      if ((uint8_t)(*pBuffer) == 38) amp_found = 1;
+	      if (amp_found == 0) {
 	        // Collect a character of the Device Name
                 ex_stored_devicename[i] = (uint8_t)(*pBuffer);
                 pSocket->nParseLeft--;
@@ -1671,7 +1671,7 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         }
 	
         else if (pSocket->ParseState == PARSE_DELIM) {
-          if(pSocket->nParseLeft > 0) {
+          if (pSocket->nParseLeft > 0) {
             pSocket->ParseState = PARSE_CMD;
             pSocket->nParseLeft--;
             pBuffer++;
@@ -1730,7 +1730,7 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // entered "192.168.1.4:8080" or "192.168.1.4:8080/". In this case there will be a
 	  // space here instead of a digit, and we should just break out of the loop and send
 	  // the default page.
-	  if(*pBuffer == ' ') {
+	  if (*pBuffer == ' ') {
 	    current_webpage = WEBPAGE_DEFAULT;
             pSocket->pData = g_HtmlPageDefault;
             pSocket->nDataLeft = sizeof(g_HtmlPageDefault)-1;
@@ -1808,6 +1808,7 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/64  Show Help2 page
 	  // http://IP/65  Flash LED 3 times
 	  // http://IP/66  Show Statistics page
+	  // http://IP/67  Clear Statistics
 	  // http://IP/91  Reboot
 	  // http://IP/99  Show Short Form Relay States page
 	  //
@@ -1906,6 +1907,16 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 #if UIP_STATISTICS == 1
             case 66: // Show statistics page
+	      current_webpage = WEBPAGE_STATS;
+              pSocket->pData = g_HtmlPageStats;
+              pSocket->nDataLeft = sizeof(g_HtmlPageStats)-1;
+              pSocket->nNewlines = 0;
+              pSocket->nState = STATE_CONNECTED;
+              pSocket->nPrevBytes = 0xFFFF;
+	      break;
+	      
+            case 67: // Clear statistics
+	      uip_init_stats();
 	      current_webpage = WEBPAGE_STATS;
               pSocket->pData = g_HtmlPageStats;
               pSocket->nDataLeft = sizeof(g_HtmlPageStats)-1;
@@ -2013,22 +2024,22 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 uint8_t GpioGetPin(uint8_t nGpio)
 {
   // Pin value (0 or 1)
-  if(nGpio == 0       && (Relays_8to1  & (uint8_t)(0x01))) return 1; // Relay-01 is ON
-  else if(nGpio == 1  && (Relays_8to1  & (uint8_t)(0x02))) return 1; // Relay-02 is ON
-  else if(nGpio == 2  && (Relays_8to1  & (uint8_t)(0x04))) return 1; // Relay-03 is ON
-  else if(nGpio == 3  && (Relays_8to1  & (uint8_t)(0x08))) return 1; // Relay-04 is ON
-  else if(nGpio == 4  && (Relays_8to1  & (uint8_t)(0x10))) return 1; // Relay-05 is ON
-  else if(nGpio == 5  && (Relays_8to1  & (uint8_t)(0x20))) return 1; // Relay-06 is ON
-  else if(nGpio == 6  && (Relays_8to1  & (uint8_t)(0x40))) return 1; // Relay-07 is ON
-  else if(nGpio == 7  && (Relays_8to1  & (uint8_t)(0x80))) return 1; // Relay-08 is ON
-  else if(nGpio == 8  && (Relays_16to9 & (uint8_t)(0x01))) return 1; // Relay-09 is ON
-  else if(nGpio == 9  && (Relays_16to9 & (uint8_t)(0x02))) return 1; // Relay-10 is ON
-  else if(nGpio == 10 && (Relays_16to9 & (uint8_t)(0x04))) return 1; // Relay-11 is ON
-  else if(nGpio == 11 && (Relays_16to9 & (uint8_t)(0x08))) return 1; // Relay-12 is ON
-  else if(nGpio == 12 && (Relays_16to9 & (uint8_t)(0x10))) return 1; // Relay-13 is ON
-  else if(nGpio == 13 && (Relays_16to9 & (uint8_t)(0x20))) return 1; // Relay-14 is ON
-  else if(nGpio == 14 && (Relays_16to9 & (uint8_t)(0x40))) return 1; // Relay-15 is ON
-  else if(nGpio == 15 && (Relays_16to9 & (uint8_t)(0x80))) return 1; // Relay-16 is ON
+  if (nGpio == 0       && (Relays_8to1  & (uint8_t)(0x01))) return 1; // Relay-01 is ON
+  else if (nGpio == 1  && (Relays_8to1  & (uint8_t)(0x02))) return 1; // Relay-02 is ON
+  else if (nGpio == 2  && (Relays_8to1  & (uint8_t)(0x04))) return 1; // Relay-03 is ON
+  else if (nGpio == 3  && (Relays_8to1  & (uint8_t)(0x08))) return 1; // Relay-04 is ON
+  else if (nGpio == 4  && (Relays_8to1  & (uint8_t)(0x10))) return 1; // Relay-05 is ON
+  else if (nGpio == 5  && (Relays_8to1  & (uint8_t)(0x20))) return 1; // Relay-06 is ON
+  else if (nGpio == 6  && (Relays_8to1  & (uint8_t)(0x40))) return 1; // Relay-07 is ON
+  else if (nGpio == 7  && (Relays_8to1  & (uint8_t)(0x80))) return 1; // Relay-08 is ON
+  else if (nGpio == 8  && (Relays_16to9 & (uint8_t)(0x01))) return 1; // Relay-09 is ON
+  else if (nGpio == 9  && (Relays_16to9 & (uint8_t)(0x02))) return 1; // Relay-10 is ON
+  else if (nGpio == 10 && (Relays_16to9 & (uint8_t)(0x04))) return 1; // Relay-11 is ON
+  else if (nGpio == 11 && (Relays_16to9 & (uint8_t)(0x08))) return 1; // Relay-12 is ON
+  else if (nGpio == 12 && (Relays_16to9 & (uint8_t)(0x10))) return 1; // Relay-13 is ON
+  else if (nGpio == 13 && (Relays_16to9 & (uint8_t)(0x20))) return 1; // Relay-14 is ON
+  else if (nGpio == 14 && (Relays_16to9 & (uint8_t)(0x40))) return 1; // Relay-15 is ON
+  else if (nGpio == 15 && (Relays_16to9 & (uint8_t)(0x80))) return 1; // Relay-16 is ON
   return 0;
 }
 
@@ -2038,72 +2049,72 @@ void GpioSetPin(uint8_t nGpio, uint8_t nState)
   // Routine will set or clear Relays based on GUI input
   // nState is a digit, not a character
 
-  if(nState != 0 && nState != 1) nState = 1;
+  if (nState != 0 && nState != 1) nState = 1;
 
   switch(nGpio)
   {
   case 0:
-    if(nState == 0) Relays_8to1 &= (uint8_t)(~0x01); // Relay-01 OFF
+    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x01); // Relay-01 OFF
     else Relays_8to1 |= (uint8_t)0x01; // Relay-01 ON
     break;
   case 1:
-    if(nState == 0) Relays_8to1 &= (uint8_t)(~0x02); // Relay-02 OFF
+    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x02); // Relay-02 OFF
     else Relays_8to1 |= (uint8_t)0x02; // Relay-02 ON
     break;
   case 2:
-    if(nState == 0) Relays_8to1 &= (uint8_t)(~0x04); // Relay-03 OFF
+    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x04); // Relay-03 OFF
     else Relays_8to1 |= (uint8_t)0x04; // Relay-03 ON
     break;
   case 3:
-    if(nState == 0) Relays_8to1 &= (uint8_t)(~0x08); // Relay-04 OFF
+    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x08); // Relay-04 OFF
     else Relays_8to1 |= (uint8_t)0x08; // Relay-04 ON
     break;
   case 4:
-    if(nState == 0) Relays_8to1 &= (uint8_t)(~0x10); // Relay-05 OFF
+    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x10); // Relay-05 OFF
     else Relays_8to1 |= (uint8_t)0x10; // Relay-05 ON
     break;
   case 5:
-    if(nState == 0) Relays_8to1 &= (uint8_t)(~0x20); // Relay-06 OFF
+    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x20); // Relay-06 OFF
     else Relays_8to1 |= (uint8_t)0x20; // Relay-06 ON
     break;
   case 6:
-    if(nState == 0) Relays_8to1 &= (uint8_t)(~0x40); // Relay-07 OFF
+    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x40); // Relay-07 OFF
     else Relays_8to1 |= (uint8_t)0x40; // Relay-07 ON
     break;
   case 7:
-    if(nState == 0) Relays_8to1 &= (uint8_t)(~0x80); // Relay-08 OFF
+    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x80); // Relay-08 OFF
     else Relays_8to1 |= (uint8_t)0x80; // Relay-08 ON
     break;
   case 8:
-    if(nState == 0) Relays_16to9 &= (uint8_t)(~0x01); // Relay-09 OFF
+    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x01); // Relay-09 OFF
     else Relays_16to9 |= (uint8_t)0x01; // Relay-09 ON
     break;
   case 9:
-    if(nState == 0) Relays_16to9 &= (uint8_t)(~0x02); // Relay-10 OFF
+    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x02); // Relay-10 OFF
     else Relays_16to9 |= (uint8_t)0x02; // Relay-10 ON
     break;
   case 10:
-    if(nState == 0) Relays_16to9 &= (uint8_t)(~0x04); // Relay-11 OFF
+    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x04); // Relay-11 OFF
     else Relays_16to9 |= (uint8_t)0x04; // Relay-11 ON
     break;
   case 11:
-    if(nState == 0) Relays_16to9 &= (uint8_t)(~0x08); // Relay-12 OFF
+    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x08); // Relay-12 OFF
     else Relays_16to9 |= (uint8_t)0x08; // Relay-12 ON
     break;
   case 12:
-    if(nState == 0) Relays_16to9 &= (uint8_t)(~0x10); // Relay-13 OFF
+    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x10); // Relay-13 OFF
     else Relays_16to9 |= (uint8_t)0x10; // Relay-13 ON
     break;
   case 13:
-    if(nState == 0) Relays_16to9 &= (uint8_t)(~0x20); // Relay-14 OFF
+    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x20); // Relay-14 OFF
     else Relays_16to9 |= (uint8_t)0x20; // Relay-14 ON
     break;
   case 14:
-    if(nState == 0) Relays_16to9 &= (uint8_t)(~0x40); // Relay-15 OFF
+    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x40); // Relay-15 OFF
     else Relays_16to9 |= (uint8_t)0x40; // Relay-15 ON
     break;
   case 15:
-    if(nState == 0) Relays_16to9 &= (uint8_t)(~0x80); // Relay-16 OFF
+    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x80); // Relay-16 OFF
     else Relays_16to9 |= (uint8_t)0x80; // Relay-16 ON
     break;
   default: break;
@@ -2136,7 +2147,7 @@ void SetAddresses(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2, uint8_t alpha
   temp = atoi(str);
   if (temp > 255) invalid = 1; // If an invalid entry set indicator
 
-  if(invalid == 0) { // Make change only if valid entry
+  if (invalid == 0) { // Make change only if valid entry
     switch(itemnum)
     {
     case 0:  Pending_hostaddr4 = (uint8_t)temp; break;
@@ -2175,7 +2186,7 @@ void SetPort(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2, uint8_t alpha3, ui
   invalid = 0;
   
   // Create a uint16_t from alpha1-5. Check validity.
-  if(alpha1 > '6') invalid = 1;
+  if (alpha1 > '6') invalid = 1;
   else {
     str[0] = (uint8_t)alpha1;
     str[1] = (uint8_t)alpha2;
@@ -2186,9 +2197,9 @@ void SetPort(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2, uint8_t alpha3, ui
     temp = atoi(str);
   }
   // Port number cannot be less than 10
-  if(temp < 10) invalid = 1;
+  if (temp < 10) invalid = 1;
 
-  if(invalid == 0) { // Make change only if valid entry
+  if (invalid == 0) { // Make change only if valid entry
     Pending_port = (uint16_t)temp;
   }
 }
@@ -2212,11 +2223,11 @@ void SetMAC(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2)
 
   // Create a single digit from the two alpha characters. Check validity.
   if (alpha1 >= '0' && alpha1 <= '9') alpha1 = (uint8_t)(alpha1 - '0');
-  else if(alpha1 >= 'a' && alpha1 <= 'f') alpha1 = (uint8_t)(alpha1 - 87);
+  else if (alpha1 >= 'a' && alpha1 <= 'f') alpha1 = (uint8_t)(alpha1 - 87);
   else invalid = 1; // If an invalid entry set indicator
   
   if (alpha2 >= '0' && alpha2 <= '9') alpha2 = (uint8_t)(alpha2 - '0');
-  else if(alpha2 >= 'a' && alpha2 <= 'f') alpha2 = (uint8_t)(alpha2 - 87);
+  else if (alpha2 >= 'a' && alpha2 <= 'f') alpha2 = (uint8_t)(alpha2 - 87);
   else invalid = 1; // If an invalid entry set indicator
     
   if (invalid == 0) { // Change value only if valid entry

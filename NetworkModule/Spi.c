@@ -104,8 +104,7 @@ void SpiWriteByte(uint8_t nByte)
   // nByte is the data to be sent
   // MSB is sent first
   uint8_t bitnum = (uint8_t)0x80;                // Point at MSB
-  while(bitnum != 0)
-  {
+  while(bitnum != 0) {
     if (nByte & bitnum) PC_ODR |= (uint8_t)0x08; // If bit is 1 then 
                                                  // SPI SO (ENC28J60 SI) high
     else PC_ODR &= (uint8_t)(~0x08);             // else SPI SO low
@@ -128,13 +127,11 @@ void SpiWriteChunk(const uint8_t* pChunk, uint16_t nBytes)
   uint8_t bitnum;
   uint8_t OutByte;
 
-  while (nBytes--)
-  {
+  while (nBytes--) {
     bitnum = (uint8_t)0x80;                          // Point at MSB
     OutByte = *pChunk++;
 
-    while(bitnum != 0)
-    {
+    while(bitnum != 0) {
       if (OutByte & bitnum) PC_ODR |= (uint8_t)0x08; // If bit is 1 then
                                                      // SPI SO (ENC28J60 SI) high
       else PC_ODR &= (uint8_t)(~0x08);               // else SPI SO low
@@ -161,8 +158,7 @@ uint8_t SpiReadByte(void)
   // MSB is received first
   uint8_t bitnum = (uint8_t)0x80;                 // Point at MSB
   uint8_t InByte = 0;
-  while(bitnum != 0)
-  {
+  while(bitnum != 0) {
     // Read SI and set appropriate bit in InByte
     // Data is already there to be read due to previous command write
     if (PC_IDR & (uint8_t)0x10) InByte |= bitnum; // SPI incoming bit = 1
@@ -191,12 +187,10 @@ void SpiReadChunk(uint8_t* pChunk, uint16_t nBytes)
 
   PC_ODR &= (uint8_t)(~0x08);                        // SO low
 
-  while (nBytes--)
-  {
+  while (nBytes--) {
     bitnum = (uint8_t)0x80;                          // Point at MSB
     InByte = 0;
-    while(bitnum != 0)
-    {
+    while(bitnum != 0) {
       // Read SI and set appropriate bit in InByte
       // Data is already there to be read due to previous command write
       // or byte read

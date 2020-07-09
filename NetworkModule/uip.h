@@ -167,6 +167,11 @@ typedef uip_ip4addr_t uip_ipaddr_t;
 void uip_init(void);
 
 /**
+ * uIP init statistics function.
+ */
+void uip_init_stats(void);
+
+/**
  * uIP initialization function.
  * This function may be used at boot time to set the initial ip_id.
  */

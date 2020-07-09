@@ -135,25 +135,25 @@ struct uip_eth_addr uip_ethaddr = {0x01,   // MAC MSB
 
 uint8_t uip_buf[UIP_BUFSIZE + 2];     /* The packet buffer that contains incoming packets. */
 
-char *uip_appdata;                 /* The uip_appdata pointer points to application data. */
+char *uip_appdata;                    /* The uip_appdata pointer points to application data. */
  
-char *uip_sappdata;                /* The uip_appdata pointer points to the application data
-                                      which is to be sent. */
+char *uip_sappdata;                   /* The uip_appdata pointer points to the application data
+                                         which is to be sent. */
 
 uint16_t uip_len, uip_slen;           /* The uip_len is 16 bits. */
 
 uint8_t uip_flags;                    /* The uip_flags variable is used for communication
-                                      between the TCP/IP stack and the application program. */
+                                         between the TCP/IP stack and the application program. */
 				      
-struct uip_conn *uip_conn;         /* uip_conn always points to the current connection. */
+struct uip_conn *uip_conn;            /* uip_conn always points to the current connection. */
 
 struct uip_conn uip_conns[UIP_CONNS]; /* The uip_conns array holds all TCP connections. */
  
 uint16_t uip_listenports[UIP_LISTENPORTS]; /* The uip_listenports list all currently listning
-                                           ports. */
+                                              ports. */
 
 static uint16_t ipid;                 /* Ths ipid variable is an increasing number that is used
-                                      for the IP ID field. */
+                                         for the IP ID field. */
 
 void uip_setipid(uint16_t id)
 {
@@ -161,7 +161,7 @@ void uip_setipid(uint16_t id)
 }
 
 static uint8_t iss[4];                /* The iss variable is used for the TCP initial 
-                                      sequence number. */
+                                         sequence number. */
 
 /* Temporary variables. */
 uint8_t uip_acc32[4];
@@ -251,18 +251,14 @@ static uint16_t chksum(uint16_t sum, const uint8_t *data, uint16_t len)
   while (dataptr < last_byte) { /* At least two more bytes */
     t = (dataptr[0] << 8) + dataptr[1];
     sum += t;
-    if (sum < t) {
-      sum++; /* carry */
-    }
+    if (sum < t) sum++; /* carry */
     dataptr += 2;
   }
 
   if (dataptr == last_byte) {
     t = (dataptr[0] << 8) + 0;
     sum += t;
-    if (sum < t) {
-      sum++; /* carry */
-    }
+    if (sum < t) sum++; /* carry */
   }
   /* Return sum in host byte order. */
   return sum;
@@ -322,16 +318,22 @@ uint16_t uip_tcpchksum(void)
 /*---------------------------------------------------------------------------*/
 void uip_init(void)
 {
-  for (c = 0; c < UIP_LISTENPORTS; ++c) {
-    uip_listenports[c] = 0;
-  }
-  for (c = 0; c < UIP_CONNS; ++c) {
-    uip_conns[c].tcpstateflags = UIP_CLOSED;
-  }
+  for (c = 0; c < UIP_LISTENPORTS; ++c) uip_listenports[c] = 0;
+  for (c = 0; c < UIP_CONNS; ++c) uip_conns[c].tcpstateflags = UIP_CLOSED;
   /* IPv4 initialization. */
 
 #if UIP_STATISTICS == 1
   // Initialize statistics
+  uip_init_stats();
+#endif /* UIP_STATISTICS == 1 */
+}
+
+
+/*---------------------------------------------------------------------------*/
+void uip_init_stats(void)
+{
+  // Initialize statistics
+#if UIP_STATISTICS == 1
   uip_stat.ip.drop = 0;
   uip_stat.ip.recv = 0;
   uip_stat.ip.sent = 0;
@@ -400,8 +402,7 @@ void uip_process(uint8_t flag)
 
   uip_sappdata = uip_appdata = &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN];
 
-  /* Check if we were invoked because of a poll request for a
-     particular connection. */
+  /* Check if we were invoked because of a poll request for a particular connection. */
   if (flag == UIP_POLL_REQUEST) {
     if ((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED && !uip_outstanding(uip_connr)) {
       uip_flags = UIP_POLL;
@@ -409,9 +410,9 @@ void uip_process(uint8_t flag)
       goto appsend;
     }
     goto drop;
-
-    /* Check if we were invoked because of the perodic timer fireing. */
   }
+  
+  /* Check if we were invoked because of the perodic timer fireing. */
   else if (flag == UIP_TIMER) {
     /* Increase the initial sequence number. */
     if (++iss[3] == 0) {
@@ -460,7 +461,7 @@ void uip_process(uint8_t flag)
           }
 
           /* Exponential backoff. */
-	  if(uip_connr->nrtx > 4) uip_connr->nrtx = 4;
+	  if (uip_connr->nrtx > 4) uip_connr->nrtx = 4;
 	  uip_connr->timer = (uint8_t)(UIP_RTO << uip_connr->nrtx);
 	  ++(uip_connr->nrtx);
 
@@ -504,6 +505,9 @@ void uip_process(uint8_t flag)
   goto drop;
   }
 
+
+
+
   /* This is where the input processing starts. */
   UIP_STAT(++uip_stat.ip.recv);
 
@@ -522,13 +526,10 @@ void uip_process(uint8_t flag)
      uip_len is larger than the size reported in the IP packet header,
      the packet has been padded and we set uip_len to the correct
      value. */
-
   if ((BUF->len[0] << 8) + BUF->len[1] <= uip_len) {
     uip_len = (BUF->len[0] << 8) + BUF->len[1];
   }
-  else {
-    goto drop;
-  }
+  else goto drop;
 
   /* Check the fragment flag. */
   if ((BUF->ipoffset[0] & 0x3f) != 0 || BUF->ipoffset[1] != 0) {
@@ -537,11 +538,11 @@ void uip_process(uint8_t flag)
     goto drop;
   }
 
-    /* If the packet is not destined for our IP address drop it. */
-    if (!uip_ipaddr_cmp(BUF->destipaddr, uip_hostaddr)) {
-      UIP_STAT(++uip_stat.ip.drop);
-      goto drop;
-    }
+  /* If the packet is not destined for our IP address drop it. */
+  if (!uip_ipaddr_cmp(BUF->destipaddr, uip_hostaddr)) {
+    UIP_STAT(++uip_stat.ip.drop);
+    goto drop;
+  }
 
   if (uip_ipchksum() != 0xffff) { /* Compute and check the IP header checksum. */
     UIP_STAT(++uip_stat.ip.drop);
@@ -553,8 +554,6 @@ void uip_process(uint8_t flag)
     /* Check for TCP packet. If so, proceed with TCP input processing. */
     goto tcp_input;
   }
-
-
 
 
 
@@ -636,12 +635,13 @@ void uip_process(uint8_t flag)
 
   /* No matching connection found, so we send a RST packet. */
   UIP_STAT(++uip_stat.tcp.synrst);
-  reset:
+  
+  
 
+
+  reset:
   /* We do not send resets in response to resets. */
-  if (BUF->flags & TCP_RST) {
-    goto drop;
-  }
+  if (BUF->flags & TCP_RST) goto drop;
 
   UIP_STAT(++uip_stat.tcp.rst);
   
@@ -666,9 +666,9 @@ void uip_process(uint8_t flag)
   BUF->seqno[0] = BUF->ackno[0];
   BUF->ackno[0] = c;
 
-  /* We also have to increase the sequence number we are
-     acknowledging. If the least significant byte overflowed, we need
-     to propagate the carry to the other bytes as well. */
+  /* We also have to increase the sequence number we are acknowledging.
+     If the least significant byte overflowed, we need to propagate the
+     carry to the other bytes as well. */
   if (++BUF->ackno[3] == 0) {
     if (++BUF->ackno[2] == 0) {
       if (++BUF->ackno[1] == 0) {
@@ -692,11 +692,10 @@ void uip_process(uint8_t flag)
 
 
 
-
-  /* This label will be jumped to if we matched the incoming packet
+  found_listen:
+  /* found_listen will be jumped to if we matched the incoming packet
      with a connection in LISTEN. In that case, we should create a new
      connection and send a SYNACK in return. */
-  found_listen:
   /* First we check if there are any connections avaliable. Unused
      connections are kept in the same table as used connections, but
      unused ones have the tcpstate set to CLOSED. Also, connections in
@@ -795,8 +794,11 @@ void uip_process(uint8_t flag)
   BUF->tcpoffset = ((UIP_TCPH_LEN + TCP_OPT_MSS_LEN) / 4) << 4;
   goto tcp_send;
 
-  /* This label will be jumped to if we found an active connection. */
+
+
+
   found:
+  /* found will be jumped to if we found an active connection. */
   uip_conn = uip_connr;
   uip_flags = 0;
   /* We do a very naive form of TCP reset processing; we just accept
@@ -1104,12 +1106,18 @@ void uip_process(uint8_t flag)
   goto drop;
 
 
-  /* We jump here when we are ready to send the packet, and just want to set the appropriate
-     TCP sequence numbers in the TCP header. */
+
+
+
   tcp_send_ack:
+  /* We jump here when we are ready to send the packet, and just want to set the
+     appropriate TCP sequence numbers in the TCP header. */
   BUF->flags = TCP_ACK;
   tcp_send_nodata: uip_len = UIP_IPTCPH_LEN;
   tcp_send_noopts: BUF->tcpoffset = (UIP_TCPH_LEN / 4) << 4;
+
+
+
 
 
   tcp_send:
@@ -1145,6 +1153,8 @@ void uip_process(uint8_t flag)
   }
 
 
+
+
   tcp_send_noconn:
   BUF->ttl = UIP_TTL;
   BUF->len[0] = (uint8_t)(uip_len >> 8);
@@ -1155,6 +1165,8 @@ void uip_process(uint8_t flag)
   /* Calculate TCP checksum. */
   BUF->tcpchksum = 0;
   BUF->tcpchksum = ~(uip_tcpchksum());
+
+
 
 
   ip_send_nolen:
@@ -1172,6 +1184,8 @@ void uip_process(uint8_t flag)
   UIP_STAT(++uip_stat.tcp.sent);
 
 
+
+
   send:
 
   UIP_STAT(++uip_stat.ip.sent);
@@ -1179,7 +1193,9 @@ void uip_process(uint8_t flag)
   uip_flags = 0;
 
   return;
-  
+
+
+
   drop:
   uip_len = 0;
   uip_flags = 0;
@@ -1205,4 +1221,3 @@ void uip_send(const char *data, int len)
     }
   }
 }
-

@@ -13,1980 +13,1986 @@
   63                     ; 158 void uip_setipid(uint16_t id)
   63                     ; 159 {
   65                     	switch	.text
-  66  e9d6               _uip_setipid:
+  66  e462               _uip_setipid:
   70                     ; 160   ipid = id;
-  72  e9d6 cf006c        	ldw	L31_ipid,x
+  72  e462 cf006c        	ldw	L31_ipid,x
   73                     ; 161 }
-  76  e9d9 81            	ret	
+  76  e465 81            	ret	
  119                     ; 212 void uip_add32(uint8_t *op32, uint16_t op16)
  119                     ; 213 {
  120                     	switch	.text
- 121  e9da               _uip_add32:
- 123  e9da 89            	pushw	x
- 124  e9db 89            	pushw	x
+ 121  e466               _uip_add32:
+ 123  e466 89            	pushw	x
+ 124  e467 89            	pushw	x
  125       00000002      OFST:	set	2
  128                     ; 214   uip_acc32[3] = (uint8_t)(op32[3] + (op16 & 0xff));
- 130  e9dc 7b08          	ld	a,(OFST+6,sp)
- 131  e9de eb03          	add	a,(3,x)
- 132  e9e0 c700e4        	ld	_uip_acc32+3,a
+ 130  e468 7b08          	ld	a,(OFST+6,sp)
+ 131  e46a eb03          	add	a,(3,x)
+ 132  e46c c700e4        	ld	_uip_acc32+3,a
  133                     ; 215   uip_acc32[2] = (uint8_t)(op32[2] + (op16 >> 8));
- 135  e9e3 e602          	ld	a,(2,x)
- 136  e9e5 1b07          	add	a,(OFST+5,sp)
- 137  e9e7 c700e3        	ld	_uip_acc32+2,a
+ 135  e46f e602          	ld	a,(2,x)
+ 136  e471 1b07          	add	a,(OFST+5,sp)
+ 137  e473 c700e3        	ld	_uip_acc32+2,a
  138                     ; 216   uip_acc32[1] = op32[1];
- 140  e9ea e601          	ld	a,(1,x)
- 141  e9ec c700e2        	ld	_uip_acc32+1,a
+ 140  e476 e601          	ld	a,(1,x)
+ 141  e478 c700e2        	ld	_uip_acc32+1,a
  142                     ; 217   uip_acc32[0] = op32[0];
- 144  e9ef f6            	ld	a,(x)
- 145  e9f0 c700e1        	ld	_uip_acc32,a
+ 144  e47b f6            	ld	a,(x)
+ 145  e47c c700e1        	ld	_uip_acc32,a
  146                     ; 219   if (uip_acc32[2] < (op16 >> 8)) {
- 148  e9f3 4f            	clr	a
- 149  e9f4 1e07          	ldw	x,(OFST+5,sp)
- 150  e9f6 01            	rrwa	x,a
- 151  e9f7 c600e3        	ld	a,_uip_acc32+2
- 152  e9fa 905f          	clrw	y
- 153  e9fc 9097          	ld	yl,a
- 154  e9fe 90bf07        	ldw	c_y,y
- 155  ea01 b307          	cpw	x,c_y
- 156  ea03 230a          	jrule	L76
+ 148  e47f 4f            	clr	a
+ 149  e480 1e07          	ldw	x,(OFST+5,sp)
+ 150  e482 01            	rrwa	x,a
+ 151  e483 c600e3        	ld	a,_uip_acc32+2
+ 152  e486 905f          	clrw	y
+ 153  e488 9097          	ld	yl,a
+ 154  e48a 90bf07        	ldw	c_y,y
+ 155  e48d b307          	cpw	x,c_y
+ 156  e48f 230a          	jrule	L76
  157                     ; 220     ++uip_acc32[1];
- 159  ea05 725c00e2      	inc	_uip_acc32+1
+ 159  e491 725c00e2      	inc	_uip_acc32+1
  160                     ; 221     if (uip_acc32[1] == 0) {
- 162  ea09 2604          	jrne	L76
+ 162  e495 2604          	jrne	L76
  163                     ; 222       ++uip_acc32[0];
- 165  ea0b 725c00e1      	inc	_uip_acc32
- 166  ea0f               L76:
+ 165  e497 725c00e1      	inc	_uip_acc32
+ 166  e49b               L76:
  167                     ; 226   if (uip_acc32[3] < (op16 & 0xff)) {
- 169  ea0f c600e4        	ld	a,_uip_acc32+3
- 170  ea12 5f            	clrw	x
- 171  ea13 97            	ld	xl,a
- 172  ea14 1f01          	ldw	(OFST-1,sp),x
- 174  ea16 5f            	clrw	x
- 175  ea17 7b08          	ld	a,(OFST+6,sp)
- 176  ea19 02            	rlwa	x,a
- 177  ea1a 1301          	cpw	x,(OFST-1,sp)
- 178  ea1c 2310          	jrule	L37
+ 169  e49b c600e4        	ld	a,_uip_acc32+3
+ 170  e49e 5f            	clrw	x
+ 171  e49f 97            	ld	xl,a
+ 172  e4a0 1f01          	ldw	(OFST-1,sp),x
+ 174  e4a2 5f            	clrw	x
+ 175  e4a3 7b08          	ld	a,(OFST+6,sp)
+ 176  e4a5 02            	rlwa	x,a
+ 177  e4a6 1301          	cpw	x,(OFST-1,sp)
+ 178  e4a8 2310          	jrule	L37
  179                     ; 227     ++uip_acc32[2];
- 181  ea1e 725c00e3      	inc	_uip_acc32+2
+ 181  e4aa 725c00e3      	inc	_uip_acc32+2
  182                     ; 228     if (uip_acc32[2] == 0) {
- 184  ea22 260a          	jrne	L37
+ 184  e4ae 260a          	jrne	L37
  185                     ; 229       ++uip_acc32[1];
- 187  ea24 725c00e2      	inc	_uip_acc32+1
+ 187  e4b0 725c00e2      	inc	_uip_acc32+1
  188                     ; 230       if (uip_acc32[1] == 0) {
- 190  ea28 2604          	jrne	L37
+ 190  e4b4 2604          	jrne	L37
  191                     ; 231         ++uip_acc32[0];
- 193  ea2a 725c00e1      	inc	_uip_acc32
- 194  ea2e               L37:
+ 193  e4b6 725c00e1      	inc	_uip_acc32
+ 194  e4ba               L37:
  195                     ; 235 }
- 198  ea2e 5b04          	addw	sp,#4
- 199  ea30 81            	ret	
+ 198  e4ba 5b04          	addw	sp,#4
+ 199  e4bc 81            	ret	
  275                     ; 242 static uint16_t chksum(uint16_t sum, const uint8_t *data, uint16_t len)
  275                     ; 243 {
  276                     	switch	.text
- 277  ea31               L101_chksum:
- 279  ea31 89            	pushw	x
- 280  ea32 5206          	subw	sp,#6
+ 277  e4bd               L101_chksum:
+ 279  e4bd 89            	pushw	x
+ 280  e4be 5206          	subw	sp,#6
  281       00000006      OFST:	set	6
  284                     ; 248   dataptr = data;
- 286  ea34 1e0b          	ldw	x,(OFST+5,sp)
- 287  ea36 1f05          	ldw	(OFST-1,sp),x
+ 286  e4c0 1e0b          	ldw	x,(OFST+5,sp)
+ 287  e4c2 1f05          	ldw	(OFST-1,sp),x
  289                     ; 249   last_byte = data + len - 1;
- 291  ea38 72fb0d        	addw	x,(OFST+7,sp)
- 292  ea3b 5a            	decw	x
- 293  ea3c 1f01          	ldw	(OFST-5,sp),x
- 296  ea3e 1e05          	ldw	x,(OFST-1,sp)
- 297  ea40 2020          	jra	L341
- 298  ea42               L731:
+ 291  e4c4 72fb0d        	addw	x,(OFST+7,sp)
+ 292  e4c7 5a            	decw	x
+ 293  e4c8 1f01          	ldw	(OFST-5,sp),x
+ 296  e4ca 1e05          	ldw	x,(OFST-1,sp)
+ 297  e4cc 2020          	jra	L341
+ 298  e4ce               L731:
  299                     ; 252     t = (dataptr[0] << 8) + dataptr[1];
- 301  ea42 f6            	ld	a,(x)
- 302  ea43 5f            	clrw	x
- 303  ea44 97            	ld	xl,a
- 304  ea45 1605          	ldw	y,(OFST-1,sp)
- 305  ea47 4f            	clr	a
- 306  ea48 90eb01        	add	a,(1,y)
- 307  ea4b 2401          	jrnc	L21
- 308  ea4d 5c            	incw	x
- 309  ea4e               L21:
- 310  ea4e 02            	rlwa	x,a
- 311  ea4f 1f03          	ldw	(OFST-3,sp),x
+ 301  e4ce f6            	ld	a,(x)
+ 302  e4cf 5f            	clrw	x
+ 303  e4d0 97            	ld	xl,a
+ 304  e4d1 1605          	ldw	y,(OFST-1,sp)
+ 305  e4d3 4f            	clr	a
+ 306  e4d4 90eb01        	add	a,(1,y)
+ 307  e4d7 2401          	jrnc	L21
+ 308  e4d9 5c            	incw	x
+ 309  e4da               L21:
+ 310  e4da 02            	rlwa	x,a
+ 311  e4db 1f03          	ldw	(OFST-3,sp),x
  313                     ; 253     sum += t;
- 315  ea51 72fb07        	addw	x,(OFST+1,sp)
- 316                     ; 254     if (sum < t) {
- 318  ea54 1303          	cpw	x,(OFST-3,sp)
- 319  ea56 2401          	jruge	L741
- 320                     ; 255       sum++; /* carry */
- 322  ea58 5c            	incw	x
- 323  ea59               L741:
- 324  ea59 1f07          	ldw	(OFST+1,sp),x
- 325                     ; 257     dataptr += 2;
- 327  ea5b 1e05          	ldw	x,(OFST-1,sp)
- 328  ea5d 1c0002        	addw	x,#2
- 329  ea60 1f05          	ldw	(OFST-1,sp),x
- 331  ea62               L341:
+ 315  e4dd 72fb07        	addw	x,(OFST+1,sp)
+ 316                     ; 254     if (sum < t) sum++; /* carry */
+ 318  e4e0 1303          	cpw	x,(OFST-3,sp)
+ 319  e4e2 2401          	jruge	L741
+ 322  e4e4 5c            	incw	x
+ 323  e4e5               L741:
+ 324  e4e5 1f07          	ldw	(OFST+1,sp),x
+ 325                     ; 255     dataptr += 2;
+ 327  e4e7 1e05          	ldw	x,(OFST-1,sp)
+ 328  e4e9 1c0002        	addw	x,#2
+ 329  e4ec 1f05          	ldw	(OFST-1,sp),x
+ 331  e4ee               L341:
  332                     ; 251   while (dataptr < last_byte) { /* At least two more bytes */
- 334  ea62 1301          	cpw	x,(OFST-5,sp)
- 335  ea64 25dc          	jrult	L731
- 336                     ; 260   if (dataptr == last_byte) {
- 338  ea66 2612          	jrne	L151
- 339                     ; 261     t = (dataptr[0] << 8) + 0;
- 341  ea68 f6            	ld	a,(x)
- 342  ea69 97            	ld	xl,a
- 343  ea6a 4f            	clr	a
- 344  ea6b 02            	rlwa	x,a
- 345  ea6c 1f03          	ldw	(OFST-3,sp),x
- 347                     ; 262     sum += t;
- 349  ea6e 72fb07        	addw	x,(OFST+1,sp)
- 350  ea71 1f07          	ldw	(OFST+1,sp),x
- 351                     ; 263     if (sum < t) {
- 353  ea73 1303          	cpw	x,(OFST-3,sp)
- 354  ea75 2403          	jruge	L151
- 355                     ; 264       sum++; /* carry */
- 357  ea77 5c            	incw	x
- 358  ea78 1f07          	ldw	(OFST+1,sp),x
- 359  ea7a               L151:
- 360                     ; 268   return sum;
- 362  ea7a 1e07          	ldw	x,(OFST+1,sp)
- 365  ea7c 5b08          	addw	sp,#8
- 366  ea7e 81            	ret	
- 410                     ; 273 uint16_t uip_chksum(uint16_t *data, uint16_t len)
- 410                     ; 274 {
+ 334  e4ee 1301          	cpw	x,(OFST-5,sp)
+ 335  e4f0 25dc          	jrult	L731
+ 336                     ; 258   if (dataptr == last_byte) {
+ 338  e4f2 2612          	jrne	L151
+ 339                     ; 259     t = (dataptr[0] << 8) + 0;
+ 341  e4f4 f6            	ld	a,(x)
+ 342  e4f5 97            	ld	xl,a
+ 343  e4f6 4f            	clr	a
+ 344  e4f7 02            	rlwa	x,a
+ 345  e4f8 1f03          	ldw	(OFST-3,sp),x
+ 347                     ; 260     sum += t;
+ 349  e4fa 72fb07        	addw	x,(OFST+1,sp)
+ 350  e4fd 1f07          	ldw	(OFST+1,sp),x
+ 351                     ; 261     if (sum < t) sum++; /* carry */
+ 353  e4ff 1303          	cpw	x,(OFST-3,sp)
+ 354  e501 2403          	jruge	L151
+ 357  e503 5c            	incw	x
+ 358  e504 1f07          	ldw	(OFST+1,sp),x
+ 359  e506               L151:
+ 360                     ; 264   return sum;
+ 362  e506 1e07          	ldw	x,(OFST+1,sp)
+ 365  e508 5b08          	addw	sp,#8
+ 366  e50a 81            	ret	
+ 410                     ; 269 uint16_t uip_chksum(uint16_t *data, uint16_t len)
+ 410                     ; 270 {
  411                     	switch	.text
- 412  ea7f               _uip_chksum:
- 414  ea7f 89            	pushw	x
+ 412  e50b               _uip_chksum:
+ 414  e50b 89            	pushw	x
  415       00000000      OFST:	set	0
- 418                     ; 275   return htons(chksum(0, (uint8_t *)data, len));
- 420  ea80 1e05          	ldw	x,(OFST+5,sp)
- 421  ea82 89            	pushw	x
- 422  ea83 1e03          	ldw	x,(OFST+3,sp)
- 423  ea85 89            	pushw	x
- 424  ea86 5f            	clrw	x
- 425  ea87 ada8          	call	L101_chksum
- 427  ea89 5b04          	addw	sp,#4
- 428  ea8b cdf514        	call	_htons
- 432  ea8e 5b02          	addw	sp,#2
- 433  ea90 81            	ret	
- 468                     ; 281 uint16_t uip_ipchksum(void)
- 468                     ; 282 {
+ 418                     ; 271   return htons(chksum(0, (uint8_t *)data, len));
+ 420  e50c 1e05          	ldw	x,(OFST+5,sp)
+ 421  e50e 89            	pushw	x
+ 422  e50f 1e03          	ldw	x,(OFST+3,sp)
+ 423  e511 89            	pushw	x
+ 424  e512 5f            	clrw	x
+ 425  e513 ada8          	call	L101_chksum
+ 427  e515 5b04          	addw	sp,#4
+ 428  e517 cdefa2        	call	_htons
+ 432  e51a 5b02          	addw	sp,#2
+ 433  e51c 81            	ret	
+ 468                     ; 277 uint16_t uip_ipchksum(void)
+ 468                     ; 278 {
  469                     	switch	.text
- 470  ea91               _uip_ipchksum:
- 472  ea91 89            	pushw	x
+ 470  e51d               _uip_ipchksum:
+ 472  e51d 89            	pushw	x
  473       00000002      OFST:	set	2
- 476                     ; 285   sum = chksum(0, &uip_buf[UIP_LLH_LEN], UIP_IPH_LEN);
- 478  ea92 ae0014        	ldw	x,#20
- 479  ea95 89            	pushw	x
- 480  ea96 ae01e9        	ldw	x,#_uip_buf+14
- 481  ea99 89            	pushw	x
- 482  ea9a 5f            	clrw	x
- 483  ea9b ad94          	call	L101_chksum
- 485  ea9d 5b04          	addw	sp,#4
- 486  ea9f 1f01          	ldw	(OFST-1,sp),x
- 488                     ; 287   return (sum == 0) ? 0xffff : htons(sum);
- 490  eaa1 2603          	jrne	L62
- 491  eaa3 5a            	decw	x
- 492  eaa4 2003          	jra	L03
- 493  eaa6               L62:
- 494  eaa6 cdf514        	call	_htons
- 496  eaa9               L03:
- 499  eaa9 5b02          	addw	sp,#2
- 500  eaab 81            	ret	
- 549                     ; 293 static uint16_t upper_layer_chksum(uint8_t proto)
- 549                     ; 294 {
+ 476                     ; 281   sum = chksum(0, &uip_buf[UIP_LLH_LEN], UIP_IPH_LEN);
+ 478  e51e ae0014        	ldw	x,#20
+ 479  e521 89            	pushw	x
+ 480  e522 ae01e9        	ldw	x,#_uip_buf+14
+ 481  e525 89            	pushw	x
+ 482  e526 5f            	clrw	x
+ 483  e527 ad94          	call	L101_chksum
+ 485  e529 5b04          	addw	sp,#4
+ 486  e52b 1f01          	ldw	(OFST-1,sp),x
+ 488                     ; 283   return (sum == 0) ? 0xffff : htons(sum);
+ 490  e52d 2603          	jrne	L62
+ 491  e52f 5a            	decw	x
+ 492  e530 2003          	jra	L03
+ 493  e532               L62:
+ 494  e532 cdefa2        	call	_htons
+ 496  e535               L03:
+ 499  e535 5b02          	addw	sp,#2
+ 500  e537 81            	ret	
+ 549                     ; 289 static uint16_t upper_layer_chksum(uint8_t proto)
+ 549                     ; 290 {
  550                     	switch	.text
- 551  eaac               L112_upper_layer_chksum:
- 553  eaac 88            	push	a
- 554  eaad 5204          	subw	sp,#4
+ 551  e538               L112_upper_layer_chksum:
+ 553  e538 88            	push	a
+ 554  e539 5204          	subw	sp,#4
  555       00000004      OFST:	set	4
- 558                     ; 298   upper_layer_len = (((uint16_t)(BUF->len[0]) << 8) + BUF->len[1]) - UIP_IPH_LEN;
- 560  eaaf c601eb        	ld	a,_uip_buf+16
- 561  eab2 5f            	clrw	x
- 562  eab3 97            	ld	xl,a
- 563  eab4 4f            	clr	a
- 564  eab5 cb01ec        	add	a,_uip_buf+17
- 565  eab8 2401          	jrnc	L63
- 566  eaba 5c            	incw	x
- 567  eabb               L63:
- 568  eabb 02            	rlwa	x,a
- 569  eabc 1d0014        	subw	x,#20
- 570  eabf 1f01          	ldw	(OFST-3,sp),x
- 572                     ; 303   sum = upper_layer_len + proto;
- 574  eac1 5f            	clrw	x
- 575  eac2 7b05          	ld	a,(OFST+1,sp)
- 576  eac4 97            	ld	xl,a
- 577  eac5 72fb01        	addw	x,(OFST-3,sp)
- 578  eac8 1f03          	ldw	(OFST-1,sp),x
- 580                     ; 305   sum = chksum(sum, (uint8_t *)&BUF->srcipaddr[0], 2 * sizeof(uip_ipaddr_t));
- 582  eaca ae0008        	ldw	x,#8
- 583  eacd 89            	pushw	x
- 584  eace ae01f5        	ldw	x,#_uip_buf+26
- 585  ead1 89            	pushw	x
- 586  ead2 1e07          	ldw	x,(OFST+3,sp)
- 587  ead4 cdea31        	call	L101_chksum
- 589  ead7 5b04          	addw	sp,#4
- 590  ead9 1f03          	ldw	(OFST-1,sp),x
- 592                     ; 308   sum = chksum(sum, &uip_buf[UIP_IPH_LEN + UIP_LLH_LEN], upper_layer_len);
- 594  eadb 1e01          	ldw	x,(OFST-3,sp)
- 595  eadd 89            	pushw	x
- 596  eade ae01fd        	ldw	x,#_uip_buf+34
- 597  eae1 89            	pushw	x
- 598  eae2 1e07          	ldw	x,(OFST+3,sp)
- 599  eae4 cdea31        	call	L101_chksum
- 601  eae7 5b04          	addw	sp,#4
- 602  eae9 1f03          	ldw	(OFST-1,sp),x
- 604                     ; 310   return (sum == 0) ? 0xffff : htons(sum);
- 606  eaeb 2603          	jrne	L44
- 607  eaed 5a            	decw	x
- 608  eaee 2003          	jra	L64
- 609  eaf0               L44:
- 610  eaf0 cdf514        	call	_htons
- 612  eaf3               L64:
- 615  eaf3 5b05          	addw	sp,#5
- 616  eaf5 81            	ret	
- 640                     ; 315 uint16_t uip_tcpchksum(void)
- 640                     ; 316 {
+ 558                     ; 294   upper_layer_len = (((uint16_t)(BUF->len[0]) << 8) + BUF->len[1]) - UIP_IPH_LEN;
+ 560  e53b c601eb        	ld	a,_uip_buf+16
+ 561  e53e 5f            	clrw	x
+ 562  e53f 97            	ld	xl,a
+ 563  e540 4f            	clr	a
+ 564  e541 cb01ec        	add	a,_uip_buf+17
+ 565  e544 2401          	jrnc	L63
+ 566  e546 5c            	incw	x
+ 567  e547               L63:
+ 568  e547 02            	rlwa	x,a
+ 569  e548 1d0014        	subw	x,#20
+ 570  e54b 1f01          	ldw	(OFST-3,sp),x
+ 572                     ; 299   sum = upper_layer_len + proto;
+ 574  e54d 5f            	clrw	x
+ 575  e54e 7b05          	ld	a,(OFST+1,sp)
+ 576  e550 97            	ld	xl,a
+ 577  e551 72fb01        	addw	x,(OFST-3,sp)
+ 578  e554 1f03          	ldw	(OFST-1,sp),x
+ 580                     ; 301   sum = chksum(sum, (uint8_t *)&BUF->srcipaddr[0], 2 * sizeof(uip_ipaddr_t));
+ 582  e556 ae0008        	ldw	x,#8
+ 583  e559 89            	pushw	x
+ 584  e55a ae01f5        	ldw	x,#_uip_buf+26
+ 585  e55d 89            	pushw	x
+ 586  e55e 1e07          	ldw	x,(OFST+3,sp)
+ 587  e560 cde4bd        	call	L101_chksum
+ 589  e563 5b04          	addw	sp,#4
+ 590  e565 1f03          	ldw	(OFST-1,sp),x
+ 592                     ; 304   sum = chksum(sum, &uip_buf[UIP_IPH_LEN + UIP_LLH_LEN], upper_layer_len);
+ 594  e567 1e01          	ldw	x,(OFST-3,sp)
+ 595  e569 89            	pushw	x
+ 596  e56a ae01fd        	ldw	x,#_uip_buf+34
+ 597  e56d 89            	pushw	x
+ 598  e56e 1e07          	ldw	x,(OFST+3,sp)
+ 599  e570 cde4bd        	call	L101_chksum
+ 601  e573 5b04          	addw	sp,#4
+ 602  e575 1f03          	ldw	(OFST-1,sp),x
+ 604                     ; 306   return (sum == 0) ? 0xffff : htons(sum);
+ 606  e577 2603          	jrne	L44
+ 607  e579 5a            	decw	x
+ 608  e57a 2003          	jra	L64
+ 609  e57c               L44:
+ 610  e57c cdefa2        	call	_htons
+ 612  e57f               L64:
+ 615  e57f 5b05          	addw	sp,#5
+ 616  e581 81            	ret	
+ 640                     ; 311 uint16_t uip_tcpchksum(void)
+ 640                     ; 312 {
  641                     	switch	.text
- 642  eaf6               _uip_tcpchksum:
- 646                     ; 317   return upper_layer_chksum(UIP_PROTO_TCP);
- 648  eaf6 a606          	ld	a,#6
- 652  eaf8 20b2          	jp	L112_upper_layer_chksum
- 679                     ; 323 void uip_init(void)
- 679                     ; 324 {
+ 642  e582               _uip_tcpchksum:
+ 646                     ; 313   return upper_layer_chksum(UIP_PROTO_TCP);
+ 648  e582 a606          	ld	a,#6
+ 652  e584 20b2          	jp	L112_upper_layer_chksum
+ 679                     ; 319 void uip_init(void)
+ 679                     ; 320 {
  680                     	switch	.text
- 681  eafa               _uip_init:
- 685                     ; 325   for (c = 0; c < UIP_LISTENPORTS; ++c) {
- 687  eafa 4f            	clr	a
- 688  eafb c70067        	ld	L14_c,a
- 689  eafe               L352:
- 690                     ; 326     uip_listenports[c] = 0;
- 692  eafe 5f            	clrw	x
- 693  eaff 97            	ld	xl,a
- 694  eb00 58            	sllw	x
- 695  eb01 905f          	clrw	y
- 696  eb03 df006e        	ldw	(_uip_listenports,x),y
- 697                     ; 325   for (c = 0; c < UIP_LISTENPORTS; ++c) {
- 699  eb06 725c0067      	inc	L14_c
- 702  eb0a c60067        	ld	a,L14_c
- 703  eb0d a105          	cp	a,#5
- 704  eb0f 25ed          	jrult	L352
- 705                     ; 328   for (c = 0; c < UIP_CONNS; ++c) {
- 707  eb11 4f            	clr	a
- 708  eb12 c70067        	ld	L14_c,a
- 709  eb15               L162:
- 710                     ; 329     uip_conns[c].tcpstateflags = UIP_CLOSED;
- 712  eb15 97            	ld	xl,a
- 713  eb16 a628          	ld	a,#40
- 714  eb18 42            	mul	x,a
- 715  eb19 724f00fe      	clr	(_uip_conns+25,x)
- 716                     ; 328   for (c = 0; c < UIP_CONNS; ++c) {
- 718  eb1d 725c0067      	inc	L14_c
- 721  eb21 c60067        	ld	a,L14_c
- 722  eb24 a106          	cp	a,#6
- 723  eb26 25ed          	jrult	L162
- 724                     ; 335   uip_stat.ip.drop = 0;
- 726  eb28 5f            	clrw	x
- 727  eb29 cf008b        	ldw	_uip_stat+2,x
- 728  eb2c cf0089        	ldw	_uip_stat,x
- 729                     ; 336   uip_stat.ip.recv = 0;
- 731  eb2f cf008f        	ldw	_uip_stat+6,x
- 732  eb32 cf008d        	ldw	_uip_stat+4,x
- 733                     ; 337   uip_stat.ip.sent = 0;
- 735  eb35 cf0093        	ldw	_uip_stat+10,x
- 736  eb38 cf0091        	ldw	_uip_stat+8,x
- 737                     ; 338   uip_stat.ip.vhlerr = 0;
- 739  eb3b cf0097        	ldw	_uip_stat+14,x
- 740  eb3e cf0095        	ldw	_uip_stat+12,x
- 741                     ; 339   uip_stat.ip.hblenerr = 0;
- 743  eb41 cf009b        	ldw	_uip_stat+18,x
- 744  eb44 cf0099        	ldw	_uip_stat+16,x
- 745                     ; 340   uip_stat.ip.lblenerr = 0;
- 747  eb47 cf009f        	ldw	_uip_stat+22,x
- 748  eb4a cf009d        	ldw	_uip_stat+20,x
- 749                     ; 341   uip_stat.ip.fragerr = 0;
- 751  eb4d cf00a3        	ldw	_uip_stat+26,x
- 752  eb50 cf00a1        	ldw	_uip_stat+24,x
- 753                     ; 342   uip_stat.ip.chkerr = 0;
- 755  eb53 cf00a7        	ldw	_uip_stat+30,x
- 756  eb56 cf00a5        	ldw	_uip_stat+28,x
- 757                     ; 343   uip_stat.ip.protoerr = 0;
- 759  eb59 cf00ab        	ldw	_uip_stat+34,x
- 760  eb5c cf00a9        	ldw	_uip_stat+32,x
- 761                     ; 344   uip_stat.icmp.drop = 0;
- 763  eb5f cf00af        	ldw	_uip_stat+38,x
- 764  eb62 cf00ad        	ldw	_uip_stat+36,x
- 765                     ; 345   uip_stat.icmp.recv = 0;
- 767  eb65 cf00b3        	ldw	_uip_stat+42,x
- 768  eb68 cf00b1        	ldw	_uip_stat+40,x
- 769                     ; 346   uip_stat.icmp.sent = 0;
- 771  eb6b cf00b7        	ldw	_uip_stat+46,x
- 772  eb6e cf00b5        	ldw	_uip_stat+44,x
- 773                     ; 347   uip_stat.icmp.typeerr = 0;
- 775  eb71 cf00bb        	ldw	_uip_stat+50,x
- 776  eb74 cf00b9        	ldw	_uip_stat+48,x
- 777                     ; 348   uip_stat.tcp.drop = 0;
- 779  eb77 cf00bf        	ldw	_uip_stat+54,x
- 780  eb7a cf00bd        	ldw	_uip_stat+52,x
- 781                     ; 349   uip_stat.tcp.recv = 0;
- 783  eb7d cf00c3        	ldw	_uip_stat+58,x
- 784  eb80 cf00c1        	ldw	_uip_stat+56,x
- 785                     ; 350   uip_stat.tcp.sent = 0;
- 787  eb83 cf00c7        	ldw	_uip_stat+62,x
- 788  eb86 cf00c5        	ldw	_uip_stat+60,x
- 789                     ; 351   uip_stat.tcp.chkerr = 0;
- 791  eb89 cf00cb        	ldw	_uip_stat+66,x
- 792  eb8c cf00c9        	ldw	_uip_stat+64,x
- 793                     ; 352   uip_stat.tcp.ackerr = 0;
- 795  eb8f cf00cf        	ldw	_uip_stat+70,x
- 796  eb92 cf00cd        	ldw	_uip_stat+68,x
- 797                     ; 353   uip_stat.tcp.rst = 0;
- 799  eb95 cf00d3        	ldw	_uip_stat+74,x
- 800  eb98 cf00d1        	ldw	_uip_stat+72,x
- 801                     ; 354   uip_stat.tcp.rexmit = 0;
- 803  eb9b cf00d7        	ldw	_uip_stat+78,x
- 804  eb9e cf00d5        	ldw	_uip_stat+76,x
- 805                     ; 355   uip_stat.tcp.syndrop = 0;
- 807  eba1 cf00db        	ldw	_uip_stat+82,x
- 808  eba4 cf00d9        	ldw	_uip_stat+80,x
- 809                     ; 356   uip_stat.tcp.synrst = 0;
- 811  eba7 cf00df        	ldw	_uip_stat+86,x
- 812  ebaa cf00dd        	ldw	_uip_stat+84,x
- 813                     ; 358 }
- 816  ebad 81            	ret	
- 850                     ; 362 void uip_unlisten(uint16_t port)
- 850                     ; 363 {
- 851                     	switch	.text
- 852  ebae               _uip_unlisten:
- 854  ebae 89            	pushw	x
- 855       00000000      OFST:	set	0
- 858                     ; 364   for (c = 0; c < UIP_LISTENPORTS; ++c) {
- 860  ebaf 4f            	clr	a
- 861  ebb0 c70067        	ld	L14_c,a
- 862  ebb3               L303:
- 863                     ; 365     if (uip_listenports[c] == port) {
- 865  ebb3 5f            	clrw	x
- 866  ebb4 97            	ld	xl,a
- 867  ebb5 58            	sllw	x
- 868  ebb6 de006e        	ldw	x,(_uip_listenports,x)
- 869  ebb9 1301          	cpw	x,(OFST+1,sp)
- 870  ebbb 260a          	jrne	L113
- 871                     ; 366       uip_listenports[c] = 0;
- 873  ebbd 5f            	clrw	x
- 874  ebbe 97            	ld	xl,a
- 875  ebbf 58            	sllw	x
- 876  ebc0 905f          	clrw	y
- 877  ebc2 df006e        	ldw	(_uip_listenports,x),y
- 878                     ; 367       return;
- 880  ebc5 200b          	jra	L26
- 881  ebc7               L113:
- 882                     ; 364   for (c = 0; c < UIP_LISTENPORTS; ++c) {
- 884  ebc7 725c0067      	inc	L14_c
- 887  ebcb c60067        	ld	a,L14_c
- 888  ebce a105          	cp	a,#5
- 889  ebd0 25e1          	jrult	L303
- 890                     ; 370 }
- 891  ebd2               L26:
- 894  ebd2 85            	popw	x
- 895  ebd3 81            	ret	
- 929                     ; 374 void uip_listen(uint16_t port)
- 929                     ; 375 {
- 930                     	switch	.text
- 931  ebd4               _uip_listen:
- 933  ebd4 89            	pushw	x
- 934       00000000      OFST:	set	0
- 937                     ; 376   for (c = 0; c < UIP_LISTENPORTS; ++c) {
- 939  ebd5 4f            	clr	a
- 940  ebd6 c70067        	ld	L14_c,a
- 941  ebd9               L723:
- 942                     ; 377     if (uip_listenports[c] == 0) {
- 944  ebd9 5f            	clrw	x
- 945  ebda 97            	ld	xl,a
- 946  ebdb 58            	sllw	x
- 947  ebdc d6006f        	ld	a,(_uip_listenports+1,x)
- 948  ebdf da006e        	or	a,(_uip_listenports,x)
- 949  ebe2 2607          	jrne	L533
- 950                     ; 378       uip_listenports[c] = port;
- 952  ebe4 1601          	ldw	y,(OFST+1,sp)
- 953  ebe6 df006e        	ldw	(_uip_listenports,x),y
- 954                     ; 379       return;
- 956  ebe9 200b          	jra	L66
- 957  ebeb               L533:
- 958                     ; 376   for (c = 0; c < UIP_LISTENPORTS; ++c) {
- 960  ebeb 725c0067      	inc	L14_c
- 963  ebef c60067        	ld	a,L14_c
- 964  ebf2 a105          	cp	a,#5
- 965  ebf4 25e3          	jrult	L723
- 966                     ; 382 }
- 967  ebf6               L66:
- 970  ebf6 85            	popw	x
- 971  ebf7 81            	ret	
-1006                     ; 386 static void uip_add_rcv_nxt(uint16_t n)
-1006                     ; 387 {
-1007                     	switch	.text
-1008  ebf8               L733_uip_add_rcv_nxt:
-1012                     ; 388   uip_add32(uip_conn->rcv_nxt, n);
-1014  ebf8 89            	pushw	x
-1015  ebf9 ce01d5        	ldw	x,_uip_conn
-1016  ebfc 1c0008        	addw	x,#8
-1017  ebff cde9da        	call	_uip_add32
-1019  ec02 85            	popw	x
-1020                     ; 389   uip_conn->rcv_nxt[0] = uip_acc32[0];
-1022  ec03 ce01d5        	ldw	x,_uip_conn
-1023  ec06 c600e1        	ld	a,_uip_acc32
-1024  ec09 e708          	ld	(8,x),a
-1025                     ; 390   uip_conn->rcv_nxt[1] = uip_acc32[1];
-1027  ec0b c600e2        	ld	a,_uip_acc32+1
-1028  ec0e e709          	ld	(9,x),a
-1029                     ; 391   uip_conn->rcv_nxt[2] = uip_acc32[2];
-1031  ec10 c600e3        	ld	a,_uip_acc32+2
-1032  ec13 e70a          	ld	(10,x),a
-1033                     ; 392   uip_conn->rcv_nxt[3] = uip_acc32[3];
-1035  ec15 c600e4        	ld	a,_uip_acc32+3
-1036  ec18 e70b          	ld	(11,x),a
-1037                     ; 393 }
-1040  ec1a 81            	ret	
-1327                     ; 397 void uip_process(uint8_t flag)
-1327                     ; 398 {
-1328                     	switch	.text
-1329  ec1b               _uip_process:
-1331  ec1b 88            	push	a
-1332  ec1c 5205          	subw	sp,#5
-1333       00000005      OFST:	set	5
-1336                     ; 399   register struct uip_conn *uip_connr = uip_conn;
-1338  ec1e ce01d5        	ldw	x,_uip_conn
-1339  ec21 1f04          	ldw	(OFST-1,sp),x
-1341                     ; 401   uip_sappdata = uip_appdata = &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN];
-1343  ec23 ae0211        	ldw	x,#_uip_buf+54
-1344  ec26 cf01d9        	ldw	_uip_appdata,x
-1345  ec29 cf007a        	ldw	_uip_sappdata,x
-1346                     ; 405   if (flag == UIP_POLL_REQUEST) {
-1348  ec2c a103          	cp	a,#3
-1349  ec2e 2614          	jrne	L775
-1350                     ; 406     if ((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED && !uip_outstanding(uip_connr)) {
-1352  ec30 1e04          	ldw	x,(OFST-1,sp)
-1353  ec32 e619          	ld	a,(25,x)
-1354  ec34 a40f          	and	a,#15
-1355  ec36 a103          	cp	a,#3
-1356  ec38 2703ccf509    	jrne	L734
-1358  ec3d e611          	ld	a,(17,x)
-1359  ec3f ea10          	or	a,(16,x)
-1360                     ; 407       uip_flags = UIP_POLL;
-1361                     ; 408       UIP_APPCALL();
-1363                     ; 409       goto appsend;
-1365  ec41 cced0f        	jp	LC001
-1366  ec44               L775:
-1367                     ; 415   else if (flag == UIP_TIMER) {
-1369  ec44 7b06          	ld	a,(OFST+1,sp)
-1370  ec46 a102          	cp	a,#2
-1371  ec48 2703cced2f    	jrne	L306
-1372                     ; 417     if (++iss[3] == 0) {
-1374  ec4d 725c006b      	inc	L73_iss+3
-1375  ec51 2610          	jrne	L706
-1376                     ; 418       if (++iss[2] == 0) {
-1378  ec53 725c006a      	inc	L73_iss+2
-1379  ec57 260a          	jrne	L706
-1380                     ; 419         if (++iss[1] == 0) {
-1382  ec59 725c0069      	inc	L73_iss+1
-1383  ec5d 2604          	jrne	L706
-1384                     ; 420           ++iss[0];
-1386  ec5f 725c0068      	inc	L73_iss
-1387  ec63               L706:
-1388                     ; 426     uip_len = 0;
-1390  ec63 5f            	clrw	x
-1391  ec64 cf01d7        	ldw	_uip_len,x
-1392                     ; 427     uip_slen = 0;
-1394  ec67 cf0078        	ldw	_uip_slen,x
-1395                     ; 433     if (uip_connr->tcpstateflags == UIP_TIME_WAIT || uip_connr->tcpstateflags == UIP_FIN_WAIT_2) {
-1397  ec6a 1e04          	ldw	x,(OFST-1,sp)
-1398  ec6c e619          	ld	a,(25,x)
-1399  ec6e a107          	cp	a,#7
-1400  ec70 2704          	jreq	L716
-1402  ec72 a105          	cp	a,#5
-1403  ec74 260d          	jrne	L516
-1404  ec76               L716:
-1405                     ; 434       ++(uip_connr->timer);
-1407  ec76 6c1a          	inc	(26,x)
-1408                     ; 435       if (uip_connr->timer == UIP_TIME_WAIT_TIMEOUT) {
-1410  ec78 e61a          	ld	a,(26,x)
-1411  ec7a a178          	cp	a,#120
-1412  ec7c 26bc          	jrne	L734
-1413                     ; 436         uip_connr->tcpstateflags = UIP_CLOSED;
-1415  ec7e 6f19          	clr	(25,x)
-1416  ec80 ccf509        	jra	L734
-1417  ec83               L516:
-1418                     ; 439     else if (uip_connr->tcpstateflags != UIP_CLOSED) {
-1420  ec83 e619          	ld	a,(25,x)
-1421  ec85 27f9          	jreq	L734
-1422                     ; 443       if (uip_outstanding(uip_connr)) {
-1424  ec87 e611          	ld	a,(17,x)
-1425  ec89 ea10          	or	a,(16,x)
-1426  ec8b 277c          	jreq	L726
-1427                     ; 444         if (uip_connr->timer-- == 0) {
-1429  ec8d e61a          	ld	a,(26,x)
-1430  ec8f 6a1a          	dec	(26,x)
-1431  ec91 4d            	tnz	a
-1432  ec92 26ec          	jrne	L734
-1433                     ; 445           if (uip_connr->nrtx == UIP_MAXRTX
-1433                     ; 446 	    || ((uip_connr->tcpstateflags == UIP_SYN_SENT
-1433                     ; 447             || uip_connr->tcpstateflags == UIP_SYN_RCVD)
-1433                     ; 448             && uip_connr->nrtx == UIP_MAXSYNRTX)) {
-1435  ec94 e61b          	ld	a,(27,x)
-1436  ec96 a108          	cp	a,#8
-1437  ec98 270f          	jreq	L536
-1439  ec9a e619          	ld	a,(25,x)
-1440  ec9c a102          	cp	a,#2
-1441  ec9e 2703          	jreq	L736
-1443  eca0 4a            	dec	a
-1444  eca1 2616          	jrne	L336
-1445  eca3               L736:
-1447  eca3 e61b          	ld	a,(27,x)
-1448  eca5 a105          	cp	a,#5
-1449  eca7 2610          	jrne	L336
-1450  eca9               L536:
-1451                     ; 449             uip_connr->tcpstateflags = UIP_CLOSED;
-1453  eca9 6f19          	clr	(25,x)
-1454                     ; 454             uip_flags = UIP_TIMEDOUT;
-1456  ecab 35800088      	mov	_uip_flags,#128
-1457                     ; 455             UIP_APPCALL();
-1459  ecaf cdf8ad        	call	_uip_TcpAppHubCall
-1461                     ; 458             BUF->flags = TCP_RST | TCP_ACK;
-1463  ecb2 3514020a      	mov	_uip_buf+47,#20
-1464                     ; 459             goto tcp_send_nodata;
-1466  ecb6 ccf33c        	jra	L324
-1467  ecb9               L336:
-1468                     ; 463 	  if(uip_connr->nrtx > 4) uip_connr->nrtx = 4;
-1470  ecb9 1e04          	ldw	x,(OFST-1,sp)
-1471  ecbb e61b          	ld	a,(27,x)
-1472  ecbd a105          	cp	a,#5
-1473  ecbf 2504          	jrult	L146
-1476  ecc1 a604          	ld	a,#4
-1477  ecc3 e71b          	ld	(27,x),a
-1478  ecc5               L146:
-1479                     ; 464 	  uip_connr->timer = (uint8_t)(UIP_RTO << uip_connr->nrtx);
-1481  ecc5 5f            	clrw	x
-1482  ecc6 97            	ld	xl,a
-1483  ecc7 a603          	ld	a,#3
-1484  ecc9 5d            	tnzw	x
-1485  ecca 2704          	jreq	L201
-1486  eccc               L401:
-1487  eccc 48            	sll	a
-1488  eccd 5a            	decw	x
-1489  ecce 26fc          	jrne	L401
-1490  ecd0               L201:
-1491  ecd0 1e04          	ldw	x,(OFST-1,sp)
-1492  ecd2 e71a          	ld	(26,x),a
-1493                     ; 465 	  ++(uip_connr->nrtx);
-1495  ecd4 6c1b          	inc	(27,x)
-1496                     ; 473           UIP_STAT(++uip_stat.tcp.rexmit);
-1498  ecd6 ae00d5        	ldw	x,#_uip_stat+76
-1499  ecd9 a601          	ld	a,#1
-1500  ecdb cdf9b0        	call	c_lgadc
-1502                     ; 474           switch (uip_connr->tcpstateflags & UIP_TS_MASK) {
-1504  ecde 1e04          	ldw	x,(OFST-1,sp)
-1505  ece0 e619          	ld	a,(25,x)
-1506  ece2 a40f          	and	a,#15
-1508                     ; 488             case UIP_FIN_WAIT_1:
-1508                     ; 489             case UIP_CLOSING:
-1508                     ; 490             case UIP_LAST_ACK:
-1508                     ; 491               /* In all these states we should retransmit a FINACK. */
-1508                     ; 492               goto tcp_send_finack;
-1509  ece4 4a            	dec	a
-1510  ece5 2603ccf0eb    	jreq	L173
-1511  ecea a002          	sub	a,#2
-1512  ecec 2711          	jreq	L753
-1513  ecee 4a            	dec	a
-1514  ecef 2603ccf338    	jreq	LC003
-1515  ecf4 a002          	sub	a,#2
-1516  ecf6 27f9          	jreq	LC003
-1517  ecf8 a002          	sub	a,#2
-1518  ecfa 27f5          	jreq	LC003
-1519  ecfc ccf509        	jra	L734
-1520  ecff               L753:
-1521                     ; 479             case UIP_ESTABLISHED:
-1521                     ; 480               /* In the ESTABLISHED state, we call upon the application
-1521                     ; 481                  to do the actual retransmit after which we jump into
-1521                     ; 482                  the code for sending out the packet (the apprexmit
-1521                     ; 483                  label). */
-1521                     ; 484               uip_flags = UIP_REXMIT;
-1523  ecff 35040088      	mov	_uip_flags,#4
-1524                     ; 485               UIP_APPCALL();
-1526  ed03 cdf8ad        	call	_uip_TcpAppHubCall
-1528                     ; 486               goto apprexmit;
-1530  ed06 ccf37f        	jra	L504
-1531                     ; 488             case UIP_FIN_WAIT_1:
-1531                     ; 489             case UIP_CLOSING:
-1531                     ; 490             case UIP_LAST_ACK:
-1531                     ; 491               /* In all these states we should retransmit a FINACK. */
-1531                     ; 492               goto tcp_send_finack;
-1533  ed09               L726:
-1534                     ; 497       else if ((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED) {
-1536  ed09 e619          	ld	a,(25,x)
-1537  ed0b a40f          	and	a,#15
-1538  ed0d a103          	cp	a,#3
-1539                     ; 499         uip_flags = UIP_POLL;
-1541  ed0f               LC001:
-1542  ed0f 26eb          	jrne	L734
-1544  ed11 35080088      	mov	_uip_flags,#8
-1545                     ; 500         UIP_APPCALL();
-1548                     ; 501         goto appsend;
-1549  ed15               L304:
-1553  ed15 cdf8ad        	call	_uip_TcpAppHubCall
-1554                     ; 970         appsend:
-1554                     ; 971 
-1554                     ; 972         if (uip_flags & UIP_ABORT) {
-1556  ed18 720a008803cc  	btjf	_uip_flags,#5,L7111
-1557                     ; 973           uip_slen = 0;
-1559  ed20 5f            	clrw	x
-1560  ed21 cf0078        	ldw	_uip_slen,x
-1561                     ; 974           uip_connr->tcpstateflags = UIP_CLOSED;
-1563  ed24 1e04          	ldw	x,(OFST-1,sp)
-1564                     ; 975           BUF->flags = TCP_RST | TCP_ACK;
-1566  ed26 3514020a      	mov	_uip_buf+47,#20
-1567  ed2a 6f19          	clr	(25,x)
-1568                     ; 976           goto tcp_send_nodata;
-1570  ed2c ccf33c        	jra	L324
-1571  ed2f               L306:
-1572                     ; 508   UIP_STAT(++uip_stat.ip.recv);
-1574  ed2f ae008d        	ldw	x,#_uip_stat+4
-1575  ed32 a601          	ld	a,#1
-1576  ed34 cdf9b0        	call	c_lgadc
-1578                     ; 513   if (BUF->vhl != 0x45) { /* IP version and header length. */
-1580  ed37 c601e9        	ld	a,_uip_buf+14
-1581  ed3a a145          	cp	a,#69
-1582  ed3c 2713          	jreq	L356
-1583                     ; 514     UIP_STAT(++uip_stat.ip.drop);
-1585  ed3e ae0089        	ldw	x,#_uip_stat
-1586  ed41 a601          	ld	a,#1
-1587  ed43 cdf9b0        	call	c_lgadc
-1589                     ; 515     UIP_STAT(++uip_stat.ip.vhlerr);
-1591  ed46 ae0095        	ldw	x,#_uip_stat+12
-1592  ed49 a601          	ld	a,#1
-1593  ed4b cdf9b0        	call	c_lgadc
-1595                     ; 516     goto drop;
-1597  ed4e ccf509        	jra	L734
-1598  ed51               L356:
-1599                     ; 526   if ((BUF->len[0] << 8) + BUF->len[1] <= uip_len) {
-1601  ed51 c601eb        	ld	a,_uip_buf+16
-1602  ed54 5f            	clrw	x
-1603  ed55 97            	ld	xl,a
-1604  ed56 4f            	clr	a
-1605  ed57 cb01ec        	add	a,_uip_buf+17
-1606  ed5a 2401          	jrnc	L211
-1607  ed5c 5c            	incw	x
-1608  ed5d               L211:
-1609  ed5d 02            	rlwa	x,a
-1610  ed5e c301d7        	cpw	x,_uip_len
-1611  ed61 22eb          	jrugt	L734
-1612                     ; 527     uip_len = (BUF->len[0] << 8) + BUF->len[1];
-1614  ed63 c601eb        	ld	a,_uip_buf+16
-1615  ed66 5f            	clrw	x
-1616  ed67 97            	ld	xl,a
-1617  ed68 4f            	clr	a
-1618  ed69 cb01ec        	add	a,_uip_buf+17
-1619  ed6c 2401          	jrnc	L411
-1620  ed6e 5c            	incw	x
-1621  ed6f               L411:
-1622  ed6f c701d8        	ld	_uip_len+1,a
-1623  ed72 9f            	ld	a,xl
-1624  ed73 c701d7        	ld	_uip_len,a
-1626                     ; 534   if ((BUF->ipoffset[0] & 0x3f) != 0 || BUF->ipoffset[1] != 0) {
-1628  ed76 c601ef        	ld	a,_uip_buf+20
-1629  ed79 a53f          	bcp	a,#63
-1630  ed7b 2605          	jrne	L366
-1632  ed7d c601f0        	ld	a,_uip_buf+21
-1633  ed80 2713          	jreq	L166
-1634  ed82               L366:
-1635                     ; 535     UIP_STAT(++uip_stat.ip.drop);
-1637  ed82 ae0089        	ldw	x,#_uip_stat
-1638  ed85 a601          	ld	a,#1
-1639  ed87 cdf9b0        	call	c_lgadc
-1641                     ; 536     UIP_STAT(++uip_stat.ip.fragerr);
-1643  ed8a ae00a1        	ldw	x,#_uip_stat+24
-1644  ed8d a601          	ld	a,#1
-1645  ed8f cdf9b0        	call	c_lgadc
-1647                     ; 537     goto drop;
-1649  ed92 ccf509        	jra	L734
-1650  ed95               L166:
-1651                     ; 541     if (!uip_ipaddr_cmp(BUF->destipaddr, uip_hostaddr)) {
-1653  ed95 ce01f9        	ldw	x,_uip_buf+30
-1654  ed98 c30084        	cpw	x,_uip_hostaddr
-1655  ed9b 2608          	jrne	L766
-1657  ed9d ce01fb        	ldw	x,_uip_buf+32
-1658  eda0 c30086        	cpw	x,_uip_hostaddr+2
-1659  eda3 270b          	jreq	L566
-1660  eda5               L766:
-1661                     ; 542       UIP_STAT(++uip_stat.ip.drop);
-1663  eda5 ae0089        	ldw	x,#_uip_stat
-1664  eda8 a601          	ld	a,#1
-1665  edaa cdf9b0        	call	c_lgadc
-1667                     ; 543       goto drop;
-1669  edad ccf509        	jra	L734
-1670  edb0               L566:
-1671                     ; 546   if (uip_ipchksum() != 0xffff) { /* Compute and check the IP header checksum. */
-1673  edb0 cdea91        	call	_uip_ipchksum
-1675  edb3 5c            	incw	x
-1676  edb4 2713          	jreq	L176
-1677                     ; 547     UIP_STAT(++uip_stat.ip.drop);
-1679  edb6 ae0089        	ldw	x,#_uip_stat
-1680  edb9 a601          	ld	a,#1
-1681  edbb cdf9b0        	call	c_lgadc
-1683                     ; 548     UIP_STAT(++uip_stat.ip.chkerr);
-1685  edbe ae00a5        	ldw	x,#_uip_stat+28
-1686  edc1 a601          	ld	a,#1
-1687  edc3 cdf9b0        	call	c_lgadc
-1689                     ; 549     goto drop;
-1691  edc6 ccf509        	jra	L734
-1692  edc9               L176:
-1693                     ; 552   if (BUF->proto == UIP_PROTO_TCP) {
-1695  edc9 c601f2        	ld	a,_uip_buf+23
-1696  edcc a106          	cp	a,#6
-1697  edce 2624          	jrne	L376
-1698                     ; 554     goto tcp_input;
-1699                     ; 601   tcp_input:
-1699                     ; 602   UIP_STAT(++uip_stat.tcp.recv);
-1701  edd0 ae00c1        	ldw	x,#_uip_stat+56
-1702  edd3 a601          	ld	a,#1
-1703  edd5 cdf9b0        	call	c_lgadc
-1705                     ; 606   if (uip_tcpchksum() != 0xffff) { /* Compute and check the TCP checksum. */
-1707  edd8 cdeaf6        	call	_uip_tcpchksum
-1709  eddb 5c            	incw	x
-1710  eddc 2603ccee6d    	jreq	L517
-1711                     ; 607     UIP_STAT(++uip_stat.tcp.drop);
-1713  ede1 ae00bd        	ldw	x,#_uip_stat+52
-1714  ede4 a601          	ld	a,#1
-1715  ede6 cdf9b0        	call	c_lgadc
-1717                     ; 608     UIP_STAT(++uip_stat.tcp.chkerr);
-1719  ede9 ae00c9        	ldw	x,#_uip_stat+64
-1720  edec a601          	ld	a,#1
-1721  edee cdf9b0        	call	c_lgadc
-1723                     ; 609     goto drop;
-1725  edf1 ccf509        	jra	L734
-1726  edf4               L376:
-1727                     ; 563   if (BUF->proto != UIP_PROTO_ICMP) { /* We only allow ICMP packets from here. */
-1729  edf4 4a            	dec	a
-1730  edf5 2713          	jreq	L576
-1731                     ; 564     UIP_STAT(++uip_stat.ip.drop);
-1733  edf7 ae0089        	ldw	x,#_uip_stat
-1734  edfa a601          	ld	a,#1
-1735  edfc cdf9b0        	call	c_lgadc
-1737                     ; 565     UIP_STAT(++uip_stat.ip.protoerr);
-1739  edff ae00a9        	ldw	x,#_uip_stat+32
-1740  ee02 a601          	ld	a,#1
-1741  ee04 cdf9b0        	call	c_lgadc
-1743                     ; 566     goto drop;
-1745  ee07 ccf509        	jra	L734
-1746  ee0a               L576:
-1747                     ; 569   UIP_STAT(++uip_stat.icmp.recv);
-1749  ee0a ae00b1        	ldw	x,#_uip_stat+40
-1750  ee0d 4c            	inc	a
-1751  ee0e cdf9b0        	call	c_lgadc
-1753                     ; 574   if (ICMPBUF->type != ICMP_ECHO) {
-1755  ee11 c601fd        	ld	a,_uip_buf+34
-1756  ee14 a108          	cp	a,#8
-1757  ee16 2713          	jreq	L776
-1758                     ; 575     UIP_STAT(++uip_stat.icmp.drop);
-1760  ee18 ae00ad        	ldw	x,#_uip_stat+36
-1761  ee1b a601          	ld	a,#1
-1762  ee1d cdf9b0        	call	c_lgadc
-1764                     ; 576     UIP_STAT(++uip_stat.icmp.typeerr);
-1766  ee20 ae00b9        	ldw	x,#_uip_stat+48
-1767  ee23 a601          	ld	a,#1
-1768  ee25 cdf9b0        	call	c_lgadc
-1770                     ; 577     goto drop;
-1772  ee28 ccf509        	jra	L734
-1773  ee2b               L776:
-1774                     ; 580   ICMPBUF->type = ICMP_ECHO_REPLY;
-1776  ee2b 725f01fd      	clr	_uip_buf+34
-1777                     ; 582   if (ICMPBUF->icmpchksum >= HTONS(0xffff - (ICMP_ECHO << 8))) {
-1779  ee2f ce01ff        	ldw	x,_uip_buf+36
-1780  ee32 a3f7ff        	cpw	x,#63487
-1781  ee35 2505          	jrult	L107
-1782                     ; 583     ICMPBUF->icmpchksum += HTONS(ICMP_ECHO << 8) + 1;
-1784  ee37 1c0801        	addw	x,#2049
-1786  ee3a 2003          	jra	L507
-1787  ee3c               L107:
-1788                     ; 586     ICMPBUF->icmpchksum += HTONS(ICMP_ECHO << 8);
-1790  ee3c 1c0800        	addw	x,#2048
-1791  ee3f               L507:
-1792  ee3f cf01ff        	ldw	_uip_buf+36,x
-1793                     ; 590   uip_ipaddr_copy(BUF->destipaddr, BUF->srcipaddr);
-1795  ee42 ce01f5        	ldw	x,_uip_buf+26
-1796  ee45 cf01f9        	ldw	_uip_buf+30,x
-1799  ee48 ce01f7        	ldw	x,_uip_buf+28
-1800  ee4b cf01fb        	ldw	_uip_buf+32,x
-1801                     ; 591   uip_ipaddr_copy(BUF->srcipaddr, uip_hostaddr);
-1803  ee4e ce0084        	ldw	x,_uip_hostaddr
-1804  ee51 cf01f5        	ldw	_uip_buf+26,x
-1807  ee54 ce0086        	ldw	x,_uip_hostaddr+2
-1808  ee57 cf01f7        	ldw	_uip_buf+28,x
-1809                     ; 593   UIP_STAT(++uip_stat.icmp.sent);
-1811  ee5a ae00b5        	ldw	x,#_uip_stat+44
-1813                     ; 594   goto send;
-1814  ee5d               L534:
-1815  ee5d a601          	ld	a,#1
-1816  ee5f cdf9b0        	call	c_lgadc
-1817                     ; 1175   send:
-1817                     ; 1176 
-1817                     ; 1177   UIP_STAT(++uip_stat.ip.sent);
-1819  ee62 ae0091        	ldw	x,#_uip_stat+8
-1820  ee65 a601          	ld	a,#1
-1821  ee67 cdf9b0        	call	c_lgadc
-1823                     ; 1179   uip_flags = 0;
-1824                     ; 1181   return;
-1826  ee6a ccf50d        	jra	L202
-1827  ee6d               L517:
-1828                     ; 614   for (uip_connr = &uip_conns[0]; uip_connr <= &uip_conns[UIP_CONNS - 1]; ++uip_connr) {
-1830  ee6d ae00e5        	ldw	x,#_uip_conns
-1832  ee70 204d          	jra	L327
-1833  ee72               L717:
-1834                     ; 615     if (uip_connr->tcpstateflags != UIP_CLOSED
-1834                     ; 616       && BUF->destport == uip_connr->lport
-1834                     ; 617       && BUF->srcport == uip_connr->rport
-1834                     ; 618       && uip_ipaddr_cmp(BUF->srcipaddr, uip_connr->ripaddr)) {
-1836  ee72 e619          	ld	a,(25,x)
-1837  ee74 2746          	jreq	L727
-1839  ee76 9093          	ldw	y,x
-1840  ee78 90ee04        	ldw	y,(4,y)
-1841  ee7b 90c301ff      	cpw	y,_uip_buf+36
-1842  ee7f 263b          	jrne	L727
-1844  ee81 9093          	ldw	y,x
-1845  ee83 90ee06        	ldw	y,(6,y)
-1846  ee86 90c301fd      	cpw	y,_uip_buf+34
-1847  ee8a 2630          	jrne	L727
-1849  ee8c 9093          	ldw	y,x
-1850  ee8e 90fe          	ldw	y,(y)
-1851  ee90 90c301f5      	cpw	y,_uip_buf+26
-1852  ee94 2626          	jrne	L727
-1854  ee96 9093          	ldw	y,x
-1855  ee98 90ee02        	ldw	y,(2,y)
-1856  ee9b 90c301f7      	cpw	y,_uip_buf+28
-1857  ee9f 261b          	jrne	L727
-1858                     ; 619       goto found;
-1859                     ; 799   found:
-1859                     ; 800   uip_conn = uip_connr;
-1861  eea1 cf01d5        	ldw	_uip_conn,x
-1862                     ; 801   uip_flags = 0;
-1864  eea4 725f0088      	clr	_uip_flags
-1865                     ; 806   if (BUF->flags & TCP_RST) {
-1867  eea8 7204020a03cc  	btjf	_uip_buf+47,#2,L7301
-1868                     ; 807     uip_connr->tcpstateflags = UIP_CLOSED;
-1870  eeb0 6f19          	clr	(25,x)
-1871                     ; 808     uip_flags = UIP_ABORT;
-1873  eeb2 35200088      	mov	_uip_flags,#32
-1874                     ; 809     UIP_APPCALL();
-1876  eeb6 cdf8ad        	call	_uip_TcpAppHubCall
-1878                     ; 810     goto drop;
-1880  eeb9 ccf509        	jra	L734
-1881  eebc               L727:
-1882                     ; 614   for (uip_connr = &uip_conns[0]; uip_connr <= &uip_conns[UIP_CONNS - 1]; ++uip_connr) {
-1884  eebc 1c0028        	addw	x,#40
-1885  eebf               L327:
-1886  eebf 1f04          	ldw	(OFST-1,sp),x
-1890  eec1 a301ad        	cpw	x,#_uip_conns+200
-1891  eec4 23ac          	jrule	L717
-1892                     ; 627   if ((BUF->flags & TCP_CTL) != TCP_SYN) {
-1894  eec6 c6020a        	ld	a,_uip_buf+47
-1895  eec9 a43f          	and	a,#63
-1896  eecb a102          	cp	a,#2
-1897  eecd 2647          	jrne	L563
-1898                     ; 628     goto reset;
-1900                     ; 631   tmp16 = BUF->destport;
-1902  eecf ce01ff        	ldw	x,_uip_buf+36
-1903  eed2 cf0064        	ldw	L54_tmp16,x
-1904                     ; 633   for (c = 0; c < UIP_LISTENPORTS; ++c) {
-1906  eed5 4f            	clr	a
-1907  eed6 c70067        	ld	L14_c,a
-1908  eed9               L337:
-1909                     ; 634     if (tmp16 == uip_listenports[c]) goto found_listen;
-1911  eed9 5f            	clrw	x
-1912  eeda 97            	ld	xl,a
-1913  eedb 58            	sllw	x
-1914  eedc 9093          	ldw	y,x
-1915  eede 90de006e      	ldw	y,(_uip_listenports,y)
-1916  eee2 90c30064      	cpw	y,L54_tmp16
-1917  eee6 261b          	jrne	L147
-1919                     ; 699   found_listen:
-1919                     ; 700   /* First we check if there are any connections avaliable. Unused
-1919                     ; 701      connections are kept in the same table as used connections, but
-1919                     ; 702      unused ones have the tcpstate set to CLOSED. Also, connections in
-1919                     ; 703      TIME_WAIT are kept track of and we'll use the oldest one if no
-1919                     ; 704      CLOSED connections are found. Thanks to Eddie C. Dost for a very
-1919                     ; 705      nice algorithm for the TIME_WAIT search. */
-1919                     ; 706   uip_connr = 0;
-1921  eee8 5f            	clrw	x
-1922  eee9 1f04          	ldw	(OFST-1,sp),x
-1924                     ; 707   for (c = 0; c < UIP_CONNS; ++c) {
-1926  eeeb 4f            	clr	a
-1927  eeec c70067        	ld	L14_c,a
-1928  eeef               L367:
-1929                     ; 708     if (uip_conns[c].tcpstateflags == UIP_CLOSED) {
-1931  eeef 97            	ld	xl,a
-1932  eef0 a628          	ld	a,#40
-1933  eef2 42            	mul	x,a
-1934  eef3 d600fe        	ld	a,(_uip_conns+25,x)
-1935  eef6 2703ccefb0    	jrne	L177
-1936                     ; 709       uip_connr = &uip_conns[c];
-1938  eefb 1c00e5        	addw	x,#_uip_conns
-1939  eefe 1f04          	ldw	(OFST-1,sp),x
-1941                     ; 710       break;
-1943  ef00 ccefe2        	jra	L767
-1944  ef03               L147:
-1945                     ; 633   for (c = 0; c < UIP_LISTENPORTS; ++c) {
-1947  ef03 725c0067      	inc	L14_c
-1950  ef07 c60067        	ld	a,L14_c
-1951  ef0a a105          	cp	a,#5
-1952  ef0c 25cb          	jrult	L337
-1953                     ; 638   UIP_STAT(++uip_stat.tcp.synrst);
-1955  ef0e ae00dd        	ldw	x,#_uip_stat+84
-1956  ef11 a601          	ld	a,#1
-1957  ef13 cdf9b0        	call	c_lgadc
-1959  ef16               L563:
-1960                     ; 639   reset:
-1960                     ; 640 
-1960                     ; 641   /* We do not send resets in response to resets. */
-1960                     ; 642   if (BUF->flags & TCP_RST) {
-1962  ef16 7204020a9e    	btjt	_uip_buf+47,#2,L734
-1963                     ; 643     goto drop;
-1965                     ; 646   UIP_STAT(++uip_stat.tcp.rst);
-1967  ef1b ae00d1        	ldw	x,#_uip_stat+72
-1968  ef1e a601          	ld	a,#1
-1969  ef20 cdf9b0        	call	c_lgadc
-1971                     ; 648   BUF->flags = TCP_RST | TCP_ACK;
-1973  ef23 3514020a      	mov	_uip_buf+47,#20
-1974                     ; 649   uip_len = UIP_IPTCPH_LEN;
-1976  ef27 ae0028        	ldw	x,#40
-1977  ef2a cf01d7        	ldw	_uip_len,x
-1978                     ; 650   BUF->tcpoffset = 5 << 4;
-1980  ef2d 35500209      	mov	_uip_buf+46,#80
-1981                     ; 653   c = BUF->seqno[3];
-1983  ef31 5502040067    	mov	L14_c,_uip_buf+41
-1984                     ; 654   BUF->seqno[3] = BUF->ackno[3];
-1986  ef36 5502080204    	mov	_uip_buf+41,_uip_buf+45
-1987                     ; 655   BUF->ackno[3] = c;
-1989  ef3b 5500670208    	mov	_uip_buf+45,L14_c
-1990                     ; 657   c = BUF->seqno[2];
-1992  ef40 5502030067    	mov	L14_c,_uip_buf+40
-1993                     ; 658   BUF->seqno[2] = BUF->ackno[2];
-1995  ef45 5502070203    	mov	_uip_buf+40,_uip_buf+44
-1996                     ; 659   BUF->ackno[2] = c;
-1998  ef4a 5500670207    	mov	_uip_buf+44,L14_c
-1999                     ; 661   c = BUF->seqno[1];
-2001  ef4f 5502020067    	mov	L14_c,_uip_buf+39
-2002                     ; 662   BUF->seqno[1] = BUF->ackno[1];
-2004  ef54 5502060202    	mov	_uip_buf+39,_uip_buf+43
-2005                     ; 663   BUF->ackno[1] = c;
-2007  ef59 5500670206    	mov	_uip_buf+43,L14_c
-2008                     ; 665   c = BUF->seqno[0];
-2010  ef5e 5502010067    	mov	L14_c,_uip_buf+38
-2011                     ; 666   BUF->seqno[0] = BUF->ackno[0];
-2013  ef63 5502050201    	mov	_uip_buf+38,_uip_buf+42
-2014                     ; 667   BUF->ackno[0] = c;
-2016  ef68 5500670205    	mov	_uip_buf+42,L14_c
-2017                     ; 672   if (++BUF->ackno[3] == 0) {
-2019  ef6d 725c0208      	inc	_uip_buf+45
-2020  ef71 2610          	jrne	L547
-2021                     ; 673     if (++BUF->ackno[2] == 0) {
-2023  ef73 725c0207      	inc	_uip_buf+44
-2024  ef77 260a          	jrne	L547
-2025                     ; 674       if (++BUF->ackno[1] == 0) {
-2027  ef79 725c0206      	inc	_uip_buf+43
-2028  ef7d 2604          	jrne	L547
-2029                     ; 675         ++BUF->ackno[0];
-2031  ef7f 725c0205      	inc	_uip_buf+42
-2032  ef83               L547:
-2033                     ; 681   tmp16 = BUF->srcport;
-2035  ef83 ce01fd        	ldw	x,_uip_buf+34
-2036  ef86 cf0064        	ldw	L54_tmp16,x
-2037                     ; 682   BUF->srcport = BUF->destport;
-2039  ef89 ce01ff        	ldw	x,_uip_buf+36
-2040  ef8c cf01fd        	ldw	_uip_buf+34,x
-2041                     ; 683   BUF->destport = tmp16;
-2043  ef8f ce0064        	ldw	x,L54_tmp16
-2044  ef92 cf01ff        	ldw	_uip_buf+36,x
-2045                     ; 686   uip_ipaddr_copy(BUF->destipaddr, BUF->srcipaddr);
-2047  ef95 ce01f5        	ldw	x,_uip_buf+26
-2048  ef98 cf01f9        	ldw	_uip_buf+30,x
-2051  ef9b ce01f7        	ldw	x,_uip_buf+28
-2052  ef9e cf01fb        	ldw	_uip_buf+32,x
-2053                     ; 687   uip_ipaddr_copy(BUF->srcipaddr, uip_hostaddr);
-2055  efa1 ce0084        	ldw	x,_uip_hostaddr
-2056  efa4 cf01f5        	ldw	_uip_buf+26,x
-2059  efa7 ce0086        	ldw	x,_uip_hostaddr+2
-2060  efaa cf01f7        	ldw	_uip_buf+28,x
-2061                     ; 690   goto tcp_send_noconn;
-2063  efad ccf4b6        	jra	L134
-2064  efb0               L177:
-2065                     ; 712     if (uip_conns[c].tcpstateflags == UIP_TIME_WAIT) {
-2067  efb0 a107          	cp	a,#7
-2068  efb2 2620          	jrne	L377
-2069                     ; 713       if (uip_connr == 0 || uip_conns[c].timer > uip_connr->timer) {
-2071  efb4 1e04          	ldw	x,(OFST-1,sp)
-2072  efb6 2710          	jreq	L777
-2074  efb8 c60067        	ld	a,L14_c
-2075  efbb 97            	ld	xl,a
-2076  efbc a628          	ld	a,#40
-2077  efbe 42            	mul	x,a
-2078  efbf d600ff        	ld	a,(_uip_conns+26,x)
-2079  efc2 1e04          	ldw	x,(OFST-1,sp)
-2080  efc4 e11a          	cp	a,(26,x)
-2081  efc6 230c          	jrule	L377
-2082  efc8               L777:
-2083                     ; 714         uip_connr = &uip_conns[c];
-2085  efc8 c60067        	ld	a,L14_c
-2086  efcb 97            	ld	xl,a
-2087  efcc a628          	ld	a,#40
-2088  efce 42            	mul	x,a
-2089  efcf 1c00e5        	addw	x,#_uip_conns
-2090  efd2 1f04          	ldw	(OFST-1,sp),x
-2092  efd4               L377:
-2093                     ; 707   for (c = 0; c < UIP_CONNS; ++c) {
-2095  efd4 725c0067      	inc	L14_c
-2098  efd8 c60067        	ld	a,L14_c
-2099  efdb a106          	cp	a,#6
-2100  efdd 2403cceeef    	jrult	L367
-2101  efe2               L767:
-2102                     ; 719   if (uip_connr == 0) {
-2104  efe2 1e04          	ldw	x,(OFST-1,sp)
-2105  efe4 260b          	jrne	L1001
-2106                     ; 723     UIP_STAT(++uip_stat.tcp.syndrop);
-2108  efe6 ae00d9        	ldw	x,#_uip_stat+80
-2109  efe9 a601          	ld	a,#1
-2110  efeb cdf9b0        	call	c_lgadc
-2112                     ; 724     goto drop;
-2114  efee ccf509        	jra	L734
-2115  eff1               L1001:
-2116                     ; 726   uip_conn = uip_connr;
-2118  eff1 cf01d5        	ldw	_uip_conn,x
-2119                     ; 729   uip_connr->rto = uip_connr->timer = UIP_RTO;
-2121  eff4 a603          	ld	a,#3
-2122  eff6 e71a          	ld	(26,x),a
-2123  eff8 e718          	ld	(24,x),a
-2124                     ; 730   uip_connr->sa = 0;
-2126  effa 6f16          	clr	(22,x)
-2127                     ; 731   uip_connr->sv = 4;
-2129  effc 4c            	inc	a
-2130  effd e717          	ld	(23,x),a
-2131                     ; 732   uip_connr->nrtx = 0;
-2133  efff 6f1b          	clr	(27,x)
-2134                     ; 733   uip_connr->lport = BUF->destport;
-2136  f001 90ce01ff      	ldw	y,_uip_buf+36
-2137  f005 ef04          	ldw	(4,x),y
-2138                     ; 734   uip_connr->rport = BUF->srcport;
-2140  f007 90ce01fd      	ldw	y,_uip_buf+34
-2141  f00b ef06          	ldw	(6,x),y
-2142                     ; 735   uip_ipaddr_copy(uip_connr->ripaddr, BUF->srcipaddr);
-2144  f00d 90ce01f5      	ldw	y,_uip_buf+26
-2145  f011 ff            	ldw	(x),y
-2148  f012 90ce01f7      	ldw	y,_uip_buf+28
-2149  f016 ef02          	ldw	(2,x),y
-2150                     ; 736   uip_connr->tcpstateflags = UIP_SYN_RCVD;
-2152  f018 a601          	ld	a,#1
-2153  f01a e719          	ld	(25,x),a
-2154                     ; 738   uip_connr->snd_nxt[0] = iss[0];
-2156  f01c c60068        	ld	a,L73_iss
-2157  f01f e70c          	ld	(12,x),a
-2158                     ; 739   uip_connr->snd_nxt[1] = iss[1];
-2160  f021 c60069        	ld	a,L73_iss+1
-2161  f024 e70d          	ld	(13,x),a
-2162                     ; 740   uip_connr->snd_nxt[2] = iss[2];
-2164  f026 c6006a        	ld	a,L73_iss+2
-2165  f029 e70e          	ld	(14,x),a
-2166                     ; 741   uip_connr->snd_nxt[3] = iss[3];
-2168  f02b c6006b        	ld	a,L73_iss+3
-2169  f02e e70f          	ld	(15,x),a
-2170                     ; 742   uip_connr->len = 1;
-2172  f030 90ae0001      	ldw	y,#1
-2173  f034 ef10          	ldw	(16,x),y
-2174                     ; 745   uip_connr->rcv_nxt[3] = BUF->seqno[3];
-2176  f036 c60204        	ld	a,_uip_buf+41
-2177  f039 e70b          	ld	(11,x),a
-2178                     ; 746   uip_connr->rcv_nxt[2] = BUF->seqno[2];
-2180  f03b c60203        	ld	a,_uip_buf+40
-2181  f03e e70a          	ld	(10,x),a
-2182                     ; 747   uip_connr->rcv_nxt[1] = BUF->seqno[1];
-2184  f040 c60202        	ld	a,_uip_buf+39
-2185  f043 e709          	ld	(9,x),a
-2186                     ; 748   uip_connr->rcv_nxt[0] = BUF->seqno[0];
-2188  f045 c60201        	ld	a,_uip_buf+38
-2189  f048 e708          	ld	(8,x),a
-2190                     ; 749   uip_add_rcv_nxt(1);
-2192  f04a ae0001        	ldw	x,#1
-2193  f04d cdebf8        	call	L733_uip_add_rcv_nxt
-2195                     ; 752   if ((BUF->tcpoffset & 0xf0) > 0x50) {
-2197  f050 c60209        	ld	a,_uip_buf+46
-2198  f053 a4f0          	and	a,#240
-2199  f055 a151          	cp	a,#81
-2200  f057 2403ccf0eb    	jrult	L173
-2201                     ; 753     for (c = 0; c < ((BUF->tcpoffset >> 4) - 5) << 2;) {
-2203  f05c 725f0067      	clr	L14_c
-2205  f060 206b          	jra	L5101
-2206  f062               L1101:
-2207                     ; 754       opt = uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + c];
-2209  f062 5f            	clrw	x
-2210  f063 97            	ld	xl,a
-2211  f064 d60211        	ld	a,(_uip_buf+54,x)
-2212  f067 c70066        	ld	L34_opt,a
-2213                     ; 755       if (opt == TCP_OPT_END) {
-2215  f06a 277f          	jreq	L173
-2216                     ; 757         break;
-2218                     ; 759       else if (opt == TCP_OPT_NOOP) {
-2220  f06c a101          	cp	a,#1
-2221  f06e 2606          	jrne	L5201
-2222                     ; 760         ++c;
-2224  f070 725c0067      	inc	L14_c
-2226  f074 2057          	jra	L5101
-2227  f076               L5201:
-2228                     ; 763       else if (opt == TCP_OPT_MSS
-2228                     ; 764         && uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 1 + c] == TCP_OPT_MSS_LEN) {
-2230  f076 a102          	cp	a,#2
-2231  f078 2640          	jrne	L1301
-2233  f07a c60067        	ld	a,L14_c
-2234  f07d 5f            	clrw	x
-2235  f07e 97            	ld	xl,a
-2236  f07f d60212        	ld	a,(_uip_buf+55,x)
-2237  f082 a104          	cp	a,#4
-2238  f084 2634          	jrne	L1301
-2239                     ; 766         tmp16 = ((uint16_t)uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 2 + c] << 8)
-2239                     ; 767 	        | (uint16_t)uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN + 3 + c];
-2241  f086 c60067        	ld	a,L14_c
-2242  f089 5f            	clrw	x
-2243  f08a 97            	ld	xl,a
-2244  f08b d60214        	ld	a,(_uip_buf+57,x)
-2245  f08e 5f            	clrw	x
-2246  f08f 97            	ld	xl,a
-2247  f090 1f01          	ldw	(OFST-4,sp),x
-2249  f092 5f            	clrw	x
-2250  f093 c60067        	ld	a,L14_c
-2251  f096 97            	ld	xl,a
-2252  f097 d60213        	ld	a,(_uip_buf+56,x)
-2253  f09a 5f            	clrw	x
-2254  f09b 97            	ld	xl,a
-2255  f09c 7b02          	ld	a,(OFST-3,sp)
-2256  f09e 01            	rrwa	x,a
-2257  f09f 1a01          	or	a,(OFST-4,sp)
-2258  f0a1 01            	rrwa	x,a
-2259  f0a2 cf0064        	ldw	L54_tmp16,x
-2260                     ; 768         uip_connr->initialmss = uip_connr->mss = tmp16 > UIP_TCP_MSS ? UIP_TCP_MSS : tmp16;
-2262  f0a5 a3034f        	cpw	x,#847
-2263  f0a8 2503          	jrult	L421
-2264  f0aa ae034e        	ldw	x,#846
-2265  f0ad               L421:
-2266  f0ad 1604          	ldw	y,(OFST-1,sp)
-2267  f0af 90ef12        	ldw	(18,y),x
-2268  f0b2 93            	ldw	x,y
-2269  f0b3 90ee12        	ldw	y,(18,y)
-2270  f0b6 ef14          	ldw	(20,x),y
-2271                     ; 771         break;
-2273  f0b8 2031          	jra	L173
-2274  f0ba               L1301:
-2275                     ; 775         if (uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 1 + c] == 0) {
-2277  f0ba c60067        	ld	a,L14_c
-2278  f0bd 5f            	clrw	x
-2279  f0be 97            	ld	xl,a
-2280  f0bf 724d0212      	tnz	(_uip_buf+55,x)
-2281  f0c3 2726          	jreq	L173
-2282                     ; 778           break;
-2284                     ; 780         c += uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 1 + c];
-2286  f0c5 5f            	clrw	x
-2287  f0c6 97            	ld	xl,a
-2288  f0c7 db0212        	add	a,(_uip_buf+55,x)
-2289  f0ca c70067        	ld	L14_c,a
-2290  f0cd               L5101:
-2291                     ; 753     for (c = 0; c < ((BUF->tcpoffset >> 4) - 5) << 2;) {
-2293  f0cd c60209        	ld	a,_uip_buf+46
-2294  f0d0 4e            	swap	a
-2295  f0d1 a40f          	and	a,#15
-2296  f0d3 5f            	clrw	x
-2297  f0d4 97            	ld	xl,a
-2298  f0d5 58            	sllw	x
-2299  f0d6 58            	sllw	x
-2300  f0d7 1d0014        	subw	x,#20
-2301  f0da c60067        	ld	a,L14_c
-2302  f0dd 905f          	clrw	y
-2303  f0df 9097          	ld	yl,a
-2304  f0e1 90bf07        	ldw	c_y,y
-2305  f0e4 b307          	cpw	x,c_y
-2306  f0e6 2d03ccf062    	jrsgt	L1101
-2307  f0eb               L173:
-2308                     ; 786   tcp_send_synack:
-2308                     ; 787   BUF->flags = TCP_SYN | TCP_ACK;
-2310  f0eb 3512020a      	mov	_uip_buf+47,#18
-2311                     ; 790   BUF->optdata[0] = TCP_OPT_MSS;
-2313  f0ef 35020211      	mov	_uip_buf+54,#2
-2314                     ; 791   BUF->optdata[1] = TCP_OPT_MSS_LEN;
-2316  f0f3 35040212      	mov	_uip_buf+55,#4
-2317                     ; 792   BUF->optdata[2] = (UIP_TCP_MSS) / 256;
-2319  f0f7 35030213      	mov	_uip_buf+56,#3
-2320                     ; 793   BUF->optdata[3] = (UIP_TCP_MSS) & 255;
-2322  f0fb 354e0214      	mov	_uip_buf+57,#78
-2323                     ; 794   uip_len = UIP_IPTCPH_LEN + TCP_OPT_MSS_LEN;
-2325  f0ff ae002c        	ldw	x,#44
-2326  f102 cf01d7        	ldw	_uip_len,x
-2327                     ; 795   BUF->tcpoffset = ((UIP_TCPH_LEN + TCP_OPT_MSS_LEN) / 4) << 4;
-2329  f105 35600209      	mov	_uip_buf+46,#96
-2330                     ; 796   goto tcp_send;
-2332  f109 ccf3b6        	jra	L724
-2333  f10c               L7301:
-2334                     ; 813   c = (uint8_t)((BUF->tcpoffset >> 4) << 2);
-2336  f10c c60209        	ld	a,_uip_buf+46
-2337  f10f 4e            	swap	a
-2338  f110 a40f          	and	a,#15
-2339  f112 48            	sll	a
-2340  f113 48            	sll	a
-2341  f114 c70067        	ld	L14_c,a
-2342                     ; 817   uip_len = uip_len - c - UIP_IPH_LEN;
-2344  f117 c601d7        	ld	a,_uip_len
-2345  f11a 97            	ld	xl,a
-2346  f11b c601d8        	ld	a,_uip_len+1
-2347  f11e c00067        	sub	a,L14_c
-2348  f121 2401          	jrnc	L231
-2349  f123 5a            	decw	x
-2350  f124               L231:
-2351  f124 02            	rlwa	x,a
-2352  f125 1d0014        	subw	x,#20
-2353  f128 cf01d7        	ldw	_uip_len,x
-2354                     ; 822   if (!(((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_SYN_SENT)
-2354                     ; 823     && ((BUF->flags & TCP_CTL) == (TCP_SYN | TCP_ACK)))) {
-2356  f12b 1e04          	ldw	x,(OFST-1,sp)
-2357  f12d e619          	ld	a,(25,x)
-2358  f12f a40f          	and	a,#15
-2359  f131 a102          	cp	a,#2
-2360  f133 2609          	jrne	L3401
-2362  f135 c6020a        	ld	a,_uip_buf+47
-2363  f138 a43f          	and	a,#63
-2364  f13a a112          	cp	a,#18
-2365  f13c 272d          	jreq	L1401
-2366  f13e               L3401:
-2367                     ; 824     if ((uip_len > 0 || ((BUF->flags & (TCP_SYN | TCP_FIN)) != 0))
-2367                     ; 825       && (BUF->seqno[0] != uip_connr->rcv_nxt[0]
-2367                     ; 826       || BUF->seqno[1] != uip_connr->rcv_nxt[1]
-2367                     ; 827       || BUF->seqno[2] != uip_connr->rcv_nxt[2]
-2367                     ; 828       || BUF->seqno[3] != uip_connr->rcv_nxt[3])) {
-2369  f13e ce01d7        	ldw	x,_uip_len
-2370  f141 2607          	jrne	L7401
-2372  f143 c6020a        	ld	a,_uip_buf+47
-2373  f146 a503          	bcp	a,#3
-2374  f148 2721          	jreq	L1401
-2375  f14a               L7401:
-2377  f14a 1e04          	ldw	x,(OFST-1,sp)
-2378  f14c e608          	ld	a,(8,x)
-2379  f14e c10201        	cp	a,_uip_buf+38
-2380  f151 2703ccf4a7    	jrne	L124
-2382  f156 e609          	ld	a,(9,x)
-2383  f158 c10202        	cp	a,_uip_buf+39
-2384  f15b 26f6          	jrne	L124
-2386  f15d e60a          	ld	a,(10,x)
-2387  f15f c10203        	cp	a,_uip_buf+40
-2388  f162 26ef          	jrne	L124
-2390  f164 e60b          	ld	a,(11,x)
-2391  f166 c10204        	cp	a,_uip_buf+41
-2392  f169 26e8          	jrne	L124
-2393  f16b               L1401:
-2394                     ; 837   if ((BUF->flags & TCP_ACK) && uip_outstanding(uip_connr)) {
-2396  f16b 7208020a03cc  	btjf	_uip_buf+47,#4,L7501
-2398  f173 1e04          	ldw	x,(OFST-1,sp)
-2399  f175 e611          	ld	a,(17,x)
-2400  f177 ea10          	or	a,(16,x)
-2401  f179 27f5          	jreq	L7501
-2402                     ; 838     uip_add32(uip_connr->snd_nxt, uip_connr->len);
-2404  f17b ee10          	ldw	x,(16,x)
-2405  f17d 89            	pushw	x
-2406  f17e 1e06          	ldw	x,(OFST+1,sp)
-2407  f180 1c000c        	addw	x,#12
-2408  f183 cde9da        	call	_uip_add32
-2410  f186 c60205        	ld	a,_uip_buf+42
-2411  f189 c100e1        	cp	a,_uip_acc32
-2412  f18c 85            	popw	x
-2413                     ; 840     if (BUF->ackno[0] == uip_acc32[0]
-2413                     ; 841       && BUF->ackno[1] == uip_acc32[1]
-2413                     ; 842       && BUF->ackno[2] == uip_acc32[2]
-2413                     ; 843       && BUF->ackno[3] == uip_acc32[3]) {
-2415  f18d 26e1          	jrne	L7501
-2417  f18f c60206        	ld	a,_uip_buf+43
-2418  f192 c100e2        	cp	a,_uip_acc32+1
-2419  f195 26d9          	jrne	L7501
-2421  f197 c60207        	ld	a,_uip_buf+44
-2422  f19a c100e3        	cp	a,_uip_acc32+2
-2423  f19d 26d1          	jrne	L7501
-2425  f19f c60208        	ld	a,_uip_buf+45
-2426  f1a2 c100e4        	cp	a,_uip_acc32+3
-2427  f1a5 2679          	jrne	L7501
-2428                     ; 845       uip_connr->snd_nxt[0] = uip_acc32[0];
-2430  f1a7 1e04          	ldw	x,(OFST-1,sp)
-2431  f1a9 c600e1        	ld	a,_uip_acc32
-2432  f1ac e70c          	ld	(12,x),a
-2433                     ; 846       uip_connr->snd_nxt[1] = uip_acc32[1];
-2435  f1ae c600e2        	ld	a,_uip_acc32+1
-2436  f1b1 e70d          	ld	(13,x),a
-2437                     ; 847       uip_connr->snd_nxt[2] = uip_acc32[2];
-2439  f1b3 c600e3        	ld	a,_uip_acc32+2
-2440  f1b6 e70e          	ld	(14,x),a
-2441                     ; 848       uip_connr->snd_nxt[3] = uip_acc32[3];
-2443  f1b8 c600e4        	ld	a,_uip_acc32+3
-2444  f1bb e70f          	ld	(15,x),a
-2445                     ; 851       if (uip_connr->nrtx == 0) {
-2447  f1bd e61b          	ld	a,(27,x)
-2448  f1bf 2653          	jrne	L3601
-2449                     ; 853         m = (int8_t)(uip_connr->rto - uip_connr->timer);
-2451  f1c1 e61a          	ld	a,(26,x)
-2452  f1c3 e018          	sub	a,(24,x)
-2453  f1c5 40            	neg	a
-2454  f1c6 6b03          	ld	(OFST-2,sp),a
-2456                     ; 855         m = (int8_t)(m - (uip_connr->sa >> 3));
-2458  f1c8 e616          	ld	a,(22,x)
-2459  f1ca 44            	srl	a
-2460  f1cb 44            	srl	a
-2461  f1cc 44            	srl	a
-2462  f1cd 5f            	clrw	x
-2463  f1ce 97            	ld	xl,a
-2464  f1cf 1f01          	ldw	(OFST-4,sp),x
-2466  f1d1 5f            	clrw	x
-2467  f1d2 7b03          	ld	a,(OFST-2,sp)
-2468  f1d4 4d            	tnz	a
-2469  f1d5 2a01          	jrpl	L631
-2470  f1d7 53            	cplw	x
-2471  f1d8               L631:
-2472  f1d8 97            	ld	xl,a
-2473  f1d9 72f001        	subw	x,(OFST-4,sp)
-2474  f1dc 01            	rrwa	x,a
-2475  f1dd 6b03          	ld	(OFST-2,sp),a
-2477                     ; 856         uip_connr->sa += m;
-2479  f1df 1e04          	ldw	x,(OFST-1,sp)
-2480  f1e1 e616          	ld	a,(22,x)
-2481  f1e3 1b03          	add	a,(OFST-2,sp)
-2482  f1e5 e716          	ld	(22,x),a
-2483                     ; 857         if (m < 0) m = (int8_t)(-m);
-2485  f1e7 7b03          	ld	a,(OFST-2,sp)
-2486  f1e9 2a02          	jrpl	L5601
-2489  f1eb 0003          	neg	(OFST-2,sp)
-2491  f1ed               L5601:
-2492                     ; 858         m = (int8_t)(m - (uip_connr->sv >> 2));
-2494  f1ed e617          	ld	a,(23,x)
-2495  f1ef 44            	srl	a
-2496  f1f0 44            	srl	a
-2497  f1f1 5f            	clrw	x
-2498  f1f2 97            	ld	xl,a
-2499  f1f3 1f01          	ldw	(OFST-4,sp),x
-2501  f1f5 5f            	clrw	x
-2502  f1f6 7b03          	ld	a,(OFST-2,sp)
-2503  f1f8 4d            	tnz	a
-2504  f1f9 2a01          	jrpl	L041
-2505  f1fb 53            	cplw	x
-2506  f1fc               L041:
-2507  f1fc 97            	ld	xl,a
-2508  f1fd 72f001        	subw	x,(OFST-4,sp)
-2509  f200 01            	rrwa	x,a
-2510  f201 6b03          	ld	(OFST-2,sp),a
-2512                     ; 859         uip_connr->sv += m;
-2514  f203 1e04          	ldw	x,(OFST-1,sp)
-2515  f205 e617          	ld	a,(23,x)
-2516  f207 1b03          	add	a,(OFST-2,sp)
-2517  f209 e717          	ld	(23,x),a
-2518                     ; 860         uip_connr->rto = (uint8_t)((uip_connr->sa >> 3) + uip_connr->sv);
-2520  f20b e616          	ld	a,(22,x)
-2521  f20d 44            	srl	a
-2522  f20e 44            	srl	a
-2523  f20f 44            	srl	a
-2524  f210 eb17          	add	a,(23,x)
-2525  f212 e718          	ld	(24,x),a
-2526  f214               L3601:
-2527                     ; 863       uip_flags = UIP_ACKDATA;
-2529  f214 35010088      	mov	_uip_flags,#1
-2530                     ; 865       uip_connr->timer = uip_connr->rto;
-2532  f218 e618          	ld	a,(24,x)
-2533  f21a e71a          	ld	(26,x),a
-2534                     ; 868       uip_connr->len = 0;
-2536  f21c 905f          	clrw	y
-2537  f21e ef10          	ldw	(16,x),y
-2538  f220               L7501:
-2539                     ; 873   switch (uip_connr->tcpstateflags & UIP_TS_MASK) {
-2541  f220 1e04          	ldw	x,(OFST-1,sp)
-2542  f222 e619          	ld	a,(25,x)
-2543  f224 a40f          	and	a,#15
-2545                     ; 1101 	uip_connr->timer = 0;
-2546  f226 4a            	dec	a
-2547  f227 2725          	jreq	L573
-2548  f229 a002          	sub	a,#2
-2549  f22b 2745          	jreq	L773
-2550  f22d 4a            	dec	a
-2551  f22e 2603ccf430    	jreq	L114
-2552  f233 4a            	dec	a
-2553  f234 2603ccf46f    	jreq	L314
-2554  f239 4a            	dec	a
-2555  f23a 2603ccf49a    	jreq	L714
-2556  f23f 4a            	dec	a
-2557  f240 2603ccf4a7    	jreq	L124
-2558  f245 4a            	dec	a
-2559  f246 2603ccf41f    	jreq	L704
-2560  f24b ccf509        	jra	L734
-2561  f24e               L573:
-2562                     ; 877     case UIP_SYN_RCVD:
-2562                     ; 878       /* In SYN_RCVD we have sent out a SYNACK in response to a SYN, and we are waiting
-2562                     ; 879          for an ACK that acknowledges the data we sent out the last time. Therefore, we
-2562                     ; 880 	 want to have the UIP_ACKDATA flag set. If so, we enter the ESTABLISHED state. */
-2562                     ; 881       if (uip_flags & UIP_ACKDATA) {
-2564  f24e 72010088f8    	btjf	_uip_flags,#0,L734
-2565                     ; 882         uip_connr->tcpstateflags = UIP_ESTABLISHED;
-2567  f253 a603          	ld	a,#3
-2568  f255 e719          	ld	(25,x),a
-2569                     ; 883         uip_flags = UIP_CONNECTED;
-2571  f257 35400088      	mov	_uip_flags,#64
-2572                     ; 884         uip_connr->len = 0;
-2574  f25b 905f          	clrw	y
-2575  f25d ef10          	ldw	(16,x),y
-2576                     ; 885         if (uip_len > 0) {
-2578  f25f ce01d7        	ldw	x,_uip_len
-2579  f262 2707          	jreq	L5701
-2580                     ; 886           uip_flags |= UIP_NEWDATA;
-2582  f264 72120088      	bset	_uip_flags,#1
-2583                     ; 887           uip_add_rcv_nxt(uip_len);
-2585  f268 cdebf8        	call	L733_uip_add_rcv_nxt
-2587  f26b               L5701:
-2588                     ; 889         uip_slen = 0;
-2591  f26b 5f            	clrw	x
-2592  f26c cf0078        	ldw	_uip_slen,x
-2593                     ; 890         UIP_APPCALL();
-2595                     ; 891         goto appsend;
-2597  f26f cced15        	jra	L304
-2598  f272               L773:
-2599                     ; 895     case UIP_ESTABLISHED:
-2599                     ; 896       /* In the ESTABLISHED state, we call upon the application to feed data into the
-2599                     ; 897          uip_buf. If the UIP_ACKDATA flag is set, the application should put new data
-2599                     ; 898 	 into the buffer, otherwise we are retransmitting an old segment, and the
-2599                     ; 899 	 application should put that data into the buffer.
-2599                     ; 900 	 
-2599                     ; 901 	 If the incoming packet is a FIN, we should close the connection on this side
-2599                     ; 902 	 as well, and we send out a FIN and enter the LAST_ACK state. We require that
-2599                     ; 903 	 there is no outstanding data; otherwise the sequence numbers will be screwed
-2599                     ; 904 	 up. */
-2599                     ; 905       if (BUF->flags & TCP_FIN && !(uip_connr->tcpstateflags & UIP_STOPPED)) {
-2601  f272 7201020a30    	btjf	_uip_buf+47,#0,L7701
-2603  f277 e619          	ld	a,(25,x)
-2604  f279 a510          	bcp	a,#16
-2605  f27b 262a          	jrne	L7701
-2606                     ; 906         if (uip_outstanding(uip_connr)) {
-2608  f27d e611          	ld	a,(17,x)
-2609  f27f ea10          	or	a,(16,x)
-2610  f281 26c8          	jrne	L734
-2611                     ; 907           goto drop;
-2613                     ; 909         uip_add_rcv_nxt(1 + uip_len);
-2615  f283 ce01d7        	ldw	x,_uip_len
-2616  f286 5c            	incw	x
-2617  f287 cdebf8        	call	L733_uip_add_rcv_nxt
-2619                     ; 910         uip_flags |= UIP_CLOSE;
-2621  f28a 72180088      	bset	_uip_flags,#4
-2622                     ; 911         if (uip_len > 0) {
-2624  f28e ce01d7        	ldw	x,_uip_len
-2625  f291 2704          	jreq	L3011
-2626                     ; 912           uip_flags |= UIP_NEWDATA;
-2628  f293 72120088      	bset	_uip_flags,#1
-2629  f297               L3011:
-2630                     ; 914         UIP_APPCALL();
-2632  f297 cdf8ad        	call	_uip_TcpAppHubCall
-2634                     ; 915         uip_connr->len = 1;
-2636  f29a 1e04          	ldw	x,(OFST-1,sp)
-2637  f29c 90ae0001      	ldw	y,#1
-2638  f2a0 ef10          	ldw	(16,x),y
-2639                     ; 916         uip_connr->tcpstateflags = UIP_LAST_ACK;
-2641  f2a2 a608          	ld	a,#8
-2642                     ; 917         uip_connr->nrtx = 0;
-2643                     ; 918         tcp_send_finack: BUF->flags = TCP_FIN | TCP_ACK;
-2644                     ; 919         goto tcp_send_nodata;
-2646  f2a4 ccf334        	jp	LC005
-2647  f2a7               L7701:
-2648                     ; 924       if ((BUF->flags & TCP_URG) != 0) {
-2650  f2a7 720b020a1f    	btjf	_uip_buf+47,#5,L5011
-2651                     ; 925         uip_appdata = ((char *)uip_appdata) + ((BUF->urgp[0] << 8) | BUF->urgp[1]);
-2653  f2ac c6020f        	ld	a,_uip_buf+52
-2654  f2af 97            	ld	xl,a
-2655  f2b0 c60210        	ld	a,_uip_buf+53
-2656  f2b3 02            	rlwa	x,a
-2657  f2b4 72bb01d9      	addw	x,_uip_appdata
-2658  f2b8 cf01d9        	ldw	_uip_appdata,x
-2659                     ; 926         uip_len -= (BUF->urgp[0] << 8) | BUF->urgp[1];
-2661  f2bb c6020f        	ld	a,_uip_buf+52
-2662  f2be 97            	ld	xl,a
-2663  f2bf c60210        	ld	a,_uip_buf+53
-2664  f2c2 02            	rlwa	x,a
-2665  f2c3 72b001d7      	subw	x,_uip_len
-2666  f2c7 50            	negw	x
-2667  f2c8 cf01d7        	ldw	_uip_len,x
-2668  f2cb               L5011:
-2669                     ; 933       if (uip_len > 0 && !(uip_connr->tcpstateflags & UIP_STOPPED)) {
-2671  f2cb ce01d7        	ldw	x,_uip_len
-2672  f2ce 2712          	jreq	L7011
-2674  f2d0 1e04          	ldw	x,(OFST-1,sp)
-2675  f2d2 e619          	ld	a,(25,x)
-2676  f2d4 a510          	bcp	a,#16
-2677  f2d6 260a          	jrne	L7011
-2678                     ; 934         uip_flags |= UIP_NEWDATA;
-2680  f2d8 72120088      	bset	_uip_flags,#1
-2681                     ; 935         uip_add_rcv_nxt(uip_len);
-2683  f2dc ce01d7        	ldw	x,_uip_len
-2684  f2df cdebf8        	call	L733_uip_add_rcv_nxt
-2686  f2e2               L7011:
-2687                     ; 947       tmp16 = ((uint16_t)BUF->wnd[0] << 8) + (uint16_t)BUF->wnd[1];
-2689  f2e2 c6020c        	ld	a,_uip_buf+49
-2690  f2e5 5f            	clrw	x
-2691  f2e6 97            	ld	xl,a
-2692  f2e7 1f01          	ldw	(OFST-4,sp),x
-2694  f2e9 c6020b        	ld	a,_uip_buf+48
-2695  f2ec 97            	ld	xl,a
-2696  f2ed 4f            	clr	a
-2697  f2ee 02            	rlwa	x,a
-2698  f2ef 72fb01        	addw	x,(OFST-4,sp)
-2699  f2f2 cf0064        	ldw	L54_tmp16,x
-2700                     ; 948       if (tmp16 > uip_connr->initialmss || tmp16 == 0) {
-2702  f2f5 1604          	ldw	y,(OFST-1,sp)
-2703  f2f7 90ee14        	ldw	y,(20,y)
-2704  f2fa 90c30064      	cpw	y,L54_tmp16
-2705  f2fe 2505          	jrult	L3111
-2707  f300 ce0064        	ldw	x,L54_tmp16
-2708  f303 2607          	jrne	L1111
-2709  f305               L3111:
-2710                     ; 949         tmp16 = uip_connr->initialmss;
-2712  f305 1e04          	ldw	x,(OFST-1,sp)
-2713  f307 ee14          	ldw	x,(20,x)
-2714  f309 cf0064        	ldw	L54_tmp16,x
-2715  f30c               L1111:
-2716                     ; 951       uip_connr->mss = tmp16;
-2718  f30c 1e04          	ldw	x,(OFST-1,sp)
-2719  f30e 90ce0064      	ldw	y,L54_tmp16
-2720  f312 ef12          	ldw	(18,x),y
-2721                     ; 966       if (uip_flags & (UIP_NEWDATA | UIP_ACKDATA)) {
-2723  f314 c60088        	ld	a,_uip_flags
-2724  f317 a503          	bcp	a,#3
-2725  f319 2603ccf509    	jreq	L734
-2726                     ; 967         uip_slen = 0;
-2727                     ; 968         UIP_APPCALL();
-2729  f31e ccf26b        	jp	L5701
-2730  f321               L7111:
-2731                     ; 979         if (uip_flags & UIP_CLOSE) {
-2733  f321 720900881e    	btjf	_uip_flags,#4,L1211
-2734                     ; 980           uip_slen = 0;
-2736  f326 5f            	clrw	x
-2737  f327 cf0078        	ldw	_uip_slen,x
-2738                     ; 981 	  uip_connr->len = 1;
-2740  f32a 1e04          	ldw	x,(OFST-1,sp)
-2741  f32c 90ae0001      	ldw	y,#1
-2742  f330 ef10          	ldw	(16,x),y
-2743                     ; 982 	  uip_connr->tcpstateflags = UIP_FIN_WAIT_1;
-2745  f332 a604          	ld	a,#4
-2746                     ; 983 	  uip_connr->nrtx = 0;
-2748  f334               LC005:
-2749  f334 e719          	ld	(25,x),a
-2751  f336 6f1b          	clr	(27,x)
-2752                     ; 984 	  BUF->flags = TCP_FIN | TCP_ACK;
-2754  f338               LC003:
-2756  f338 3511020a      	mov	_uip_buf+47,#17
-2757                     ; 985 	  goto tcp_send_nodata;
-2758  f33c               L324:
-2759                     ; 1111   tcp_send_nodata: uip_len = UIP_IPTCPH_LEN;
-2761  f33c ae0028        	ldw	x,#40
-2762  f33f cf01d7        	ldw	_uip_len,x
-2763  f342 206e          	jra	L524
-2764  f344               L1211:
-2765                     ; 989         if (uip_slen > 0) {
-2767  f344 ce0078        	ldw	x,_uip_slen
-2768  f347 2732          	jreq	L3211
-2769                     ; 992 	  if ((uip_flags & UIP_ACKDATA) != 0) {
-2771  f349 7201008806    	btjf	_uip_flags,#0,L5211
-2772                     ; 993 	    uip_connr->len = 0;
-2774  f34e 1e04          	ldw	x,(OFST-1,sp)
-2775  f350 905f          	clrw	y
-2776  f352 ef10          	ldw	(16,x),y
-2777  f354               L5211:
-2778                     ; 998 	  if (uip_connr->len == 0) {
-2780  f354 1e04          	ldw	x,(OFST-1,sp)
-2781  f356 e611          	ld	a,(17,x)
-2782  f358 ea10          	or	a,(16,x)
-2783  f35a 261a          	jrne	L7211
-2784                     ; 1001 	    if (uip_slen > uip_connr->mss) {
-2786  f35c 9093          	ldw	y,x
-2787  f35e 90ee12        	ldw	y,(18,y)
-2788  f361 90c30078      	cpw	y,_uip_slen
-2789  f365 2407          	jruge	L1311
-2790                     ; 1002 	      uip_slen = uip_connr->mss;
-2792  f367 ee12          	ldw	x,(18,x)
-2793  f369 cf0078        	ldw	_uip_slen,x
-2794  f36c 1e04          	ldw	x,(OFST-1,sp)
-2795  f36e               L1311:
-2796                     ; 1007             uip_connr->len = uip_slen;
-2798  f36e 90ce0078      	ldw	y,_uip_slen
-2799  f372 ef10          	ldw	(16,x),y
-2801  f374 2005          	jra	L3211
-2802  f376               L7211:
-2803                     ; 1013 	    uip_slen = uip_connr->len;
-2805  f376 ee10          	ldw	x,(16,x)
-2806  f378 cf0078        	ldw	_uip_slen,x
-2807  f37b               L3211:
-2808                     ; 1016 	uip_connr->nrtx = 0;
-2810  f37b 1e04          	ldw	x,(OFST-1,sp)
-2811  f37d 6f1b          	clr	(27,x)
-2812  f37f               L504:
-2813                     ; 1017 	apprexmit: uip_appdata = uip_sappdata;
-2815  f37f ce007a        	ldw	x,_uip_sappdata
-2816  f382 cf01d9        	ldw	_uip_appdata,x
-2817                     ; 1021 	if (uip_slen > 0 && uip_connr->len > 0) {
-2819  f385 ce0078        	ldw	x,_uip_slen
-2820  f388 2716          	jreq	L5311
-2822  f38a 1e04          	ldw	x,(OFST-1,sp)
-2823  f38c e611          	ld	a,(17,x)
-2824  f38e ea10          	or	a,(16,x)
-2825  f390 270e          	jreq	L5311
-2826                     ; 1023 	  uip_len = uip_connr->len + UIP_TCPIP_HLEN;
-2828  f392 ee10          	ldw	x,(16,x)
-2829  f394 1c0028        	addw	x,#40
-2830  f397 cf01d7        	ldw	_uip_len,x
-2831                     ; 1025 	  BUF->flags = TCP_ACK | TCP_PSH;
-2833  f39a 3518020a      	mov	_uip_buf+47,#24
-2834                     ; 1027 	  goto tcp_send_noopts;
-2836  f39e 2012          	jra	L524
-2837  f3a0               L5311:
-2838                     ; 1030 	if (uip_flags & UIP_NEWDATA) {
-2840  f3a0 7202008803cc  	btjf	_uip_flags,#1,L734
-2841                     ; 1031 	  uip_len = UIP_TCPIP_HLEN;
-2843  f3a8 ae0028        	ldw	x,#40
-2844  f3ab cf01d7        	ldw	_uip_len,x
-2845                     ; 1032 	  BUF->flags = TCP_ACK;
-2847  f3ae 3510020a      	mov	_uip_buf+47,#16
-2848                     ; 1033 	  goto tcp_send_noopts;
-2849  f3b2               L524:
-2850                     ; 1112   tcp_send_noopts: BUF->tcpoffset = (UIP_TCPH_LEN / 4) << 4;
-2852  f3b2 35500209      	mov	_uip_buf+46,#80
-2853  f3b6               L724:
-2854                     ; 1115   tcp_send:
-2854                     ; 1116   /* We're done with the input processing. We are now ready to send a reply. Our job is to
-2854                     ; 1117      fill in all the fields of the TCP and IP headers before calculating the checksum and
-2854                     ; 1118      finally send the packet. */
-2854                     ; 1119   BUF->ackno[0] = uip_connr->rcv_nxt[0];
-2856  f3b6 1e04          	ldw	x,(OFST-1,sp)
-2857  f3b8 e608          	ld	a,(8,x)
-2858  f3ba c70205        	ld	_uip_buf+42,a
-2859                     ; 1120   BUF->ackno[1] = uip_connr->rcv_nxt[1];
-2861  f3bd e609          	ld	a,(9,x)
-2862  f3bf c70206        	ld	_uip_buf+43,a
-2863                     ; 1121   BUF->ackno[2] = uip_connr->rcv_nxt[2];
-2865  f3c2 e60a          	ld	a,(10,x)
-2866  f3c4 c70207        	ld	_uip_buf+44,a
-2867                     ; 1122   BUF->ackno[3] = uip_connr->rcv_nxt[3];
-2869  f3c7 e60b          	ld	a,(11,x)
-2870  f3c9 c70208        	ld	_uip_buf+45,a
-2871                     ; 1124   BUF->seqno[0] = uip_connr->snd_nxt[0];
-2873  f3cc e60c          	ld	a,(12,x)
-2874  f3ce c70201        	ld	_uip_buf+38,a
-2875                     ; 1125   BUF->seqno[1] = uip_connr->snd_nxt[1];
-2877  f3d1 e60d          	ld	a,(13,x)
-2878  f3d3 c70202        	ld	_uip_buf+39,a
-2879                     ; 1126   BUF->seqno[2] = uip_connr->snd_nxt[2];
-2881  f3d6 e60e          	ld	a,(14,x)
-2882  f3d8 c70203        	ld	_uip_buf+40,a
-2883                     ; 1127   BUF->seqno[3] = uip_connr->snd_nxt[3];
-2885  f3db e60f          	ld	a,(15,x)
-2886  f3dd c70204        	ld	_uip_buf+41,a
-2887                     ; 1129   BUF->proto = UIP_PROTO_TCP;
-2889  f3e0 350601f2      	mov	_uip_buf+23,#6
-2890                     ; 1131   BUF->srcport = uip_connr->lport;
-2892  f3e4 ee04          	ldw	x,(4,x)
-2893  f3e6 cf01fd        	ldw	_uip_buf+34,x
-2894                     ; 1132   BUF->destport = uip_connr->rport;
-2896  f3e9 1e04          	ldw	x,(OFST-1,sp)
-2897  f3eb ee06          	ldw	x,(6,x)
-2898  f3ed cf01ff        	ldw	_uip_buf+36,x
-2899                     ; 1134   uip_ipaddr_copy(BUF->srcipaddr, uip_hostaddr);
-2901  f3f0 ce0084        	ldw	x,_uip_hostaddr
-2902  f3f3 cf01f5        	ldw	_uip_buf+26,x
-2905  f3f6 ce0086        	ldw	x,_uip_hostaddr+2
-2906  f3f9 cf01f7        	ldw	_uip_buf+28,x
-2907                     ; 1135   uip_ipaddr_copy(BUF->destipaddr, uip_connr->ripaddr);
-2909  f3fc 1e04          	ldw	x,(OFST-1,sp)
-2910  f3fe fe            	ldw	x,(x)
-2911  f3ff cf01f9        	ldw	_uip_buf+30,x
-2914  f402 1e04          	ldw	x,(OFST-1,sp)
-2915  f404 ee02          	ldw	x,(2,x)
-2916  f406 cf01fb        	ldw	_uip_buf+32,x
-2917                     ; 1137   if (uip_connr->tcpstateflags & UIP_STOPPED) {
-2919  f409 1e04          	ldw	x,(OFST-1,sp)
-2920  f40b e619          	ld	a,(25,x)
-2921  f40d a510          	bcp	a,#16
-2922  f40f 2603ccf4ae    	jreq	L1021
-2923                     ; 1140     BUF->wnd[0] = BUF->wnd[1] = 0;
-2925  f414 725f020c      	clr	_uip_buf+49
-2926  f418 725f020b      	clr	_uip_buf+48
-2928  f41c ccf4b6        	jra	L134
-2929  f41f               L704:
-2930                     ; 1038     case UIP_LAST_ACK:
-2930                     ; 1039       /* We can close this connection if the peer has acknowledged our FIN. This is
-2930                     ; 1040          indicated by the UIP_ACKDATA flag. */
-2930                     ; 1041       if (uip_flags & UIP_ACKDATA) {
-2932  f41f 7201008881    	btjf	_uip_flags,#0,L734
-2933                     ; 1042         uip_connr->tcpstateflags = UIP_CLOSED;
-2935  f424 e719          	ld	(25,x),a
-2936                     ; 1043 	uip_flags = UIP_CLOSE;
-2938  f426 35100088      	mov	_uip_flags,#16
-2939                     ; 1044 	UIP_APPCALL();
-2941  f42a cdf8ad        	call	_uip_TcpAppHubCall
-2943  f42d ccf509        	jra	L734
-2944  f430               L114:
-2945                     ; 1048     case UIP_FIN_WAIT_1:
-2945                     ; 1049       /* The application has closed the connection, but the remote host hasn't closed
-2945                     ; 1050          its end yet. Thus we do nothing but wait for a FIN from the other side. */
-2945                     ; 1051       if (uip_len > 0) {
-2947  f430 ce01d7        	ldw	x,_uip_len
-2948  f433 2703          	jreq	L3411
-2949                     ; 1052         uip_add_rcv_nxt(uip_len);
-2951  f435 cdebf8        	call	L733_uip_add_rcv_nxt
-2953  f438               L3411:
-2954                     ; 1054       if (BUF->flags & TCP_FIN) {
-2956  f438 7201020a19    	btjf	_uip_buf+47,#0,L5411
-2957                     ; 1055         if (uip_flags & UIP_ACKDATA) {
-2959  f43d 1e04          	ldw	x,(OFST-1,sp)
-2960  f43f 720100880c    	btjf	_uip_flags,#0,L7411
-2961                     ; 1056 	  uip_connr->tcpstateflags = UIP_TIME_WAIT;
-2963  f444 a607          	ld	a,#7
-2964  f446 e719          	ld	(25,x),a
-2965                     ; 1057 	  uip_connr->timer = 0;
-2967  f448 6f1a          	clr	(26,x)
-2968                     ; 1058 	  uip_connr->len = 0;
-2970  f44a 905f          	clrw	y
-2971  f44c ef10          	ldw	(16,x),y
-2973  f44e 2034          	jra	LC004
-2974  f450               L7411:
-2975                     ; 1061           uip_connr->tcpstateflags = UIP_CLOSING;
-2977  f450 a606          	ld	a,#6
-2978  f452 e719          	ld	(25,x),a
-2979                     ; 1063         uip_add_rcv_nxt(1);
-2981                     ; 1064         uip_flags = UIP_CLOSE;
-2982                     ; 1065         UIP_APPCALL();
-2984                     ; 1066         goto tcp_send_ack;
-2986  f454 202e          	jp	LC004
-2987  f456               L5411:
-2988                     ; 1068       else if (uip_flags & UIP_ACKDATA) {
-2990  f456 720100880d    	btjf	_uip_flags,#0,L3511
-2991                     ; 1069         uip_connr->tcpstateflags = UIP_FIN_WAIT_2;
-2993  f45b 1e04          	ldw	x,(OFST-1,sp)
-2994  f45d a605          	ld	a,#5
-2995  f45f e719          	ld	(25,x),a
-2996                     ; 1070         uip_connr->len = 0;
-2998  f461 905f          	clrw	y
-2999  f463 ef10          	ldw	(16,x),y
-3000                     ; 1071         goto drop;
-3002  f465 ccf509        	jra	L734
-3003  f468               L3511:
-3004                     ; 1073       if (uip_len > 0) {
-3006  f468 ce01d7        	ldw	x,_uip_len
-3007  f46b 27f8          	jreq	L734
-3008                     ; 1074         goto tcp_send_ack;
-3010  f46d 2038          	jra	L124
-3011  f46f               L314:
-3012                     ; 1078     case UIP_FIN_WAIT_2:
-3012                     ; 1079       if (uip_len > 0) {
-3014  f46f ce01d7        	ldw	x,_uip_len
-3015  f472 2703          	jreq	L1611
-3016                     ; 1080 	uip_add_rcv_nxt(uip_len);
-3018  f474 cdebf8        	call	L733_uip_add_rcv_nxt
-3020  f477               L1611:
-3021                     ; 1082       if (BUF->flags & TCP_FIN) {
-3023  f477 7201020a17    	btjf	_uip_buf+47,#0,L3611
-3024                     ; 1083 	uip_connr->tcpstateflags = UIP_TIME_WAIT;
-3026  f47c 1e04          	ldw	x,(OFST-1,sp)
-3027  f47e a607          	ld	a,#7
-3028  f480 e719          	ld	(25,x),a
-3029                     ; 1084 	uip_connr->timer = 0;
-3031  f482 6f1a          	clr	(26,x)
-3032                     ; 1085 	uip_add_rcv_nxt(1);
-3035                     ; 1086 	uip_flags = UIP_CLOSE;
-3037                     ; 1087 	UIP_APPCALL();
-3039  f484               LC004:
-3041  f484 ae0001        	ldw	x,#1
-3042  f487 cdebf8        	call	L733_uip_add_rcv_nxt
-3044  f48a 35100088      	mov	_uip_flags,#16
-3046  f48e cdf8ad        	call	_uip_TcpAppHubCall
-3048                     ; 1088 	goto tcp_send_ack;
-3050  f491 2014          	jra	L124
-3051  f493               L3611:
-3052                     ; 1090       if (uip_len > 0) {
-3054  f493 ce01d7        	ldw	x,_uip_len
-3055  f496 2771          	jreq	L734
-3056                     ; 1091 	goto tcp_send_ack;
-3058  f498 200d          	jra	L124
-3059  f49a               L714:
-3060                     ; 1098     case UIP_CLOSING:
-3060                     ; 1099       if (uip_flags & UIP_ACKDATA) {
-3062  f49a 720100886a    	btjf	_uip_flags,#0,L734
-3063                     ; 1100 	uip_connr->tcpstateflags = UIP_TIME_WAIT;
-3065  f49f a607          	ld	a,#7
-3066  f4a1 e719          	ld	(25,x),a
-3067                     ; 1101 	uip_connr->timer = 0;
-3069  f4a3 6f1a          	clr	(26,x)
-3070  f4a5 2062          	jra	L734
-3071                     ; 1104   goto drop;
-3073  f4a7               L124:
-3074                     ; 1109   tcp_send_ack:
-3074                     ; 1110   BUF->flags = TCP_ACK;
-3076  f4a7 3510020a      	mov	_uip_buf+47,#16
-3077  f4ab ccf33c        	jra	L324
-3078  f4ae               L1021:
-3079                     ; 1143     BUF->wnd[0] = ((UIP_RECEIVE_WINDOW) >> 8);
-3081  f4ae 3503020b      	mov	_uip_buf+48,#3
-3082                     ; 1144     BUF->wnd[1] = ((UIP_RECEIVE_WINDOW) & 0xff);
-3084  f4b2 354e020c      	mov	_uip_buf+49,#78
-3085  f4b6               L134:
-3086                     ; 1148   tcp_send_noconn:
-3086                     ; 1149   BUF->ttl = UIP_TTL;
-3088  f4b6 354001f1      	mov	_uip_buf+22,#64
-3089                     ; 1150   BUF->len[0] = (uint8_t)(uip_len >> 8);
-3091  f4ba 5501d701eb    	mov	_uip_buf+16,_uip_len
-3092                     ; 1151   BUF->len[1] = (uint8_t)(uip_len & 0xff);
-3094  f4bf 5501d801ec    	mov	_uip_buf+17,_uip_len+1
-3095                     ; 1153   BUF->urgp[0] = BUF->urgp[1] = 0;
-3097  f4c4 725f0210      	clr	_uip_buf+53
-3098  f4c8 725f020f      	clr	_uip_buf+52
-3099                     ; 1156   BUF->tcpchksum = 0;
-3101  f4cc 5f            	clrw	x
-3102  f4cd cf020d        	ldw	_uip_buf+50,x
-3103                     ; 1157   BUF->tcpchksum = ~(uip_tcpchksum());
-3105  f4d0 cdeaf6        	call	_uip_tcpchksum
-3107  f4d3 53            	cplw	x
-3108  f4d4 cf020d        	ldw	_uip_buf+50,x
-3109                     ; 1160   ip_send_nolen:
-3109                     ; 1161 
-3109                     ; 1162   BUF->vhl = 0x45;
-3111  f4d7 354501e9      	mov	_uip_buf+14,#69
-3112                     ; 1163   BUF->tos = 0;
-3114  f4db 725f01ea      	clr	_uip_buf+15
-3115                     ; 1164   BUF->ipoffset[0] = BUF->ipoffset[1] = 0;
-3117  f4df 725f01f0      	clr	_uip_buf+21
-3118  f4e3 725f01ef      	clr	_uip_buf+20
-3119                     ; 1165   ++ipid;
-3121  f4e7 ce006c        	ldw	x,L31_ipid
-3122  f4ea 5c            	incw	x
-3123  f4eb cf006c        	ldw	L31_ipid,x
-3124                     ; 1166   BUF->ipid[0] = (uint8_t)(ipid >> 8);
-3126  f4ee 55006c01ed    	mov	_uip_buf+18,L31_ipid
-3127                     ; 1167   BUF->ipid[1] = (uint8_t)(ipid & 0xff);
-3129  f4f3 55006d01ee    	mov	_uip_buf+19,L31_ipid+1
-3130                     ; 1169   BUF->ipchksum = 0;
-3132  f4f8 5f            	clrw	x
-3133  f4f9 cf01f3        	ldw	_uip_buf+24,x
-3134                     ; 1170   BUF->ipchksum = ~(uip_ipchksum());
-3136  f4fc cdea91        	call	_uip_ipchksum
-3138  f4ff 53            	cplw	x
-3139  f500 cf01f3        	ldw	_uip_buf+24,x
-3140                     ; 1172   UIP_STAT(++uip_stat.tcp.sent);
-3142  f503 ae00c5        	ldw	x,#_uip_stat+60
-3144  f506 ccee5d        	jra	L534
-3145  f509               L734:
-3146                     ; 1183   drop:
-3146                     ; 1184   uip_len = 0;
-3148  f509 5f            	clrw	x
-3149  f50a cf01d7        	ldw	_uip_len,x
-3150                     ; 1185   uip_flags = 0;
-3152                     ; 1186   return;
-3153  f50d               L202:
-3155  f50d 725f0088      	clr	_uip_flags
-3158  f511 5b06          	addw	sp,#6
-3159  f513 81            	ret	
-3191                     ; 1191 uint16_t htons(uint16_t val)
-3191                     ; 1192 {
-3192                     	switch	.text
-3193  f514               _htons:
-3197                     ; 1193   return HTONS(val);
-3201  f514 81            	ret	
-3246                     ; 1199 void uip_send(const char *data, int len)
-3246                     ; 1200 {
-3247                     	switch	.text
-3248  f515               _uip_send:
-3250  f515 89            	pushw	x
-3251       00000000      OFST:	set	0
-3254                     ; 1201   if (len > 0) {
-3256  f516 9c            	rvf	
-3257  f517 1e05          	ldw	x,(OFST+5,sp)
-3258  f519 2d1c          	jrsle	L012
-3259                     ; 1202     uip_slen = len;
-3261  f51b cf0078        	ldw	_uip_slen,x
-3262                     ; 1203     if (data != uip_sappdata) {
-3264  f51e 1e01          	ldw	x,(OFST+1,sp)
-3265  f520 c3007a        	cpw	x,_uip_sappdata
-3266  f523 2712          	jreq	L012
-3267                     ; 1204       memcpy(uip_sappdata, (data), uip_slen);
-3269  f525 bf04          	ldw	c_x,x
-3270  f527 ce0078        	ldw	x,_uip_slen
-3271  f52a 270b          	jreq	L012
-3272  f52c               L212:
-3273  f52c 5a            	decw	x
-3274  f52d 92d604        	ld	a,([c_x.w],x)
-3275  f530 72d7007a      	ld	([_uip_sappdata.w],x),a
-3276  f534 5d            	tnzw	x
-3277  f535 26f5          	jrne	L212
-3278  f537               L012:
-3279                     ; 1207 }
-3282  f537 85            	popw	x
-3283  f538 81            	ret	
-3710                     	switch	.bss
-3711  0064               L54_tmp16:
-3712  0064 0000          	ds.b	2
-3713  0066               L34_opt:
-3714  0066 00            	ds.b	1
-3715  0067               L14_c:
-3716  0067 00            	ds.b	1
-3717  0068               L73_iss:
-3718  0068 00000000      	ds.b	4
-3719  006c               L31_ipid:
-3720  006c 0000          	ds.b	2
-3721  006e               _uip_listenports:
-3722  006e 000000000000  	ds.b	10
-3723                     	xdef	_uip_listenports
-3724  0078               _uip_slen:
-3725  0078 0000          	ds.b	2
-3726                     	xdef	_uip_slen
-3727  007a               _uip_sappdata:
-3728  007a 0000          	ds.b	2
-3729                     	xdef	_uip_sappdata
-3730                     	xdef	_uip_ethaddr
-3731                     	xdef	_uip_add32
-3732                     	xdef	_uip_tcpchksum
-3733                     	xdef	_uip_ipchksum
-3734                     	xdef	_uip_chksum
-3735  007c               _uip_draddr:
-3736  007c 00000000      	ds.b	4
-3737                     	xdef	_uip_draddr
-3738  0080               _uip_netmask:
-3739  0080 00000000      	ds.b	4
-3740                     	xdef	_uip_netmask
-3741  0084               _uip_hostaddr:
-3742  0084 00000000      	ds.b	4
-3743                     	xdef	_uip_hostaddr
-3744                     	xdef	_uip_process
-3745  0088               _uip_flags:
-3746  0088 00            	ds.b	1
-3747                     	xdef	_uip_flags
-3748  0089               _uip_stat:
-3749  0089 000000000000  	ds.b	88
-3750                     	xdef	_uip_stat
-3751  00e1               _uip_acc32:
-3752  00e1 00000000      	ds.b	4
-3753                     	xdef	_uip_acc32
-3754  00e5               _uip_conns:
-3755  00e5 000000000000  	ds.b	240
-3756                     	xdef	_uip_conns
-3757  01d5               _uip_conn:
-3758  01d5 0000          	ds.b	2
-3759                     	xdef	_uip_conn
-3760  01d7               _uip_len:
-3761  01d7 0000          	ds.b	2
-3762                     	xdef	_uip_len
-3763  01d9               _uip_appdata:
-3764  01d9 0000          	ds.b	2
-3765                     	xdef	_uip_appdata
-3766                     	xdef	_htons
-3767                     	xdef	_uip_send
-3768                     	xdef	_uip_unlisten
-3769                     	xdef	_uip_listen
-3770  01db               _uip_buf:
-3771  01db 000000000000  	ds.b	902
-3772                     	xdef	_uip_buf
-3773                     	xdef	_uip_setipid
-3774                     	xdef	_uip_init
-3775                     	xref	_uip_TcpAppHubCall
-3776                     	xref.b	c_x
-3777                     	xref.b	c_y
-3797                     	xref	c_lgadc
-3798                     	end
+ 681  e586               _uip_init:
+ 685                     ; 321   for (c = 0; c < UIP_LISTENPORTS; ++c) uip_listenports[c] = 0;
+ 687  e586 4f            	clr	a
+ 688  e587 c70067        	ld	L14_c,a
+ 689  e58a               L352:
+ 692  e58a 5f            	clrw	x
+ 693  e58b 97            	ld	xl,a
+ 694  e58c 58            	sllw	x
+ 695  e58d 905f          	clrw	y
+ 696  e58f df006e        	ldw	(_uip_listenports,x),y
+ 699  e592 725c0067      	inc	L14_c
+ 702  e596 c60067        	ld	a,L14_c
+ 703  e599 a105          	cp	a,#5
+ 704  e59b 25ed          	jrult	L352
+ 705                     ; 322   for (c = 0; c < UIP_CONNS; ++c) uip_conns[c].tcpstateflags = UIP_CLOSED;
+ 707  e59d 4f            	clr	a
+ 708  e59e c70067        	ld	L14_c,a
+ 709  e5a1               L162:
+ 712  e5a1 97            	ld	xl,a
+ 713  e5a2 a628          	ld	a,#40
+ 714  e5a4 42            	mul	x,a
+ 715  e5a5 724f00fe      	clr	(_uip_conns+25,x)
+ 718  e5a9 725c0067      	inc	L14_c
+ 721  e5ad c60067        	ld	a,L14_c
+ 722  e5b0 a106          	cp	a,#6
+ 723  e5b2 25ed          	jrult	L162
+ 724                     ; 327   uip_init_stats();
+ 727                     ; 329 }
+ 730  e5b4 2000          	jp	_uip_init_stats
+ 754                     ; 333 void uip_init_stats(void)
+ 754                     ; 334 {
+ 755                     	switch	.text
+ 756  e5b6               _uip_init_stats:
+ 760                     ; 337   uip_stat.ip.drop = 0;
+ 762  e5b6 5f            	clrw	x
+ 763  e5b7 cf008b        	ldw	_uip_stat+2,x
+ 764  e5ba cf0089        	ldw	_uip_stat,x
+ 765                     ; 338   uip_stat.ip.recv = 0;
+ 767  e5bd cf008f        	ldw	_uip_stat+6,x
+ 768  e5c0 cf008d        	ldw	_uip_stat+4,x
+ 769                     ; 339   uip_stat.ip.sent = 0;
+ 771  e5c3 cf0093        	ldw	_uip_stat+10,x
+ 772  e5c6 cf0091        	ldw	_uip_stat+8,x
+ 773                     ; 340   uip_stat.ip.vhlerr = 0;
+ 775  e5c9 cf0097        	ldw	_uip_stat+14,x
+ 776  e5cc cf0095        	ldw	_uip_stat+12,x
+ 777                     ; 341   uip_stat.ip.hblenerr = 0;
+ 779  e5cf cf009b        	ldw	_uip_stat+18,x
+ 780  e5d2 cf0099        	ldw	_uip_stat+16,x
+ 781                     ; 342   uip_stat.ip.lblenerr = 0;
+ 783  e5d5 cf009f        	ldw	_uip_stat+22,x
+ 784  e5d8 cf009d        	ldw	_uip_stat+20,x
+ 785                     ; 343   uip_stat.ip.fragerr = 0;
+ 787  e5db cf00a3        	ldw	_uip_stat+26,x
+ 788  e5de cf00a1        	ldw	_uip_stat+24,x
+ 789                     ; 344   uip_stat.ip.chkerr = 0;
+ 791  e5e1 cf00a7        	ldw	_uip_stat+30,x
+ 792  e5e4 cf00a5        	ldw	_uip_stat+28,x
+ 793                     ; 345   uip_stat.ip.protoerr = 0;
+ 795  e5e7 cf00ab        	ldw	_uip_stat+34,x
+ 796  e5ea cf00a9        	ldw	_uip_stat+32,x
+ 797                     ; 346   uip_stat.icmp.drop = 0;
+ 799  e5ed cf00af        	ldw	_uip_stat+38,x
+ 800  e5f0 cf00ad        	ldw	_uip_stat+36,x
+ 801                     ; 347   uip_stat.icmp.recv = 0;
+ 803  e5f3 cf00b3        	ldw	_uip_stat+42,x
+ 804  e5f6 cf00b1        	ldw	_uip_stat+40,x
+ 805                     ; 348   uip_stat.icmp.sent = 0;
+ 807  e5f9 cf00b7        	ldw	_uip_stat+46,x
+ 808  e5fc cf00b5        	ldw	_uip_stat+44,x
+ 809                     ; 349   uip_stat.icmp.typeerr = 0;
+ 811  e5ff cf00bb        	ldw	_uip_stat+50,x
+ 812  e602 cf00b9        	ldw	_uip_stat+48,x
+ 813                     ; 350   uip_stat.tcp.drop = 0;
+ 815  e605 cf00bf        	ldw	_uip_stat+54,x
+ 816  e608 cf00bd        	ldw	_uip_stat+52,x
+ 817                     ; 351   uip_stat.tcp.recv = 0;
+ 819  e60b cf00c3        	ldw	_uip_stat+58,x
+ 820  e60e cf00c1        	ldw	_uip_stat+56,x
+ 821                     ; 352   uip_stat.tcp.sent = 0;
+ 823  e611 cf00c7        	ldw	_uip_stat+62,x
+ 824  e614 cf00c5        	ldw	_uip_stat+60,x
+ 825                     ; 353   uip_stat.tcp.chkerr = 0;
+ 827  e617 cf00cb        	ldw	_uip_stat+66,x
+ 828  e61a cf00c9        	ldw	_uip_stat+64,x
+ 829                     ; 354   uip_stat.tcp.ackerr = 0;
+ 831  e61d cf00cf        	ldw	_uip_stat+70,x
+ 832  e620 cf00cd        	ldw	_uip_stat+68,x
+ 833                     ; 355   uip_stat.tcp.rst = 0;
+ 835  e623 cf00d3        	ldw	_uip_stat+74,x
+ 836  e626 cf00d1        	ldw	_uip_stat+72,x
+ 837                     ; 356   uip_stat.tcp.rexmit = 0;
+ 839  e629 cf00d7        	ldw	_uip_stat+78,x
+ 840  e62c cf00d5        	ldw	_uip_stat+76,x
+ 841                     ; 357   uip_stat.tcp.syndrop = 0;
+ 843  e62f cf00db        	ldw	_uip_stat+82,x
+ 844  e632 cf00d9        	ldw	_uip_stat+80,x
+ 845                     ; 358   uip_stat.tcp.synrst = 0;
+ 847  e635 cf00df        	ldw	_uip_stat+86,x
+ 848  e638 cf00dd        	ldw	_uip_stat+84,x
+ 849                     ; 360 }
+ 852  e63b 81            	ret	
+ 886                     ; 364 void uip_unlisten(uint16_t port)
+ 886                     ; 365 {
+ 887                     	switch	.text
+ 888  e63c               _uip_unlisten:
+ 890  e63c 89            	pushw	x
+ 891       00000000      OFST:	set	0
+ 894                     ; 366   for (c = 0; c < UIP_LISTENPORTS; ++c) {
+ 896  e63d 4f            	clr	a
+ 897  e63e c70067        	ld	L14_c,a
+ 898  e641               L313:
+ 899                     ; 367     if (uip_listenports[c] == port) {
+ 901  e641 5f            	clrw	x
+ 902  e642 97            	ld	xl,a
+ 903  e643 58            	sllw	x
+ 904  e644 de006e        	ldw	x,(_uip_listenports,x)
+ 905  e647 1301          	cpw	x,(OFST+1,sp)
+ 906  e649 260a          	jrne	L123
+ 907                     ; 368       uip_listenports[c] = 0;
+ 909  e64b 5f            	clrw	x
+ 910  e64c 97            	ld	xl,a
+ 911  e64d 58            	sllw	x
+ 912  e64e 905f          	clrw	y
+ 913  e650 df006e        	ldw	(_uip_listenports,x),y
+ 914                     ; 369       return;
+ 916  e653 200b          	jra	L66
+ 917  e655               L123:
+ 918                     ; 366   for (c = 0; c < UIP_LISTENPORTS; ++c) {
+ 920  e655 725c0067      	inc	L14_c
+ 923  e659 c60067        	ld	a,L14_c
+ 924  e65c a105          	cp	a,#5
+ 925  e65e 25e1          	jrult	L313
+ 926                     ; 372 }
+ 927  e660               L66:
+ 930  e660 85            	popw	x
+ 931  e661 81            	ret	
+ 965                     ; 376 void uip_listen(uint16_t port)
+ 965                     ; 377 {
+ 966                     	switch	.text
+ 967  e662               _uip_listen:
+ 969  e662 89            	pushw	x
+ 970       00000000      OFST:	set	0
+ 973                     ; 378   for (c = 0; c < UIP_LISTENPORTS; ++c) {
+ 975  e663 4f            	clr	a
+ 976  e664 c70067        	ld	L14_c,a
+ 977  e667               L733:
+ 978                     ; 379     if (uip_listenports[c] == 0) {
+ 980  e667 5f            	clrw	x
+ 981  e668 97            	ld	xl,a
+ 982  e669 58            	sllw	x
+ 983  e66a d6006f        	ld	a,(_uip_listenports+1,x)
+ 984  e66d da006e        	or	a,(_uip_listenports,x)
+ 985  e670 2607          	jrne	L543
+ 986                     ; 380       uip_listenports[c] = port;
+ 988  e672 1601          	ldw	y,(OFST+1,sp)
+ 989  e674 df006e        	ldw	(_uip_listenports,x),y
+ 990                     ; 381       return;
+ 992  e677 200b          	jra	L27
+ 993  e679               L543:
+ 994                     ; 378   for (c = 0; c < UIP_LISTENPORTS; ++c) {
+ 996  e679 725c0067      	inc	L14_c
+ 999  e67d c60067        	ld	a,L14_c
+1000  e680 a105          	cp	a,#5
+1001  e682 25e3          	jrult	L733
+1002                     ; 384 }
+1003  e684               L27:
+1006  e684 85            	popw	x
+1007  e685 81            	ret	
+1042                     ; 388 static void uip_add_rcv_nxt(uint16_t n)
+1042                     ; 389 {
+1043                     	switch	.text
+1044  e686               L743_uip_add_rcv_nxt:
+1048                     ; 390   uip_add32(uip_conn->rcv_nxt, n);
+1050  e686 89            	pushw	x
+1051  e687 ce01d5        	ldw	x,_uip_conn
+1052  e68a 1c0008        	addw	x,#8
+1053  e68d cde466        	call	_uip_add32
+1055  e690 85            	popw	x
+1056                     ; 391   uip_conn->rcv_nxt[0] = uip_acc32[0];
+1058  e691 ce01d5        	ldw	x,_uip_conn
+1059  e694 c600e1        	ld	a,_uip_acc32
+1060  e697 e708          	ld	(8,x),a
+1061                     ; 392   uip_conn->rcv_nxt[1] = uip_acc32[1];
+1063  e699 c600e2        	ld	a,_uip_acc32+1
+1064  e69c e709          	ld	(9,x),a
+1065                     ; 393   uip_conn->rcv_nxt[2] = uip_acc32[2];
+1067  e69e c600e3        	ld	a,_uip_acc32+2
+1068  e6a1 e70a          	ld	(10,x),a
+1069                     ; 394   uip_conn->rcv_nxt[3] = uip_acc32[3];
+1071  e6a3 c600e4        	ld	a,_uip_acc32+3
+1072  e6a6 e70b          	ld	(11,x),a
+1073                     ; 395 }
+1076  e6a8 81            	ret	
+1363                     ; 399 void uip_process(uint8_t flag)
+1363                     ; 400 {
+1364                     	switch	.text
+1365  e6a9               _uip_process:
+1367  e6a9 88            	push	a
+1368  e6aa 5205          	subw	sp,#5
+1369       00000005      OFST:	set	5
+1372                     ; 401   register struct uip_conn *uip_connr = uip_conn;
+1374  e6ac ce01d5        	ldw	x,_uip_conn
+1375  e6af 1f04          	ldw	(OFST-1,sp),x
+1377                     ; 403   uip_sappdata = uip_appdata = &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN];
+1379  e6b1 ae0211        	ldw	x,#_uip_buf+54
+1380  e6b4 cf01d9        	ldw	_uip_appdata,x
+1381  e6b7 cf007a        	ldw	_uip_sappdata,x
+1382                     ; 406   if (flag == UIP_POLL_REQUEST) {
+1384  e6ba a103          	cp	a,#3
+1385  e6bc 2614          	jrne	L706
+1386                     ; 407     if ((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED && !uip_outstanding(uip_connr)) {
+1388  e6be 1e04          	ldw	x,(OFST-1,sp)
+1389  e6c0 e619          	ld	a,(25,x)
+1390  e6c2 a40f          	and	a,#15
+1391  e6c4 a103          	cp	a,#3
+1392  e6c6 2703ccef97    	jrne	L744
+1394  e6cb e611          	ld	a,(17,x)
+1395  e6cd ea10          	or	a,(16,x)
+1396                     ; 408       uip_flags = UIP_POLL;
+1397                     ; 409       UIP_APPCALL();
+1399                     ; 410       goto appsend;
+1401  e6cf cce79d        	jp	LC001
+1402  e6d2               L706:
+1403                     ; 416   else if (flag == UIP_TIMER) {
+1405  e6d2 7b06          	ld	a,(OFST+1,sp)
+1406  e6d4 a102          	cp	a,#2
+1407  e6d6 2703cce7bd    	jrne	L316
+1408                     ; 418     if (++iss[3] == 0) {
+1410  e6db 725c006b      	inc	L73_iss+3
+1411  e6df 2610          	jrne	L716
+1412                     ; 419       if (++iss[2] == 0) {
+1414  e6e1 725c006a      	inc	L73_iss+2
+1415  e6e5 260a          	jrne	L716
+1416                     ; 420         if (++iss[1] == 0) {
+1418  e6e7 725c0069      	inc	L73_iss+1
+1419  e6eb 2604          	jrne	L716
+1420                     ; 421           ++iss[0];
+1422  e6ed 725c0068      	inc	L73_iss
+1423  e6f1               L716:
+1424                     ; 427     uip_len = 0;
+1426  e6f1 5f            	clrw	x
+1427  e6f2 cf01d7        	ldw	_uip_len,x
+1428                     ; 428     uip_slen = 0;
+1430  e6f5 cf0078        	ldw	_uip_slen,x
+1431                     ; 434     if (uip_connr->tcpstateflags == UIP_TIME_WAIT || uip_connr->tcpstateflags == UIP_FIN_WAIT_2) {
+1433  e6f8 1e04          	ldw	x,(OFST-1,sp)
+1434  e6fa e619          	ld	a,(25,x)
+1435  e6fc a107          	cp	a,#7
+1436  e6fe 2704          	jreq	L726
+1438  e700 a105          	cp	a,#5
+1439  e702 260d          	jrne	L526
+1440  e704               L726:
+1441                     ; 435       ++(uip_connr->timer);
+1443  e704 6c1a          	inc	(26,x)
+1444                     ; 436       if (uip_connr->timer == UIP_TIME_WAIT_TIMEOUT) {
+1446  e706 e61a          	ld	a,(26,x)
+1447  e708 a178          	cp	a,#120
+1448  e70a 26bc          	jrne	L744
+1449                     ; 437         uip_connr->tcpstateflags = UIP_CLOSED;
+1451  e70c 6f19          	clr	(25,x)
+1452  e70e ccef97        	jra	L744
+1453  e711               L526:
+1454                     ; 440     else if (uip_connr->tcpstateflags != UIP_CLOSED) {
+1456  e711 e619          	ld	a,(25,x)
+1457  e713 27f9          	jreq	L744
+1458                     ; 444       if (uip_outstanding(uip_connr)) {
+1460  e715 e611          	ld	a,(17,x)
+1461  e717 ea10          	or	a,(16,x)
+1462  e719 277c          	jreq	L736
+1463                     ; 445         if (uip_connr->timer-- == 0) {
+1465  e71b e61a          	ld	a,(26,x)
+1466  e71d 6a1a          	dec	(26,x)
+1467  e71f 4d            	tnz	a
+1468  e720 26ec          	jrne	L744
+1469                     ; 446           if (uip_connr->nrtx == UIP_MAXRTX
+1469                     ; 447 	    || ((uip_connr->tcpstateflags == UIP_SYN_SENT
+1469                     ; 448             || uip_connr->tcpstateflags == UIP_SYN_RCVD)
+1469                     ; 449             && uip_connr->nrtx == UIP_MAXSYNRTX)) {
+1471  e722 e61b          	ld	a,(27,x)
+1472  e724 a108          	cp	a,#8
+1473  e726 270f          	jreq	L546
+1475  e728 e619          	ld	a,(25,x)
+1476  e72a a102          	cp	a,#2
+1477  e72c 2703          	jreq	L746
+1479  e72e 4a            	dec	a
+1480  e72f 2616          	jrne	L346
+1481  e731               L746:
+1483  e731 e61b          	ld	a,(27,x)
+1484  e733 a105          	cp	a,#5
+1485  e735 2610          	jrne	L346
+1486  e737               L546:
+1487                     ; 450             uip_connr->tcpstateflags = UIP_CLOSED;
+1489  e737 6f19          	clr	(25,x)
+1490                     ; 455             uip_flags = UIP_TIMEDOUT;
+1492  e739 35800088      	mov	_uip_flags,#128
+1493                     ; 456             UIP_APPCALL();
+1495  e73d cdf33b        	call	_uip_TcpAppHubCall
+1497                     ; 459             BUF->flags = TCP_RST | TCP_ACK;
+1499  e740 3514020a      	mov	_uip_buf+47,#20
+1500                     ; 460             goto tcp_send_nodata;
+1502  e744 ccedca        	jra	L334
+1503  e747               L346:
+1504                     ; 464 	  if (uip_connr->nrtx > 4) uip_connr->nrtx = 4;
+1506  e747 1e04          	ldw	x,(OFST-1,sp)
+1507  e749 e61b          	ld	a,(27,x)
+1508  e74b a105          	cp	a,#5
+1509  e74d 2504          	jrult	L156
+1512  e74f a604          	ld	a,#4
+1513  e751 e71b          	ld	(27,x),a
+1514  e753               L156:
+1515                     ; 465 	  uip_connr->timer = (uint8_t)(UIP_RTO << uip_connr->nrtx);
+1517  e753 5f            	clrw	x
+1518  e754 97            	ld	xl,a
+1519  e755 a603          	ld	a,#3
+1520  e757 5d            	tnzw	x
+1521  e758 2704          	jreq	L601
+1522  e75a               L011:
+1523  e75a 48            	sll	a
+1524  e75b 5a            	decw	x
+1525  e75c 26fc          	jrne	L011
+1526  e75e               L601:
+1527  e75e 1e04          	ldw	x,(OFST-1,sp)
+1528  e760 e71a          	ld	(26,x),a
+1529                     ; 466 	  ++(uip_connr->nrtx);
+1531  e762 6c1b          	inc	(27,x)
+1532                     ; 474           UIP_STAT(++uip_stat.tcp.rexmit);
+1534  e764 ae00d5        	ldw	x,#_uip_stat+76
+1535  e767 a601          	ld	a,#1
+1536  e769 cdf43e        	call	c_lgadc
+1538                     ; 475           switch (uip_connr->tcpstateflags & UIP_TS_MASK) {
+1540  e76c 1e04          	ldw	x,(OFST-1,sp)
+1541  e76e e619          	ld	a,(25,x)
+1542  e770 a40f          	and	a,#15
+1544                     ; 489             case UIP_FIN_WAIT_1:
+1544                     ; 490             case UIP_CLOSING:
+1544                     ; 491             case UIP_LAST_ACK:
+1544                     ; 492               /* In all these states we should retransmit a FINACK. */
+1544                     ; 493               goto tcp_send_finack;
+1545  e772 4a            	dec	a
+1546  e773 2603cceb79    	jreq	L104
+1547  e778 a002          	sub	a,#2
+1548  e77a 2711          	jreq	L763
+1549  e77c 4a            	dec	a
+1550  e77d 2603ccedc6    	jreq	LC003
+1551  e782 a002          	sub	a,#2
+1552  e784 27f9          	jreq	LC003
+1553  e786 a002          	sub	a,#2
+1554  e788 27f5          	jreq	LC003
+1555  e78a ccef97        	jra	L744
+1556  e78d               L763:
+1557                     ; 480             case UIP_ESTABLISHED:
+1557                     ; 481               /* In the ESTABLISHED state, we call upon the application
+1557                     ; 482                  to do the actual retransmit after which we jump into
+1557                     ; 483                  the code for sending out the packet (the apprexmit
+1557                     ; 484                  label). */
+1557                     ; 485               uip_flags = UIP_REXMIT;
+1559  e78d 35040088      	mov	_uip_flags,#4
+1560                     ; 486               UIP_APPCALL();
+1562  e791 cdf33b        	call	_uip_TcpAppHubCall
+1564                     ; 487               goto apprexmit;
+1566  e794 ccee0d        	jra	L514
+1567                     ; 489             case UIP_FIN_WAIT_1:
+1567                     ; 490             case UIP_CLOSING:
+1567                     ; 491             case UIP_LAST_ACK:
+1567                     ; 492               /* In all these states we should retransmit a FINACK. */
+1567                     ; 493               goto tcp_send_finack;
+1569  e797               L736:
+1570                     ; 498       else if ((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED) {
+1572  e797 e619          	ld	a,(25,x)
+1573  e799 a40f          	and	a,#15
+1574  e79b a103          	cp	a,#3
+1575                     ; 500         uip_flags = UIP_POLL;
+1577  e79d               LC001:
+1578  e79d 26eb          	jrne	L744
+1580  e79f 35080088      	mov	_uip_flags,#8
+1581                     ; 501         UIP_APPCALL();
+1584                     ; 502         goto appsend;
+1585  e7a3               L314:
+1589  e7a3 cdf33b        	call	_uip_TcpAppHubCall
+1590                     ; 972         appsend:
+1590                     ; 973 
+1590                     ; 974         if (uip_flags & UIP_ABORT) {
+1592  e7a6 720a008803cc  	btjf	_uip_flags,#5,L7211
+1593                     ; 975           uip_slen = 0;
+1595  e7ae 5f            	clrw	x
+1596  e7af cf0078        	ldw	_uip_slen,x
+1597                     ; 976           uip_connr->tcpstateflags = UIP_CLOSED;
+1599  e7b2 1e04          	ldw	x,(OFST-1,sp)
+1600                     ; 977           BUF->flags = TCP_RST | TCP_ACK;
+1602  e7b4 3514020a      	mov	_uip_buf+47,#20
+1603  e7b8 6f19          	clr	(25,x)
+1604                     ; 978           goto tcp_send_nodata;
+1606  e7ba ccedca        	jra	L334
+1607  e7bd               L316:
+1608                     ; 512   UIP_STAT(++uip_stat.ip.recv);
+1610  e7bd ae008d        	ldw	x,#_uip_stat+4
+1611  e7c0 a601          	ld	a,#1
+1612  e7c2 cdf43e        	call	c_lgadc
+1614                     ; 517   if (BUF->vhl != 0x45) { /* IP version and header length. */
+1616  e7c5 c601e9        	ld	a,_uip_buf+14
+1617  e7c8 a145          	cp	a,#69
+1618  e7ca 2713          	jreq	L366
+1619                     ; 518     UIP_STAT(++uip_stat.ip.drop);
+1621  e7cc ae0089        	ldw	x,#_uip_stat
+1622  e7cf a601          	ld	a,#1
+1623  e7d1 cdf43e        	call	c_lgadc
+1625                     ; 519     UIP_STAT(++uip_stat.ip.vhlerr);
+1627  e7d4 ae0095        	ldw	x,#_uip_stat+12
+1628  e7d7 a601          	ld	a,#1
+1629  e7d9 cdf43e        	call	c_lgadc
+1631                     ; 520     goto drop;
+1633  e7dc ccef97        	jra	L744
+1634  e7df               L366:
+1635                     ; 529   if ((BUF->len[0] << 8) + BUF->len[1] <= uip_len) {
+1637  e7df c601eb        	ld	a,_uip_buf+16
+1638  e7e2 5f            	clrw	x
+1639  e7e3 97            	ld	xl,a
+1640  e7e4 4f            	clr	a
+1641  e7e5 cb01ec        	add	a,_uip_buf+17
+1642  e7e8 2401          	jrnc	L611
+1643  e7ea 5c            	incw	x
+1644  e7eb               L611:
+1645  e7eb 02            	rlwa	x,a
+1646  e7ec c301d7        	cpw	x,_uip_len
+1647  e7ef 22eb          	jrugt	L744
+1648                     ; 530     uip_len = (BUF->len[0] << 8) + BUF->len[1];
+1650  e7f1 c601eb        	ld	a,_uip_buf+16
+1651  e7f4 5f            	clrw	x
+1652  e7f5 97            	ld	xl,a
+1653  e7f6 4f            	clr	a
+1654  e7f7 cb01ec        	add	a,_uip_buf+17
+1655  e7fa 2401          	jrnc	L021
+1656  e7fc 5c            	incw	x
+1657  e7fd               L021:
+1658  e7fd c701d8        	ld	_uip_len+1,a
+1659  e800 9f            	ld	a,xl
+1660  e801 c701d7        	ld	_uip_len,a
+1662                     ; 535   if ((BUF->ipoffset[0] & 0x3f) != 0 || BUF->ipoffset[1] != 0) {
+1664  e804 c601ef        	ld	a,_uip_buf+20
+1665  e807 a53f          	bcp	a,#63
+1666  e809 2605          	jrne	L376
+1668  e80b c601f0        	ld	a,_uip_buf+21
+1669  e80e 2713          	jreq	L176
+1670  e810               L376:
+1671                     ; 536     UIP_STAT(++uip_stat.ip.drop);
+1673  e810 ae0089        	ldw	x,#_uip_stat
+1674  e813 a601          	ld	a,#1
+1675  e815 cdf43e        	call	c_lgadc
+1677                     ; 537     UIP_STAT(++uip_stat.ip.fragerr);
+1679  e818 ae00a1        	ldw	x,#_uip_stat+24
+1680  e81b a601          	ld	a,#1
+1681  e81d cdf43e        	call	c_lgadc
+1683                     ; 538     goto drop;
+1685  e820 ccef97        	jra	L744
+1686  e823               L176:
+1687                     ; 542   if (!uip_ipaddr_cmp(BUF->destipaddr, uip_hostaddr)) {
+1689  e823 ce01f9        	ldw	x,_uip_buf+30
+1690  e826 c30084        	cpw	x,_uip_hostaddr
+1691  e829 2608          	jrne	L776
+1693  e82b ce01fb        	ldw	x,_uip_buf+32
+1694  e82e c30086        	cpw	x,_uip_hostaddr+2
+1695  e831 270b          	jreq	L576
+1696  e833               L776:
+1697                     ; 543     UIP_STAT(++uip_stat.ip.drop);
+1699  e833 ae0089        	ldw	x,#_uip_stat
+1700  e836 a601          	ld	a,#1
+1701  e838 cdf43e        	call	c_lgadc
+1703                     ; 544     goto drop;
+1705  e83b ccef97        	jra	L744
+1706  e83e               L576:
+1707                     ; 547   if (uip_ipchksum() != 0xffff) { /* Compute and check the IP header checksum. */
+1709  e83e cde51d        	call	_uip_ipchksum
+1711  e841 5c            	incw	x
+1712  e842 2713          	jreq	L107
+1713                     ; 548     UIP_STAT(++uip_stat.ip.drop);
+1715  e844 ae0089        	ldw	x,#_uip_stat
+1716  e847 a601          	ld	a,#1
+1717  e849 cdf43e        	call	c_lgadc
+1719                     ; 549     UIP_STAT(++uip_stat.ip.chkerr);
+1721  e84c ae00a5        	ldw	x,#_uip_stat+28
+1722  e84f a601          	ld	a,#1
+1723  e851 cdf43e        	call	c_lgadc
+1725                     ; 550     goto drop;
+1727  e854 ccef97        	jra	L744
+1728  e857               L107:
+1729                     ; 553   if (BUF->proto == UIP_PROTO_TCP) {
+1731  e857 c601f2        	ld	a,_uip_buf+23
+1732  e85a a106          	cp	a,#6
+1733  e85c 2624          	jrne	L307
+1734                     ; 555     goto tcp_input;
+1735                     ; 600   tcp_input:
+1735                     ; 601   UIP_STAT(++uip_stat.tcp.recv);
+1737  e85e ae00c1        	ldw	x,#_uip_stat+56
+1738  e861 a601          	ld	a,#1
+1739  e863 cdf43e        	call	c_lgadc
+1741                     ; 605   if (uip_tcpchksum() != 0xffff) { /* Compute and check the TCP checksum. */
+1743  e866 cde582        	call	_uip_tcpchksum
+1745  e869 5c            	incw	x
+1746  e86a 2603cce8fb    	jreq	L527
+1747                     ; 606     UIP_STAT(++uip_stat.tcp.drop);
+1749  e86f ae00bd        	ldw	x,#_uip_stat+52
+1750  e872 a601          	ld	a,#1
+1751  e874 cdf43e        	call	c_lgadc
+1753                     ; 607     UIP_STAT(++uip_stat.tcp.chkerr);
+1755  e877 ae00c9        	ldw	x,#_uip_stat+64
+1756  e87a a601          	ld	a,#1
+1757  e87c cdf43e        	call	c_lgadc
+1759                     ; 608     goto drop;
+1761  e87f ccef97        	jra	L744
+1762  e882               L307:
+1763                     ; 562   if (BUF->proto != UIP_PROTO_ICMP) { /* We only allow ICMP packets from here. */
+1765  e882 4a            	dec	a
+1766  e883 2713          	jreq	L507
+1767                     ; 563     UIP_STAT(++uip_stat.ip.drop);
+1769  e885 ae0089        	ldw	x,#_uip_stat
+1770  e888 a601          	ld	a,#1
+1771  e88a cdf43e        	call	c_lgadc
+1773                     ; 564     UIP_STAT(++uip_stat.ip.protoerr);
+1775  e88d ae00a9        	ldw	x,#_uip_stat+32
+1776  e890 a601          	ld	a,#1
+1777  e892 cdf43e        	call	c_lgadc
+1779                     ; 565     goto drop;
+1781  e895 ccef97        	jra	L744
+1782  e898               L507:
+1783                     ; 568   UIP_STAT(++uip_stat.icmp.recv);
+1785  e898 ae00b1        	ldw	x,#_uip_stat+40
+1786  e89b 4c            	inc	a
+1787  e89c cdf43e        	call	c_lgadc
+1789                     ; 573   if (ICMPBUF->type != ICMP_ECHO) {
+1791  e89f c601fd        	ld	a,_uip_buf+34
+1792  e8a2 a108          	cp	a,#8
+1793  e8a4 2713          	jreq	L707
+1794                     ; 574     UIP_STAT(++uip_stat.icmp.drop);
+1796  e8a6 ae00ad        	ldw	x,#_uip_stat+36
+1797  e8a9 a601          	ld	a,#1
+1798  e8ab cdf43e        	call	c_lgadc
+1800                     ; 575     UIP_STAT(++uip_stat.icmp.typeerr);
+1802  e8ae ae00b9        	ldw	x,#_uip_stat+48
+1803  e8b1 a601          	ld	a,#1
+1804  e8b3 cdf43e        	call	c_lgadc
+1806                     ; 576     goto drop;
+1808  e8b6 ccef97        	jra	L744
+1809  e8b9               L707:
+1810                     ; 579   ICMPBUF->type = ICMP_ECHO_REPLY;
+1812  e8b9 725f01fd      	clr	_uip_buf+34
+1813                     ; 581   if (ICMPBUF->icmpchksum >= HTONS(0xffff - (ICMP_ECHO << 8))) {
+1815  e8bd ce01ff        	ldw	x,_uip_buf+36
+1816  e8c0 a3f7ff        	cpw	x,#63487
+1817  e8c3 2505          	jrult	L117
+1818                     ; 582     ICMPBUF->icmpchksum += HTONS(ICMP_ECHO << 8) + 1;
+1820  e8c5 1c0801        	addw	x,#2049
+1822  e8c8 2003          	jra	L517
+1823  e8ca               L117:
+1824                     ; 585     ICMPBUF->icmpchksum += HTONS(ICMP_ECHO << 8);
+1826  e8ca 1c0800        	addw	x,#2048
+1827  e8cd               L517:
+1828  e8cd cf01ff        	ldw	_uip_buf+36,x
+1829                     ; 589   uip_ipaddr_copy(BUF->destipaddr, BUF->srcipaddr);
+1831  e8d0 ce01f5        	ldw	x,_uip_buf+26
+1832  e8d3 cf01f9        	ldw	_uip_buf+30,x
+1835  e8d6 ce01f7        	ldw	x,_uip_buf+28
+1836  e8d9 cf01fb        	ldw	_uip_buf+32,x
+1837                     ; 590   uip_ipaddr_copy(BUF->srcipaddr, uip_hostaddr);
+1839  e8dc ce0084        	ldw	x,_uip_hostaddr
+1840  e8df cf01f5        	ldw	_uip_buf+26,x
+1843  e8e2 ce0086        	ldw	x,_uip_hostaddr+2
+1844  e8e5 cf01f7        	ldw	_uip_buf+28,x
+1845                     ; 592   UIP_STAT(++uip_stat.icmp.sent);
+1847  e8e8 ae00b5        	ldw	x,#_uip_stat+44
+1849                     ; 593   goto send;
+1850  e8eb               L544:
+1851  e8eb a601          	ld	a,#1
+1852  e8ed cdf43e        	call	c_lgadc
+1853                     ; 1189   send:
+1853                     ; 1190 
+1853                     ; 1191   UIP_STAT(++uip_stat.ip.sent);
+1855  e8f0 ae0091        	ldw	x,#_uip_stat+8
+1856  e8f3 a601          	ld	a,#1
+1857  e8f5 cdf43e        	call	c_lgadc
+1859                     ; 1193   uip_flags = 0;
+1860                     ; 1195   return;
+1862  e8f8 ccef9b        	jra	L602
+1863  e8fb               L527:
+1864                     ; 613   for (uip_connr = &uip_conns[0]; uip_connr <= &uip_conns[UIP_CONNS - 1]; ++uip_connr) {
+1866  e8fb ae00e5        	ldw	x,#_uip_conns
+1868  e8fe 204d          	jra	L337
+1869  e900               L727:
+1870                     ; 614     if (uip_connr->tcpstateflags != UIP_CLOSED
+1870                     ; 615       && BUF->destport == uip_connr->lport
+1870                     ; 616       && BUF->srcport == uip_connr->rport
+1870                     ; 617       && uip_ipaddr_cmp(BUF->srcipaddr, uip_connr->ripaddr)) {
+1872  e900 e619          	ld	a,(25,x)
+1873  e902 2746          	jreq	L737
+1875  e904 9093          	ldw	y,x
+1876  e906 90ee04        	ldw	y,(4,y)
+1877  e909 90c301ff      	cpw	y,_uip_buf+36
+1878  e90d 263b          	jrne	L737
+1880  e90f 9093          	ldw	y,x
+1881  e911 90ee06        	ldw	y,(6,y)
+1882  e914 90c301fd      	cpw	y,_uip_buf+34
+1883  e918 2630          	jrne	L737
+1885  e91a 9093          	ldw	y,x
+1886  e91c 90fe          	ldw	y,(y)
+1887  e91e 90c301f5      	cpw	y,_uip_buf+26
+1888  e922 2626          	jrne	L737
+1890  e924 9093          	ldw	y,x
+1891  e926 90ee02        	ldw	y,(2,y)
+1892  e929 90c301f7      	cpw	y,_uip_buf+28
+1893  e92d 261b          	jrne	L737
+1894                     ; 618       goto found;
+1895                     ; 800   found:
+1895                     ; 801   /* found will be jumped to if we found an active connection. */
+1895                     ; 802   uip_conn = uip_connr;
+1897  e92f cf01d5        	ldw	_uip_conn,x
+1898                     ; 803   uip_flags = 0;
+1900  e932 725f0088      	clr	_uip_flags
+1901                     ; 808   if (BUF->flags & TCP_RST) {
+1903  e936 7204020a03cc  	btjf	_uip_buf+47,#2,L7401
+1904                     ; 809     uip_connr->tcpstateflags = UIP_CLOSED;
+1906  e93e 6f19          	clr	(25,x)
+1907                     ; 810     uip_flags = UIP_ABORT;
+1909  e940 35200088      	mov	_uip_flags,#32
+1910                     ; 811     UIP_APPCALL();
+1912  e944 cdf33b        	call	_uip_TcpAppHubCall
+1914                     ; 812     goto drop;
+1916  e947 ccef97        	jra	L744
+1917  e94a               L737:
+1918                     ; 613   for (uip_connr = &uip_conns[0]; uip_connr <= &uip_conns[UIP_CONNS - 1]; ++uip_connr) {
+1920  e94a 1c0028        	addw	x,#40
+1921  e94d               L337:
+1922  e94d 1f04          	ldw	(OFST-1,sp),x
+1926  e94f a301ad        	cpw	x,#_uip_conns+200
+1927  e952 23ac          	jrule	L727
+1928                     ; 626   if ((BUF->flags & TCP_CTL) != TCP_SYN) {
+1930  e954 c6020a        	ld	a,_uip_buf+47
+1931  e957 a43f          	and	a,#63
+1932  e959 a102          	cp	a,#2
+1933  e95b 2647          	jrne	L573
+1934                     ; 627     goto reset;
+1936                     ; 630   tmp16 = BUF->destport;
+1938  e95d ce01ff        	ldw	x,_uip_buf+36
+1939  e960 cf0064        	ldw	L54_tmp16,x
+1940                     ; 632   for (c = 0; c < UIP_LISTENPORTS; ++c) {
+1942  e963 4f            	clr	a
+1943  e964 c70067        	ld	L14_c,a
+1944  e967               L347:
+1945                     ; 633     if (tmp16 == uip_listenports[c]) goto found_listen;
+1947  e967 5f            	clrw	x
+1948  e968 97            	ld	xl,a
+1949  e969 58            	sllw	x
+1950  e96a 9093          	ldw	y,x
+1951  e96c 90de006e      	ldw	y,(_uip_listenports,y)
+1952  e970 90c30064      	cpw	y,L54_tmp16
+1953  e974 261b          	jrne	L157
+1955                     ; 695   found_listen:
+1955                     ; 696   /* found_listen will be jumped to if we matched the incoming packet
+1955                     ; 697      with a connection in LISTEN. In that case, we should create a new
+1955                     ; 698      connection and send a SYNACK in return. */
+1955                     ; 699   /* First we check if there are any connections avaliable. Unused
+1955                     ; 700      connections are kept in the same table as used connections, but
+1955                     ; 701      unused ones have the tcpstate set to CLOSED. Also, connections in
+1955                     ; 702      TIME_WAIT are kept track of and we'll use the oldest one if no
+1955                     ; 703      CLOSED connections are found. Thanks to Eddie C. Dost for a very
+1955                     ; 704      nice algorithm for the TIME_WAIT search. */
+1955                     ; 705   uip_connr = 0;
+1957  e976 5f            	clrw	x
+1958  e977 1f04          	ldw	(OFST-1,sp),x
+1960                     ; 706   for (c = 0; c < UIP_CONNS; ++c) {
+1962  e979 4f            	clr	a
+1963  e97a c70067        	ld	L14_c,a
+1964  e97d               L377:
+1965                     ; 707     if (uip_conns[c].tcpstateflags == UIP_CLOSED) {
+1967  e97d 97            	ld	xl,a
+1968  e97e a628          	ld	a,#40
+1969  e980 42            	mul	x,a
+1970  e981 d600fe        	ld	a,(_uip_conns+25,x)
+1971  e984 2703ccea3e    	jrne	L1001
+1972                     ; 708       uip_connr = &uip_conns[c];
+1974  e989 1c00e5        	addw	x,#_uip_conns
+1975  e98c 1f04          	ldw	(OFST-1,sp),x
+1977                     ; 709       break;
+1979  e98e ccea70        	jra	L777
+1980  e991               L157:
+1981                     ; 632   for (c = 0; c < UIP_LISTENPORTS; ++c) {
+1983  e991 725c0067      	inc	L14_c
+1986  e995 c60067        	ld	a,L14_c
+1987  e998 a105          	cp	a,#5
+1988  e99a 25cb          	jrult	L347
+1989                     ; 637   UIP_STAT(++uip_stat.tcp.synrst);
+1991  e99c ae00dd        	ldw	x,#_uip_stat+84
+1992  e99f a601          	ld	a,#1
+1993  e9a1 cdf43e        	call	c_lgadc
+1995  e9a4               L573:
+1996                     ; 642   reset:
+1996                     ; 643   /* We do not send resets in response to resets. */
+1996                     ; 644   if (BUF->flags & TCP_RST) goto drop;
+1998  e9a4 7204020a9e    	btjt	_uip_buf+47,#2,L744
+2001                     ; 646   UIP_STAT(++uip_stat.tcp.rst);
+2003  e9a9 ae00d1        	ldw	x,#_uip_stat+72
+2004  e9ac a601          	ld	a,#1
+2005  e9ae cdf43e        	call	c_lgadc
+2007                     ; 648   BUF->flags = TCP_RST | TCP_ACK;
+2009  e9b1 3514020a      	mov	_uip_buf+47,#20
+2010                     ; 649   uip_len = UIP_IPTCPH_LEN;
+2012  e9b5 ae0028        	ldw	x,#40
+2013  e9b8 cf01d7        	ldw	_uip_len,x
+2014                     ; 650   BUF->tcpoffset = 5 << 4;
+2016  e9bb 35500209      	mov	_uip_buf+46,#80
+2017                     ; 653   c = BUF->seqno[3];
+2019  e9bf 5502040067    	mov	L14_c,_uip_buf+41
+2020                     ; 654   BUF->seqno[3] = BUF->ackno[3];
+2022  e9c4 5502080204    	mov	_uip_buf+41,_uip_buf+45
+2023                     ; 655   BUF->ackno[3] = c;
+2025  e9c9 5500670208    	mov	_uip_buf+45,L14_c
+2026                     ; 657   c = BUF->seqno[2];
+2028  e9ce 5502030067    	mov	L14_c,_uip_buf+40
+2029                     ; 658   BUF->seqno[2] = BUF->ackno[2];
+2031  e9d3 5502070203    	mov	_uip_buf+40,_uip_buf+44
+2032                     ; 659   BUF->ackno[2] = c;
+2034  e9d8 5500670207    	mov	_uip_buf+44,L14_c
+2035                     ; 661   c = BUF->seqno[1];
+2037  e9dd 5502020067    	mov	L14_c,_uip_buf+39
+2038                     ; 662   BUF->seqno[1] = BUF->ackno[1];
+2040  e9e2 5502060202    	mov	_uip_buf+39,_uip_buf+43
+2041                     ; 663   BUF->ackno[1] = c;
+2043  e9e7 5500670206    	mov	_uip_buf+43,L14_c
+2044                     ; 665   c = BUF->seqno[0];
+2046  e9ec 5502010067    	mov	L14_c,_uip_buf+38
+2047                     ; 666   BUF->seqno[0] = BUF->ackno[0];
+2049  e9f1 5502050201    	mov	_uip_buf+38,_uip_buf+42
+2050                     ; 667   BUF->ackno[0] = c;
+2052  e9f6 5500670205    	mov	_uip_buf+42,L14_c
+2053                     ; 672   if (++BUF->ackno[3] == 0) {
+2055  e9fb 725c0208      	inc	_uip_buf+45
+2056  e9ff 2610          	jrne	L557
+2057                     ; 673     if (++BUF->ackno[2] == 0) {
+2059  ea01 725c0207      	inc	_uip_buf+44
+2060  ea05 260a          	jrne	L557
+2061                     ; 674       if (++BUF->ackno[1] == 0) {
+2063  ea07 725c0206      	inc	_uip_buf+43
+2064  ea0b 2604          	jrne	L557
+2065                     ; 675         ++BUF->ackno[0];
+2067  ea0d 725c0205      	inc	_uip_buf+42
+2068  ea11               L557:
+2069                     ; 681   tmp16 = BUF->srcport;
+2071  ea11 ce01fd        	ldw	x,_uip_buf+34
+2072  ea14 cf0064        	ldw	L54_tmp16,x
+2073                     ; 682   BUF->srcport = BUF->destport;
+2075  ea17 ce01ff        	ldw	x,_uip_buf+36
+2076  ea1a cf01fd        	ldw	_uip_buf+34,x
+2077                     ; 683   BUF->destport = tmp16;
+2079  ea1d ce0064        	ldw	x,L54_tmp16
+2080  ea20 cf01ff        	ldw	_uip_buf+36,x
+2081                     ; 686   uip_ipaddr_copy(BUF->destipaddr, BUF->srcipaddr);
+2083  ea23 ce01f5        	ldw	x,_uip_buf+26
+2084  ea26 cf01f9        	ldw	_uip_buf+30,x
+2087  ea29 ce01f7        	ldw	x,_uip_buf+28
+2088  ea2c cf01fb        	ldw	_uip_buf+32,x
+2089                     ; 687   uip_ipaddr_copy(BUF->srcipaddr, uip_hostaddr);
+2091  ea2f ce0084        	ldw	x,_uip_hostaddr
+2092  ea32 cf01f5        	ldw	_uip_buf+26,x
+2095  ea35 ce0086        	ldw	x,_uip_hostaddr+2
+2096  ea38 cf01f7        	ldw	_uip_buf+28,x
+2097                     ; 690   goto tcp_send_noconn;
+2099  ea3b ccef44        	jra	L144
+2100  ea3e               L1001:
+2101                     ; 711     if (uip_conns[c].tcpstateflags == UIP_TIME_WAIT) {
+2103  ea3e a107          	cp	a,#7
+2104  ea40 2620          	jrne	L3001
+2105                     ; 712       if (uip_connr == 0 || uip_conns[c].timer > uip_connr->timer) {
+2107  ea42 1e04          	ldw	x,(OFST-1,sp)
+2108  ea44 2710          	jreq	L7001
+2110  ea46 c60067        	ld	a,L14_c
+2111  ea49 97            	ld	xl,a
+2112  ea4a a628          	ld	a,#40
+2113  ea4c 42            	mul	x,a
+2114  ea4d d600ff        	ld	a,(_uip_conns+26,x)
+2115  ea50 1e04          	ldw	x,(OFST-1,sp)
+2116  ea52 e11a          	cp	a,(26,x)
+2117  ea54 230c          	jrule	L3001
+2118  ea56               L7001:
+2119                     ; 713         uip_connr = &uip_conns[c];
+2121  ea56 c60067        	ld	a,L14_c
+2122  ea59 97            	ld	xl,a
+2123  ea5a a628          	ld	a,#40
+2124  ea5c 42            	mul	x,a
+2125  ea5d 1c00e5        	addw	x,#_uip_conns
+2126  ea60 1f04          	ldw	(OFST-1,sp),x
+2128  ea62               L3001:
+2129                     ; 706   for (c = 0; c < UIP_CONNS; ++c) {
+2131  ea62 725c0067      	inc	L14_c
+2134  ea66 c60067        	ld	a,L14_c
+2135  ea69 a106          	cp	a,#6
+2136  ea6b 2403cce97d    	jrult	L377
+2137  ea70               L777:
+2138                     ; 718   if (uip_connr == 0) {
+2140  ea70 1e04          	ldw	x,(OFST-1,sp)
+2141  ea72 260b          	jrne	L1101
+2142                     ; 722     UIP_STAT(++uip_stat.tcp.syndrop);
+2144  ea74 ae00d9        	ldw	x,#_uip_stat+80
+2145  ea77 a601          	ld	a,#1
+2146  ea79 cdf43e        	call	c_lgadc
+2148                     ; 723     goto drop;
+2150  ea7c ccef97        	jra	L744
+2151  ea7f               L1101:
+2152                     ; 725   uip_conn = uip_connr;
+2154  ea7f cf01d5        	ldw	_uip_conn,x
+2155                     ; 728   uip_connr->rto = uip_connr->timer = UIP_RTO;
+2157  ea82 a603          	ld	a,#3
+2158  ea84 e71a          	ld	(26,x),a
+2159  ea86 e718          	ld	(24,x),a
+2160                     ; 729   uip_connr->sa = 0;
+2162  ea88 6f16          	clr	(22,x)
+2163                     ; 730   uip_connr->sv = 4;
+2165  ea8a 4c            	inc	a
+2166  ea8b e717          	ld	(23,x),a
+2167                     ; 731   uip_connr->nrtx = 0;
+2169  ea8d 6f1b          	clr	(27,x)
+2170                     ; 732   uip_connr->lport = BUF->destport;
+2172  ea8f 90ce01ff      	ldw	y,_uip_buf+36
+2173  ea93 ef04          	ldw	(4,x),y
+2174                     ; 733   uip_connr->rport = BUF->srcport;
+2176  ea95 90ce01fd      	ldw	y,_uip_buf+34
+2177  ea99 ef06          	ldw	(6,x),y
+2178                     ; 734   uip_ipaddr_copy(uip_connr->ripaddr, BUF->srcipaddr);
+2180  ea9b 90ce01f5      	ldw	y,_uip_buf+26
+2181  ea9f ff            	ldw	(x),y
+2184  eaa0 90ce01f7      	ldw	y,_uip_buf+28
+2185  eaa4 ef02          	ldw	(2,x),y
+2186                     ; 735   uip_connr->tcpstateflags = UIP_SYN_RCVD;
+2188  eaa6 a601          	ld	a,#1
+2189  eaa8 e719          	ld	(25,x),a
+2190                     ; 737   uip_connr->snd_nxt[0] = iss[0];
+2192  eaaa c60068        	ld	a,L73_iss
+2193  eaad e70c          	ld	(12,x),a
+2194                     ; 738   uip_connr->snd_nxt[1] = iss[1];
+2196  eaaf c60069        	ld	a,L73_iss+1
+2197  eab2 e70d          	ld	(13,x),a
+2198                     ; 739   uip_connr->snd_nxt[2] = iss[2];
+2200  eab4 c6006a        	ld	a,L73_iss+2
+2201  eab7 e70e          	ld	(14,x),a
+2202                     ; 740   uip_connr->snd_nxt[3] = iss[3];
+2204  eab9 c6006b        	ld	a,L73_iss+3
+2205  eabc e70f          	ld	(15,x),a
+2206                     ; 741   uip_connr->len = 1;
+2208  eabe 90ae0001      	ldw	y,#1
+2209  eac2 ef10          	ldw	(16,x),y
+2210                     ; 744   uip_connr->rcv_nxt[3] = BUF->seqno[3];
+2212  eac4 c60204        	ld	a,_uip_buf+41
+2213  eac7 e70b          	ld	(11,x),a
+2214                     ; 745   uip_connr->rcv_nxt[2] = BUF->seqno[2];
+2216  eac9 c60203        	ld	a,_uip_buf+40
+2217  eacc e70a          	ld	(10,x),a
+2218                     ; 746   uip_connr->rcv_nxt[1] = BUF->seqno[1];
+2220  eace c60202        	ld	a,_uip_buf+39
+2221  ead1 e709          	ld	(9,x),a
+2222                     ; 747   uip_connr->rcv_nxt[0] = BUF->seqno[0];
+2224  ead3 c60201        	ld	a,_uip_buf+38
+2225  ead6 e708          	ld	(8,x),a
+2226                     ; 748   uip_add_rcv_nxt(1);
+2228  ead8 ae0001        	ldw	x,#1
+2229  eadb cde686        	call	L743_uip_add_rcv_nxt
+2231                     ; 751   if ((BUF->tcpoffset & 0xf0) > 0x50) {
+2233  eade c60209        	ld	a,_uip_buf+46
+2234  eae1 a4f0          	and	a,#240
+2235  eae3 a151          	cp	a,#81
+2236  eae5 2403cceb79    	jrult	L104
+2237                     ; 752     for (c = 0; c < ((BUF->tcpoffset >> 4) - 5) << 2;) {
+2239  eaea 725f0067      	clr	L14_c
+2241  eaee 206b          	jra	L5201
+2242  eaf0               L1201:
+2243                     ; 753       opt = uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + c];
+2245  eaf0 5f            	clrw	x
+2246  eaf1 97            	ld	xl,a
+2247  eaf2 d60211        	ld	a,(_uip_buf+54,x)
+2248  eaf5 c70066        	ld	L34_opt,a
+2249                     ; 754       if (opt == TCP_OPT_END) {
+2251  eaf8 277f          	jreq	L104
+2252                     ; 756         break;
+2254                     ; 758       else if (opt == TCP_OPT_NOOP) {
+2256  eafa a101          	cp	a,#1
+2257  eafc 2606          	jrne	L5301
+2258                     ; 759         ++c;
+2260  eafe 725c0067      	inc	L14_c
+2262  eb02 2057          	jra	L5201
+2263  eb04               L5301:
+2264                     ; 762       else if (opt == TCP_OPT_MSS
+2264                     ; 763         && uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 1 + c] == TCP_OPT_MSS_LEN) {
+2266  eb04 a102          	cp	a,#2
+2267  eb06 2640          	jrne	L1401
+2269  eb08 c60067        	ld	a,L14_c
+2270  eb0b 5f            	clrw	x
+2271  eb0c 97            	ld	xl,a
+2272  eb0d d60212        	ld	a,(_uip_buf+55,x)
+2273  eb10 a104          	cp	a,#4
+2274  eb12 2634          	jrne	L1401
+2275                     ; 765         tmp16 = ((uint16_t)uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 2 + c] << 8)
+2275                     ; 766 	        | (uint16_t)uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN + 3 + c];
+2277  eb14 c60067        	ld	a,L14_c
+2278  eb17 5f            	clrw	x
+2279  eb18 97            	ld	xl,a
+2280  eb19 d60214        	ld	a,(_uip_buf+57,x)
+2281  eb1c 5f            	clrw	x
+2282  eb1d 97            	ld	xl,a
+2283  eb1e 1f01          	ldw	(OFST-4,sp),x
+2285  eb20 5f            	clrw	x
+2286  eb21 c60067        	ld	a,L14_c
+2287  eb24 97            	ld	xl,a
+2288  eb25 d60213        	ld	a,(_uip_buf+56,x)
+2289  eb28 5f            	clrw	x
+2290  eb29 97            	ld	xl,a
+2291  eb2a 7b02          	ld	a,(OFST-3,sp)
+2292  eb2c 01            	rrwa	x,a
+2293  eb2d 1a01          	or	a,(OFST-4,sp)
+2294  eb2f 01            	rrwa	x,a
+2295  eb30 cf0064        	ldw	L54_tmp16,x
+2296                     ; 767         uip_connr->initialmss = uip_connr->mss = tmp16 > UIP_TCP_MSS ? UIP_TCP_MSS : tmp16;
+2298  eb33 a3034f        	cpw	x,#847
+2299  eb36 2503          	jrult	L031
+2300  eb38 ae034e        	ldw	x,#846
+2301  eb3b               L031:
+2302  eb3b 1604          	ldw	y,(OFST-1,sp)
+2303  eb3d 90ef12        	ldw	(18,y),x
+2304  eb40 93            	ldw	x,y
+2305  eb41 90ee12        	ldw	y,(18,y)
+2306  eb44 ef14          	ldw	(20,x),y
+2307                     ; 770         break;
+2309  eb46 2031          	jra	L104
+2310  eb48               L1401:
+2311                     ; 774         if (uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 1 + c] == 0) {
+2313  eb48 c60067        	ld	a,L14_c
+2314  eb4b 5f            	clrw	x
+2315  eb4c 97            	ld	xl,a
+2316  eb4d 724d0212      	tnz	(_uip_buf+55,x)
+2317  eb51 2726          	jreq	L104
+2318                     ; 777           break;
+2320                     ; 779         c += uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 1 + c];
+2322  eb53 5f            	clrw	x
+2323  eb54 97            	ld	xl,a
+2324  eb55 db0212        	add	a,(_uip_buf+55,x)
+2325  eb58 c70067        	ld	L14_c,a
+2326  eb5b               L5201:
+2327                     ; 752     for (c = 0; c < ((BUF->tcpoffset >> 4) - 5) << 2;) {
+2329  eb5b c60209        	ld	a,_uip_buf+46
+2330  eb5e 4e            	swap	a
+2331  eb5f a40f          	and	a,#15
+2332  eb61 5f            	clrw	x
+2333  eb62 97            	ld	xl,a
+2334  eb63 58            	sllw	x
+2335  eb64 58            	sllw	x
+2336  eb65 1d0014        	subw	x,#20
+2337  eb68 c60067        	ld	a,L14_c
+2338  eb6b 905f          	clrw	y
+2339  eb6d 9097          	ld	yl,a
+2340  eb6f 90bf07        	ldw	c_y,y
+2341  eb72 b307          	cpw	x,c_y
+2342  eb74 2d03cceaf0    	jrsgt	L1201
+2343  eb79               L104:
+2344                     ; 785   tcp_send_synack:
+2344                     ; 786   BUF->flags = TCP_SYN | TCP_ACK;
+2346  eb79 3512020a      	mov	_uip_buf+47,#18
+2347                     ; 789   BUF->optdata[0] = TCP_OPT_MSS;
+2349  eb7d 35020211      	mov	_uip_buf+54,#2
+2350                     ; 790   BUF->optdata[1] = TCP_OPT_MSS_LEN;
+2352  eb81 35040212      	mov	_uip_buf+55,#4
+2353                     ; 791   BUF->optdata[2] = (UIP_TCP_MSS) / 256;
+2355  eb85 35030213      	mov	_uip_buf+56,#3
+2356                     ; 792   BUF->optdata[3] = (UIP_TCP_MSS) & 255;
+2358  eb89 354e0214      	mov	_uip_buf+57,#78
+2359                     ; 793   uip_len = UIP_IPTCPH_LEN + TCP_OPT_MSS_LEN;
+2361  eb8d ae002c        	ldw	x,#44
+2362  eb90 cf01d7        	ldw	_uip_len,x
+2363                     ; 794   BUF->tcpoffset = ((UIP_TCPH_LEN + TCP_OPT_MSS_LEN) / 4) << 4;
+2365  eb93 35600209      	mov	_uip_buf+46,#96
+2366                     ; 795   goto tcp_send;
+2368  eb97 ccee44        	jra	L734
+2369  eb9a               L7401:
+2370                     ; 815   c = (uint8_t)((BUF->tcpoffset >> 4) << 2);
+2372  eb9a c60209        	ld	a,_uip_buf+46
+2373  eb9d 4e            	swap	a
+2374  eb9e a40f          	and	a,#15
+2375  eba0 48            	sll	a
+2376  eba1 48            	sll	a
+2377  eba2 c70067        	ld	L14_c,a
+2378                     ; 819   uip_len = uip_len - c - UIP_IPH_LEN;
+2380  eba5 c601d7        	ld	a,_uip_len
+2381  eba8 97            	ld	xl,a
+2382  eba9 c601d8        	ld	a,_uip_len+1
+2383  ebac c00067        	sub	a,L14_c
+2384  ebaf 2401          	jrnc	L631
+2385  ebb1 5a            	decw	x
+2386  ebb2               L631:
+2387  ebb2 02            	rlwa	x,a
+2388  ebb3 1d0014        	subw	x,#20
+2389  ebb6 cf01d7        	ldw	_uip_len,x
+2390                     ; 824   if (!(((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_SYN_SENT)
+2390                     ; 825     && ((BUF->flags & TCP_CTL) == (TCP_SYN | TCP_ACK)))) {
+2392  ebb9 1e04          	ldw	x,(OFST-1,sp)
+2393  ebbb e619          	ld	a,(25,x)
+2394  ebbd a40f          	and	a,#15
+2395  ebbf a102          	cp	a,#2
+2396  ebc1 2609          	jrne	L3501
+2398  ebc3 c6020a        	ld	a,_uip_buf+47
+2399  ebc6 a43f          	and	a,#63
+2400  ebc8 a112          	cp	a,#18
+2401  ebca 272d          	jreq	L1501
+2402  ebcc               L3501:
+2403                     ; 826     if ((uip_len > 0 || ((BUF->flags & (TCP_SYN | TCP_FIN)) != 0))
+2403                     ; 827       && (BUF->seqno[0] != uip_connr->rcv_nxt[0]
+2403                     ; 828       || BUF->seqno[1] != uip_connr->rcv_nxt[1]
+2403                     ; 829       || BUF->seqno[2] != uip_connr->rcv_nxt[2]
+2403                     ; 830       || BUF->seqno[3] != uip_connr->rcv_nxt[3])) {
+2405  ebcc ce01d7        	ldw	x,_uip_len
+2406  ebcf 2607          	jrne	L7501
+2408  ebd1 c6020a        	ld	a,_uip_buf+47
+2409  ebd4 a503          	bcp	a,#3
+2410  ebd6 2721          	jreq	L1501
+2411  ebd8               L7501:
+2413  ebd8 1e04          	ldw	x,(OFST-1,sp)
+2414  ebda e608          	ld	a,(8,x)
+2415  ebdc c10201        	cp	a,_uip_buf+38
+2416  ebdf 2703ccef35    	jrne	L134
+2418  ebe4 e609          	ld	a,(9,x)
+2419  ebe6 c10202        	cp	a,_uip_buf+39
+2420  ebe9 26f6          	jrne	L134
+2422  ebeb e60a          	ld	a,(10,x)
+2423  ebed c10203        	cp	a,_uip_buf+40
+2424  ebf0 26ef          	jrne	L134
+2426  ebf2 e60b          	ld	a,(11,x)
+2427  ebf4 c10204        	cp	a,_uip_buf+41
+2428  ebf7 26e8          	jrne	L134
+2429  ebf9               L1501:
+2430                     ; 839   if ((BUF->flags & TCP_ACK) && uip_outstanding(uip_connr)) {
+2432  ebf9 7208020a03cc  	btjf	_uip_buf+47,#4,L7601
+2434  ec01 1e04          	ldw	x,(OFST-1,sp)
+2435  ec03 e611          	ld	a,(17,x)
+2436  ec05 ea10          	or	a,(16,x)
+2437  ec07 27f5          	jreq	L7601
+2438                     ; 840     uip_add32(uip_connr->snd_nxt, uip_connr->len);
+2440  ec09 ee10          	ldw	x,(16,x)
+2441  ec0b 89            	pushw	x
+2442  ec0c 1e06          	ldw	x,(OFST+1,sp)
+2443  ec0e 1c000c        	addw	x,#12
+2444  ec11 cde466        	call	_uip_add32
+2446  ec14 c60205        	ld	a,_uip_buf+42
+2447  ec17 c100e1        	cp	a,_uip_acc32
+2448  ec1a 85            	popw	x
+2449                     ; 842     if (BUF->ackno[0] == uip_acc32[0]
+2449                     ; 843       && BUF->ackno[1] == uip_acc32[1]
+2449                     ; 844       && BUF->ackno[2] == uip_acc32[2]
+2449                     ; 845       && BUF->ackno[3] == uip_acc32[3]) {
+2451  ec1b 26e1          	jrne	L7601
+2453  ec1d c60206        	ld	a,_uip_buf+43
+2454  ec20 c100e2        	cp	a,_uip_acc32+1
+2455  ec23 26d9          	jrne	L7601
+2457  ec25 c60207        	ld	a,_uip_buf+44
+2458  ec28 c100e3        	cp	a,_uip_acc32+2
+2459  ec2b 26d1          	jrne	L7601
+2461  ec2d c60208        	ld	a,_uip_buf+45
+2462  ec30 c100e4        	cp	a,_uip_acc32+3
+2463  ec33 2679          	jrne	L7601
+2464                     ; 847       uip_connr->snd_nxt[0] = uip_acc32[0];
+2466  ec35 1e04          	ldw	x,(OFST-1,sp)
+2467  ec37 c600e1        	ld	a,_uip_acc32
+2468  ec3a e70c          	ld	(12,x),a
+2469                     ; 848       uip_connr->snd_nxt[1] = uip_acc32[1];
+2471  ec3c c600e2        	ld	a,_uip_acc32+1
+2472  ec3f e70d          	ld	(13,x),a
+2473                     ; 849       uip_connr->snd_nxt[2] = uip_acc32[2];
+2475  ec41 c600e3        	ld	a,_uip_acc32+2
+2476  ec44 e70e          	ld	(14,x),a
+2477                     ; 850       uip_connr->snd_nxt[3] = uip_acc32[3];
+2479  ec46 c600e4        	ld	a,_uip_acc32+3
+2480  ec49 e70f          	ld	(15,x),a
+2481                     ; 853       if (uip_connr->nrtx == 0) {
+2483  ec4b e61b          	ld	a,(27,x)
+2484  ec4d 2653          	jrne	L3701
+2485                     ; 855         m = (int8_t)(uip_connr->rto - uip_connr->timer);
+2487  ec4f e61a          	ld	a,(26,x)
+2488  ec51 e018          	sub	a,(24,x)
+2489  ec53 40            	neg	a
+2490  ec54 6b03          	ld	(OFST-2,sp),a
+2492                     ; 857         m = (int8_t)(m - (uip_connr->sa >> 3));
+2494  ec56 e616          	ld	a,(22,x)
+2495  ec58 44            	srl	a
+2496  ec59 44            	srl	a
+2497  ec5a 44            	srl	a
+2498  ec5b 5f            	clrw	x
+2499  ec5c 97            	ld	xl,a
+2500  ec5d 1f01          	ldw	(OFST-4,sp),x
+2502  ec5f 5f            	clrw	x
+2503  ec60 7b03          	ld	a,(OFST-2,sp)
+2504  ec62 4d            	tnz	a
+2505  ec63 2a01          	jrpl	L241
+2506  ec65 53            	cplw	x
+2507  ec66               L241:
+2508  ec66 97            	ld	xl,a
+2509  ec67 72f001        	subw	x,(OFST-4,sp)
+2510  ec6a 01            	rrwa	x,a
+2511  ec6b 6b03          	ld	(OFST-2,sp),a
+2513                     ; 858         uip_connr->sa += m;
+2515  ec6d 1e04          	ldw	x,(OFST-1,sp)
+2516  ec6f e616          	ld	a,(22,x)
+2517  ec71 1b03          	add	a,(OFST-2,sp)
+2518  ec73 e716          	ld	(22,x),a
+2519                     ; 859         if (m < 0) m = (int8_t)(-m);
+2521  ec75 7b03          	ld	a,(OFST-2,sp)
+2522  ec77 2a02          	jrpl	L5701
+2525  ec79 0003          	neg	(OFST-2,sp)
+2527  ec7b               L5701:
+2528                     ; 860         m = (int8_t)(m - (uip_connr->sv >> 2));
+2530  ec7b e617          	ld	a,(23,x)
+2531  ec7d 44            	srl	a
+2532  ec7e 44            	srl	a
+2533  ec7f 5f            	clrw	x
+2534  ec80 97            	ld	xl,a
+2535  ec81 1f01          	ldw	(OFST-4,sp),x
+2537  ec83 5f            	clrw	x
+2538  ec84 7b03          	ld	a,(OFST-2,sp)
+2539  ec86 4d            	tnz	a
+2540  ec87 2a01          	jrpl	L441
+2541  ec89 53            	cplw	x
+2542  ec8a               L441:
+2543  ec8a 97            	ld	xl,a
+2544  ec8b 72f001        	subw	x,(OFST-4,sp)
+2545  ec8e 01            	rrwa	x,a
+2546  ec8f 6b03          	ld	(OFST-2,sp),a
+2548                     ; 861         uip_connr->sv += m;
+2550  ec91 1e04          	ldw	x,(OFST-1,sp)
+2551  ec93 e617          	ld	a,(23,x)
+2552  ec95 1b03          	add	a,(OFST-2,sp)
+2553  ec97 e717          	ld	(23,x),a
+2554                     ; 862         uip_connr->rto = (uint8_t)((uip_connr->sa >> 3) + uip_connr->sv);
+2556  ec99 e616          	ld	a,(22,x)
+2557  ec9b 44            	srl	a
+2558  ec9c 44            	srl	a
+2559  ec9d 44            	srl	a
+2560  ec9e eb17          	add	a,(23,x)
+2561  eca0 e718          	ld	(24,x),a
+2562  eca2               L3701:
+2563                     ; 865       uip_flags = UIP_ACKDATA;
+2565  eca2 35010088      	mov	_uip_flags,#1
+2566                     ; 867       uip_connr->timer = uip_connr->rto;
+2568  eca6 e618          	ld	a,(24,x)
+2569  eca8 e71a          	ld	(26,x),a
+2570                     ; 870       uip_connr->len = 0;
+2572  ecaa 905f          	clrw	y
+2573  ecac ef10          	ldw	(16,x),y
+2574  ecae               L7601:
+2575                     ; 875   switch (uip_connr->tcpstateflags & UIP_TS_MASK) {
+2577  ecae 1e04          	ldw	x,(OFST-1,sp)
+2578  ecb0 e619          	ld	a,(25,x)
+2579  ecb2 a40f          	and	a,#15
+2581                     ; 1103 	uip_connr->timer = 0;
+2582  ecb4 4a            	dec	a
+2583  ecb5 2725          	jreq	L504
+2584  ecb7 a002          	sub	a,#2
+2585  ecb9 2745          	jreq	L704
+2586  ecbb 4a            	dec	a
+2587  ecbc 2603cceebe    	jreq	L124
+2588  ecc1 4a            	dec	a
+2589  ecc2 2603cceefd    	jreq	L324
+2590  ecc7 4a            	dec	a
+2591  ecc8 2603ccef28    	jreq	L724
+2592  eccd 4a            	dec	a
+2593  ecce 2603ccef35    	jreq	L134
+2594  ecd3 4a            	dec	a
+2595  ecd4 2603cceead    	jreq	L714
+2596  ecd9 ccef97        	jra	L744
+2597  ecdc               L504:
+2598                     ; 879     case UIP_SYN_RCVD:
+2598                     ; 880       /* In SYN_RCVD we have sent out a SYNACK in response to a SYN, and we are waiting
+2598                     ; 881          for an ACK that acknowledges the data we sent out the last time. Therefore, we
+2598                     ; 882 	 want to have the UIP_ACKDATA flag set. If so, we enter the ESTABLISHED state. */
+2598                     ; 883       if (uip_flags & UIP_ACKDATA) {
+2600  ecdc 72010088f8    	btjf	_uip_flags,#0,L744
+2601                     ; 884         uip_connr->tcpstateflags = UIP_ESTABLISHED;
+2603  ece1 a603          	ld	a,#3
+2604  ece3 e719          	ld	(25,x),a
+2605                     ; 885         uip_flags = UIP_CONNECTED;
+2607  ece5 35400088      	mov	_uip_flags,#64
+2608                     ; 886         uip_connr->len = 0;
+2610  ece9 905f          	clrw	y
+2611  eceb ef10          	ldw	(16,x),y
+2612                     ; 887         if (uip_len > 0) {
+2614  eced ce01d7        	ldw	x,_uip_len
+2615  ecf0 2707          	jreq	L5011
+2616                     ; 888           uip_flags |= UIP_NEWDATA;
+2618  ecf2 72120088      	bset	_uip_flags,#1
+2619                     ; 889           uip_add_rcv_nxt(uip_len);
+2621  ecf6 cde686        	call	L743_uip_add_rcv_nxt
+2623  ecf9               L5011:
+2624                     ; 891         uip_slen = 0;
+2627  ecf9 5f            	clrw	x
+2628  ecfa cf0078        	ldw	_uip_slen,x
+2629                     ; 892         UIP_APPCALL();
+2631                     ; 893         goto appsend;
+2633  ecfd cce7a3        	jra	L314
+2634  ed00               L704:
+2635                     ; 897     case UIP_ESTABLISHED:
+2635                     ; 898       /* In the ESTABLISHED state, we call upon the application to feed data into the
+2635                     ; 899          uip_buf. If the UIP_ACKDATA flag is set, the application should put new data
+2635                     ; 900 	 into the buffer, otherwise we are retransmitting an old segment, and the
+2635                     ; 901 	 application should put that data into the buffer.
+2635                     ; 902 	 
+2635                     ; 903 	 If the incoming packet is a FIN, we should close the connection on this side
+2635                     ; 904 	 as well, and we send out a FIN and enter the LAST_ACK state. We require that
+2635                     ; 905 	 there is no outstanding data; otherwise the sequence numbers will be screwed
+2635                     ; 906 	 up. */
+2635                     ; 907       if (BUF->flags & TCP_FIN && !(uip_connr->tcpstateflags & UIP_STOPPED)) {
+2637  ed00 7201020a30    	btjf	_uip_buf+47,#0,L7011
+2639  ed05 e619          	ld	a,(25,x)
+2640  ed07 a510          	bcp	a,#16
+2641  ed09 262a          	jrne	L7011
+2642                     ; 908         if (uip_outstanding(uip_connr)) {
+2644  ed0b e611          	ld	a,(17,x)
+2645  ed0d ea10          	or	a,(16,x)
+2646  ed0f 26c8          	jrne	L744
+2647                     ; 909           goto drop;
+2649                     ; 911         uip_add_rcv_nxt(1 + uip_len);
+2651  ed11 ce01d7        	ldw	x,_uip_len
+2652  ed14 5c            	incw	x
+2653  ed15 cde686        	call	L743_uip_add_rcv_nxt
+2655                     ; 912         uip_flags |= UIP_CLOSE;
+2657  ed18 72180088      	bset	_uip_flags,#4
+2658                     ; 913         if (uip_len > 0) {
+2660  ed1c ce01d7        	ldw	x,_uip_len
+2661  ed1f 2704          	jreq	L3111
+2662                     ; 914           uip_flags |= UIP_NEWDATA;
+2664  ed21 72120088      	bset	_uip_flags,#1
+2665  ed25               L3111:
+2666                     ; 916         UIP_APPCALL();
+2668  ed25 cdf33b        	call	_uip_TcpAppHubCall
+2670                     ; 917         uip_connr->len = 1;
+2672  ed28 1e04          	ldw	x,(OFST-1,sp)
+2673  ed2a 90ae0001      	ldw	y,#1
+2674  ed2e ef10          	ldw	(16,x),y
+2675                     ; 918         uip_connr->tcpstateflags = UIP_LAST_ACK;
+2677  ed30 a608          	ld	a,#8
+2678                     ; 919         uip_connr->nrtx = 0;
+2679                     ; 920         tcp_send_finack: BUF->flags = TCP_FIN | TCP_ACK;
+2680                     ; 921         goto tcp_send_nodata;
+2682  ed32 ccedc2        	jp	LC005
+2683  ed35               L7011:
+2684                     ; 926       if ((BUF->flags & TCP_URG) != 0) {
+2686  ed35 720b020a1f    	btjf	_uip_buf+47,#5,L5111
+2687                     ; 927         uip_appdata = ((char *)uip_appdata) + ((BUF->urgp[0] << 8) | BUF->urgp[1]);
+2689  ed3a c6020f        	ld	a,_uip_buf+52
+2690  ed3d 97            	ld	xl,a
+2691  ed3e c60210        	ld	a,_uip_buf+53
+2692  ed41 02            	rlwa	x,a
+2693  ed42 72bb01d9      	addw	x,_uip_appdata
+2694  ed46 cf01d9        	ldw	_uip_appdata,x
+2695                     ; 928         uip_len -= (BUF->urgp[0] << 8) | BUF->urgp[1];
+2697  ed49 c6020f        	ld	a,_uip_buf+52
+2698  ed4c 97            	ld	xl,a
+2699  ed4d c60210        	ld	a,_uip_buf+53
+2700  ed50 02            	rlwa	x,a
+2701  ed51 72b001d7      	subw	x,_uip_len
+2702  ed55 50            	negw	x
+2703  ed56 cf01d7        	ldw	_uip_len,x
+2704  ed59               L5111:
+2705                     ; 935       if (uip_len > 0 && !(uip_connr->tcpstateflags & UIP_STOPPED)) {
+2707  ed59 ce01d7        	ldw	x,_uip_len
+2708  ed5c 2712          	jreq	L7111
+2710  ed5e 1e04          	ldw	x,(OFST-1,sp)
+2711  ed60 e619          	ld	a,(25,x)
+2712  ed62 a510          	bcp	a,#16
+2713  ed64 260a          	jrne	L7111
+2714                     ; 936         uip_flags |= UIP_NEWDATA;
+2716  ed66 72120088      	bset	_uip_flags,#1
+2717                     ; 937         uip_add_rcv_nxt(uip_len);
+2719  ed6a ce01d7        	ldw	x,_uip_len
+2720  ed6d cde686        	call	L743_uip_add_rcv_nxt
+2722  ed70               L7111:
+2723                     ; 949       tmp16 = ((uint16_t)BUF->wnd[0] << 8) + (uint16_t)BUF->wnd[1];
+2725  ed70 c6020c        	ld	a,_uip_buf+49
+2726  ed73 5f            	clrw	x
+2727  ed74 97            	ld	xl,a
+2728  ed75 1f01          	ldw	(OFST-4,sp),x
+2730  ed77 c6020b        	ld	a,_uip_buf+48
+2731  ed7a 97            	ld	xl,a
+2732  ed7b 4f            	clr	a
+2733  ed7c 02            	rlwa	x,a
+2734  ed7d 72fb01        	addw	x,(OFST-4,sp)
+2735  ed80 cf0064        	ldw	L54_tmp16,x
+2736                     ; 950       if (tmp16 > uip_connr->initialmss || tmp16 == 0) {
+2738  ed83 1604          	ldw	y,(OFST-1,sp)
+2739  ed85 90ee14        	ldw	y,(20,y)
+2740  ed88 90c30064      	cpw	y,L54_tmp16
+2741  ed8c 2505          	jrult	L3211
+2743  ed8e ce0064        	ldw	x,L54_tmp16
+2744  ed91 2607          	jrne	L1211
+2745  ed93               L3211:
+2746                     ; 951         tmp16 = uip_connr->initialmss;
+2748  ed93 1e04          	ldw	x,(OFST-1,sp)
+2749  ed95 ee14          	ldw	x,(20,x)
+2750  ed97 cf0064        	ldw	L54_tmp16,x
+2751  ed9a               L1211:
+2752                     ; 953       uip_connr->mss = tmp16;
+2754  ed9a 1e04          	ldw	x,(OFST-1,sp)
+2755  ed9c 90ce0064      	ldw	y,L54_tmp16
+2756  eda0 ef12          	ldw	(18,x),y
+2757                     ; 968       if (uip_flags & (UIP_NEWDATA | UIP_ACKDATA)) {
+2759  eda2 c60088        	ld	a,_uip_flags
+2760  eda5 a503          	bcp	a,#3
+2761  eda7 2603ccef97    	jreq	L744
+2762                     ; 969         uip_slen = 0;
+2763                     ; 970         UIP_APPCALL();
+2765  edac ccecf9        	jp	L5011
+2766  edaf               L7211:
+2767                     ; 981         if (uip_flags & UIP_CLOSE) {
+2769  edaf 720900881e    	btjf	_uip_flags,#4,L1311
+2770                     ; 982           uip_slen = 0;
+2772  edb4 5f            	clrw	x
+2773  edb5 cf0078        	ldw	_uip_slen,x
+2774                     ; 983 	  uip_connr->len = 1;
+2776  edb8 1e04          	ldw	x,(OFST-1,sp)
+2777  edba 90ae0001      	ldw	y,#1
+2778  edbe ef10          	ldw	(16,x),y
+2779                     ; 984 	  uip_connr->tcpstateflags = UIP_FIN_WAIT_1;
+2781  edc0 a604          	ld	a,#4
+2782                     ; 985 	  uip_connr->nrtx = 0;
+2784  edc2               LC005:
+2785  edc2 e719          	ld	(25,x),a
+2787  edc4 6f1b          	clr	(27,x)
+2788                     ; 986 	  BUF->flags = TCP_FIN | TCP_ACK;
+2790  edc6               LC003:
+2792  edc6 3511020a      	mov	_uip_buf+47,#17
+2793                     ; 987 	  goto tcp_send_nodata;
+2794  edca               L334:
+2795                     ; 1116   tcp_send_nodata: uip_len = UIP_IPTCPH_LEN;
+2797  edca ae0028        	ldw	x,#40
+2798  edcd cf01d7        	ldw	_uip_len,x
+2799  edd0 206e          	jra	L534
+2800  edd2               L1311:
+2801                     ; 991         if (uip_slen > 0) {
+2803  edd2 ce0078        	ldw	x,_uip_slen
+2804  edd5 2732          	jreq	L3311
+2805                     ; 994 	  if ((uip_flags & UIP_ACKDATA) != 0) {
+2807  edd7 7201008806    	btjf	_uip_flags,#0,L5311
+2808                     ; 995 	    uip_connr->len = 0;
+2810  eddc 1e04          	ldw	x,(OFST-1,sp)
+2811  edde 905f          	clrw	y
+2812  ede0 ef10          	ldw	(16,x),y
+2813  ede2               L5311:
+2814                     ; 1000 	  if (uip_connr->len == 0) {
+2816  ede2 1e04          	ldw	x,(OFST-1,sp)
+2817  ede4 e611          	ld	a,(17,x)
+2818  ede6 ea10          	or	a,(16,x)
+2819  ede8 261a          	jrne	L7311
+2820                     ; 1003 	    if (uip_slen > uip_connr->mss) {
+2822  edea 9093          	ldw	y,x
+2823  edec 90ee12        	ldw	y,(18,y)
+2824  edef 90c30078      	cpw	y,_uip_slen
+2825  edf3 2407          	jruge	L1411
+2826                     ; 1004 	      uip_slen = uip_connr->mss;
+2828  edf5 ee12          	ldw	x,(18,x)
+2829  edf7 cf0078        	ldw	_uip_slen,x
+2830  edfa 1e04          	ldw	x,(OFST-1,sp)
+2831  edfc               L1411:
+2832                     ; 1009             uip_connr->len = uip_slen;
+2834  edfc 90ce0078      	ldw	y,_uip_slen
+2835  ee00 ef10          	ldw	(16,x),y
+2837  ee02 2005          	jra	L3311
+2838  ee04               L7311:
+2839                     ; 1015 	    uip_slen = uip_connr->len;
+2841  ee04 ee10          	ldw	x,(16,x)
+2842  ee06 cf0078        	ldw	_uip_slen,x
+2843  ee09               L3311:
+2844                     ; 1018 	uip_connr->nrtx = 0;
+2846  ee09 1e04          	ldw	x,(OFST-1,sp)
+2847  ee0b 6f1b          	clr	(27,x)
+2848  ee0d               L514:
+2849                     ; 1019 	apprexmit: uip_appdata = uip_sappdata;
+2851  ee0d ce007a        	ldw	x,_uip_sappdata
+2852  ee10 cf01d9        	ldw	_uip_appdata,x
+2853                     ; 1023 	if (uip_slen > 0 && uip_connr->len > 0) {
+2855  ee13 ce0078        	ldw	x,_uip_slen
+2856  ee16 2716          	jreq	L5411
+2858  ee18 1e04          	ldw	x,(OFST-1,sp)
+2859  ee1a e611          	ld	a,(17,x)
+2860  ee1c ea10          	or	a,(16,x)
+2861  ee1e 270e          	jreq	L5411
+2862                     ; 1025 	  uip_len = uip_connr->len + UIP_TCPIP_HLEN;
+2864  ee20 ee10          	ldw	x,(16,x)
+2865  ee22 1c0028        	addw	x,#40
+2866  ee25 cf01d7        	ldw	_uip_len,x
+2867                     ; 1027 	  BUF->flags = TCP_ACK | TCP_PSH;
+2869  ee28 3518020a      	mov	_uip_buf+47,#24
+2870                     ; 1029 	  goto tcp_send_noopts;
+2872  ee2c 2012          	jra	L534
+2873  ee2e               L5411:
+2874                     ; 1032 	if (uip_flags & UIP_NEWDATA) {
+2876  ee2e 7202008803cc  	btjf	_uip_flags,#1,L744
+2877                     ; 1033 	  uip_len = UIP_TCPIP_HLEN;
+2879  ee36 ae0028        	ldw	x,#40
+2880  ee39 cf01d7        	ldw	_uip_len,x
+2881                     ; 1034 	  BUF->flags = TCP_ACK;
+2883  ee3c 3510020a      	mov	_uip_buf+47,#16
+2884                     ; 1035 	  goto tcp_send_noopts;
+2885  ee40               L534:
+2886                     ; 1117   tcp_send_noopts: BUF->tcpoffset = (UIP_TCPH_LEN / 4) << 4;
+2888  ee40 35500209      	mov	_uip_buf+46,#80
+2889  ee44               L734:
+2890                     ; 1123   tcp_send:
+2890                     ; 1124   /* We're done with the input processing. We are now ready to send a reply. Our job is to
+2890                     ; 1125      fill in all the fields of the TCP and IP headers before calculating the checksum and
+2890                     ; 1126      finally send the packet. */
+2890                     ; 1127   BUF->ackno[0] = uip_connr->rcv_nxt[0];
+2892  ee44 1e04          	ldw	x,(OFST-1,sp)
+2893  ee46 e608          	ld	a,(8,x)
+2894  ee48 c70205        	ld	_uip_buf+42,a
+2895                     ; 1128   BUF->ackno[1] = uip_connr->rcv_nxt[1];
+2897  ee4b e609          	ld	a,(9,x)
+2898  ee4d c70206        	ld	_uip_buf+43,a
+2899                     ; 1129   BUF->ackno[2] = uip_connr->rcv_nxt[2];
+2901  ee50 e60a          	ld	a,(10,x)
+2902  ee52 c70207        	ld	_uip_buf+44,a
+2903                     ; 1130   BUF->ackno[3] = uip_connr->rcv_nxt[3];
+2905  ee55 e60b          	ld	a,(11,x)
+2906  ee57 c70208        	ld	_uip_buf+45,a
+2907                     ; 1132   BUF->seqno[0] = uip_connr->snd_nxt[0];
+2909  ee5a e60c          	ld	a,(12,x)
+2910  ee5c c70201        	ld	_uip_buf+38,a
+2911                     ; 1133   BUF->seqno[1] = uip_connr->snd_nxt[1];
+2913  ee5f e60d          	ld	a,(13,x)
+2914  ee61 c70202        	ld	_uip_buf+39,a
+2915                     ; 1134   BUF->seqno[2] = uip_connr->snd_nxt[2];
+2917  ee64 e60e          	ld	a,(14,x)
+2918  ee66 c70203        	ld	_uip_buf+40,a
+2919                     ; 1135   BUF->seqno[3] = uip_connr->snd_nxt[3];
+2921  ee69 e60f          	ld	a,(15,x)
+2922  ee6b c70204        	ld	_uip_buf+41,a
+2923                     ; 1137   BUF->proto = UIP_PROTO_TCP;
+2925  ee6e 350601f2      	mov	_uip_buf+23,#6
+2926                     ; 1139   BUF->srcport = uip_connr->lport;
+2928  ee72 ee04          	ldw	x,(4,x)
+2929  ee74 cf01fd        	ldw	_uip_buf+34,x
+2930                     ; 1140   BUF->destport = uip_connr->rport;
+2932  ee77 1e04          	ldw	x,(OFST-1,sp)
+2933  ee79 ee06          	ldw	x,(6,x)
+2934  ee7b cf01ff        	ldw	_uip_buf+36,x
+2935                     ; 1142   uip_ipaddr_copy(BUF->srcipaddr, uip_hostaddr);
+2937  ee7e ce0084        	ldw	x,_uip_hostaddr
+2938  ee81 cf01f5        	ldw	_uip_buf+26,x
+2941  ee84 ce0086        	ldw	x,_uip_hostaddr+2
+2942  ee87 cf01f7        	ldw	_uip_buf+28,x
+2943                     ; 1143   uip_ipaddr_copy(BUF->destipaddr, uip_connr->ripaddr);
+2945  ee8a 1e04          	ldw	x,(OFST-1,sp)
+2946  ee8c fe            	ldw	x,(x)
+2947  ee8d cf01f9        	ldw	_uip_buf+30,x
+2950  ee90 1e04          	ldw	x,(OFST-1,sp)
+2951  ee92 ee02          	ldw	x,(2,x)
+2952  ee94 cf01fb        	ldw	_uip_buf+32,x
+2953                     ; 1145   if (uip_connr->tcpstateflags & UIP_STOPPED) {
+2955  ee97 1e04          	ldw	x,(OFST-1,sp)
+2956  ee99 e619          	ld	a,(25,x)
+2957  ee9b a510          	bcp	a,#16
+2958  ee9d 2603ccef3c    	jreq	L1121
+2959                     ; 1148     BUF->wnd[0] = BUF->wnd[1] = 0;
+2961  eea2 725f020c      	clr	_uip_buf+49
+2962  eea6 725f020b      	clr	_uip_buf+48
+2964  eeaa ccef44        	jra	L144
+2965  eead               L714:
+2966                     ; 1040     case UIP_LAST_ACK:
+2966                     ; 1041       /* We can close this connection if the peer has acknowledged our FIN. This is
+2966                     ; 1042          indicated by the UIP_ACKDATA flag. */
+2966                     ; 1043       if (uip_flags & UIP_ACKDATA) {
+2968  eead 7201008881    	btjf	_uip_flags,#0,L744
+2969                     ; 1044         uip_connr->tcpstateflags = UIP_CLOSED;
+2971  eeb2 e719          	ld	(25,x),a
+2972                     ; 1045 	uip_flags = UIP_CLOSE;
+2974  eeb4 35100088      	mov	_uip_flags,#16
+2975                     ; 1046 	UIP_APPCALL();
+2977  eeb8 cdf33b        	call	_uip_TcpAppHubCall
+2979  eebb ccef97        	jra	L744
+2980  eebe               L124:
+2981                     ; 1050     case UIP_FIN_WAIT_1:
+2981                     ; 1051       /* The application has closed the connection, but the remote host hasn't closed
+2981                     ; 1052          its end yet. Thus we do nothing but wait for a FIN from the other side. */
+2981                     ; 1053       if (uip_len > 0) {
+2983  eebe ce01d7        	ldw	x,_uip_len
+2984  eec1 2703          	jreq	L3511
+2985                     ; 1054         uip_add_rcv_nxt(uip_len);
+2987  eec3 cde686        	call	L743_uip_add_rcv_nxt
+2989  eec6               L3511:
+2990                     ; 1056       if (BUF->flags & TCP_FIN) {
+2992  eec6 7201020a19    	btjf	_uip_buf+47,#0,L5511
+2993                     ; 1057         if (uip_flags & UIP_ACKDATA) {
+2995  eecb 1e04          	ldw	x,(OFST-1,sp)
+2996  eecd 720100880c    	btjf	_uip_flags,#0,L7511
+2997                     ; 1058 	  uip_connr->tcpstateflags = UIP_TIME_WAIT;
+2999  eed2 a607          	ld	a,#7
+3000  eed4 e719          	ld	(25,x),a
+3001                     ; 1059 	  uip_connr->timer = 0;
+3003  eed6 6f1a          	clr	(26,x)
+3004                     ; 1060 	  uip_connr->len = 0;
+3006  eed8 905f          	clrw	y
+3007  eeda ef10          	ldw	(16,x),y
+3009  eedc 2034          	jra	LC004
+3010  eede               L7511:
+3011                     ; 1063           uip_connr->tcpstateflags = UIP_CLOSING;
+3013  eede a606          	ld	a,#6
+3014  eee0 e719          	ld	(25,x),a
+3015                     ; 1065         uip_add_rcv_nxt(1);
+3017                     ; 1066         uip_flags = UIP_CLOSE;
+3018                     ; 1067         UIP_APPCALL();
+3020                     ; 1068         goto tcp_send_ack;
+3022  eee2 202e          	jp	LC004
+3023  eee4               L5511:
+3024                     ; 1070       else if (uip_flags & UIP_ACKDATA) {
+3026  eee4 720100880d    	btjf	_uip_flags,#0,L3611
+3027                     ; 1071         uip_connr->tcpstateflags = UIP_FIN_WAIT_2;
+3029  eee9 1e04          	ldw	x,(OFST-1,sp)
+3030  eeeb a605          	ld	a,#5
+3031  eeed e719          	ld	(25,x),a
+3032                     ; 1072         uip_connr->len = 0;
+3034  eeef 905f          	clrw	y
+3035  eef1 ef10          	ldw	(16,x),y
+3036                     ; 1073         goto drop;
+3038  eef3 ccef97        	jra	L744
+3039  eef6               L3611:
+3040                     ; 1075       if (uip_len > 0) {
+3042  eef6 ce01d7        	ldw	x,_uip_len
+3043  eef9 27f8          	jreq	L744
+3044                     ; 1076         goto tcp_send_ack;
+3046  eefb 2038          	jra	L134
+3047  eefd               L324:
+3048                     ; 1080     case UIP_FIN_WAIT_2:
+3048                     ; 1081       if (uip_len > 0) {
+3050  eefd ce01d7        	ldw	x,_uip_len
+3051  ef00 2703          	jreq	L1711
+3052                     ; 1082 	uip_add_rcv_nxt(uip_len);
+3054  ef02 cde686        	call	L743_uip_add_rcv_nxt
+3056  ef05               L1711:
+3057                     ; 1084       if (BUF->flags & TCP_FIN) {
+3059  ef05 7201020a17    	btjf	_uip_buf+47,#0,L3711
+3060                     ; 1085 	uip_connr->tcpstateflags = UIP_TIME_WAIT;
+3062  ef0a 1e04          	ldw	x,(OFST-1,sp)
+3063  ef0c a607          	ld	a,#7
+3064  ef0e e719          	ld	(25,x),a
+3065                     ; 1086 	uip_connr->timer = 0;
+3067  ef10 6f1a          	clr	(26,x)
+3068                     ; 1087 	uip_add_rcv_nxt(1);
+3071                     ; 1088 	uip_flags = UIP_CLOSE;
+3073                     ; 1089 	UIP_APPCALL();
+3075  ef12               LC004:
+3077  ef12 ae0001        	ldw	x,#1
+3078  ef15 cde686        	call	L743_uip_add_rcv_nxt
+3080  ef18 35100088      	mov	_uip_flags,#16
+3082  ef1c cdf33b        	call	_uip_TcpAppHubCall
+3084                     ; 1090 	goto tcp_send_ack;
+3086  ef1f 2014          	jra	L134
+3087  ef21               L3711:
+3088                     ; 1092       if (uip_len > 0) {
+3090  ef21 ce01d7        	ldw	x,_uip_len
+3091  ef24 2771          	jreq	L744
+3092                     ; 1093 	goto tcp_send_ack;
+3094  ef26 200d          	jra	L134
+3095  ef28               L724:
+3096                     ; 1100     case UIP_CLOSING:
+3096                     ; 1101       if (uip_flags & UIP_ACKDATA) {
+3098  ef28 720100886a    	btjf	_uip_flags,#0,L744
+3099                     ; 1102 	uip_connr->tcpstateflags = UIP_TIME_WAIT;
+3101  ef2d a607          	ld	a,#7
+3102  ef2f e719          	ld	(25,x),a
+3103                     ; 1103 	uip_connr->timer = 0;
+3105  ef31 6f1a          	clr	(26,x)
+3106  ef33 2062          	jra	L744
+3107                     ; 1106   goto drop;
+3109  ef35               L134:
+3110                     ; 1112   tcp_send_ack:
+3110                     ; 1113   /* We jump here when we are ready to send the packet, and just want to set the
+3110                     ; 1114      appropriate TCP sequence numbers in the TCP header. */
+3110                     ; 1115   BUF->flags = TCP_ACK;
+3112  ef35 3510020a      	mov	_uip_buf+47,#16
+3113  ef39 ccedca        	jra	L334
+3114  ef3c               L1121:
+3115                     ; 1151     BUF->wnd[0] = ((UIP_RECEIVE_WINDOW) >> 8);
+3117  ef3c 3503020b      	mov	_uip_buf+48,#3
+3118                     ; 1152     BUF->wnd[1] = ((UIP_RECEIVE_WINDOW) & 0xff);
+3120  ef40 354e020c      	mov	_uip_buf+49,#78
+3121  ef44               L144:
+3122                     ; 1158   tcp_send_noconn:
+3122                     ; 1159   BUF->ttl = UIP_TTL;
+3124  ef44 354001f1      	mov	_uip_buf+22,#64
+3125                     ; 1160   BUF->len[0] = (uint8_t)(uip_len >> 8);
+3127  ef48 5501d701eb    	mov	_uip_buf+16,_uip_len
+3128                     ; 1161   BUF->len[1] = (uint8_t)(uip_len & 0xff);
+3130  ef4d 5501d801ec    	mov	_uip_buf+17,_uip_len+1
+3131                     ; 1163   BUF->urgp[0] = BUF->urgp[1] = 0;
+3133  ef52 725f0210      	clr	_uip_buf+53
+3134  ef56 725f020f      	clr	_uip_buf+52
+3135                     ; 1166   BUF->tcpchksum = 0;
+3137  ef5a 5f            	clrw	x
+3138  ef5b cf020d        	ldw	_uip_buf+50,x
+3139                     ; 1167   BUF->tcpchksum = ~(uip_tcpchksum());
+3141  ef5e cde582        	call	_uip_tcpchksum
+3143  ef61 53            	cplw	x
+3144  ef62 cf020d        	ldw	_uip_buf+50,x
+3145                     ; 1172   ip_send_nolen:
+3145                     ; 1173 
+3145                     ; 1174   BUF->vhl = 0x45;
+3147  ef65 354501e9      	mov	_uip_buf+14,#69
+3148                     ; 1175   BUF->tos = 0;
+3150  ef69 725f01ea      	clr	_uip_buf+15
+3151                     ; 1176   BUF->ipoffset[0] = BUF->ipoffset[1] = 0;
+3153  ef6d 725f01f0      	clr	_uip_buf+21
+3154  ef71 725f01ef      	clr	_uip_buf+20
+3155                     ; 1177   ++ipid;
+3157  ef75 ce006c        	ldw	x,L31_ipid
+3158  ef78 5c            	incw	x
+3159  ef79 cf006c        	ldw	L31_ipid,x
+3160                     ; 1178   BUF->ipid[0] = (uint8_t)(ipid >> 8);
+3162  ef7c 55006c01ed    	mov	_uip_buf+18,L31_ipid
+3163                     ; 1179   BUF->ipid[1] = (uint8_t)(ipid & 0xff);
+3165  ef81 55006d01ee    	mov	_uip_buf+19,L31_ipid+1
+3166                     ; 1181   BUF->ipchksum = 0;
+3168  ef86 5f            	clrw	x
+3169  ef87 cf01f3        	ldw	_uip_buf+24,x
+3170                     ; 1182   BUF->ipchksum = ~(uip_ipchksum());
+3172  ef8a cde51d        	call	_uip_ipchksum
+3174  ef8d 53            	cplw	x
+3175  ef8e cf01f3        	ldw	_uip_buf+24,x
+3176                     ; 1184   UIP_STAT(++uip_stat.tcp.sent);
+3178  ef91 ae00c5        	ldw	x,#_uip_stat+60
+3180  ef94 cce8eb        	jra	L544
+3181  ef97               L744:
+3182                     ; 1199   drop:
+3182                     ; 1200   uip_len = 0;
+3184  ef97 5f            	clrw	x
+3185  ef98 cf01d7        	ldw	_uip_len,x
+3186                     ; 1201   uip_flags = 0;
+3188                     ; 1202   return;
+3189  ef9b               L602:
+3191  ef9b 725f0088      	clr	_uip_flags
+3194  ef9f 5b06          	addw	sp,#6
+3195  efa1 81            	ret	
+3227                     ; 1207 uint16_t htons(uint16_t val)
+3227                     ; 1208 {
+3228                     	switch	.text
+3229  efa2               _htons:
+3233                     ; 1209   return HTONS(val);
+3237  efa2 81            	ret	
+3282                     ; 1215 void uip_send(const char *data, int len)
+3282                     ; 1216 {
+3283                     	switch	.text
+3284  efa3               _uip_send:
+3286  efa3 89            	pushw	x
+3287       00000000      OFST:	set	0
+3290                     ; 1217   if (len > 0) {
+3292  efa4 9c            	rvf	
+3293  efa5 1e05          	ldw	x,(OFST+5,sp)
+3294  efa7 2d1c          	jrsle	L412
+3295                     ; 1218     uip_slen = len;
+3297  efa9 cf0078        	ldw	_uip_slen,x
+3298                     ; 1219     if (data != uip_sappdata) {
+3300  efac 1e01          	ldw	x,(OFST+1,sp)
+3301  efae c3007a        	cpw	x,_uip_sappdata
+3302  efb1 2712          	jreq	L412
+3303                     ; 1220       memcpy(uip_sappdata, (data), uip_slen);
+3305  efb3 bf04          	ldw	c_x,x
+3306  efb5 ce0078        	ldw	x,_uip_slen
+3307  efb8 270b          	jreq	L412
+3308  efba               L612:
+3309  efba 5a            	decw	x
+3310  efbb 92d604        	ld	a,([c_x.w],x)
+3311  efbe 72d7007a      	ld	([_uip_sappdata.w],x),a
+3312  efc2 5d            	tnzw	x
+3313  efc3 26f5          	jrne	L612
+3314  efc5               L412:
+3315                     ; 1223 }
+3318  efc5 85            	popw	x
+3319  efc6 81            	ret	
+3746                     	switch	.bss
+3747  0064               L54_tmp16:
+3748  0064 0000          	ds.b	2
+3749  0066               L34_opt:
+3750  0066 00            	ds.b	1
+3751  0067               L14_c:
+3752  0067 00            	ds.b	1
+3753  0068               L73_iss:
+3754  0068 00000000      	ds.b	4
+3755  006c               L31_ipid:
+3756  006c 0000          	ds.b	2
+3757  006e               _uip_listenports:
+3758  006e 000000000000  	ds.b	10
+3759                     	xdef	_uip_listenports
+3760  0078               _uip_slen:
+3761  0078 0000          	ds.b	2
+3762                     	xdef	_uip_slen
+3763  007a               _uip_sappdata:
+3764  007a 0000          	ds.b	2
+3765                     	xdef	_uip_sappdata
+3766                     	xdef	_uip_ethaddr
+3767                     	xdef	_uip_add32
+3768                     	xdef	_uip_tcpchksum
+3769                     	xdef	_uip_ipchksum
+3770                     	xdef	_uip_chksum
+3771  007c               _uip_draddr:
+3772  007c 00000000      	ds.b	4
+3773                     	xdef	_uip_draddr
+3774  0080               _uip_netmask:
+3775  0080 00000000      	ds.b	4
+3776                     	xdef	_uip_netmask
+3777  0084               _uip_hostaddr:
+3778  0084 00000000      	ds.b	4
+3779                     	xdef	_uip_hostaddr
+3780                     	xdef	_uip_process
+3781  0088               _uip_flags:
+3782  0088 00            	ds.b	1
+3783                     	xdef	_uip_flags
+3784  0089               _uip_stat:
+3785  0089 000000000000  	ds.b	88
+3786                     	xdef	_uip_stat
+3787  00e1               _uip_acc32:
+3788  00e1 00000000      	ds.b	4
+3789                     	xdef	_uip_acc32
+3790  00e5               _uip_conns:
+3791  00e5 000000000000  	ds.b	240
+3792                     	xdef	_uip_conns
+3793  01d5               _uip_conn:
+3794  01d5 0000          	ds.b	2
+3795                     	xdef	_uip_conn
+3796  01d7               _uip_len:
+3797  01d7 0000          	ds.b	2
+3798                     	xdef	_uip_len
+3799  01d9               _uip_appdata:
+3800  01d9 0000          	ds.b	2
+3801                     	xdef	_uip_appdata
+3802                     	xdef	_htons
+3803                     	xdef	_uip_send
+3804                     	xdef	_uip_unlisten
+3805                     	xdef	_uip_listen
+3806  01db               _uip_buf:
+3807  01db 000000000000  	ds.b	902
+3808                     	xdef	_uip_buf
+3809                     	xdef	_uip_setipid
+3810                     	xdef	_uip_init_stats
+3811                     	xdef	_uip_init
+3812                     	xref	_uip_TcpAppHubCall
+3813                     	xref.b	c_x
+3814                     	xref.b	c_y
+3834                     	xref	c_lgadc
+3835                     	end

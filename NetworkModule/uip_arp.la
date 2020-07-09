@@ -3,567 +3,567 @@
    3                     ; Generator (Limited) V4.4.11 - 19 Nov 2019
    4                     ; Optimizer V4.4.11 - 19 Nov 2019
   17                     .const:	section	.text
-  18  c311               L31_broadcast_ethaddr:
-  19  c311 ff            	dc.b	255
-  20  c312 ff            	dc.b	255
-  21  c313 ff            	dc.b	255
-  22  c314 ff            	dc.b	255
-  23  c315 ff            	dc.b	255
-  24  c316 ff            	dc.b	255
-  25  c317               L51_broadcast_ipaddr:
-  26  c317 ffff          	dc.w	-1
-  27  c319 ffff          	dc.w	-1
-  59                     ; 144 uip_arp_init(void)
-  59                     ; 145 {
+  18  be69               L31_broadcast_ethaddr:
+  19  be69 ff            	dc.b	255
+  20  be6a ff            	dc.b	255
+  21  be6b ff            	dc.b	255
+  22  be6c ff            	dc.b	255
+  23  be6d ff            	dc.b	255
+  24  be6e ff            	dc.b	255
+  25  be6f               L51_broadcast_ipaddr:
+  26  be6f ffff          	dc.w	-1
+  27  be71 ffff          	dc.w	-1
+  59                     ; 145 uip_arp_init(void)
+  59                     ; 146 {
   61                     	switch	.text
-  62  f539               _uip_arp_init:
-  66                     ; 146   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
-  68  f539 4f            	clr	a
-  69  f53a c70564        	ld	L32_i,a
-  70  f53d               L15:
-  71                     ; 147     memset(arp_table[i].ipaddr, 0, 4);
-  73  f53d 97            	ld	xl,a
-  74  f53e a60b          	ld	a,#11
-  75  f540 42            	mul	x,a
-  76  f541 1c0569        	addw	x,#L71_arp_table
-  77  f544 bf04          	ldw	c_x,x
-  78  f546 ae0004        	ldw	x,#4
-  79  f549               L6:
-  80  f549 5a            	decw	x
-  81  f54a 926f04        	clr	([c_x.w],x)
-  82  f54d 5d            	tnzw	x
-  83  f54e 26f9          	jrne	L6
-  84                     ; 146   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
-  86  f550 725c0564      	inc	L32_i
-  89  f554 c60564        	ld	a,L32_i
-  90  f557 a108          	cp	a,#8
-  91  f559 25e2          	jrult	L15
-  92                     ; 149 }
-  95  f55b 81            	ret	
- 187                     ; 162 uip_arp_timer(void)
- 187                     ; 163 {
+  62  efc7               _uip_arp_init:
+  66                     ; 147   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+  68  efc7 4f            	clr	a
+  69  efc8 c70564        	ld	L32_i,a
+  70  efcb               L15:
+  71                     ; 148     memset(arp_table[i].ipaddr, 0, 4);
+  73  efcb 97            	ld	xl,a
+  74  efcc a60b          	ld	a,#11
+  75  efce 42            	mul	x,a
+  76  efcf 1c0569        	addw	x,#L71_arp_table
+  77  efd2 bf04          	ldw	c_x,x
+  78  efd4 ae0004        	ldw	x,#4
+  79  efd7               L6:
+  80  efd7 5a            	decw	x
+  81  efd8 926f04        	clr	([c_x.w],x)
+  82  efdb 5d            	tnzw	x
+  83  efdc 26f9          	jrne	L6
+  84                     ; 147   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+  86  efde 725c0564      	inc	L32_i
+  89  efe2 c60564        	ld	a,L32_i
+  90  efe5 a108          	cp	a,#8
+  91  efe7 25e2          	jrult	L15
+  92                     ; 150 }
+  95  efe9 81            	ret	
+ 187                     ; 164 uip_arp_timer(void)
+ 187                     ; 165 {
  188                     	switch	.text
- 189  f55c               _uip_arp_timer:
- 191  f55c 89            	pushw	x
+ 189  efea               _uip_arp_timer:
+ 191  efea 89            	pushw	x
  192       00000002      OFST:	set	2
- 195                     ; 166   ++arptime;
- 197  f55d 725c0562      	inc	L72_arptime
- 198                     ; 167   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 200  f561 4f            	clr	a
- 201  f562 c70564        	ld	L32_i,a
- 202  f565               L521:
- 203                     ; 168     tabptr = &arp_table[i];
- 205  f565 97            	ld	xl,a
- 206  f566 a60b          	ld	a,#11
- 207  f568 42            	mul	x,a
- 208  f569 1c0569        	addw	x,#L71_arp_table
- 209  f56c 1f01          	ldw	(OFST-1,sp),x
- 211                     ; 169     if((tabptr->ipaddr[0] | tabptr->ipaddr[1]) != 0 &&
- 211                     ; 170        arptime - tabptr->time >= UIP_ARP_MAXAGE) {
- 213  f56e 1601          	ldw	y,(OFST-1,sp)
- 214  f570 ee02          	ldw	x,(2,x)
- 215  f572 01            	rrwa	x,a
- 216  f573 90ea01        	or	a,(1,y)
- 217  f576 01            	rrwa	x,a
- 218  f577 90fa          	or	a,(y)
- 219  f579 01            	rrwa	x,a
- 220  f57a 5d            	tnzw	x
- 221  f57b 271e          	jreq	L331
- 223  f57d c60562        	ld	a,L72_arptime
- 224  f580 5f            	clrw	x
- 225  f581 90e00a        	sub	a,(10,y)
- 226  f584 2401          	jrnc	L21
- 227  f586 5a            	decw	x
- 228  f587               L21:
- 229  f587 02            	rlwa	x,a
- 230  f588 a30078        	cpw	x,#120
- 231  f58b 2f0e          	jrslt	L331
- 232                     ; 171       memset(tabptr->ipaddr, 0, 4);
- 234  f58d 1e01          	ldw	x,(OFST-1,sp)
- 235  f58f bf04          	ldw	c_x,x
- 236  f591 ae0004        	ldw	x,#4
- 237  f594               L41:
- 238  f594 5a            	decw	x
- 239  f595 926f04        	clr	([c_x.w],x)
- 240  f598 5d            	tnzw	x
- 241  f599 26f9          	jrne	L41
- 242  f59b               L331:
- 243                     ; 167   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 245  f59b 725c0564      	inc	L32_i
- 248  f59f c60564        	ld	a,L32_i
- 249  f5a2 a108          	cp	a,#8
- 250  f5a4 25bf          	jrult	L521
- 251                     ; 175 }
- 254  f5a6 85            	popw	x
- 255  f5a7 81            	ret	
- 320                     ; 179 uip_arp_update(uint16_t *ipaddr, struct uip_eth_addr *ethaddr)
- 320                     ; 180 {
+ 195                     ; 168   ++arptime;
+ 197  efeb 725c0562      	inc	L72_arptime
+ 198                     ; 169   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 200  efef 4f            	clr	a
+ 201  eff0 c70564        	ld	L32_i,a
+ 202  eff3               L521:
+ 203                     ; 170     tabptr = &arp_table[i];
+ 205  eff3 97            	ld	xl,a
+ 206  eff4 a60b          	ld	a,#11
+ 207  eff6 42            	mul	x,a
+ 208  eff7 1c0569        	addw	x,#L71_arp_table
+ 209  effa 1f01          	ldw	(OFST-1,sp),x
+ 211                     ; 171     if((tabptr->ipaddr[0] | tabptr->ipaddr[1]) != 0 &&
+ 211                     ; 172        arptime - tabptr->time >= UIP_ARP_MAXAGE) {
+ 213  effc 1601          	ldw	y,(OFST-1,sp)
+ 214  effe ee02          	ldw	x,(2,x)
+ 215  f000 01            	rrwa	x,a
+ 216  f001 90ea01        	or	a,(1,y)
+ 217  f004 01            	rrwa	x,a
+ 218  f005 90fa          	or	a,(y)
+ 219  f007 01            	rrwa	x,a
+ 220  f008 5d            	tnzw	x
+ 221  f009 271e          	jreq	L331
+ 223  f00b c60562        	ld	a,L72_arptime
+ 224  f00e 5f            	clrw	x
+ 225  f00f 90e00a        	sub	a,(10,y)
+ 226  f012 2401          	jrnc	L21
+ 227  f014 5a            	decw	x
+ 228  f015               L21:
+ 229  f015 02            	rlwa	x,a
+ 230  f016 a30078        	cpw	x,#120
+ 231  f019 2f0e          	jrslt	L331
+ 232                     ; 173       memset(tabptr->ipaddr, 0, 4);
+ 234  f01b 1e01          	ldw	x,(OFST-1,sp)
+ 235  f01d bf04          	ldw	c_x,x
+ 236  f01f ae0004        	ldw	x,#4
+ 237  f022               L41:
+ 238  f022 5a            	decw	x
+ 239  f023 926f04        	clr	([c_x.w],x)
+ 240  f026 5d            	tnzw	x
+ 241  f027 26f9          	jrne	L41
+ 242  f029               L331:
+ 243                     ; 169   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 245  f029 725c0564      	inc	L32_i
+ 248  f02d c60564        	ld	a,L32_i
+ 249  f030 a108          	cp	a,#8
+ 250  f032 25bf          	jrult	L521
+ 251                     ; 177 }
+ 254  f034 85            	popw	x
+ 255  f035 81            	ret	
+ 320                     ; 182 uip_arp_update(uint16_t *ipaddr, struct uip_eth_addr *ethaddr)
+ 320                     ; 183 {
  321                     	switch	.text
- 322  f5a8               L531_uip_arp_update:
- 324  f5a8 89            	pushw	x
- 325  f5a9 5204          	subw	sp,#4
+ 322  f036               L531_uip_arp_update:
+ 324  f036 89            	pushw	x
+ 325  f037 5204          	subw	sp,#4
  326       00000004      OFST:	set	4
- 329                     ; 185   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 331  f5ab 4f            	clr	a
- 332  f5ac c70564        	ld	L32_i,a
- 333  f5af               L171:
- 334                     ; 187     tabptr = &arp_table[i];
- 336  f5af 97            	ld	xl,a
- 337  f5b0 a60b          	ld	a,#11
- 338  f5b2 42            	mul	x,a
- 339  f5b3 1c0569        	addw	x,#L71_arp_table
- 340  f5b6 1f03          	ldw	(OFST-1,sp),x
- 342                     ; 189     if(tabptr->ipaddr[0] != 0 &&
- 342                     ; 190        tabptr->ipaddr[1] != 0) {
- 344  f5b8 e601          	ld	a,(1,x)
- 345  f5ba fa            	or	a,(x)
- 346  f5bb 2733          	jreq	L771
- 348  f5bd e603          	ld	a,(3,x)
- 349  f5bf ea02          	or	a,(2,x)
- 350  f5c1 272d          	jreq	L771
- 351                     ; 194       if(ipaddr[0] == tabptr->ipaddr[0] &&
- 351                     ; 195 	 ipaddr[1] == tabptr->ipaddr[1]) {
- 353  f5c3 1e05          	ldw	x,(OFST+1,sp)
- 354  f5c5 1603          	ldw	y,(OFST-1,sp)
- 355  f5c7 fe            	ldw	x,(x)
- 356  f5c8 90f3          	cpw	x,(y)
- 357  f5ca 2624          	jrne	L771
- 359  f5cc 1e05          	ldw	x,(OFST+1,sp)
- 360  f5ce ee02          	ldw	x,(2,x)
- 361  f5d0 90e302        	cpw	x,(2,y)
- 362  f5d3 261b          	jrne	L771
- 363                     ; 198 	memcpy(tabptr->ethaddr.addr, ethaddr->addr, 6);
- 365  f5d5 93            	ldw	x,y
- 366  f5d6 1c0004        	addw	x,#4
- 367  f5d9 bf04          	ldw	c_x,x
- 368  f5db 1609          	ldw	y,(OFST+5,sp)
- 369  f5dd 90bf07        	ldw	c_y,y
- 370  f5e0 ae0006        	ldw	x,#6
- 371  f5e3               L02:
- 372  f5e3 5a            	decw	x
- 373  f5e4 92d607        	ld	a,([c_y.w],x)
- 374  f5e7 92d704        	ld	([c_x.w],x),a
- 375  f5ea 5d            	tnzw	x
- 376  f5eb 26f6          	jrne	L02
- 377                     ; 199 	tabptr->time = arptime;
- 378                     ; 201 	return;
- 380  f5ed ccf6a9        	jra	L03
- 381  f5f0               L771:
- 382                     ; 185   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 384  f5f0 725c0564      	inc	L32_i
- 387  f5f4 c60564        	ld	a,L32_i
- 388  f5f7 a108          	cp	a,#8
- 389  f5f9 25b4          	jrult	L171
- 390                     ; 210   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 392  f5fb 4f            	clr	a
- 393  f5fc c70564        	ld	L32_i,a
- 394  f5ff               L302:
- 395                     ; 211     tabptr = &arp_table[i];
- 397  f5ff 97            	ld	xl,a
- 398  f600 a60b          	ld	a,#11
- 399  f602 42            	mul	x,a
- 400  f603 1c0569        	addw	x,#L71_arp_table
- 401  f606 1f03          	ldw	(OFST-1,sp),x
- 403                     ; 212     if(tabptr->ipaddr[0] == 0 &&
- 403                     ; 213        tabptr->ipaddr[1] == 0) {
- 405  f608 e601          	ld	a,(1,x)
- 406  f60a fa            	or	a,(x)
- 407  f60b 2606          	jrne	L112
- 409  f60d e603          	ld	a,(3,x)
- 410  f60f ea02          	or	a,(2,x)
- 411  f611 270b          	jreq	L702
- 412                     ; 214       break;
- 414  f613               L112:
- 415                     ; 210   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 417  f613 725c0564      	inc	L32_i
- 420  f617 c60564        	ld	a,L32_i
- 421  f61a a108          	cp	a,#8
- 422  f61c 25e1          	jrult	L302
- 423  f61e               L702:
- 424                     ; 220   if(i == UIP_ARPTAB_SIZE) {
- 426  f61e c60564        	ld	a,L32_i
- 427  f621 a108          	cp	a,#8
- 428  f623 2657          	jrne	L312
- 429                     ; 221     tmpage = 0;
- 431  f625 725f0561      	clr	L13_tmpage
- 432                     ; 222     c = 0;
- 434  f629 725f0563      	clr	L52_c
- 435                     ; 223     for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 437  f62d 4f            	clr	a
- 438  f62e c70564        	ld	L32_i,a
- 439  f631               L512:
- 440                     ; 224       tabptr = &arp_table[i];
- 442  f631 97            	ld	xl,a
- 443  f632 a60b          	ld	a,#11
- 444  f634 42            	mul	x,a
- 445  f635 1c0569        	addw	x,#L71_arp_table
- 446  f638 1f03          	ldw	(OFST-1,sp),x
- 448                     ; 225       if(arptime - tabptr->time > tmpage) {
- 450  f63a 5f            	clrw	x
- 451  f63b c60561        	ld	a,L13_tmpage
- 452  f63e 97            	ld	xl,a
- 453  f63f 1f01          	ldw	(OFST-3,sp),x
- 455  f641 5f            	clrw	x
- 456  f642 1603          	ldw	y,(OFST-1,sp)
- 457  f644 c60562        	ld	a,L72_arptime
- 458  f647 90e00a        	sub	a,(10,y)
- 459  f64a 2401          	jrnc	L22
- 460  f64c 5a            	decw	x
- 461  f64d               L22:
- 462  f64d 02            	rlwa	x,a
- 463  f64e 1301          	cpw	x,(OFST-3,sp)
- 464  f650 2d10          	jrsle	L322
- 465                     ; 226 	tmpage = (uint8_t)(arptime - tabptr->time);
- 467  f652 1e03          	ldw	x,(OFST-1,sp)
- 468  f654 e60a          	ld	a,(10,x)
- 469  f656 c00562        	sub	a,L72_arptime
- 470  f659 40            	neg	a
- 471  f65a c70561        	ld	L13_tmpage,a
- 472                     ; 227 	c = i;
- 474  f65d 5505640563    	mov	L52_c,L32_i
- 475  f662               L322:
- 476                     ; 223     for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 478  f662 725c0564      	inc	L32_i
- 481  f666 c60564        	ld	a,L32_i
- 482  f669 a108          	cp	a,#8
- 483  f66b 25c4          	jrult	L512
- 484                     ; 230     i = c;
- 486  f66d c60563        	ld	a,L52_c
- 487  f670 c70564        	ld	L32_i,a
- 488                     ; 231     tabptr = &arp_table[i];
- 490  f673 97            	ld	xl,a
- 491  f674 a60b          	ld	a,#11
- 492  f676 42            	mul	x,a
- 493  f677 1c0569        	addw	x,#L71_arp_table
- 494  f67a 1f03          	ldw	(OFST-1,sp),x
- 496  f67c               L312:
- 497                     ; 236   memcpy(tabptr->ipaddr, ipaddr, 4);
- 499  f67c bf04          	ldw	c_x,x
- 500  f67e 1605          	ldw	y,(OFST+1,sp)
- 501  f680 90bf07        	ldw	c_y,y
- 502  f683 ae0004        	ldw	x,#4
- 503  f686               L42:
- 504  f686 5a            	decw	x
- 505  f687 92d607        	ld	a,([c_y.w],x)
- 506  f68a 92d704        	ld	([c_x.w],x),a
- 507  f68d 5d            	tnzw	x
- 508  f68e 26f6          	jrne	L42
- 509                     ; 237   memcpy(tabptr->ethaddr.addr, ethaddr->addr, 6);
- 511  f690 1e03          	ldw	x,(OFST-1,sp)
- 512  f692 1c0004        	addw	x,#4
- 513  f695 bf04          	ldw	c_x,x
- 514  f697 1609          	ldw	y,(OFST+5,sp)
- 515  f699 90bf07        	ldw	c_y,y
- 516  f69c ae0006        	ldw	x,#6
- 517  f69f               L62:
- 518  f69f 5a            	decw	x
- 519  f6a0 92d607        	ld	a,([c_y.w],x)
- 520  f6a3 92d704        	ld	([c_x.w],x),a
- 521  f6a6 5d            	tnzw	x
- 522  f6a7 26f6          	jrne	L62
- 523                     ; 238   tabptr->time = arptime;
- 525                     ; 239 }
- 526  f6a9               L03:
- 528  f6a9 1e03          	ldw	x,(OFST-1,sp)
- 529  f6ab c60562        	ld	a,L72_arptime
- 530  f6ae e70a          	ld	(10,x),a
- 533  f6b0 5b06          	addw	sp,#6
- 534  f6b2 81            	ret	
- 563                     ; 266 uip_arp_arpin(void)
- 563                     ; 267 {
+ 329                     ; 188   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 331  f039 4f            	clr	a
+ 332  f03a c70564        	ld	L32_i,a
+ 333  f03d               L171:
+ 334                     ; 190     tabptr = &arp_table[i];
+ 336  f03d 97            	ld	xl,a
+ 337  f03e a60b          	ld	a,#11
+ 338  f040 42            	mul	x,a
+ 339  f041 1c0569        	addw	x,#L71_arp_table
+ 340  f044 1f03          	ldw	(OFST-1,sp),x
+ 342                     ; 192     if(tabptr->ipaddr[0] != 0 &&
+ 342                     ; 193        tabptr->ipaddr[1] != 0) {
+ 344  f046 e601          	ld	a,(1,x)
+ 345  f048 fa            	or	a,(x)
+ 346  f049 2733          	jreq	L771
+ 348  f04b e603          	ld	a,(3,x)
+ 349  f04d ea02          	or	a,(2,x)
+ 350  f04f 272d          	jreq	L771
+ 351                     ; 197       if(ipaddr[0] == tabptr->ipaddr[0] &&
+ 351                     ; 198 	 ipaddr[1] == tabptr->ipaddr[1]) {
+ 353  f051 1e05          	ldw	x,(OFST+1,sp)
+ 354  f053 1603          	ldw	y,(OFST-1,sp)
+ 355  f055 fe            	ldw	x,(x)
+ 356  f056 90f3          	cpw	x,(y)
+ 357  f058 2624          	jrne	L771
+ 359  f05a 1e05          	ldw	x,(OFST+1,sp)
+ 360  f05c ee02          	ldw	x,(2,x)
+ 361  f05e 90e302        	cpw	x,(2,y)
+ 362  f061 261b          	jrne	L771
+ 363                     ; 201 	memcpy(tabptr->ethaddr.addr, ethaddr->addr, 6);
+ 365  f063 93            	ldw	x,y
+ 366  f064 1c0004        	addw	x,#4
+ 367  f067 bf04          	ldw	c_x,x
+ 368  f069 1609          	ldw	y,(OFST+5,sp)
+ 369  f06b 90bf07        	ldw	c_y,y
+ 370  f06e ae0006        	ldw	x,#6
+ 371  f071               L02:
+ 372  f071 5a            	decw	x
+ 373  f072 92d607        	ld	a,([c_y.w],x)
+ 374  f075 92d704        	ld	([c_x.w],x),a
+ 375  f078 5d            	tnzw	x
+ 376  f079 26f6          	jrne	L02
+ 377                     ; 202 	tabptr->time = arptime;
+ 378                     ; 204 	return;
+ 380  f07b ccf137        	jra	L03
+ 381  f07e               L771:
+ 382                     ; 188   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 384  f07e 725c0564      	inc	L32_i
+ 387  f082 c60564        	ld	a,L32_i
+ 388  f085 a108          	cp	a,#8
+ 389  f087 25b4          	jrult	L171
+ 390                     ; 213   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 392  f089 4f            	clr	a
+ 393  f08a c70564        	ld	L32_i,a
+ 394  f08d               L302:
+ 395                     ; 214     tabptr = &arp_table[i];
+ 397  f08d 97            	ld	xl,a
+ 398  f08e a60b          	ld	a,#11
+ 399  f090 42            	mul	x,a
+ 400  f091 1c0569        	addw	x,#L71_arp_table
+ 401  f094 1f03          	ldw	(OFST-1,sp),x
+ 403                     ; 215     if(tabptr->ipaddr[0] == 0 &&
+ 403                     ; 216        tabptr->ipaddr[1] == 0) {
+ 405  f096 e601          	ld	a,(1,x)
+ 406  f098 fa            	or	a,(x)
+ 407  f099 2606          	jrne	L112
+ 409  f09b e603          	ld	a,(3,x)
+ 410  f09d ea02          	or	a,(2,x)
+ 411  f09f 270b          	jreq	L702
+ 412                     ; 217       break;
+ 414  f0a1               L112:
+ 415                     ; 213   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 417  f0a1 725c0564      	inc	L32_i
+ 420  f0a5 c60564        	ld	a,L32_i
+ 421  f0a8 a108          	cp	a,#8
+ 422  f0aa 25e1          	jrult	L302
+ 423  f0ac               L702:
+ 424                     ; 223   if(i == UIP_ARPTAB_SIZE) {
+ 426  f0ac c60564        	ld	a,L32_i
+ 427  f0af a108          	cp	a,#8
+ 428  f0b1 2657          	jrne	L312
+ 429                     ; 224     tmpage = 0;
+ 431  f0b3 725f0561      	clr	L13_tmpage
+ 432                     ; 225     c = 0;
+ 434  f0b7 725f0563      	clr	L52_c
+ 435                     ; 226     for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 437  f0bb 4f            	clr	a
+ 438  f0bc c70564        	ld	L32_i,a
+ 439  f0bf               L512:
+ 440                     ; 227       tabptr = &arp_table[i];
+ 442  f0bf 97            	ld	xl,a
+ 443  f0c0 a60b          	ld	a,#11
+ 444  f0c2 42            	mul	x,a
+ 445  f0c3 1c0569        	addw	x,#L71_arp_table
+ 446  f0c6 1f03          	ldw	(OFST-1,sp),x
+ 448                     ; 228       if(arptime - tabptr->time > tmpage) {
+ 450  f0c8 5f            	clrw	x
+ 451  f0c9 c60561        	ld	a,L13_tmpage
+ 452  f0cc 97            	ld	xl,a
+ 453  f0cd 1f01          	ldw	(OFST-3,sp),x
+ 455  f0cf 5f            	clrw	x
+ 456  f0d0 1603          	ldw	y,(OFST-1,sp)
+ 457  f0d2 c60562        	ld	a,L72_arptime
+ 458  f0d5 90e00a        	sub	a,(10,y)
+ 459  f0d8 2401          	jrnc	L22
+ 460  f0da 5a            	decw	x
+ 461  f0db               L22:
+ 462  f0db 02            	rlwa	x,a
+ 463  f0dc 1301          	cpw	x,(OFST-3,sp)
+ 464  f0de 2d10          	jrsle	L322
+ 465                     ; 229 	tmpage = (uint8_t)(arptime - tabptr->time);
+ 467  f0e0 1e03          	ldw	x,(OFST-1,sp)
+ 468  f0e2 e60a          	ld	a,(10,x)
+ 469  f0e4 c00562        	sub	a,L72_arptime
+ 470  f0e7 40            	neg	a
+ 471  f0e8 c70561        	ld	L13_tmpage,a
+ 472                     ; 230 	c = i;
+ 474  f0eb 5505640563    	mov	L52_c,L32_i
+ 475  f0f0               L322:
+ 476                     ; 226     for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 478  f0f0 725c0564      	inc	L32_i
+ 481  f0f4 c60564        	ld	a,L32_i
+ 482  f0f7 a108          	cp	a,#8
+ 483  f0f9 25c4          	jrult	L512
+ 484                     ; 233     i = c;
+ 486  f0fb c60563        	ld	a,L52_c
+ 487  f0fe c70564        	ld	L32_i,a
+ 488                     ; 234     tabptr = &arp_table[i];
+ 490  f101 97            	ld	xl,a
+ 491  f102 a60b          	ld	a,#11
+ 492  f104 42            	mul	x,a
+ 493  f105 1c0569        	addw	x,#L71_arp_table
+ 494  f108 1f03          	ldw	(OFST-1,sp),x
+ 496  f10a               L312:
+ 497                     ; 239   memcpy(tabptr->ipaddr, ipaddr, 4);
+ 499  f10a bf04          	ldw	c_x,x
+ 500  f10c 1605          	ldw	y,(OFST+1,sp)
+ 501  f10e 90bf07        	ldw	c_y,y
+ 502  f111 ae0004        	ldw	x,#4
+ 503  f114               L42:
+ 504  f114 5a            	decw	x
+ 505  f115 92d607        	ld	a,([c_y.w],x)
+ 506  f118 92d704        	ld	([c_x.w],x),a
+ 507  f11b 5d            	tnzw	x
+ 508  f11c 26f6          	jrne	L42
+ 509                     ; 240   memcpy(tabptr->ethaddr.addr, ethaddr->addr, 6);
+ 511  f11e 1e03          	ldw	x,(OFST-1,sp)
+ 512  f120 1c0004        	addw	x,#4
+ 513  f123 bf04          	ldw	c_x,x
+ 514  f125 1609          	ldw	y,(OFST+5,sp)
+ 515  f127 90bf07        	ldw	c_y,y
+ 516  f12a ae0006        	ldw	x,#6
+ 517  f12d               L62:
+ 518  f12d 5a            	decw	x
+ 519  f12e 92d607        	ld	a,([c_y.w],x)
+ 520  f131 92d704        	ld	([c_x.w],x),a
+ 521  f134 5d            	tnzw	x
+ 522  f135 26f6          	jrne	L62
+ 523                     ; 241   tabptr->time = arptime;
+ 525                     ; 242 }
+ 526  f137               L03:
+ 528  f137 1e03          	ldw	x,(OFST-1,sp)
+ 529  f139 c60562        	ld	a,L72_arptime
+ 530  f13c e70a          	ld	(10,x),a
+ 533  f13e 5b06          	addw	sp,#6
+ 534  f140 81            	ret	
+ 563                     ; 269 uip_arp_arpin(void)
+ 563                     ; 270 {
  564                     	switch	.text
- 565  f6b3               _uip_arp_arpin:
- 569                     ; 268   if(uip_len < sizeof(struct arp_hdr)) {
- 571  f6b3 ce01d7        	ldw	x,_uip_len
- 572  f6b6 a3002a        	cpw	x,#42
- 573  f6b9 5f            	clrw	x
- 574  f6ba 2404          	jruge	L142
- 575                     ; 269     uip_len = 0;
- 577  f6bc cf01d7        	ldw	_uip_len,x
- 578                     ; 270     return;
- 581  f6bf 81            	ret	
- 582  f6c0               L142:
- 583                     ; 272   uip_len = 0;
- 585  f6c0 cf01d7        	ldw	_uip_len,x
- 586                     ; 274   switch(BUF->opcode) {
- 588  f6c3 ce01ef        	ldw	x,_uip_buf+20
- 590                     ; 307     break;
- 591  f6c6 5a            	decw	x
- 592  f6c7 2704          	jreq	L522
- 593  f6c9 5a            	decw	x
- 594  f6ca 277a          	jreq	L722
- 596  f6cc 81            	ret	
- 597  f6cd               L522:
- 598                     ; 275   case HTONS(ARP_REQUEST):
- 598                     ; 276     /* ARP request. If it asked for our address, we send out a
- 598                     ; 277        reply. */
- 598                     ; 278     if(uip_ipaddr_cmp(BUF->dipaddr, uip_hostaddr)) {
- 600  f6cd ce0201        	ldw	x,_uip_buf+38
- 601  f6d0 c30084        	cpw	x,_uip_hostaddr
- 602  f6d3 2703ccf761    	jrne	L542
- 604  f6d8 ce0203        	ldw	x,_uip_buf+40
- 605  f6db c30086        	cpw	x,_uip_hostaddr+2
- 606  f6de 26f5          	jrne	L542
- 607                     ; 282       uip_arp_update(BUF->sipaddr, &BUF->shwaddr);
- 609  f6e0 ae01f1        	ldw	x,#_uip_buf+22
- 610  f6e3 89            	pushw	x
- 611  f6e4 ae01f7        	ldw	x,#_uip_buf+28
- 612  f6e7 cdf5a8        	call	L531_uip_arp_update
- 614  f6ea 85            	popw	x
- 615                     ; 285       BUF->opcode = HTONS(2);
- 617  f6eb ae0002        	ldw	x,#2
- 618  f6ee cf01ef        	ldw	_uip_buf+20,x
- 619                     ; 287       memcpy(BUF->dhwaddr.addr, BUF->shwaddr.addr, 6);
- 621  f6f1 ae0006        	ldw	x,#6
- 622  f6f4               L63:
- 623  f6f4 d601f0        	ld	a,(_uip_buf+21,x)
- 624  f6f7 d701fa        	ld	(_uip_buf+31,x),a
- 625  f6fa 5a            	decw	x
- 626  f6fb 26f7          	jrne	L63
- 627                     ; 288       memcpy(BUF->shwaddr.addr, uip_ethaddr.addr, 6);
- 629  f6fd ae0006        	ldw	x,#6
- 630  f700               L04:
- 631  f700 d60009        	ld	a,(_uip_ethaddr-1,x)
- 632  f703 d701f0        	ld	(_uip_buf+21,x),a
- 633  f706 5a            	decw	x
- 634  f707 26f7          	jrne	L04
- 635                     ; 289       memcpy(BUF->ethhdr.src.addr, uip_ethaddr.addr, 6);
- 637  f709 ae0006        	ldw	x,#6
- 638  f70c               L24:
- 639  f70c d60009        	ld	a,(_uip_ethaddr-1,x)
- 640  f70f d701e0        	ld	(_uip_buf+5,x),a
- 641  f712 5a            	decw	x
- 642  f713 26f7          	jrne	L24
- 643                     ; 290       memcpy(BUF->ethhdr.dest.addr, BUF->dhwaddr.addr, 6);
- 645  f715 ae0006        	ldw	x,#6
- 646  f718               L44:
- 647  f718 d601fa        	ld	a,(_uip_buf+31,x)
- 648  f71b d701da        	ld	(_uip_buf-1,x),a
- 649  f71e 5a            	decw	x
- 650  f71f 26f7          	jrne	L44
- 651                     ; 292       BUF->dipaddr[0] = BUF->sipaddr[0];
- 653  f721 ce01f7        	ldw	x,_uip_buf+28
- 654  f724 cf0201        	ldw	_uip_buf+38,x
- 655                     ; 293       BUF->dipaddr[1] = BUF->sipaddr[1];
- 657  f727 ce01f9        	ldw	x,_uip_buf+30
- 658  f72a cf0203        	ldw	_uip_buf+40,x
- 659                     ; 294       BUF->sipaddr[0] = uip_hostaddr[0];
- 661  f72d ce0084        	ldw	x,_uip_hostaddr
- 662  f730 cf01f7        	ldw	_uip_buf+28,x
- 663                     ; 295       BUF->sipaddr[1] = uip_hostaddr[1];
- 665  f733 ce0086        	ldw	x,_uip_hostaddr+2
- 666  f736 cf01f9        	ldw	_uip_buf+30,x
- 667                     ; 297       BUF->ethhdr.type = HTONS(UIP_ETHTYPE_ARP);
- 669  f739 ae0806        	ldw	x,#2054
- 670  f73c cf01e7        	ldw	_uip_buf+12,x
- 671                     ; 298       uip_len = sizeof(struct arp_hdr);
- 673  f73f ae002a        	ldw	x,#42
- 674  f742 cf01d7        	ldw	_uip_len,x
- 676  f745 81            	ret	
- 677  f746               L722:
- 678                     ; 301   case HTONS(ARP_REPLY):
- 678                     ; 302     /* ARP reply. We insert or update the ARP table if it was meant
- 678                     ; 303        for us. */
- 678                     ; 304     if(uip_ipaddr_cmp(BUF->dipaddr, uip_hostaddr)) {
- 680  f746 ce0201        	ldw	x,_uip_buf+38
- 681  f749 c30084        	cpw	x,_uip_hostaddr
- 682  f74c 2613          	jrne	L542
- 684  f74e ce0203        	ldw	x,_uip_buf+40
- 685  f751 c30086        	cpw	x,_uip_hostaddr+2
- 686  f754 260b          	jrne	L542
- 687                     ; 305       uip_arp_update(BUF->sipaddr, &BUF->shwaddr);
- 689  f756 ae01f1        	ldw	x,#_uip_buf+22
- 690  f759 89            	pushw	x
- 691  f75a ae01f7        	ldw	x,#_uip_buf+28
- 692  f75d cdf5a8        	call	L531_uip_arp_update
- 694  f760 85            	popw	x
- 695  f761               L542:
- 696                     ; 310   return;
- 699  f761 81            	ret	
- 750                     ; 343 uip_arp_out(void)
- 750                     ; 344 {
+ 565  f141               _uip_arp_arpin:
+ 569                     ; 271   if(uip_len < sizeof(struct arp_hdr)) {
+ 571  f141 ce01d7        	ldw	x,_uip_len
+ 572  f144 a3002a        	cpw	x,#42
+ 573  f147 5f            	clrw	x
+ 574  f148 2404          	jruge	L142
+ 575                     ; 272     uip_len = 0;
+ 577  f14a cf01d7        	ldw	_uip_len,x
+ 578                     ; 273     return;
+ 581  f14d 81            	ret	
+ 582  f14e               L142:
+ 583                     ; 275   uip_len = 0;
+ 585  f14e cf01d7        	ldw	_uip_len,x
+ 586                     ; 277   switch(BUF->opcode) {
+ 588  f151 ce01ef        	ldw	x,_uip_buf+20
+ 590                     ; 310     break;
+ 591  f154 5a            	decw	x
+ 592  f155 2704          	jreq	L522
+ 593  f157 5a            	decw	x
+ 594  f158 277a          	jreq	L722
+ 596  f15a 81            	ret	
+ 597  f15b               L522:
+ 598                     ; 278   case HTONS(ARP_REQUEST):
+ 598                     ; 279     /* ARP request. If it asked for our address, we send out a
+ 598                     ; 280        reply. */
+ 598                     ; 281     if(uip_ipaddr_cmp(BUF->dipaddr, uip_hostaddr)) {
+ 600  f15b ce0201        	ldw	x,_uip_buf+38
+ 601  f15e c30084        	cpw	x,_uip_hostaddr
+ 602  f161 2703ccf1ef    	jrne	L542
+ 604  f166 ce0203        	ldw	x,_uip_buf+40
+ 605  f169 c30086        	cpw	x,_uip_hostaddr+2
+ 606  f16c 26f5          	jrne	L542
+ 607                     ; 285       uip_arp_update(BUF->sipaddr, &BUF->shwaddr);
+ 609  f16e ae01f1        	ldw	x,#_uip_buf+22
+ 610  f171 89            	pushw	x
+ 611  f172 ae01f7        	ldw	x,#_uip_buf+28
+ 612  f175 cdf036        	call	L531_uip_arp_update
+ 614  f178 85            	popw	x
+ 615                     ; 288       BUF->opcode = HTONS(2);
+ 617  f179 ae0002        	ldw	x,#2
+ 618  f17c cf01ef        	ldw	_uip_buf+20,x
+ 619                     ; 290       memcpy(BUF->dhwaddr.addr, BUF->shwaddr.addr, 6);
+ 621  f17f ae0006        	ldw	x,#6
+ 622  f182               L63:
+ 623  f182 d601f0        	ld	a,(_uip_buf+21,x)
+ 624  f185 d701fa        	ld	(_uip_buf+31,x),a
+ 625  f188 5a            	decw	x
+ 626  f189 26f7          	jrne	L63
+ 627                     ; 291       memcpy(BUF->shwaddr.addr, uip_ethaddr.addr, 6);
+ 629  f18b ae0006        	ldw	x,#6
+ 630  f18e               L04:
+ 631  f18e d60009        	ld	a,(_uip_ethaddr-1,x)
+ 632  f191 d701f0        	ld	(_uip_buf+21,x),a
+ 633  f194 5a            	decw	x
+ 634  f195 26f7          	jrne	L04
+ 635                     ; 292       memcpy(BUF->ethhdr.src.addr, uip_ethaddr.addr, 6);
+ 637  f197 ae0006        	ldw	x,#6
+ 638  f19a               L24:
+ 639  f19a d60009        	ld	a,(_uip_ethaddr-1,x)
+ 640  f19d d701e0        	ld	(_uip_buf+5,x),a
+ 641  f1a0 5a            	decw	x
+ 642  f1a1 26f7          	jrne	L24
+ 643                     ; 293       memcpy(BUF->ethhdr.dest.addr, BUF->dhwaddr.addr, 6);
+ 645  f1a3 ae0006        	ldw	x,#6
+ 646  f1a6               L44:
+ 647  f1a6 d601fa        	ld	a,(_uip_buf+31,x)
+ 648  f1a9 d701da        	ld	(_uip_buf-1,x),a
+ 649  f1ac 5a            	decw	x
+ 650  f1ad 26f7          	jrne	L44
+ 651                     ; 295       BUF->dipaddr[0] = BUF->sipaddr[0];
+ 653  f1af ce01f7        	ldw	x,_uip_buf+28
+ 654  f1b2 cf0201        	ldw	_uip_buf+38,x
+ 655                     ; 296       BUF->dipaddr[1] = BUF->sipaddr[1];
+ 657  f1b5 ce01f9        	ldw	x,_uip_buf+30
+ 658  f1b8 cf0203        	ldw	_uip_buf+40,x
+ 659                     ; 297       BUF->sipaddr[0] = uip_hostaddr[0];
+ 661  f1bb ce0084        	ldw	x,_uip_hostaddr
+ 662  f1be cf01f7        	ldw	_uip_buf+28,x
+ 663                     ; 298       BUF->sipaddr[1] = uip_hostaddr[1];
+ 665  f1c1 ce0086        	ldw	x,_uip_hostaddr+2
+ 666  f1c4 cf01f9        	ldw	_uip_buf+30,x
+ 667                     ; 300       BUF->ethhdr.type = HTONS(UIP_ETHTYPE_ARP);
+ 669  f1c7 ae0806        	ldw	x,#2054
+ 670  f1ca cf01e7        	ldw	_uip_buf+12,x
+ 671                     ; 301       uip_len = sizeof(struct arp_hdr);
+ 673  f1cd ae002a        	ldw	x,#42
+ 674  f1d0 cf01d7        	ldw	_uip_len,x
+ 676  f1d3 81            	ret	
+ 677  f1d4               L722:
+ 678                     ; 304   case HTONS(ARP_REPLY):
+ 678                     ; 305     /* ARP reply. We insert or update the ARP table if it was meant
+ 678                     ; 306        for us. */
+ 678                     ; 307     if(uip_ipaddr_cmp(BUF->dipaddr, uip_hostaddr)) {
+ 680  f1d4 ce0201        	ldw	x,_uip_buf+38
+ 681  f1d7 c30084        	cpw	x,_uip_hostaddr
+ 682  f1da 2613          	jrne	L542
+ 684  f1dc ce0203        	ldw	x,_uip_buf+40
+ 685  f1df c30086        	cpw	x,_uip_hostaddr+2
+ 686  f1e2 260b          	jrne	L542
+ 687                     ; 308       uip_arp_update(BUF->sipaddr, &BUF->shwaddr);
+ 689  f1e4 ae01f1        	ldw	x,#_uip_buf+22
+ 690  f1e7 89            	pushw	x
+ 691  f1e8 ae01f7        	ldw	x,#_uip_buf+28
+ 692  f1eb cdf036        	call	L531_uip_arp_update
+ 694  f1ee 85            	popw	x
+ 695  f1ef               L542:
+ 696                     ; 313   return;
+ 699  f1ef 81            	ret	
+ 750                     ; 346 uip_arp_out(void)
+ 750                     ; 347 {
  751                     	switch	.text
- 752  f762               _uip_arp_out:
+ 752  f1f0               _uip_arp_out:
  754       00000002      OFST:	set	2
- 757                     ; 355   if(uip_ipaddr_cmp(IPBUF->destipaddr, broadcast_ipaddr)) {
- 759  f762 ce01f9        	ldw	x,_uip_buf+30
- 760  f765 c3c317        	cpw	x,L51_broadcast_ipaddr
- 761  f768 2617          	jrne	L372
- 763  f76a ce01fb        	ldw	x,_uip_buf+32
- 764  f76d c3c319        	cpw	x,L51_broadcast_ipaddr+2
- 765  f770 260f          	jrne	L372
- 766                     ; 356     memcpy(IPBUF->ethhdr.dest.addr, broadcast_ethaddr.addr, 6);
- 768  f772 ae0006        	ldw	x,#6
- 769  f775               L25:
- 770  f775 d6c310        	ld	a,(L31_broadcast_ethaddr-1,x)
- 771  f778 d701da        	ld	(_uip_buf-1,x),a
- 772  f77b 5a            	decw	x
- 773  f77c 26f7          	jrne	L25
- 775  f77e ccf891        	jra	L572
- 776  f781               L372:
- 777                     ; 360     if(!uip_ipaddr_maskcmp(IPBUF->destipaddr, uip_hostaddr, uip_netmask)) {
- 779  f781 ce01f9        	ldw	x,_uip_buf+30
- 780  f784 01            	rrwa	x,a
- 781  f785 c40081        	and	a,_uip_netmask+1
- 782  f788 01            	rrwa	x,a
- 783  f789 c40080        	and	a,_uip_netmask
- 784  f78c 01            	rrwa	x,a
- 785  f78d 90ce0084      	ldw	y,_uip_hostaddr
- 786  f791 9001          	rrwa	y,a
- 787  f793 c40081        	and	a,_uip_netmask+1
- 788  f796 9001          	rrwa	y,a
- 789  f798 c40080        	and	a,_uip_netmask
- 790  f79b 9001          	rrwa	y,a
- 791  f79d 90bf07        	ldw	c_y,y
- 792  f7a0 b307          	cpw	x,c_y
- 793  f7a2 2623          	jrne	L303
- 795  f7a4 ce01fb        	ldw	x,_uip_buf+32
- 796  f7a7 01            	rrwa	x,a
- 797  f7a8 c40083        	and	a,_uip_netmask+3
- 798  f7ab 01            	rrwa	x,a
- 799  f7ac c40082        	and	a,_uip_netmask+2
- 800  f7af 01            	rrwa	x,a
- 801  f7b0 90ce0086      	ldw	y,_uip_hostaddr+2
- 802  f7b4 9001          	rrwa	y,a
- 803  f7b6 c40083        	and	a,_uip_netmask+3
- 804  f7b9 9001          	rrwa	y,a
- 805  f7bb c40082        	and	a,_uip_netmask+2
- 806  f7be 9001          	rrwa	y,a
- 807  f7c0 90bf07        	ldw	c_y,y
- 808  f7c3 b307          	cpw	x,c_y
- 809  f7c5 2731          	jreq	L113
- 810  f7c7               L303:
- 811                     ; 364       uip_ipaddr_copy(ipaddr, uip_draddr);
- 813  f7c7 ce007c        	ldw	x,_uip_draddr
- 814  f7ca cf0565        	ldw	L12_ipaddr,x
- 817  f7cd ce007e        	ldw	x,_uip_draddr+2
- 819  f7d0               L703:
- 820  f7d0 cf0567        	ldw	L12_ipaddr+2,x
- 821                     ; 371     for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 823  f7d3 4f            	clr	a
- 824  f7d4 c70564        	ld	L32_i,a
- 825  f7d7               L513:
- 826                     ; 372       tabptr = &arp_table[i];
- 828  f7d7 97            	ld	xl,a
- 829  f7d8 a60b          	ld	a,#11
- 830  f7da 42            	mul	x,a
- 831  f7db 1c0569        	addw	x,#L71_arp_table
- 833                     ; 373       if(uip_ipaddr_cmp(ipaddr, tabptr->ipaddr)) {
- 835  f7de 9093          	ldw	y,x
- 836  f7e0 90fe          	ldw	y,(y)
- 837  f7e2 90c30565      	cpw	y,L12_ipaddr
- 838  f7e6 261b          	jrne	L323
- 840  f7e8 9093          	ldw	y,x
- 841  f7ea 90ee02        	ldw	y,(2,y)
- 842  f7ed 90c30567      	cpw	y,L12_ipaddr+2
- 843  f7f1 2610          	jrne	L323
- 844                     ; 374 	break;
- 846  f7f3 c60564        	ld	a,L32_i
- 847  f7f6 2016          	jra	L123
- 848  f7f8               L113:
- 849                     ; 368       uip_ipaddr_copy(ipaddr, IPBUF->destipaddr);
- 851  f7f8 ce01f9        	ldw	x,_uip_buf+30
- 852  f7fb cf0565        	ldw	L12_ipaddr,x
- 855  f7fe ce01fb        	ldw	x,_uip_buf+32
- 856  f801 20cd          	jra	L703
- 857  f803               L323:
- 858                     ; 371     for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
- 860  f803 725c0564      	inc	L32_i
- 863  f807 c60564        	ld	a,L32_i
- 864  f80a a108          	cp	a,#8
- 865  f80c 25c9          	jrult	L513
- 866  f80e               L123:
- 867                     ; 378     if(i == UIP_ARPTAB_SIZE) {
- 869  f80e a108          	cp	a,#8
- 870  f810 266d          	jrne	L523
- 871                     ; 382       memset(BUF->ethhdr.dest.addr, 0xff, 6);
- 873  f812 a6ff          	ld	a,#255
- 874  f814 ae0006        	ldw	x,#6
- 875  f817               L45:
- 876  f817 d701da        	ld	(_uip_buf-1,x),a
- 877  f81a 5a            	decw	x
- 878  f81b 26fa          	jrne	L45
- 879                     ; 383       memset(BUF->dhwaddr.addr, 0x00, 6);
- 881  f81d ae0006        	ldw	x,#6
- 882  f820               L65:
- 883  f820 724f01fa      	clr	(_uip_buf+31,x)
- 884  f824 5a            	decw	x
- 885  f825 26f9          	jrne	L65
- 886                     ; 384       memcpy(BUF->ethhdr.src.addr, uip_ethaddr.addr, 6);
- 888  f827 ae0006        	ldw	x,#6
- 889  f82a               L06:
- 890  f82a d60009        	ld	a,(_uip_ethaddr-1,x)
- 891  f82d d701e0        	ld	(_uip_buf+5,x),a
- 892  f830 5a            	decw	x
- 893  f831 26f7          	jrne	L06
- 894                     ; 385       memcpy(BUF->shwaddr.addr, uip_ethaddr.addr, 6);
- 896  f833 ae0006        	ldw	x,#6
- 897  f836               L26:
- 898  f836 d60009        	ld	a,(_uip_ethaddr-1,x)
- 899  f839 d701f0        	ld	(_uip_buf+21,x),a
- 900  f83c 5a            	decw	x
- 901  f83d 26f7          	jrne	L26
- 902                     ; 387       uip_ipaddr_copy(BUF->dipaddr, ipaddr);
- 904  f83f ce0565        	ldw	x,L12_ipaddr
- 905  f842 cf0201        	ldw	_uip_buf+38,x
- 908  f845 ce0567        	ldw	x,L12_ipaddr+2
- 909  f848 cf0203        	ldw	_uip_buf+40,x
- 910                     ; 388       uip_ipaddr_copy(BUF->sipaddr, uip_hostaddr);
- 912  f84b ce0084        	ldw	x,_uip_hostaddr
- 913  f84e cf01f7        	ldw	_uip_buf+28,x
- 916  f851 ce0086        	ldw	x,_uip_hostaddr+2
- 917  f854 cf01f9        	ldw	_uip_buf+30,x
- 918                     ; 389       BUF->opcode = HTONS(ARP_REQUEST); /* ARP request. */
- 920  f857 ae0001        	ldw	x,#1
- 921  f85a cf01ef        	ldw	_uip_buf+20,x
- 922                     ; 390       BUF->hwtype = HTONS(ARP_HWTYPE_ETH);
- 924  f85d cf01e9        	ldw	_uip_buf+14,x
- 925                     ; 391       BUF->protocol = HTONS(UIP_ETHTYPE_IP);
- 927  f860 ae0800        	ldw	x,#2048
- 928  f863 cf01eb        	ldw	_uip_buf+16,x
- 929                     ; 392       BUF->hwlen = 6;
- 931  f866 350601ed      	mov	_uip_buf+18,#6
- 932                     ; 393       BUF->protolen = 4;
- 934  f86a 350401ee      	mov	_uip_buf+19,#4
- 935                     ; 394       BUF->ethhdr.type = HTONS(UIP_ETHTYPE_ARP);
- 937  f86e ae0806        	ldw	x,#2054
- 938  f871 cf01e7        	ldw	_uip_buf+12,x
- 939                     ; 396       uip_appdata = &uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN];
- 941  f874 ae0211        	ldw	x,#_uip_buf+54
- 942  f877 cf01d9        	ldw	_uip_appdata,x
- 943                     ; 398       uip_len = sizeof(struct arp_hdr);
- 945  f87a ae002a        	ldw	x,#42
- 946                     ; 399       return;
- 948  f87d 202a          	jra	L07
- 949  f87f               L523:
- 950                     ; 403     memcpy(IPBUF->ethhdr.dest.addr, tabptr->ethaddr.addr, 6);
- 952  f87f 1c0004        	addw	x,#4
- 953  f882 bf04          	ldw	c_x,x
- 954  f884 ae0006        	ldw	x,#6
- 955  f887               L46:
- 956  f887 5a            	decw	x
- 957  f888 92d604        	ld	a,([c_x.w],x)
- 958  f88b d701db        	ld	(_uip_buf,x),a
- 959  f88e 5d            	tnzw	x
- 960  f88f 26f6          	jrne	L46
- 961  f891               L572:
- 962                     ; 405   memcpy(IPBUF->ethhdr.src.addr, uip_ethaddr.addr, 6);
- 964  f891 ae0006        	ldw	x,#6
- 965  f894               L66:
- 966  f894 d60009        	ld	a,(_uip_ethaddr-1,x)
- 967  f897 d701e0        	ld	(_uip_buf+5,x),a
- 968  f89a 5a            	decw	x
- 969  f89b 26f7          	jrne	L66
- 970                     ; 407   IPBUF->ethhdr.type = HTONS(UIP_ETHTYPE_IP);
- 972  f89d ae0800        	ldw	x,#2048
- 973  f8a0 cf01e7        	ldw	_uip_buf+12,x
- 974                     ; 409   uip_len += sizeof(struct uip_eth_hdr);
- 976  f8a3 ce01d7        	ldw	x,_uip_len
- 977  f8a6 1c000e        	addw	x,#14
- 978                     ; 410 }
- 979  f8a9               L07:
- 980  f8a9 cf01d7        	ldw	_uip_len,x
- 983  f8ac 81            	ret	
+ 757                     ; 358   if(uip_ipaddr_cmp(IPBUF->destipaddr, broadcast_ipaddr)) {
+ 759  f1f0 ce01f9        	ldw	x,_uip_buf+30
+ 760  f1f3 c3be6f        	cpw	x,L51_broadcast_ipaddr
+ 761  f1f6 2617          	jrne	L372
+ 763  f1f8 ce01fb        	ldw	x,_uip_buf+32
+ 764  f1fb c3be71        	cpw	x,L51_broadcast_ipaddr+2
+ 765  f1fe 260f          	jrne	L372
+ 766                     ; 359     memcpy(IPBUF->ethhdr.dest.addr, broadcast_ethaddr.addr, 6);
+ 768  f200 ae0006        	ldw	x,#6
+ 769  f203               L25:
+ 770  f203 d6be68        	ld	a,(L31_broadcast_ethaddr-1,x)
+ 771  f206 d701da        	ld	(_uip_buf-1,x),a
+ 772  f209 5a            	decw	x
+ 773  f20a 26f7          	jrne	L25
+ 775  f20c ccf31f        	jra	L572
+ 776  f20f               L372:
+ 777                     ; 363     if(!uip_ipaddr_maskcmp(IPBUF->destipaddr, uip_hostaddr, uip_netmask)) {
+ 779  f20f ce01f9        	ldw	x,_uip_buf+30
+ 780  f212 01            	rrwa	x,a
+ 781  f213 c40081        	and	a,_uip_netmask+1
+ 782  f216 01            	rrwa	x,a
+ 783  f217 c40080        	and	a,_uip_netmask
+ 784  f21a 01            	rrwa	x,a
+ 785  f21b 90ce0084      	ldw	y,_uip_hostaddr
+ 786  f21f 9001          	rrwa	y,a
+ 787  f221 c40081        	and	a,_uip_netmask+1
+ 788  f224 9001          	rrwa	y,a
+ 789  f226 c40080        	and	a,_uip_netmask
+ 790  f229 9001          	rrwa	y,a
+ 791  f22b 90bf07        	ldw	c_y,y
+ 792  f22e b307          	cpw	x,c_y
+ 793  f230 2623          	jrne	L303
+ 795  f232 ce01fb        	ldw	x,_uip_buf+32
+ 796  f235 01            	rrwa	x,a
+ 797  f236 c40083        	and	a,_uip_netmask+3
+ 798  f239 01            	rrwa	x,a
+ 799  f23a c40082        	and	a,_uip_netmask+2
+ 800  f23d 01            	rrwa	x,a
+ 801  f23e 90ce0086      	ldw	y,_uip_hostaddr+2
+ 802  f242 9001          	rrwa	y,a
+ 803  f244 c40083        	and	a,_uip_netmask+3
+ 804  f247 9001          	rrwa	y,a
+ 805  f249 c40082        	and	a,_uip_netmask+2
+ 806  f24c 9001          	rrwa	y,a
+ 807  f24e 90bf07        	ldw	c_y,y
+ 808  f251 b307          	cpw	x,c_y
+ 809  f253 2731          	jreq	L113
+ 810  f255               L303:
+ 811                     ; 367       uip_ipaddr_copy(ipaddr, uip_draddr);
+ 813  f255 ce007c        	ldw	x,_uip_draddr
+ 814  f258 cf0565        	ldw	L12_ipaddr,x
+ 817  f25b ce007e        	ldw	x,_uip_draddr+2
+ 819  f25e               L703:
+ 820  f25e cf0567        	ldw	L12_ipaddr+2,x
+ 821                     ; 374     for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 823  f261 4f            	clr	a
+ 824  f262 c70564        	ld	L32_i,a
+ 825  f265               L513:
+ 826                     ; 375       tabptr = &arp_table[i];
+ 828  f265 97            	ld	xl,a
+ 829  f266 a60b          	ld	a,#11
+ 830  f268 42            	mul	x,a
+ 831  f269 1c0569        	addw	x,#L71_arp_table
+ 833                     ; 376       if(uip_ipaddr_cmp(ipaddr, tabptr->ipaddr)) {
+ 835  f26c 9093          	ldw	y,x
+ 836  f26e 90fe          	ldw	y,(y)
+ 837  f270 90c30565      	cpw	y,L12_ipaddr
+ 838  f274 261b          	jrne	L323
+ 840  f276 9093          	ldw	y,x
+ 841  f278 90ee02        	ldw	y,(2,y)
+ 842  f27b 90c30567      	cpw	y,L12_ipaddr+2
+ 843  f27f 2610          	jrne	L323
+ 844                     ; 377 	break;
+ 846  f281 c60564        	ld	a,L32_i
+ 847  f284 2016          	jra	L123
+ 848  f286               L113:
+ 849                     ; 371       uip_ipaddr_copy(ipaddr, IPBUF->destipaddr);
+ 851  f286 ce01f9        	ldw	x,_uip_buf+30
+ 852  f289 cf0565        	ldw	L12_ipaddr,x
+ 855  f28c ce01fb        	ldw	x,_uip_buf+32
+ 856  f28f 20cd          	jra	L703
+ 857  f291               L323:
+ 858                     ; 374     for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+ 860  f291 725c0564      	inc	L32_i
+ 863  f295 c60564        	ld	a,L32_i
+ 864  f298 a108          	cp	a,#8
+ 865  f29a 25c9          	jrult	L513
+ 866  f29c               L123:
+ 867                     ; 381     if(i == UIP_ARPTAB_SIZE) {
+ 869  f29c a108          	cp	a,#8
+ 870  f29e 266d          	jrne	L523
+ 871                     ; 385       memset(BUF->ethhdr.dest.addr, 0xff, 6);
+ 873  f2a0 a6ff          	ld	a,#255
+ 874  f2a2 ae0006        	ldw	x,#6
+ 875  f2a5               L45:
+ 876  f2a5 d701da        	ld	(_uip_buf-1,x),a
+ 877  f2a8 5a            	decw	x
+ 878  f2a9 26fa          	jrne	L45
+ 879                     ; 386       memset(BUF->dhwaddr.addr, 0x00, 6);
+ 881  f2ab ae0006        	ldw	x,#6
+ 882  f2ae               L65:
+ 883  f2ae 724f01fa      	clr	(_uip_buf+31,x)
+ 884  f2b2 5a            	decw	x
+ 885  f2b3 26f9          	jrne	L65
+ 886                     ; 387       memcpy(BUF->ethhdr.src.addr, uip_ethaddr.addr, 6);
+ 888  f2b5 ae0006        	ldw	x,#6
+ 889  f2b8               L06:
+ 890  f2b8 d60009        	ld	a,(_uip_ethaddr-1,x)
+ 891  f2bb d701e0        	ld	(_uip_buf+5,x),a
+ 892  f2be 5a            	decw	x
+ 893  f2bf 26f7          	jrne	L06
+ 894                     ; 388       memcpy(BUF->shwaddr.addr, uip_ethaddr.addr, 6);
+ 896  f2c1 ae0006        	ldw	x,#6
+ 897  f2c4               L26:
+ 898  f2c4 d60009        	ld	a,(_uip_ethaddr-1,x)
+ 899  f2c7 d701f0        	ld	(_uip_buf+21,x),a
+ 900  f2ca 5a            	decw	x
+ 901  f2cb 26f7          	jrne	L26
+ 902                     ; 390       uip_ipaddr_copy(BUF->dipaddr, ipaddr);
+ 904  f2cd ce0565        	ldw	x,L12_ipaddr
+ 905  f2d0 cf0201        	ldw	_uip_buf+38,x
+ 908  f2d3 ce0567        	ldw	x,L12_ipaddr+2
+ 909  f2d6 cf0203        	ldw	_uip_buf+40,x
+ 910                     ; 391       uip_ipaddr_copy(BUF->sipaddr, uip_hostaddr);
+ 912  f2d9 ce0084        	ldw	x,_uip_hostaddr
+ 913  f2dc cf01f7        	ldw	_uip_buf+28,x
+ 916  f2df ce0086        	ldw	x,_uip_hostaddr+2
+ 917  f2e2 cf01f9        	ldw	_uip_buf+30,x
+ 918                     ; 392       BUF->opcode = HTONS(ARP_REQUEST); /* ARP request. */
+ 920  f2e5 ae0001        	ldw	x,#1
+ 921  f2e8 cf01ef        	ldw	_uip_buf+20,x
+ 922                     ; 393       BUF->hwtype = HTONS(ARP_HWTYPE_ETH);
+ 924  f2eb cf01e9        	ldw	_uip_buf+14,x
+ 925                     ; 394       BUF->protocol = HTONS(UIP_ETHTYPE_IP);
+ 927  f2ee ae0800        	ldw	x,#2048
+ 928  f2f1 cf01eb        	ldw	_uip_buf+16,x
+ 929                     ; 395       BUF->hwlen = 6;
+ 931  f2f4 350601ed      	mov	_uip_buf+18,#6
+ 932                     ; 396       BUF->protolen = 4;
+ 934  f2f8 350401ee      	mov	_uip_buf+19,#4
+ 935                     ; 397       BUF->ethhdr.type = HTONS(UIP_ETHTYPE_ARP);
+ 937  f2fc ae0806        	ldw	x,#2054
+ 938  f2ff cf01e7        	ldw	_uip_buf+12,x
+ 939                     ; 399       uip_appdata = &uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN];
+ 941  f302 ae0211        	ldw	x,#_uip_buf+54
+ 942  f305 cf01d9        	ldw	_uip_appdata,x
+ 943                     ; 401       uip_len = sizeof(struct arp_hdr);
+ 945  f308 ae002a        	ldw	x,#42
+ 946                     ; 402       return;
+ 948  f30b 202a          	jra	L07
+ 949  f30d               L523:
+ 950                     ; 406     memcpy(IPBUF->ethhdr.dest.addr, tabptr->ethaddr.addr, 6);
+ 952  f30d 1c0004        	addw	x,#4
+ 953  f310 bf04          	ldw	c_x,x
+ 954  f312 ae0006        	ldw	x,#6
+ 955  f315               L46:
+ 956  f315 5a            	decw	x
+ 957  f316 92d604        	ld	a,([c_x.w],x)
+ 958  f319 d701db        	ld	(_uip_buf,x),a
+ 959  f31c 5d            	tnzw	x
+ 960  f31d 26f6          	jrne	L46
+ 961  f31f               L572:
+ 962                     ; 408   memcpy(IPBUF->ethhdr.src.addr, uip_ethaddr.addr, 6);
+ 964  f31f ae0006        	ldw	x,#6
+ 965  f322               L66:
+ 966  f322 d60009        	ld	a,(_uip_ethaddr-1,x)
+ 967  f325 d701e0        	ld	(_uip_buf+5,x),a
+ 968  f328 5a            	decw	x
+ 969  f329 26f7          	jrne	L66
+ 970                     ; 410   IPBUF->ethhdr.type = HTONS(UIP_ETHTYPE_IP);
+ 972  f32b ae0800        	ldw	x,#2048
+ 973  f32e cf01e7        	ldw	_uip_buf+12,x
+ 974                     ; 412   uip_len += sizeof(struct uip_eth_hdr);
+ 976  f331 ce01d7        	ldw	x,_uip_len
+ 977  f334 1c000e        	addw	x,#14
+ 978                     ; 413 }
+ 979  f337               L07:
+ 980  f337 cf01d7        	ldw	_uip_len,x
+ 983  f33a 81            	ret	
 1068                     	switch	.bss
 1069  0561               L13_tmpage:
 1070  0561 00            	ds.b	1

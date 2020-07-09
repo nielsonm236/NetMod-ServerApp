@@ -2,774 +2,614 @@
    2                     ; Parser V4.11.14 - 18 Nov 2019
    3                     ; Generator (Limited) V4.4.11 - 19 Nov 2019
    4                     ; Optimizer V4.4.11 - 19 Nov 2019
-2546                     ; 251 void select(void)
-2546                     ; 252 {
+2546                     ; 252 void select(void)
+2546                     ; 253 {
 2548                     	switch	.text
-2549  c324               _select:
-2553                     ; 254   PC_ODR &= (uint8_t)(~0x02);
-2555  c324 7213500a      	bres	_PC_ODR,#1
-2556                     ; 255   nop();
-2559  c328 9d            	nop	
-2561                     ; 256 }
-2565  c329 81            	ret	
-2590                     ; 259 void deselect(void)
-2590                     ; 260 {
+2549  be7c               _select:
+2553                     ; 255   PC_ODR &= (uint8_t)(~0x02);
+2555  be7c 7213500a      	bres	_PC_ODR,#1
+2556                     ; 256   nop();
+2559  be80 9d            	nop	
+2561                     ; 257 }
+2565  be81 81            	ret	
+2590                     ; 260 void deselect(void)
+2590                     ; 261 {
 2591                     	switch	.text
-2592  c32a               _deselect:
-2596                     ; 262   PC_ODR |= (uint8_t)0x02;
-2598  c32a 7212500a      	bset	_PC_ODR,#1
-2599                     ; 263   nop();
-2602  c32e 9d            	nop	
-2604                     ; 264 }
-2608  c32f 81            	ret	
-2651                     ; 269 uint8_t Enc28j60ReadReg(uint8_t nRegister)
-2651                     ; 270 {
+2592  be82               _deselect:
+2596                     ; 263   PC_ODR |= (uint8_t)0x02;
+2598  be82 7212500a      	bset	_PC_ODR,#1
+2599                     ; 264   nop();
+2602  be86 9d            	nop	
+2604                     ; 265 }
+2608  be87 81            	ret	
+2651                     ; 270 uint8_t Enc28j60ReadReg(uint8_t nRegister)
+2651                     ; 271 {
 2652                     	switch	.text
-2653  c330               _Enc28j60ReadReg:
-2655  c330 88            	push	a
-2656  c331 88            	push	a
+2653  be88               _Enc28j60ReadReg:
+2655  be88 88            	push	a
+2656  be89 88            	push	a
 2657       00000001      OFST:	set	1
-2660                     ; 273 	select();
-2662  c332 adf0          	call	_select
-2664                     ; 275 	SpiWriteByte((uint8_t)(OPCODE_RCR | (nRegister & REGISTER_MASK)));
-2666  c334 7b02          	ld	a,(OFST+1,sp)
-2667  c336 a41f          	and	a,#31
-2668  c338 cde829        	call	_SpiWriteByte
-2670                     ; 276 	if (nRegister & REGISTER_NEEDDUMMY) SpiWriteByte(0);
-2672  c33b 7b02          	ld	a,(OFST+1,sp)
-2673  c33d 2a04          	jrpl	L3661
-2676  c33f 4f            	clr	a
-2677  c340 cde829        	call	_SpiWriteByte
-2679  c343               L3661:
-2680                     ; 277 	nByte = SpiReadByte();
-2682  c343 cde892        	call	_SpiReadByte
-2684  c346 6b01          	ld	(OFST+0,sp),a
-2686                     ; 279 	deselect();
-2688  c348 ade0          	call	_deselect
-2690                     ; 281 	return nByte;
-2692  c34a 7b01          	ld	a,(OFST+0,sp)
-2695  c34c 85            	popw	x
-2696  c34d 81            	ret	
-2738                     ; 287 void Enc28j60WriteReg( uint8_t nRegister, uint8_t nData)
-2738                     ; 288 {
+2660                     ; 274   select();
+2662  be8a adf0          	call	_select
+2664                     ; 276   SpiWriteByte((uint8_t)(OPCODE_RCR | (nRegister & REGISTER_MASK)));
+2666  be8c 7b02          	ld	a,(OFST+1,sp)
+2667  be8e a41f          	and	a,#31
+2668  be90 cde2b5        	call	_SpiWriteByte
+2670                     ; 277   if (nRegister & REGISTER_NEEDDUMMY) SpiWriteByte(0);
+2672  be93 7b02          	ld	a,(OFST+1,sp)
+2673  be95 2a04          	jrpl	L3661
+2676  be97 4f            	clr	a
+2677  be98 cde2b5        	call	_SpiWriteByte
+2679  be9b               L3661:
+2680                     ; 278   nByte = SpiReadByte();
+2682  be9b cde31e        	call	_SpiReadByte
+2684  be9e 6b01          	ld	(OFST+0,sp),a
+2686                     ; 280   deselect();
+2688  bea0 ade0          	call	_deselect
+2690                     ; 282   return nByte;
+2692  bea2 7b01          	ld	a,(OFST+0,sp)
+2695  bea4 85            	popw	x
+2696  bea5 81            	ret	
+2738                     ; 288 void Enc28j60WriteReg( uint8_t nRegister, uint8_t nData)
+2738                     ; 289 {
 2739                     	switch	.text
-2740  c34e               _Enc28j60WriteReg:
-2742  c34e 89            	pushw	x
+2740  bea6               _Enc28j60WriteReg:
+2742  bea6 89            	pushw	x
 2743       00000000      OFST:	set	0
-2746                     ; 289 	select();
-2748  c34f add3          	call	_select
-2750                     ; 291 	SpiWriteByte((uint8_t)(OPCODE_WCR | (nRegister & REGISTER_MASK)));
-2752  c351 7b01          	ld	a,(OFST+1,sp)
-2753  c353 a41f          	and	a,#31
-2754  c355 aa40          	or	a,#64
-2755  c357 cde829        	call	_SpiWriteByte
-2757                     ; 292 	SpiWriteByte(nData);
-2759  c35a 7b02          	ld	a,(OFST+2,sp)
-2760  c35c cde829        	call	_SpiWriteByte
-2762                     ; 294 	deselect();
-2764  c35f adc9          	call	_deselect
-2766                     ; 295 }
-2769  c361 85            	popw	x
-2770  c362 81            	ret	
-2812                     ; 300 void Enc28j60SetMaskReg(uint8_t nRegister, uint8_t nMask)
-2812                     ; 301 {
+2746                     ; 290   select();
+2748  bea7 add3          	call	_select
+2750                     ; 292   SpiWriteByte((uint8_t)(OPCODE_WCR | (nRegister & REGISTER_MASK)));
+2752  bea9 7b01          	ld	a,(OFST+1,sp)
+2753  beab a41f          	and	a,#31
+2754  bead aa40          	or	a,#64
+2755  beaf cde2b5        	call	_SpiWriteByte
+2757                     ; 293   SpiWriteByte(nData);
+2759  beb2 7b02          	ld	a,(OFST+2,sp)
+2760  beb4 cde2b5        	call	_SpiWriteByte
+2762                     ; 295   deselect();
+2764  beb7 adc9          	call	_deselect
+2766                     ; 296 }
+2769  beb9 85            	popw	x
+2770  beba 81            	ret	
+2812                     ; 301 void Enc28j60SetMaskReg(uint8_t nRegister, uint8_t nMask)
+2812                     ; 302 {
 2813                     	switch	.text
-2814  c363               _Enc28j60SetMaskReg:
-2816  c363 89            	pushw	x
+2814  bebb               _Enc28j60SetMaskReg:
+2816  bebb 89            	pushw	x
 2817       00000000      OFST:	set	0
-2820                     ; 302 	select();
-2822  c364 adbe          	call	_select
-2824                     ; 304 	SpiWriteByte((uint8_t)(OPCODE_BFS | (nRegister & REGISTER_MASK)));
-2826  c366 7b01          	ld	a,(OFST+1,sp)
-2827  c368 a41f          	and	a,#31
-2828  c36a aa80          	or	a,#128
-2829  c36c cde829        	call	_SpiWriteByte
-2831                     ; 305 	SpiWriteByte(nMask);
-2833  c36f 7b02          	ld	a,(OFST+2,sp)
-2834  c371 cde829        	call	_SpiWriteByte
-2836                     ; 307 	deselect();
-2838  c374 adb4          	call	_deselect
-2840                     ; 308 }
-2843  c376 85            	popw	x
-2844  c377 81            	ret	
-2887                     ; 313 void Enc28j60ClearMaskReg( uint8_t nRegister, uint8_t nMask)
-2887                     ; 314 {
+2820                     ; 303   select();
+2822  bebc adbe          	call	_select
+2824                     ; 305   SpiWriteByte((uint8_t)(OPCODE_BFS | (nRegister & REGISTER_MASK)));
+2826  bebe 7b01          	ld	a,(OFST+1,sp)
+2827  bec0 a41f          	and	a,#31
+2828  bec2 aa80          	or	a,#128
+2829  bec4 cde2b5        	call	_SpiWriteByte
+2831                     ; 306   SpiWriteByte(nMask);
+2833  bec7 7b02          	ld	a,(OFST+2,sp)
+2834  bec9 cde2b5        	call	_SpiWriteByte
+2836                     ; 308   deselect();
+2838  becc adb4          	call	_deselect
+2840                     ; 309 }
+2843  bece 85            	popw	x
+2844  becf 81            	ret	
+2887                     ; 314 void Enc28j60ClearMaskReg( uint8_t nRegister, uint8_t nMask)
+2887                     ; 315 {
 2888                     	switch	.text
-2889  c378               _Enc28j60ClearMaskReg:
-2891  c378 89            	pushw	x
+2889  bed0               _Enc28j60ClearMaskReg:
+2891  bed0 89            	pushw	x
 2892       00000000      OFST:	set	0
-2895                     ; 315 	select();
-2897  c379 ada9          	call	_select
-2899                     ; 317 	SpiWriteByte((uint8_t)(OPCODE_BFC | (nRegister & REGISTER_MASK)));
-2901  c37b 7b01          	ld	a,(OFST+1,sp)
-2902  c37d a41f          	and	a,#31
-2903  c37f aaa0          	or	a,#160
-2904  c381 cde829        	call	_SpiWriteByte
-2906                     ; 318 	SpiWriteByte(nMask);
-2908  c384 7b02          	ld	a,(OFST+2,sp)
-2909  c386 cde829        	call	_SpiWriteByte
-2911                     ; 320 	deselect();
-2913  c389 ad9f          	call	_deselect
-2915                     ; 321 }
-2918  c38b 85            	popw	x
-2919  c38c 81            	ret	
-2953                     ; 326 void Enc28j60SwitchBank(uint8_t nBank)
-2953                     ; 327 {
+2895                     ; 316   select();
+2897  bed1 ada9          	call	_select
+2899                     ; 318   SpiWriteByte((uint8_t)(OPCODE_BFC | (nRegister & REGISTER_MASK)));
+2901  bed3 7b01          	ld	a,(OFST+1,sp)
+2902  bed5 a41f          	and	a,#31
+2903  bed7 aaa0          	or	a,#160
+2904  bed9 cde2b5        	call	_SpiWriteByte
+2906                     ; 319   SpiWriteByte(nMask);
+2908  bedc 7b02          	ld	a,(OFST+2,sp)
+2909  bede cde2b5        	call	_SpiWriteByte
+2911                     ; 321   deselect();
+2913  bee1 ad9f          	call	_deselect
+2915                     ; 322 }
+2918  bee3 85            	popw	x
+2919  bee4 81            	ret	
+2953                     ; 327 void Enc28j60SwitchBank(uint8_t nBank)
+2953                     ; 328 {
 2954                     	switch	.text
-2955  c38d               _Enc28j60SwitchBank:
-2957  c38d 88            	push	a
+2955  bee5               _Enc28j60SwitchBank:
+2957  bee5 88            	push	a
 2958       00000000      OFST:	set	0
-2961                     ; 331 	Enc28j60ClearMaskReg(BANKX_ECON1, (3<<BANKX_ECON1_BSEL0));
-2963  c38e ae1f03        	ldw	x,#7939
-2964  c391 ade5          	call	_Enc28j60ClearMaskReg
-2966                     ; 332 	Enc28j60SetMaskReg(BANKX_ECON1, (uint8_t)(nBank << BANKX_ECON1_BSEL0));
-2968  c393 7b01          	ld	a,(OFST+1,sp)
-2969  c395 ae1f00        	ldw	x,#7936
-2970  c398 97            	ld	xl,a
-2971  c399 adc8          	call	_Enc28j60SetMaskReg
-2973                     ; 333 }
-2976  c39b 84            	pop	a
-2977  c39c 81            	ret	
-3015                     ; 339 uint16_t Enc28j60ReadPhy(uint8_t nRegister)
-3015                     ; 340 {
+2961                     ; 332   Enc28j60ClearMaskReg(BANKX_ECON1, (3<<BANKX_ECON1_BSEL0));
+2963  bee6 ae1f03        	ldw	x,#7939
+2964  bee9 ade5          	call	_Enc28j60ClearMaskReg
+2966                     ; 333   Enc28j60SetMaskReg(BANKX_ECON1, (uint8_t)(nBank << BANKX_ECON1_BSEL0));
+2968  beeb 7b01          	ld	a,(OFST+1,sp)
+2969  beed ae1f00        	ldw	x,#7936
+2970  bef0 97            	ld	xl,a
+2971  bef1 adc8          	call	_Enc28j60SetMaskReg
+2973                     ; 334 }
+2976  bef3 84            	pop	a
+2977  bef4 81            	ret	
+3015                     ; 340 uint16_t Enc28j60ReadPhy(uint8_t nRegister)
+3015                     ; 341 {
 3016                     	switch	.text
-3017  c39d               _Enc28j60ReadPhy:
-3019  c39d 88            	push	a
-3020  c39e 89            	pushw	x
+3017  bef5               _Enc28j60ReadPhy:
+3019  bef5 88            	push	a
+3020  bef6 89            	pushw	x
 3021       00000002      OFST:	set	2
-3024                     ; 341 	Enc28j60SwitchBank(BANK2);
-3026  c39f a602          	ld	a,#2
-3027  c3a1 adea          	call	_Enc28j60SwitchBank
-3029                     ; 342 	Enc28j60WriteReg(BANK2_MIREGADR, nRegister);
-3031  c3a3 7b03          	ld	a,(OFST+1,sp)
-3032  c3a5 ae9400        	ldw	x,#37888
-3033  c3a8 97            	ld	xl,a
-3034  c3a9 ada3          	call	_Enc28j60WriteReg
-3036                     ; 343 	Enc28j60SetMaskReg(BANK2_MICMD, (1<<BANK2_MICMD_MIIRD));
-3038  c3ab ae9201        	ldw	x,#37377
-3039  c3ae adb3          	call	_Enc28j60SetMaskReg
-3041                     ; 344 	Enc28j60SwitchBank(BANK3);
-3043  c3b0 a603          	ld	a,#3
-3044  c3b2 add9          	call	_Enc28j60SwitchBank
-3047  c3b4 2001          	jra	L1771
-3048  c3b6               L7671:
-3049                     ; 345 	while (Enc28j60ReadReg(BANK3_MISTAT) & (1 <<BANK3_MISTAT_BUSY)) nop();
-3052  c3b6 9d            	nop	
-3054  c3b7               L1771:
-3057  c3b7 a68a          	ld	a,#138
-3058  c3b9 cdc330        	call	_Enc28j60ReadReg
-3060  c3bc a501          	bcp	a,#1
-3061  c3be 26f6          	jrne	L7671
-3062                     ; 346 	Enc28j60SwitchBank(BANK2);
-3065  c3c0 a602          	ld	a,#2
-3066  c3c2 adc9          	call	_Enc28j60SwitchBank
-3068                     ; 347 	Enc28j60ClearMaskReg(BANK2_MICMD, (1<<BANK2_MICMD_MIIRD));
-3070  c3c4 ae9201        	ldw	x,#37377
-3071  c3c7 adaf          	call	_Enc28j60ClearMaskReg
-3073                     ; 349 	return ((uint16_t) Enc28j60ReadReg(BANK2_MIRDL) << 0)
-3073                     ; 350 	| ((uint16_t) Enc28j60ReadReg(BANK2_MIRDH) << 8);
-3075  c3c9 a699          	ld	a,#153
-3076  c3cb cdc330        	call	_Enc28j60ReadReg
-3078  c3ce 97            	ld	xl,a
-3079  c3cf 4f            	clr	a
-3080  c3d0 02            	rlwa	x,a
-3081  c3d1 1f01          	ldw	(OFST-1,sp),x
-3083  c3d3 a698          	ld	a,#152
-3084  c3d5 cdc330        	call	_Enc28j60ReadReg
-3086  c3d8 5f            	clrw	x
-3087  c3d9 97            	ld	xl,a
-3088  c3da 01            	rrwa	x,a
-3089  c3db 1a02          	or	a,(OFST+0,sp)
-3090  c3dd 01            	rrwa	x,a
-3091  c3de 1a01          	or	a,(OFST-1,sp)
-3092  c3e0 01            	rrwa	x,a
-3095  c3e1 5b03          	addw	sp,#3
-3096  c3e3 81            	ret	
-3139                     ; 357 void Enc28j60WritePhy( uint8_t nRegister, uint16_t nData)
-3139                     ; 358 {
+3024                     ; 342   Enc28j60SwitchBank(BANK2);
+3026  bef7 a602          	ld	a,#2
+3027  bef9 adea          	call	_Enc28j60SwitchBank
+3029                     ; 343   Enc28j60WriteReg(BANK2_MIREGADR, nRegister);
+3031  befb 7b03          	ld	a,(OFST+1,sp)
+3032  befd ae9400        	ldw	x,#37888
+3033  bf00 97            	ld	xl,a
+3034  bf01 ada3          	call	_Enc28j60WriteReg
+3036                     ; 344   Enc28j60SetMaskReg(BANK2_MICMD, (1<<BANK2_MICMD_MIIRD));
+3038  bf03 ae9201        	ldw	x,#37377
+3039  bf06 adb3          	call	_Enc28j60SetMaskReg
+3041                     ; 345   Enc28j60SwitchBank(BANK3);
+3043  bf08 a603          	ld	a,#3
+3044  bf0a add9          	call	_Enc28j60SwitchBank
+3047  bf0c 2001          	jra	L1771
+3048  bf0e               L7671:
+3049                     ; 346   while (Enc28j60ReadReg(BANK3_MISTAT) & (1 <<BANK3_MISTAT_BUSY)) nop();
+3052  bf0e 9d            	nop	
+3054  bf0f               L1771:
+3057  bf0f a68a          	ld	a,#138
+3058  bf11 cdbe88        	call	_Enc28j60ReadReg
+3060  bf14 a501          	bcp	a,#1
+3061  bf16 26f6          	jrne	L7671
+3062                     ; 347   Enc28j60SwitchBank(BANK2);
+3065  bf18 a602          	ld	a,#2
+3066  bf1a adc9          	call	_Enc28j60SwitchBank
+3068                     ; 348   Enc28j60ClearMaskReg(BANK2_MICMD, (1<<BANK2_MICMD_MIIRD));
+3070  bf1c ae9201        	ldw	x,#37377
+3071  bf1f adaf          	call	_Enc28j60ClearMaskReg
+3073                     ; 350   return ((uint16_t) Enc28j60ReadReg(BANK2_MIRDL) << 0)
+3073                     ; 351        | ((uint16_t) Enc28j60ReadReg(BANK2_MIRDH) << 8);
+3075  bf21 a699          	ld	a,#153
+3076  bf23 cdbe88        	call	_Enc28j60ReadReg
+3078  bf26 97            	ld	xl,a
+3079  bf27 4f            	clr	a
+3080  bf28 02            	rlwa	x,a
+3081  bf29 1f01          	ldw	(OFST-1,sp),x
+3083  bf2b a698          	ld	a,#152
+3084  bf2d cdbe88        	call	_Enc28j60ReadReg
+3086  bf30 5f            	clrw	x
+3087  bf31 97            	ld	xl,a
+3088  bf32 01            	rrwa	x,a
+3089  bf33 1a02          	or	a,(OFST+0,sp)
+3090  bf35 01            	rrwa	x,a
+3091  bf36 1a01          	or	a,(OFST-1,sp)
+3092  bf38 01            	rrwa	x,a
+3095  bf39 5b03          	addw	sp,#3
+3096  bf3b 81            	ret	
+3139                     ; 358 void Enc28j60WritePhy( uint8_t nRegister, uint16_t nData)
+3139                     ; 359 {
 3140                     	switch	.text
-3141  c3e4               _Enc28j60WritePhy:
-3143  c3e4 88            	push	a
+3141  bf3c               _Enc28j60WritePhy:
+3143  bf3c 88            	push	a
 3144       00000000      OFST:	set	0
-3147                     ; 359 	Enc28j60SwitchBank(BANK2);
-3149  c3e5 a602          	ld	a,#2
-3150  c3e7 ada4          	call	_Enc28j60SwitchBank
-3152                     ; 360 	Enc28j60WriteReg(BANK2_MIREGADR, nRegister);
-3154  c3e9 7b01          	ld	a,(OFST+1,sp)
-3155  c3eb ae9400        	ldw	x,#37888
-3156  c3ee 97            	ld	xl,a
-3157  c3ef cdc34e        	call	_Enc28j60WriteReg
-3159                     ; 361 	Enc28j60WriteReg(BANK2_MIWRL, (uint8_t)(nData >> 0));
-3161  c3f2 7b05          	ld	a,(OFST+5,sp)
-3162  c3f4 ae9600        	ldw	x,#38400
-3163  c3f7 97            	ld	xl,a
-3164  c3f8 cdc34e        	call	_Enc28j60WriteReg
-3166                     ; 362 	Enc28j60WriteReg(BANK2_MIWRH, (uint8_t)(nData >> 8));
-3168  c3fb 7b04          	ld	a,(OFST+4,sp)
-3169  c3fd ae9700        	ldw	x,#38656
-3170  c400 97            	ld	xl,a
-3171  c401 cdc34e        	call	_Enc28j60WriteReg
-3173                     ; 363 	Enc28j60SwitchBank(BANK3);
-3175  c404 a603          	ld	a,#3
-3176  c406 ad85          	call	_Enc28j60SwitchBank
-3179  c408 2001          	jra	L5102
-3180  c40a               L3102:
-3181                     ; 364 	while (Enc28j60ReadReg(BANK3_MISTAT) & (1 <<BANK3_MISTAT_BUSY)) nop();
-3184  c40a 9d            	nop	
-3186  c40b               L5102:
-3189  c40b a68a          	ld	a,#138
-3190  c40d cdc330        	call	_Enc28j60ReadReg
-3192  c410 a501          	bcp	a,#1
-3193  c412 26f6          	jrne	L3102
-3194                     ; 365 }
-3198  c414 84            	pop	a
-3199  c415 81            	ret	
-3240                     ; 368 void Enc28j60Init(void)
-3240                     ; 369 {
+3147                     ; 360   Enc28j60SwitchBank(BANK2);
+3149  bf3d a602          	ld	a,#2
+3150  bf3f ada4          	call	_Enc28j60SwitchBank
+3152                     ; 361   Enc28j60WriteReg(BANK2_MIREGADR, nRegister);
+3154  bf41 7b01          	ld	a,(OFST+1,sp)
+3155  bf43 ae9400        	ldw	x,#37888
+3156  bf46 97            	ld	xl,a
+3157  bf47 cdbea6        	call	_Enc28j60WriteReg
+3159                     ; 362   Enc28j60WriteReg(BANK2_MIWRL, (uint8_t)(nData >> 0));
+3161  bf4a 7b05          	ld	a,(OFST+5,sp)
+3162  bf4c ae9600        	ldw	x,#38400
+3163  bf4f 97            	ld	xl,a
+3164  bf50 cdbea6        	call	_Enc28j60WriteReg
+3166                     ; 363   Enc28j60WriteReg(BANK2_MIWRH, (uint8_t)(nData >> 8));
+3168  bf53 7b04          	ld	a,(OFST+4,sp)
+3169  bf55 ae9700        	ldw	x,#38656
+3170  bf58 97            	ld	xl,a
+3171  bf59 cdbea6        	call	_Enc28j60WriteReg
+3173                     ; 364   Enc28j60SwitchBank(BANK3);
+3175  bf5c a603          	ld	a,#3
+3176  bf5e ad85          	call	_Enc28j60SwitchBank
+3179  bf60 2001          	jra	L5102
+3180  bf62               L3102:
+3181                     ; 365   while (Enc28j60ReadReg(BANK3_MISTAT) & (1 <<BANK3_MISTAT_BUSY)) nop();
+3184  bf62 9d            	nop	
+3186  bf63               L5102:
+3189  bf63 a68a          	ld	a,#138
+3190  bf65 cdbe88        	call	_Enc28j60ReadReg
+3192  bf68 a501          	bcp	a,#1
+3193  bf6a 26f6          	jrne	L3102
+3194                     ; 366 }
+3198  bf6c 84            	pop	a
+3199  bf6d 81            	ret	
+3240                     ; 369 void Enc28j60Init(void)
+3240                     ; 370 {
 3241                     	switch	.text
-3242  c416               _Enc28j60Init:
-3246                     ; 373 	deselect(); // Just makes sure the -CS is not selected
-3248  c416 cdc32a        	call	_deselect
-3251  c419 2001          	jra	L3302
-3252  c41b               L1302:
-3253                     ; 387 	while (!(Enc28j60ReadReg(BANKX_ESTAT) & (1<<BANKX_ESTAT_CLKRDY))) nop();
-3256  c41b 9d            	nop	
-3258  c41c               L3302:
-3261  c41c a61d          	ld	a,#29
-3262  c41e cdc330        	call	_Enc28j60ReadReg
-3264  c421 a501          	bcp	a,#1
-3265  c423 27f6          	jreq	L1302
-3266                     ; 390 	select();
-3269  c425 cdc324        	call	_select
-3271                     ; 391 	SpiWriteByte(OPCODE_SRC); // Reset command
-3273  c428 a6ff          	ld	a,#255
-3274  c42a cde829        	call	_SpiWriteByte
-3276                     ; 392 	deselect();
-3278  c42d cdc32a        	call	_deselect
-3280                     ; 393 	wait_timer((uint16_t)10000); // delay 10 ms
-3282  c430 ae2710        	ldw	x,#10000
-3283  c433 cde9b3        	call	_wait_timer
-3285                     ; 396 	Enc28j60WritePhy(PHY_PHCON1, (uint16_t)(1<<PHY_PHCON1_PRST)); // Reset command
-3287  c436 ae8000        	ldw	x,#32768
-3288  c439 89            	pushw	x
-3289  c43a 4f            	clr	a
-3290  c43b ada7          	call	_Enc28j60WritePhy
-3292  c43d 85            	popw	x
-3294  c43e 2001          	jra	L1402
-3295  c440               L7302:
-3296                     ; 397 	while (Enc28j60ReadPhy(PHY_PHCON1) & (uint16_t)(1<<PHY_PHCON1_PRST)) nop(); // Wait for PHY reset completion
-3299  c440 9d            	nop	
-3301  c441               L1402:
-3304  c441 4f            	clr	a
-3305  c442 cdc39d        	call	_Enc28j60ReadPhy
-3307  c445 01            	rrwa	x,a
-3308  c446 9f            	ld	a,xl
-3309  c447 a480          	and	a,#128
-3310  c449 97            	ld	xl,a
-3311  c44a 4f            	clr	a
-3312  c44b 02            	rlwa	x,a
-3313  c44c 5d            	tnzw	x
-3314  c44d 26f1          	jrne	L7302
-3315                     ; 400 	Enc28j60SwitchBank(BANK0);
-3318  c44f 4f            	clr	a
-3319  c450 cdc38d        	call	_Enc28j60SwitchBank
-3321                     ; 403 	Enc28j60WriteReg(BANK0_ERXSTL, (uint8_t) (ENC28J60_RXSTART >> 0));
-3323  c453 ae0800        	ldw	x,#2048
-3324  c456 cdc34e        	call	_Enc28j60WriteReg
-3326                     ; 404 	Enc28j60WriteReg(BANK0_ERXSTH, (uint8_t) (ENC28J60_RXSTART >> 8));
-3328  c459 ae0900        	ldw	x,#2304
-3329  c45c cdc34e        	call	_Enc28j60WriteReg
-3331                     ; 405 	Enc28j60WriteReg(BANK0_ERXNDL, (uint8_t) (ENC28J60_RXEND >> 0));
-3333  c45f ae0aff        	ldw	x,#2815
-3334  c462 cdc34e        	call	_Enc28j60WriteReg
-3336                     ; 406 	Enc28j60WriteReg(BANK0_ERXNDH, (uint8_t) (ENC28J60_RXEND >> 8));
-3338  c465 ae0b17        	ldw	x,#2839
-3339  c468 cdc34e        	call	_Enc28j60WriteReg
-3341                     ; 408 	Enc28j60WriteReg(BANK0_ERDPTL, (uint8_t) (ENC28J60_RXSTART >> 0));
-3343  c46b 5f            	clrw	x
-3344  c46c cdc34e        	call	_Enc28j60WriteReg
-3346                     ; 409 	Enc28j60WriteReg(BANK0_ERDPTH, (uint8_t) (ENC28J60_RXSTART >> 8));
-3348  c46f ae0100        	ldw	x,#256
-3349  c472 cdc34e        	call	_Enc28j60WriteReg
-3351                     ; 412 	Enc28j60WriteReg(BANK0_ERXRDPTL, (uint8_t) (ENC28J60_RXEND >> 0));
-3353  c475 ae0cff        	ldw	x,#3327
-3354  c478 cdc34e        	call	_Enc28j60WriteReg
-3356                     ; 413 	Enc28j60WriteReg(BANK0_ERXRDPTH, (uint8_t) (ENC28J60_RXEND >> 8));
-3358  c47b ae0d17        	ldw	x,#3351
-3359  c47e cdc34e        	call	_Enc28j60WriteReg
-3361                     ; 415 	Enc28j60WriteReg(BANK0_ETXSTL, (uint8_t) (ENC28J60_TXSTART >> 0));
-3363  c481 ae0400        	ldw	x,#1024
-3364  c484 cdc34e        	call	_Enc28j60WriteReg
-3366                     ; 416 	Enc28j60WriteReg(BANK0_ETXSTH, (uint8_t) (ENC28J60_TXSTART >> 8));
-3368  c487 ae0518        	ldw	x,#1304
-3369  c48a cdc34e        	call	_Enc28j60WriteReg
-3371                     ; 419 	Enc28j60SwitchBank(BANK1);
-3373  c48d a601          	ld	a,#1
-3374  c48f cdc38d        	call	_Enc28j60SwitchBank
-3376                     ; 466 	Enc28j60WriteReg(BANK1_ERXFCON, (uint8_t)0xa1);    // Allows packets if MAC matches
-3378  c492 ae18a1        	ldw	x,#6305
-3379  c495 cdc34e        	call	_Enc28j60WriteReg
-3381                     ; 483 	Enc28j60SwitchBank(BANK2);
-3383  c498 a602          	ld	a,#2
-3384  c49a cdc38d        	call	_Enc28j60SwitchBank
-3386                     ; 486 	Enc28j60WriteReg(BANK2_MACON1, (1<<BANK2_MACON1_MARXEN));
-3388  c49d ae8001        	ldw	x,#32769
-3389  c4a0 cdc34e        	call	_Enc28j60WriteReg
-3391                     ; 502 	Enc28j60SetMaskReg(BANK2_MACON3, (1<<BANK2_MACON3_TXCRCEN)|(1<<BANK2_MACON3_PADCFG0)|(1<<BANK2_MACON3_FRMLNEN));
-3393  c4a3 ae8232        	ldw	x,#33330
-3394  c4a6 cdc363        	call	_Enc28j60SetMaskReg
-3396                     ; 505 	Enc28j60SetMaskReg(BANK2_MACON4, (1<<BANK2_MACON4_DEFER));
-3398  c4a9 ae8340        	ldw	x,#33600
-3399  c4ac cdc363        	call	_Enc28j60SetMaskReg
-3401                     ; 509 	Enc28j60WriteReg(BANK2_MAMXFLL, (uint8_t) ((ENC28J60_MAXFRAME + 4) >> 0));
-3403  c4af ae8a88        	ldw	x,#35464
-3404  c4b2 cdc34e        	call	_Enc28j60WriteReg
-3406                     ; 510 	Enc28j60WriteReg(BANK2_MAMXFLH, (uint8_t) ((ENC28J60_MAXFRAME + 4) >> 8));
-3408  c4b5 ae9003        	ldw	x,#36867
-3409  c4b8 cdc34e        	call	_Enc28j60WriteReg
-3411                     ; 513 	Enc28j60WriteReg(BANK2_MAIPGL, 0x12);
-3413  c4bb ae8612        	ldw	x,#34322
-3414  c4be cdc34e        	call	_Enc28j60WriteReg
-3416                     ; 516 	Enc28j60WriteReg(BANK2_MAIPGH, 0x0C);
-3418  c4c1 ae870c        	ldw	x,#34572
-3419  c4c4 cdc34e        	call	_Enc28j60WriteReg
-3421                     ; 519 	Enc28j60WriteReg(BANK2_MABBIPG, 0x12);
-3423  c4c7 ae8412        	ldw	x,#33810
-3424  c4ca cdc34e        	call	_Enc28j60WriteReg
-3426                     ; 522 	Enc28j60SwitchBank(BANK3);
-3428  c4cd a603          	ld	a,#3
-3429  c4cf cdc38d        	call	_Enc28j60SwitchBank
-3431                     ; 525 	Enc28j60WriteReg(BANK3_MAADR5, uip_ethaddr1);  // MAC MSB
-3433  c4d2 c6001e        	ld	a,_uip_ethaddr1
-3434  c4d5 ae8400        	ldw	x,#33792
-3435  c4d8 97            	ld	xl,a
-3436  c4d9 cdc34e        	call	_Enc28j60WriteReg
-3438                     ; 526 	Enc28j60WriteReg(BANK3_MAADR4, uip_ethaddr2);
-3440  c4dc c6001f        	ld	a,_uip_ethaddr2
-3441  c4df ae8500        	ldw	x,#34048
-3442  c4e2 97            	ld	xl,a
-3443  c4e3 cdc34e        	call	_Enc28j60WriteReg
-3445                     ; 527 	Enc28j60WriteReg(BANK3_MAADR3, uip_ethaddr3);
-3447  c4e6 c60020        	ld	a,_uip_ethaddr3
-3448  c4e9 ae8200        	ldw	x,#33280
-3449  c4ec 97            	ld	xl,a
-3450  c4ed cdc34e        	call	_Enc28j60WriteReg
-3452                     ; 528 	Enc28j60WriteReg(BANK3_MAADR2, uip_ethaddr4);
-3454  c4f0 c60021        	ld	a,_uip_ethaddr4
-3455  c4f3 ae8300        	ldw	x,#33536
-3456  c4f6 97            	ld	xl,a
-3457  c4f7 cdc34e        	call	_Enc28j60WriteReg
-3459                     ; 529 	Enc28j60WriteReg(BANK3_MAADR1, uip_ethaddr5);
-3461  c4fa c60022        	ld	a,_uip_ethaddr5
-3462  c4fd ae8000        	ldw	x,#32768
-3463  c500 97            	ld	xl,a
-3464  c501 cdc34e        	call	_Enc28j60WriteReg
-3466                     ; 530 	Enc28j60WriteReg(BANK3_MAADR0, uip_ethaddr6);  // MAC LSB
-3468  c504 c60023        	ld	a,_uip_ethaddr6
-3469  c507 ae8100        	ldw	x,#33024
-3470  c50a 97            	ld	xl,a
-3471  c50b cdc34e        	call	_Enc28j60WriteReg
-3473                     ; 533 	Enc28j60WritePhy(PHY_PHCON2, (1<<PHY_PHCON2_HDLDIS));
-3475  c50e ae0100        	ldw	x,#256
-3476  c511 89            	pushw	x
-3477  c512 a610          	ld	a,#16
-3478  c514 cdc3e4        	call	_Enc28j60WritePhy
-3480  c517 85            	popw	x
-3481                     ; 537 	Enc28j60WritePhy(PHY_PHLCON, (ENC28J60_LEDB<<PHY_PHLCON_LBCFG0)|(ENC28J60_LEDA<<PHY_PHLCON_LACFG0)|(1<<PHY_PHLCON_STRCH)|0x3000);
-3483  c518 ae31c2        	ldw	x,#12738
-3484  c51b 89            	pushw	x
-3485  c51c a614          	ld	a,#20
-3486  c51e cdc3e4        	call	_Enc28j60WritePhy
-3488  c521 85            	popw	x
-3489                     ; 541 	Enc28j60WritePhy(PHY_PHCON1, 0x0000);
-3491  c522 5f            	clrw	x
-3492  c523 89            	pushw	x
-3493  c524 4f            	clr	a
-3494  c525 cdc3e4        	call	_Enc28j60WritePhy
-3496  c528 85            	popw	x
-3497                     ; 544 	Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_RXEN));
-3499  c529 ae1f04        	ldw	x,#7940
-3501                     ; 545 }
-3504  c52c ccc363        	jp	_Enc28j60SetMaskReg
-3562                     ; 548 uint16_t Enc28j60Receive(uint8_t* pBuffer)
-3562                     ; 549 {
+3242  bf6e               _Enc28j60Init:
+3246                     ; 374   deselect(); // Just makes sure the -CS is not selected
+3248  bf6e cdbe82        	call	_deselect
+3251  bf71 2001          	jra	L3302
+3252  bf73               L1302:
+3253                     ; 388   while (!(Enc28j60ReadReg(BANKX_ESTAT) & (1<<BANKX_ESTAT_CLKRDY))) nop();
+3256  bf73 9d            	nop	
+3258  bf74               L3302:
+3261  bf74 a61d          	ld	a,#29
+3262  bf76 cdbe88        	call	_Enc28j60ReadReg
+3264  bf79 a501          	bcp	a,#1
+3265  bf7b 27f6          	jreq	L1302
+3266                     ; 391   select();
+3269  bf7d cdbe7c        	call	_select
+3271                     ; 392   SpiWriteByte(OPCODE_SRC); // Reset command
+3273  bf80 a6ff          	ld	a,#255
+3274  bf82 cde2b5        	call	_SpiWriteByte
+3276                     ; 393   deselect();
+3278  bf85 cdbe82        	call	_deselect
+3280                     ; 394   wait_timer((uint16_t)10000); // delay 10 ms
+3282  bf88 ae2710        	ldw	x,#10000
+3283  bf8b cde43f        	call	_wait_timer
+3285                     ; 397   Enc28j60WritePhy(PHY_PHCON1, (uint16_t)(1<<PHY_PHCON1_PRST)); // Reset command
+3287  bf8e ae8000        	ldw	x,#32768
+3288  bf91 89            	pushw	x
+3289  bf92 4f            	clr	a
+3290  bf93 ada7          	call	_Enc28j60WritePhy
+3292  bf95 85            	popw	x
+3294  bf96 2001          	jra	L1402
+3295  bf98               L7302:
+3296                     ; 399   while (Enc28j60ReadPhy(PHY_PHCON1) & (uint16_t)(1<<PHY_PHCON1_PRST)) nop();
+3299  bf98 9d            	nop	
+3301  bf99               L1402:
+3304  bf99 4f            	clr	a
+3305  bf9a cdbef5        	call	_Enc28j60ReadPhy
+3307  bf9d 01            	rrwa	x,a
+3308  bf9e 9f            	ld	a,xl
+3309  bf9f a480          	and	a,#128
+3310  bfa1 97            	ld	xl,a
+3311  bfa2 4f            	clr	a
+3312  bfa3 02            	rlwa	x,a
+3313  bfa4 5d            	tnzw	x
+3314  bfa5 26f1          	jrne	L7302
+3315                     ; 402   Enc28j60SwitchBank(BANK0);
+3318  bfa7 4f            	clr	a
+3319  bfa8 cdbee5        	call	_Enc28j60SwitchBank
+3321                     ; 405   Enc28j60WriteReg(BANK0_ERXSTL, (uint8_t) (ENC28J60_RXSTART >> 0));
+3323  bfab ae0800        	ldw	x,#2048
+3324  bfae cdbea6        	call	_Enc28j60WriteReg
+3326                     ; 406   Enc28j60WriteReg(BANK0_ERXSTH, (uint8_t) (ENC28J60_RXSTART >> 8));
+3328  bfb1 ae0900        	ldw	x,#2304
+3329  bfb4 cdbea6        	call	_Enc28j60WriteReg
+3331                     ; 407   Enc28j60WriteReg(BANK0_ERXNDL, (uint8_t) (ENC28J60_RXEND >> 0));
+3333  bfb7 ae0aff        	ldw	x,#2815
+3334  bfba cdbea6        	call	_Enc28j60WriteReg
+3336                     ; 408   Enc28j60WriteReg(BANK0_ERXNDH, (uint8_t) (ENC28J60_RXEND >> 8));
+3338  bfbd ae0b17        	ldw	x,#2839
+3339  bfc0 cdbea6        	call	_Enc28j60WriteReg
+3341                     ; 410   Enc28j60WriteReg(BANK0_ERDPTL, (uint8_t) (ENC28J60_RXSTART >> 0));
+3343  bfc3 5f            	clrw	x
+3344  bfc4 cdbea6        	call	_Enc28j60WriteReg
+3346                     ; 411   Enc28j60WriteReg(BANK0_ERDPTH, (uint8_t) (ENC28J60_RXSTART >> 8));
+3348  bfc7 ae0100        	ldw	x,#256
+3349  bfca cdbea6        	call	_Enc28j60WriteReg
+3351                     ; 414   Enc28j60WriteReg(BANK0_ERXRDPTL, (uint8_t) (ENC28J60_RXEND >> 0));
+3353  bfcd ae0cff        	ldw	x,#3327
+3354  bfd0 cdbea6        	call	_Enc28j60WriteReg
+3356                     ; 415   Enc28j60WriteReg(BANK0_ERXRDPTH, (uint8_t) (ENC28J60_RXEND >> 8));
+3358  bfd3 ae0d17        	ldw	x,#3351
+3359  bfd6 cdbea6        	call	_Enc28j60WriteReg
+3361                     ; 417   Enc28j60WriteReg(BANK0_ETXSTL, (uint8_t) (ENC28J60_TXSTART >> 0));
+3363  bfd9 ae0400        	ldw	x,#1024
+3364  bfdc cdbea6        	call	_Enc28j60WriteReg
+3366                     ; 418   Enc28j60WriteReg(BANK0_ETXSTH, (uint8_t) (ENC28J60_TXSTART >> 8));
+3368  bfdf ae0518        	ldw	x,#1304
+3369  bfe2 cdbea6        	call	_Enc28j60WriteReg
+3371                     ; 421   Enc28j60SwitchBank(BANK1);
+3373  bfe5 a601          	ld	a,#1
+3374  bfe7 cdbee5        	call	_Enc28j60SwitchBank
+3376                     ; 468   Enc28j60WriteReg(BANK1_ERXFCON, (uint8_t)0xa1);    // Allows packets if MAC matches
+3378  bfea ae18a1        	ldw	x,#6305
+3379  bfed cdbea6        	call	_Enc28j60WriteReg
+3381                     ; 485   Enc28j60SwitchBank(BANK2);
+3383  bff0 a602          	ld	a,#2
+3384  bff2 cdbee5        	call	_Enc28j60SwitchBank
+3386                     ; 488   Enc28j60WriteReg(BANK2_MACON1, (1<<BANK2_MACON1_MARXEN));
+3388  bff5 ae8001        	ldw	x,#32769
+3389  bff8 cdbea6        	call	_Enc28j60WriteReg
+3391                     ; 504   Enc28j60SetMaskReg(BANK2_MACON3, (1<<BANK2_MACON3_TXCRCEN)|(1<<BANK2_MACON3_PADCFG0)|(1<<BANK2_MACON3_FRMLNEN));
+3393  bffb ae8232        	ldw	x,#33330
+3394  bffe cdbebb        	call	_Enc28j60SetMaskReg
+3396                     ; 507   Enc28j60SetMaskReg(BANK2_MACON4, (1<<BANK2_MACON4_DEFER));
+3398  c001 ae8340        	ldw	x,#33600
+3399  c004 cdbebb        	call	_Enc28j60SetMaskReg
+3401                     ; 511   Enc28j60WriteReg(BANK2_MAMXFLL, (uint8_t) ((ENC28J60_MAXFRAME + 4) >> 0));
+3403  c007 ae8a88        	ldw	x,#35464
+3404  c00a cdbea6        	call	_Enc28j60WriteReg
+3406                     ; 512   Enc28j60WriteReg(BANK2_MAMXFLH, (uint8_t) ((ENC28J60_MAXFRAME + 4) >> 8));
+3408  c00d ae9003        	ldw	x,#36867
+3409  c010 cdbea6        	call	_Enc28j60WriteReg
+3411                     ; 515   Enc28j60WriteReg(BANK2_MAIPGL, 0x12);
+3413  c013 ae8612        	ldw	x,#34322
+3414  c016 cdbea6        	call	_Enc28j60WriteReg
+3416                     ; 518   Enc28j60WriteReg(BANK2_MAIPGH, 0x0C);
+3418  c019 ae870c        	ldw	x,#34572
+3419  c01c cdbea6        	call	_Enc28j60WriteReg
+3421                     ; 521   Enc28j60WriteReg(BANK2_MABBIPG, 0x12);
+3423  c01f ae8412        	ldw	x,#33810
+3424  c022 cdbea6        	call	_Enc28j60WriteReg
+3426                     ; 524   Enc28j60SwitchBank(BANK3);
+3428  c025 a603          	ld	a,#3
+3429  c027 cdbee5        	call	_Enc28j60SwitchBank
+3431                     ; 527   Enc28j60WriteReg(BANK3_MAADR5, uip_ethaddr1);  // MAC MSB
+3433  c02a c6001e        	ld	a,_uip_ethaddr1
+3434  c02d ae8400        	ldw	x,#33792
+3435  c030 97            	ld	xl,a
+3436  c031 cdbea6        	call	_Enc28j60WriteReg
+3438                     ; 528   Enc28j60WriteReg(BANK3_MAADR4, uip_ethaddr2);
+3440  c034 c6001f        	ld	a,_uip_ethaddr2
+3441  c037 ae8500        	ldw	x,#34048
+3442  c03a 97            	ld	xl,a
+3443  c03b cdbea6        	call	_Enc28j60WriteReg
+3445                     ; 529   Enc28j60WriteReg(BANK3_MAADR3, uip_ethaddr3);
+3447  c03e c60020        	ld	a,_uip_ethaddr3
+3448  c041 ae8200        	ldw	x,#33280
+3449  c044 97            	ld	xl,a
+3450  c045 cdbea6        	call	_Enc28j60WriteReg
+3452                     ; 530   Enc28j60WriteReg(BANK3_MAADR2, uip_ethaddr4);
+3454  c048 c60021        	ld	a,_uip_ethaddr4
+3455  c04b ae8300        	ldw	x,#33536
+3456  c04e 97            	ld	xl,a
+3457  c04f cdbea6        	call	_Enc28j60WriteReg
+3459                     ; 531   Enc28j60WriteReg(BANK3_MAADR1, uip_ethaddr5);
+3461  c052 c60022        	ld	a,_uip_ethaddr5
+3462  c055 ae8000        	ldw	x,#32768
+3463  c058 97            	ld	xl,a
+3464  c059 cdbea6        	call	_Enc28j60WriteReg
+3466                     ; 532   Enc28j60WriteReg(BANK3_MAADR0, uip_ethaddr6);  // MAC LSB
+3468  c05c c60023        	ld	a,_uip_ethaddr6
+3469  c05f ae8100        	ldw	x,#33024
+3470  c062 97            	ld	xl,a
+3471  c063 cdbea6        	call	_Enc28j60WriteReg
+3473                     ; 535   Enc28j60WritePhy(PHY_PHCON2, (1<<PHY_PHCON2_HDLDIS));
+3475  c066 ae0100        	ldw	x,#256
+3476  c069 89            	pushw	x
+3477  c06a a610          	ld	a,#16
+3478  c06c cdbf3c        	call	_Enc28j60WritePhy
+3480  c06f 85            	popw	x
+3481                     ; 539   Enc28j60WritePhy(PHY_PHLCON,
+3481                     ; 540     (ENC28J60_LEDB<<PHY_PHLCON_LBCFG0)|
+3481                     ; 541     (ENC28J60_LEDA<<PHY_PHLCON_LACFG0)|
+3481                     ; 542     (1<<PHY_PHLCON_STRCH)|0x3000);
+3483  c070 ae31c2        	ldw	x,#12738
+3484  c073 89            	pushw	x
+3485  c074 a614          	ld	a,#20
+3486  c076 cdbf3c        	call	_Enc28j60WritePhy
+3488  c079 85            	popw	x
+3489                     ; 546   Enc28j60WritePhy(PHY_PHCON1, 0x0000);
+3491  c07a 5f            	clrw	x
+3492  c07b 89            	pushw	x
+3493  c07c 4f            	clr	a
+3494  c07d cdbf3c        	call	_Enc28j60WritePhy
+3496  c080 85            	popw	x
+3497                     ; 549   Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_RXEN));
+3499  c081 ae1f04        	ldw	x,#7940
+3501                     ; 550 }
+3504  c084 ccbebb        	jp	_Enc28j60SetMaskReg
+3562                     ; 553 uint16_t Enc28j60Receive(uint8_t* pBuffer)
+3562                     ; 554 {
 3563                     	switch	.text
-3564  c52f               _Enc28j60Receive:
-3566  c52f 89            	pushw	x
-3567  c530 5204          	subw	sp,#4
+3564  c087               _Enc28j60Receive:
+3566  c087 89            	pushw	x
+3567  c088 5204          	subw	sp,#4
 3568       00000004      OFST:	set	4
-3571                     ; 554 	Enc28j60SwitchBank(BANK1);
-3573  c532 a601          	ld	a,#1
-3574  c534 cdc38d        	call	_Enc28j60SwitchBank
-3576                     ; 555 	if (Enc28j60ReadReg(BANK1_EPKTCNT) == 0) return 0;
-3578  c537 a619          	ld	a,#25
-3579  c539 cdc330        	call	_Enc28j60ReadReg
-3581  c53c 4d            	tnz	a
-3582  c53d 2604          	jrne	L7602
-3585  c53f 5f            	clrw	x
-3587  c540 ccc5c8        	jra	L423
-3588  c543               L7602:
-3589                     ; 557 	select();
-3591  c543 cdc324        	call	_select
-3593                     ; 559 	SpiWriteByte(OPCODE_RBM);
-3595  c546 a63a          	ld	a,#58
-3596  c548 cde829        	call	_SpiWriteByte
-3598                     ; 562 	nNextPacket = ((uint16_t) SpiReadByte() << 0);
-3600  c54b cde892        	call	_SpiReadByte
-3602  c54e 5f            	clrw	x
-3603  c54f 97            	ld	xl,a
-3604  c550 1f03          	ldw	(OFST-1,sp),x
-3606                     ; 563 	nNextPacket |= ((uint16_t) SpiReadByte() << 8);
-3608  c552 cde892        	call	_SpiReadByte
-3610  c555 5f            	clrw	x
-3611  c556 97            	ld	xl,a
-3612  c557 7b04          	ld	a,(OFST+0,sp)
-3613  c559 01            	rrwa	x,a
-3614  c55a 1a03          	or	a,(OFST-1,sp)
-3615  c55c 01            	rrwa	x,a
-3616  c55d 1f03          	ldw	(OFST-1,sp),x
-3618                     ; 566 	nBytes = ((uint16_t) SpiReadByte() << 0);
-3620  c55f cde892        	call	_SpiReadByte
-3622  c562 5f            	clrw	x
-3623  c563 97            	ld	xl,a
-3624  c564 1f01          	ldw	(OFST-3,sp),x
-3626                     ; 567 	nBytes |= ((uint16_t) SpiReadByte() << 8);
-3628  c566 cde892        	call	_SpiReadByte
-3630  c569 5f            	clrw	x
-3631  c56a 97            	ld	xl,a
-3632  c56b 7b02          	ld	a,(OFST-2,sp)
-3633  c56d 01            	rrwa	x,a
-3634  c56e 1a01          	or	a,(OFST-3,sp)
-3635  c570 01            	rrwa	x,a
-3637                     ; 568 	nBytes -= 4;
-3639  c571 1d0004        	subw	x,#4
-3640  c574 1f01          	ldw	(OFST-3,sp),x
-3642                     ; 571 	SpiReadByte();
-3644  c576 cde892        	call	_SpiReadByte
-3646                     ; 572 	SpiReadByte();
-3648  c579 cde892        	call	_SpiReadByte
-3650                     ; 575 	if (nBytes <= ENC28J60_MAXFRAME) SpiReadChunk(pBuffer, nBytes);
-3652  c57c 1e01          	ldw	x,(OFST-3,sp)
-3653  c57e a30385        	cpw	x,#901
-3654  c581 2407          	jruge	L1702
-3657  c583 89            	pushw	x
-3658  c584 1e07          	ldw	x,(OFST+3,sp)
-3659  c586 cde8bc        	call	_SpiReadChunk
-3661  c589 85            	popw	x
-3662  c58a               L1702:
-3663                     ; 577 	deselect();
-3665  c58a cdc32a        	call	_deselect
-3667                     ; 579 	Enc28j60SwitchBank(BANK0);
-3669  c58d 4f            	clr	a
-3670  c58e cdc38d        	call	_Enc28j60SwitchBank
-3672                     ; 581 	Enc28j60WriteReg(BANK0_ERDPTL , (uint8_t) (nNextPacket >> 0));
-3674  c591 7b04          	ld	a,(OFST+0,sp)
-3675  c593 5f            	clrw	x
-3676  c594 97            	ld	xl,a
-3677  c595 cdc34e        	call	_Enc28j60WriteReg
-3679                     ; 582 	Enc28j60WriteReg(BANK0_ERDPTH , (uint8_t) (nNextPacket >> 8));
-3681  c598 7b03          	ld	a,(OFST-1,sp)
-3682  c59a ae0100        	ldw	x,#256
-3683  c59d 97            	ld	xl,a
-3684  c59e cdc34e        	call	_Enc28j60WriteReg
-3686                     ; 586 	nNextPacket -= 1;
-3688  c5a1 1e03          	ldw	x,(OFST-1,sp)
-3689  c5a3 5a            	decw	x
-3691                     ; 587 	if (nNextPacket == ( ((uint16_t)ENC28J60_RXSTART) - 1 ))
-3693  c5a4 a3ffff        	cpw	x,#65535
-3694  c5a7 2603          	jrne	L3702
-3695                     ; 591 		nNextPacket = ENC28J60_RXEND;
-3697  c5a9 ae17ff        	ldw	x,#6143
-3699  c5ac               L3702:
-3700  c5ac 1f03          	ldw	(OFST-1,sp),x
-3701                     ; 594 	Enc28j60WriteReg(BANK0_ERXRDPTL, (uint8_t)(nNextPacket >> 0));
-3703  c5ae ae0c00        	ldw	x,#3072
-3704  c5b1 7b04          	ld	a,(OFST+0,sp)
-3705  c5b3 97            	ld	xl,a
-3706  c5b4 cdc34e        	call	_Enc28j60WriteReg
-3708                     ; 595 	Enc28j60WriteReg(BANK0_ERXRDPTH, (uint8_t)(nNextPacket >> 8));
-3710  c5b7 7b03          	ld	a,(OFST-1,sp)
-3711  c5b9 ae0d00        	ldw	x,#3328
-3712  c5bc 97            	ld	xl,a
-3713  c5bd cdc34e        	call	_Enc28j60WriteReg
-3715                     ; 598 	Enc28j60SetMaskReg(BANKX_ECON2 , (1<<BANKX_ECON2_PKTDEC));
-3717  c5c0 ae1e40        	ldw	x,#7744
-3718  c5c3 cdc363        	call	_Enc28j60SetMaskReg
-3720                     ; 600 	return nBytes;
-3722  c5c6 1e01          	ldw	x,(OFST-3,sp)
-3724  c5c8               L423:
-3726  c5c8 5b06          	addw	sp,#6
-3727  c5ca 81            	ret	
-3791                     ; 604 void Enc28j60CopyPacket(uint8_t* pBuffer, uint16_t nBytes)
-3791                     ; 605 {
+3571                     ; 559   Enc28j60SwitchBank(BANK1);
+3573  c08a a601          	ld	a,#1
+3574  c08c cdbee5        	call	_Enc28j60SwitchBank
+3576                     ; 560   if (Enc28j60ReadReg(BANK1_EPKTCNT) == 0) return 0;
+3578  c08f a619          	ld	a,#25
+3579  c091 cdbe88        	call	_Enc28j60ReadReg
+3581  c094 4d            	tnz	a
+3582  c095 2604          	jrne	L7602
+3585  c097 5f            	clrw	x
+3587  c098 ccc120        	jra	L423
+3588  c09b               L7602:
+3589                     ; 562   select();
+3591  c09b cdbe7c        	call	_select
+3593                     ; 564   SpiWriteByte(OPCODE_RBM);
+3595  c09e a63a          	ld	a,#58
+3596  c0a0 cde2b5        	call	_SpiWriteByte
+3598                     ; 567   nNextPacket = ((uint16_t) SpiReadByte() << 0);
+3600  c0a3 cde31e        	call	_SpiReadByte
+3602  c0a6 5f            	clrw	x
+3603  c0a7 97            	ld	xl,a
+3604  c0a8 1f03          	ldw	(OFST-1,sp),x
+3606                     ; 568   nNextPacket |= ((uint16_t) SpiReadByte() << 8);
+3608  c0aa cde31e        	call	_SpiReadByte
+3610  c0ad 5f            	clrw	x
+3611  c0ae 97            	ld	xl,a
+3612  c0af 7b04          	ld	a,(OFST+0,sp)
+3613  c0b1 01            	rrwa	x,a
+3614  c0b2 1a03          	or	a,(OFST-1,sp)
+3615  c0b4 01            	rrwa	x,a
+3616  c0b5 1f03          	ldw	(OFST-1,sp),x
+3618                     ; 571   nBytes = ((uint16_t) SpiReadByte() << 0);
+3620  c0b7 cde31e        	call	_SpiReadByte
+3622  c0ba 5f            	clrw	x
+3623  c0bb 97            	ld	xl,a
+3624  c0bc 1f01          	ldw	(OFST-3,sp),x
+3626                     ; 572   nBytes |= ((uint16_t) SpiReadByte() << 8);
+3628  c0be cde31e        	call	_SpiReadByte
+3630  c0c1 5f            	clrw	x
+3631  c0c2 97            	ld	xl,a
+3632  c0c3 7b02          	ld	a,(OFST-2,sp)
+3633  c0c5 01            	rrwa	x,a
+3634  c0c6 1a01          	or	a,(OFST-3,sp)
+3635  c0c8 01            	rrwa	x,a
+3637                     ; 573   nBytes -= 4;
+3639  c0c9 1d0004        	subw	x,#4
+3640  c0cc 1f01          	ldw	(OFST-3,sp),x
+3642                     ; 576   SpiReadByte();
+3644  c0ce cde31e        	call	_SpiReadByte
+3646                     ; 577   SpiReadByte();
+3648  c0d1 cde31e        	call	_SpiReadByte
+3650                     ; 600   if (nBytes <= ENC28J60_MAXFRAME) SpiReadChunk(pBuffer, nBytes);
+3652  c0d4 1e01          	ldw	x,(OFST-3,sp)
+3653  c0d6 a30385        	cpw	x,#901
+3654  c0d9 2407          	jruge	L1702
+3657  c0db 89            	pushw	x
+3658  c0dc 1e07          	ldw	x,(OFST+3,sp)
+3659  c0de cde348        	call	_SpiReadChunk
+3661  c0e1 85            	popw	x
+3662  c0e2               L1702:
+3663                     ; 602   deselect();
+3665  c0e2 cdbe82        	call	_deselect
+3667                     ; 604   Enc28j60SwitchBank(BANK0);
+3669  c0e5 4f            	clr	a
+3670  c0e6 cdbee5        	call	_Enc28j60SwitchBank
+3672                     ; 606   Enc28j60WriteReg(BANK0_ERDPTL , (uint8_t) (nNextPacket >> 0));
+3674  c0e9 7b04          	ld	a,(OFST+0,sp)
+3675  c0eb 5f            	clrw	x
+3676  c0ec 97            	ld	xl,a
+3677  c0ed cdbea6        	call	_Enc28j60WriteReg
+3679                     ; 607   Enc28j60WriteReg(BANK0_ERDPTH , (uint8_t) (nNextPacket >> 8));
+3681  c0f0 7b03          	ld	a,(OFST-1,sp)
+3682  c0f2 ae0100        	ldw	x,#256
+3683  c0f5 97            	ld	xl,a
+3684  c0f6 cdbea6        	call	_Enc28j60WriteReg
+3686                     ; 611   nNextPacket -= 1;
+3688  c0f9 1e03          	ldw	x,(OFST-1,sp)
+3689  c0fb 5a            	decw	x
+3691                     ; 612   if (nNextPacket == ( ((uint16_t)ENC28J60_RXSTART) - 1 )) {
+3693  c0fc a3ffff        	cpw	x,#65535
+3694  c0ff 2603          	jrne	L3702
+3695                     ; 615     nNextPacket = ENC28J60_RXEND;
+3697  c101 ae17ff        	ldw	x,#6143
+3699  c104               L3702:
+3700  c104 1f03          	ldw	(OFST-1,sp),x
+3701                     ; 618   Enc28j60WriteReg(BANK0_ERXRDPTL, (uint8_t)(nNextPacket >> 0));
+3703  c106 ae0c00        	ldw	x,#3072
+3704  c109 7b04          	ld	a,(OFST+0,sp)
+3705  c10b 97            	ld	xl,a
+3706  c10c cdbea6        	call	_Enc28j60WriteReg
+3708                     ; 619   Enc28j60WriteReg(BANK0_ERXRDPTH, (uint8_t)(nNextPacket >> 8));
+3710  c10f 7b03          	ld	a,(OFST-1,sp)
+3711  c111 ae0d00        	ldw	x,#3328
+3712  c114 97            	ld	xl,a
+3713  c115 cdbea6        	call	_Enc28j60WriteReg
+3715                     ; 622   Enc28j60SetMaskReg(BANKX_ECON2 , (1<<BANKX_ECON2_PKTDEC));
+3717  c118 ae1e40        	ldw	x,#7744
+3718  c11b cdbebb        	call	_Enc28j60SetMaskReg
+3720                     ; 624   return nBytes;
+3722  c11e 1e01          	ldw	x,(OFST-3,sp)
+3724  c120               L423:
+3726  c120 5b06          	addw	sp,#6
+3727  c122 81            	ret	
+3791                     ; 628 void Enc28j60CopyPacket(uint8_t* pBuffer, uint16_t nBytes)
+3791                     ; 629 {
 3792                     	switch	.text
-3793  c5cb               _Enc28j60CopyPacket:
-3795  c5cb 89            	pushw	x
-3796  c5cc 5203          	subw	sp,#3
+3793  c123               _Enc28j60CopyPacket:
+3795  c123 89            	pushw	x
+3796  c124 5203          	subw	sp,#3
 3797       00000003      OFST:	set	3
-3800                     ; 606 	uint16_t TxEnd = ENC28J60_TXSTART + nBytes;
-3802  c5ce 1e08          	ldw	x,(OFST+5,sp)
-3803  c5d0 1c1800        	addw	x,#6144
-3804  c5d3 1f01          	ldw	(OFST-2,sp),x
-3806                     ; 607 	uint8_t i = 200;
-3808  c5d5 a6c8          	ld	a,#200
-3809  c5d7 6b03          	ld	(OFST+0,sp),a
-3812  c5d9 204e          	jra	L5212
-3813  c5db               L1212:
-3814                     ; 614 		if (!(Enc28j60ReadReg(BANKX_ECON1) & (1<<BANKX_ECON1_TXRTS))) break;
-3816  c5db a61f          	ld	a,#31
-3817  c5dd cdc330        	call	_Enc28j60ReadReg
-3819  c5e0 a508          	bcp	a,#8
-3820  c5e2 263d          	jrne	L1312
-3822  c5e4               L7212:
-3823                     ; 619 	Enc28j60SwitchBank(BANK0);
-3825  c5e4 4f            	clr	a
-3826  c5e5 cdc38d        	call	_Enc28j60SwitchBank
-3828                     ; 621 	Enc28j60WriteReg(BANK0_EWRPTL, (uint8_t) (ENC28J60_TXSTART >> 0));
-3830  c5e8 ae0200        	ldw	x,#512
-3831  c5eb cdc34e        	call	_Enc28j60WriteReg
-3833                     ; 622 	Enc28j60WriteReg(BANK0_EWRPTH, (uint8_t) (ENC28J60_TXSTART >> 8));
-3835  c5ee ae0318        	ldw	x,#792
-3836  c5f1 cdc34e        	call	_Enc28j60WriteReg
-3838                     ; 623 	Enc28j60WriteReg(BANK0_ETXNDL, (uint8_t) (TxEnd >> 0));
-3840  c5f4 7b02          	ld	a,(OFST-1,sp)
-3841  c5f6 ae0600        	ldw	x,#1536
-3842  c5f9 97            	ld	xl,a
-3843  c5fa cdc34e        	call	_Enc28j60WriteReg
-3845                     ; 624 	Enc28j60WriteReg(BANK0_ETXNDH, (uint8_t) (TxEnd >> 8));	
-3847  c5fd 7b01          	ld	a,(OFST-2,sp)
-3848  c5ff ae0700        	ldw	x,#1792
-3849  c602 97            	ld	xl,a
-3850  c603 cdc34e        	call	_Enc28j60WriteReg
-3852                     ; 626 	select();
-3854  c606 cdc324        	call	_select
-3856                     ; 628 	SpiWriteByte(OPCODE_WBM);	 // Set ENC28J60 to receive transmit data
-3858  c609 a67a          	ld	a,#122
-3859  c60b cde829        	call	_SpiWriteByte
-3861                     ; 630 	SpiWriteByte(0);		 // Per-packet-control-byte
-3863  c60e 4f            	clr	a
-3864  c60f cde829        	call	_SpiWriteByte
-3866                     ; 642 	SpiWriteChunk(pBuffer, nBytes); // Copy data to the ENC28J60 transmit buffer
-3868  c612 1e08          	ldw	x,(OFST+5,sp)
-3869  c614 89            	pushw	x
-3870  c615 1e06          	ldw	x,(OFST+3,sp)
-3871  c617 cde853        	call	_SpiWriteChunk
-3873  c61a 85            	popw	x
-3874                     ; 644 	deselect();
-3876  c61b cdc32a        	call	_deselect
-3878                     ; 645 }
-3881  c61e 5b05          	addw	sp,#5
-3882  c620 81            	ret	
-3883  c621               L1312:
-3884                     ; 616 		wait_timer(500);
-3886  c621 ae01f4        	ldw	x,#500
-3887  c624 cde9b3        	call	_wait_timer
-3889  c627 7b03          	ld	a,(OFST+0,sp)
-3890  c629               L5212:
-3891                     ; 612 	while (i--)
-3893  c629 0a03          	dec	(OFST+0,sp)
-3895  c62b 4d            	tnz	a
-3896  c62c 26ad          	jrne	L1212
-3897  c62e 20b4          	jra	L7212
-3922                     ; 648 void Enc28j60Send(void)
-3922                     ; 649 {
+3800                     ; 630   uint16_t TxEnd = ENC28J60_TXSTART + nBytes;
+3802  c126 1e08          	ldw	x,(OFST+5,sp)
+3803  c128 1c1800        	addw	x,#6144
+3804  c12b 1f01          	ldw	(OFST-2,sp),x
+3806                     ; 631   uint8_t i = 200;
+3808  c12d a6c8          	ld	a,#200
+3809  c12f 6b03          	ld	(OFST+0,sp),a
+3812  c131 204e          	jra	L5212
+3813  c133               L1212:
+3814                     ; 637     if (!(Enc28j60ReadReg(BANKX_ECON1) & (1<<BANKX_ECON1_TXRTS))) break;
+3816  c133 a61f          	ld	a,#31
+3817  c135 cdbe88        	call	_Enc28j60ReadReg
+3819  c138 a508          	bcp	a,#8
+3820  c13a 263d          	jrne	L1312
+3822  c13c               L7212:
+3823                     ; 641   Enc28j60SwitchBank(BANK0);
+3825  c13c 4f            	clr	a
+3826  c13d cdbee5        	call	_Enc28j60SwitchBank
+3828                     ; 643   Enc28j60WriteReg(BANK0_EWRPTL, (uint8_t) (ENC28J60_TXSTART >> 0));
+3830  c140 ae0200        	ldw	x,#512
+3831  c143 cdbea6        	call	_Enc28j60WriteReg
+3833                     ; 644   Enc28j60WriteReg(BANK0_EWRPTH, (uint8_t) (ENC28J60_TXSTART >> 8));
+3835  c146 ae0318        	ldw	x,#792
+3836  c149 cdbea6        	call	_Enc28j60WriteReg
+3838                     ; 645   Enc28j60WriteReg(BANK0_ETXNDL, (uint8_t) (TxEnd >> 0));
+3840  c14c 7b02          	ld	a,(OFST-1,sp)
+3841  c14e ae0600        	ldw	x,#1536
+3842  c151 97            	ld	xl,a
+3843  c152 cdbea6        	call	_Enc28j60WriteReg
+3845                     ; 646   Enc28j60WriteReg(BANK0_ETXNDH, (uint8_t) (TxEnd >> 8));	
+3847  c155 7b01          	ld	a,(OFST-2,sp)
+3848  c157 ae0700        	ldw	x,#1792
+3849  c15a 97            	ld	xl,a
+3850  c15b cdbea6        	call	_Enc28j60WriteReg
+3852                     ; 648   select();
+3854  c15e cdbe7c        	call	_select
+3856                     ; 650   SpiWriteByte(OPCODE_WBM);	 // Set ENC28J60 to receive transmit data
+3858  c161 a67a          	ld	a,#122
+3859  c163 cde2b5        	call	_SpiWriteByte
+3861                     ; 652   SpiWriteByte(0);		 // Per-packet-control-byte
+3863  c166 4f            	clr	a
+3864  c167 cde2b5        	call	_SpiWriteByte
+3866                     ; 664   SpiWriteChunk(pBuffer, nBytes); // Copy data to the ENC28J60 transmit buffer
+3868  c16a 1e08          	ldw	x,(OFST+5,sp)
+3869  c16c 89            	pushw	x
+3870  c16d 1e06          	ldw	x,(OFST+3,sp)
+3871  c16f cde2df        	call	_SpiWriteChunk
+3873  c172 85            	popw	x
+3874                     ; 666   deselect();
+3876  c173 cdbe82        	call	_deselect
+3878                     ; 667 }
+3881  c176 5b05          	addw	sp,#5
+3882  c178 81            	ret	
+3883  c179               L1312:
+3884                     ; 638     wait_timer(500);  // Wait 500 uS
+3886  c179 ae01f4        	ldw	x,#500
+3887  c17c cde43f        	call	_wait_timer
+3889  c17f 7b03          	ld	a,(OFST+0,sp)
+3890  c181               L5212:
+3891                     ; 636   while (i--) {
+3893  c181 0a03          	dec	(OFST+0,sp)
+3895  c183 4d            	tnz	a
+3896  c184 26ad          	jrne	L1212
+3897  c186 20b4          	jra	L7212
+3922                     ; 670 void Enc28j60Send(void)
+3922                     ; 671 {
 3923                     	switch	.text
-3924  c630               _Enc28j60Send:
-3928                     ; 651 	Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
-3930  c630 ae1f80        	ldw	x,#8064
-3931  c633 cdc363        	call	_Enc28j60SetMaskReg
-3933                     ; 652 	Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
-3935  c636 ae1f80        	ldw	x,#8064
-3936  c639 cdc378        	call	_Enc28j60ClearMaskReg
-3938                     ; 655 	Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
-3940  c63c ae1f08        	ldw	x,#7944
-3942                     ; 656 }
-3945  c63f ccc363        	jp	_Enc28j60SetMaskReg
-3980                     ; 659 void Enc28j60SetClockPrescaler(uint8_t nPrescaler)
-3980                     ; 660 {
-3981                     	switch	.text
-3982  c642               _Enc28j60SetClockPrescaler:
-3984  c642 88            	push	a
-3985       00000000      OFST:	set	0
-3988                     ; 669 	Enc28j60SwitchBank(BANK3);
-3990  c643 a603          	ld	a,#3
-3991  c645 cdc38d        	call	_Enc28j60SwitchBank
-3993                     ; 671 	if (nPrescaler == 0)
-3995  c648 7b01          	ld	a,(OFST+1,sp)
-3996  c64a 2605          	jrne	L7512
-3997                     ; 672 		Enc28j60WriteReg(BANK3_ECOCON, 0x00); // Disable CLKOUT
-3999  c64c ae1500        	ldw	x,#5376
-4002  c64f 202b          	jp	LC001
-4003  c651               L7512:
-4004                     ; 673 	else if (nPrescaler == 1)
-4006  c651 a101          	cp	a,#1
-4007  c653 2605          	jrne	L3612
-4008                     ; 674 		Enc28j60WriteReg(BANK3_ECOCON, 0x01); // CLKOUT = 25 MHz
-4010  c655 ae1501        	ldw	x,#5377
-4013  c658 2022          	jp	LC001
-4014  c65a               L3612:
-4015                     ; 675 	else if (nPrescaler == 2)
-4017  c65a a102          	cp	a,#2
-4018  c65c 2605          	jrne	L7612
-4019                     ; 676 		Enc28j60WriteReg(BANK3_ECOCON, 0x02); // CLKOUT = 12.5 MHz
-4021  c65e ae1502        	ldw	x,#5378
-4024  c661 2019          	jp	LC001
-4025  c663               L7612:
-4026                     ; 677 	else if (nPrescaler == 3)
-4028  c663 a103          	cp	a,#3
-4029  c665 2605          	jrne	L3712
-4030                     ; 678 		Enc28j60WriteReg(BANK3_ECOCON, 0x03); // CLKOUT = 8.333333 MHz
-4032  c667 ae1503        	ldw	x,#5379
-4035  c66a 2010          	jp	LC001
-4036  c66c               L3712:
-4037                     ; 679 	else if (nPrescaler == 4)
-4039  c66c a104          	cp	a,#4
-4040  c66e 2605          	jrne	L7712
-4041                     ; 680 		Enc28j60WriteReg(BANK3_ECOCON, 0x04); // CLKOUT = 6.25 MHz
-4043  c670 ae1504        	ldw	x,#5380
-4046  c673 2007          	jp	LC001
-4047  c675               L7712:
-4048                     ; 681 	else if (nPrescaler == 8)
-4050  c675 a108          	cp	a,#8
-4051  c677 2606          	jrne	L1612
-4052                     ; 682 		Enc28j60WriteReg(BANK3_ECOCON, 0x05); // CLKOUT = 3.125 MHz
-4054  c679 ae1505        	ldw	x,#5381
-4055  c67c               LC001:
-4056  c67c cdc34e        	call	_Enc28j60WriteReg
-4058  c67f               L1612:
-4059                     ; 683 }
-4062  c67f 84            	pop	a
-4063  c680 81            	ret	
-4121                     ; 686 uint16_t Enc28j60ChecksumTx(uint16_t Offset, uint16_t Length)
-4121                     ; 687 {
-4122                     	switch	.text
-4123  c681               _Enc28j60ChecksumTx:
-4125  c681 89            	pushw	x
-4126  c682 5206          	subw	sp,#6
-4127       00000006      OFST:	set	6
-4130                     ; 691 	uint16_t Start = ENC28J60_TXSTART + Offset + 1;
-4132  c684 1c1801        	addw	x,#6145
-4133  c687 1f05          	ldw	(OFST-1,sp),x
-4135                     ; 692 	uint16_t End = Start + Length - 1;
-4137  c689 72fb0b        	addw	x,(OFST+5,sp)
-4138  c68c 5a            	decw	x
-4139  c68d 1f03          	ldw	(OFST-3,sp),x
-4141                     ; 694 	Enc28j60SwitchBank(BANK0);
-4143  c68f 4f            	clr	a
-4144  c690 cdc38d        	call	_Enc28j60SwitchBank
-4146                     ; 695 	Enc28j60WriteReg(BANK0_EDMASTL, (uint8_t) (Start >> 0));
-4148  c693 7b06          	ld	a,(OFST+0,sp)
-4149  c695 ae1000        	ldw	x,#4096
-4150  c698 97            	ld	xl,a
-4151  c699 cdc34e        	call	_Enc28j60WriteReg
-4153                     ; 696 	Enc28j60WriteReg(BANK0_EDMASTH, (uint8_t) (Start >> 8));
-4155  c69c 7b05          	ld	a,(OFST-1,sp)
-4156  c69e ae1100        	ldw	x,#4352
-4157  c6a1 97            	ld	xl,a
-4158  c6a2 cdc34e        	call	_Enc28j60WriteReg
-4160                     ; 697 	Enc28j60WriteReg(BANK0_EDMANDL, (uint8_t) (End >> 0));
-4162  c6a5 7b04          	ld	a,(OFST-2,sp)
-4163  c6a7 ae1200        	ldw	x,#4608
-4164  c6aa 97            	ld	xl,a
-4165  c6ab cdc34e        	call	_Enc28j60WriteReg
-4167                     ; 698 	Enc28j60WriteReg(BANK0_EDMANDH, (uint8_t) (End >> 8));
-4169  c6ae 7b03          	ld	a,(OFST-3,sp)
-4170  c6b0 ae1300        	ldw	x,#4864
-4171  c6b3 97            	ld	xl,a
-4172  c6b4 cdc34e        	call	_Enc28j60WriteReg
-4174                     ; 699 	Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_CSUMEN) | (1<<BANKX_ECON1_DMAST));
-4176  c6b7 ae1f30        	ldw	x,#7984
-4177  c6ba cdc363        	call	_Enc28j60SetMaskReg
-4180  c6bd 2001          	jra	L1322
-4181  c6bf               L7222:
-4182                     ; 701 	while(Enc28j60ReadReg(BANKX_ECON1) & (1<<BANKX_ECON1_DMAST)) nop();
-4185  c6bf 9d            	nop	
-4187  c6c0               L1322:
-4190  c6c0 a61f          	ld	a,#31
-4191  c6c2 cdc330        	call	_Enc28j60ReadReg
-4193  c6c5 a520          	bcp	a,#32
-4194  c6c7 26f6          	jrne	L7222
-4195                     ; 703 	return ((uint16_t) Enc28j60ReadReg(BANK0_EDMACSH) << 8) | ((uint16_t) Enc28j60ReadReg(BANK0_EDMACSL) << 0);
-4198  c6c9 a616          	ld	a,#22
-4199  c6cb cdc330        	call	_Enc28j60ReadReg
-4201  c6ce 5f            	clrw	x
-4202  c6cf 97            	ld	xl,a
-4203  c6d0 1f01          	ldw	(OFST-5,sp),x
-4205  c6d2 a617          	ld	a,#23
-4206  c6d4 cdc330        	call	_Enc28j60ReadReg
-4208  c6d7 5f            	clrw	x
-4209  c6d8 97            	ld	xl,a
-4210  c6d9 7b02          	ld	a,(OFST-4,sp)
-4211  c6db 01            	rrwa	x,a
-4212  c6dc 1a01          	or	a,(OFST-5,sp)
-4213  c6de 01            	rrwa	x,a
-4216  c6df 5b08          	addw	sp,#8
-4217  c6e1 81            	ret	
-4270                     ; 707 void Enc28j60CopyChecksum(uint16_t Offset, uint16_t Checksum)
-4270                     ; 708 {
-4271                     	switch	.text
-4272  c6e2               _Enc28j60CopyChecksum:
-4274  c6e2 89            	pushw	x
-4275  c6e3 89            	pushw	x
-4276       00000002      OFST:	set	2
-4279                     ; 710 	uint16_t WrPtr = ENC28J60_TXSTART + Offset + 1;
-4281  c6e4 1c1801        	addw	x,#6145
-4282  c6e7 1f01          	ldw	(OFST-1,sp),x
-4284                     ; 712 	Enc28j60SwitchBank(BANK0);
-4286  c6e9 4f            	clr	a
-4287  c6ea cdc38d        	call	_Enc28j60SwitchBank
-4289                     ; 714 	Enc28j60WriteReg(BANK0_EWRPTL, (uint8_t) (WrPtr >> 0));
-4291  c6ed 7b02          	ld	a,(OFST+0,sp)
-4292  c6ef ae0200        	ldw	x,#512
-4293  c6f2 97            	ld	xl,a
-4294  c6f3 cdc34e        	call	_Enc28j60WriteReg
-4296                     ; 715 	Enc28j60WriteReg(BANK0_EWRPTH, (uint8_t) (WrPtr >> 8));
-4298  c6f6 7b01          	ld	a,(OFST-1,sp)
-4299  c6f8 ae0300        	ldw	x,#768
-4300  c6fb 97            	ld	xl,a
-4301  c6fc cdc34e        	call	_Enc28j60WriteReg
-4303                     ; 717 	select();
-4305  c6ff cdc324        	call	_select
-4307                     ; 719 	SpiWriteByte(OPCODE_WBM);
-4309  c702 a67a          	ld	a,#122
-4310  c704 cde829        	call	_SpiWriteByte
-4312                     ; 720 	SpiWriteChunk((uint8_t*) &Checksum, sizeof(Checksum));
-4314  c707 ae0002        	ldw	x,#2
-4315  c70a 89            	pushw	x
-4316  c70b 96            	ldw	x,sp
-4317  c70c 1c0009        	addw	x,#OFST+7
-4318  c70f cde853        	call	_SpiWriteChunk
-4320  c712 85            	popw	x
-4321                     ; 722 	deselect();
-4323  c713 cdc32a        	call	_deselect
-4325                     ; 723 }
-4328  c716 5b04          	addw	sp,#4
-4329  c718 81            	ret	
-4342                     	xdef	_Enc28j60WritePhy
-4343                     	xdef	_Enc28j60ReadPhy
-4344                     	xdef	_Enc28j60SwitchBank
-4345                     	xdef	_Enc28j60ClearMaskReg
-4346                     	xdef	_Enc28j60SetMaskReg
-4347                     	xdef	_Enc28j60WriteReg
-4348                     	xdef	_Enc28j60ReadReg
-4349                     	xdef	_deselect
-4350                     	xdef	_select
-4351                     	xref	_uip_ethaddr6
-4352                     	xref	_uip_ethaddr5
-4353                     	xref	_uip_ethaddr4
-4354                     	xref	_uip_ethaddr3
-4355                     	xref	_uip_ethaddr2
-4356                     	xref	_uip_ethaddr1
-4357                     	xref	_wait_timer
-4358                     	xdef	_Enc28j60CopyChecksum
-4359                     	xdef	_Enc28j60ChecksumTx
-4360                     	xdef	_Enc28j60SetClockPrescaler
-4361                     	xdef	_Enc28j60Send
-4362                     	xdef	_Enc28j60CopyPacket
-4363                     	xdef	_Enc28j60Receive
-4364                     	xdef	_Enc28j60Init
-4365                     	xref	_SpiReadChunk
-4366                     	xref	_SpiReadByte
-4367                     	xref	_SpiWriteChunk
-4368                     	xref	_SpiWriteByte
-4387                     	end
+3924  c188               _Enc28j60Send:
+3928                     ; 673   Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+3930  c188 ae1f80        	ldw	x,#8064
+3931  c18b cdbebb        	call	_Enc28j60SetMaskReg
+3933                     ; 674   Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+3935  c18e ae1f80        	ldw	x,#8064
+3936  c191 cdbed0        	call	_Enc28j60ClearMaskReg
+3938                     ; 677   Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
+3940  c194 ae1f08        	ldw	x,#7944
+3942                     ; 678 }
+3945  c197 ccbebb        	jp	_Enc28j60SetMaskReg
+3958                     	xdef	_Enc28j60WritePhy
+3959                     	xdef	_Enc28j60ReadPhy
+3960                     	xdef	_Enc28j60SwitchBank
+3961                     	xdef	_Enc28j60ClearMaskReg
+3962                     	xdef	_Enc28j60SetMaskReg
+3963                     	xdef	_Enc28j60WriteReg
+3964                     	xdef	_Enc28j60ReadReg
+3965                     	xdef	_deselect
+3966                     	xdef	_select
+3967                     	xref	_uip_ethaddr6
+3968                     	xref	_uip_ethaddr5
+3969                     	xref	_uip_ethaddr4
+3970                     	xref	_uip_ethaddr3
+3971                     	xref	_uip_ethaddr2
+3972                     	xref	_uip_ethaddr1
+3973                     	xref	_wait_timer
+3974                     	xdef	_Enc28j60Send
+3975                     	xdef	_Enc28j60CopyPacket
+3976                     	xdef	_Enc28j60Receive
+3977                     	xdef	_Enc28j60Init
+3978                     	xref	_SpiReadChunk
+3979                     	xref	_SpiReadByte
+3980                     	xref	_SpiWriteChunk
+3981                     	xref	_SpiWriteByte
+4000                     	end

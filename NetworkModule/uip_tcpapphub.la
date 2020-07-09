@@ -5,28 +5,28 @@
   51                     ; 57 void uip_TcpAppHubCall(void)
   51                     ; 58 {
   53                     	switch	.text
-  54  f8ad               _uip_TcpAppHubCall:
+  54  f33b               _uip_TcpAppHubCall:
   58                     ; 59   if(uip_conn->lport == htons(Port_Httpd)) {
-  60  f8ad ce0061        	ldw	x,_Port_Httpd
-  61  f8b0 cdf514        	call	_htons
-  63  f8b3 90ce01d5      	ldw	y,_uip_conn
-  64  f8b7 bf04          	ldw	c_x,x
-  65  f8b9 93            	ldw	x,y
-  66  f8ba ee04          	ldw	x,(4,x)
-  67  f8bc b304          	cpw	x,c_x
-  68  f8be 2611          	jrne	L13
+  60  f33b ce0061        	ldw	x,_Port_Httpd
+  61  f33e cdefa2        	call	_htons
+  63  f341 90ce01d5      	ldw	y,_uip_conn
+  64  f345 bf04          	ldw	c_x,x
+  65  f347 93            	ldw	x,y
+  66  f348 ee04          	ldw	x,(4,x)
+  67  f34a b304          	cpw	x,c_x
+  68  f34c 2611          	jrne	L13
   69                     ; 60     HttpDCall(uip_appdata, uip_datalen(), &uip_conn->appstate.HttpDSocket);
-  71  f8c0 93            	ldw	x,y
-  72  f8c1 1c001c        	addw	x,#28
-  73  f8c4 89            	pushw	x
-  74  f8c5 ce01d7        	ldw	x,_uip_len
-  75  f8c8 89            	pushw	x
-  76  f8c9 ce01d9        	ldw	x,_uip_appdata
-  77  f8cc cdd27f        	call	_HttpDCall
-  79  f8cf 5b04          	addw	sp,#4
-  80  f8d1               L13:
+  71  f34e 93            	ldw	x,y
+  72  f34f 1c001c        	addw	x,#28
+  73  f352 89            	pushw	x
+  74  f353 ce01d7        	ldw	x,_uip_len
+  75  f356 89            	pushw	x
+  76  f357 ce01d9        	ldw	x,_uip_appdata
+  77  f35a cdcd00        	call	_HttpDCall
+  79  f35d 5b04          	addw	sp,#4
+  80  f35f               L13:
   81                     ; 62 }
-  84  f8d1 81            	ret	
+  84  f35f 81            	ret	
   97                     	xref	_Port_Httpd
   98                     	xref	_uip_conn
   99                     	xref	_uip_len

@@ -61,21 +61,9 @@
 /**
  * Configuration options for uIP
  *
- * uIP is configured using the per-project configuration file
- * uipopt.h. This file contains all compile-time options for uIP and
- * should be tweaked to match each specific project. The uIP
- * distribution contains a documented example "uipopt.h" that can be
- * copied and modified for each project.
- */
-
-/**
- * Configuration options for uIP.
- * \author Adam Dunkels <adam@dunkels.com>
- *
- * This file is used for tweaking various configuration options for
- * uIP. You should make a copy of this file into one of your project's
- * directories instead of editing this example "uipopt.h" file that
- * comes with the uIP distribution.
+ * uIP is configured using the per-project configuration file uipopt.h.
+ * This file contains all compile-time options for uIP and should be
+ * tweaked to match each specific project.
  */
 
 #ifndef __UIPOPT_H__
@@ -94,165 +82,117 @@
 
 
 /*------------------------------------------------------------------------------*/
-/**
- * IP configuration options
- */
+// IP configuration options
+/*------------------------------------------------------------------------------*/
  
-/**
- * The IP TTL (time to live) of IP packets sent by uIP.
- * This should normally not be changed.
- */
+// The IP TTL (time to live) of IP packets sent by uIP.
+// This should normally not be changed.
 #define UIP_TTL         64
 
 
 /*------------------------------------------------------------------------------*/
-/**
- * TCP configuration options
- */
+// TCP configuration options
+/*------------------------------------------------------------------------------*/
 
-/**
- * The maximum number of simultaneously open TCP connections.
- * Since the TCP connections are statically allocated, turning this
- * configuration knob down results in less RAM used. Each TCP
- * connection requires approximately 30 bytes of memory.
- *
- * Comment MN: Experiment shows actual RAM consumption per
- * connection to be 40 bytes.
- */
+// The maximum number of simultaneously open TCP connections. Since the TCP
+// connections are statically allocated, turning this configuration knob down
+// results in less RAM used. Each TCP connection requires approximately 30 bytes
+// of memory.
+//
+// Comment MN: Experiment shows actual RAM consumption per connection to be 40
+// bytes.
 #define UIP_CONNS       6
 
 
-/**
- * The maximum number of simultaneously listening TCP ports.
- * Each listening TCP port requires 2 bytes of memory.
- *
- * Comment MN: Experiment shows the 2 bytes of RAM estimate
- * to be correct.
- */
+// The maximum number of simultaneously listening TCP ports. Each listening TCP
+// port requires 2 bytes of memory.
+//
+// Comment MN: Experiment shows the 2 bytes of RAM estimate to be correct.
 #define UIP_LISTENPORTS 5
 
 
-/**
- * The initial retransmission timeout counted in timer pulses.
- * This should not be changed.
- */
+// The initial retransmission timeout counted in timer pulses.
+// This should not be changed.
 #define UIP_RTO         3
 
 
-/**
- * The maximum number of times a segment should be retransmitted
- * before the connection should be aborted.
- * This should not be changed.
- */
+// The maximum number of times a segment should be retransmitted before the
+// connection should be aborted.
+// This should not be changed.
 #define UIP_MAXRTX      8
 
 
-/**
- * The maximum number of times a SYN segment should be retransmitted
- * before a connection request should be deemed to have been
- * unsuccessful.
- * This should not need to be changed.
- */
+// The maximum number of times a SYN segment should be retransmitted before a
+// connection request should be deemed to have been unsuccessful.
+// This should not need to be changed.
 #define UIP_MAXSYNRTX      5
 
 
-/**
- * The TCP maximum segment size.
- * This is should not be to set to more than
- * UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN.
- */
+// The TCP maximum segment size. This is should not be to set to more than
+// UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN.
 #define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN)
 
 
-/**
- * The size of the advertised receiver's window.
- * Should be set low (i.e., to the size of the uip_buf buffer) if the
- * application is slow to process incoming data, or high (32768 bytes)
- * if the application processes data quickly.
- */
+// The size of the advertised receiver's window. Should be set low (i.e., to the
+// size of the uip_buf buffer) if the application is slow to process incoming
+// data, or high (32768 bytes) if the application processes data quickly.
 #define UIP_RECEIVE_WINDOW UIP_TCP_MSS
 
 
-/**
- * How long a connection should stay in the TIME_WAIT state.
- * This configiration option has no real implication, and it should be
- * left untouched.
- */
+// How long a connection should stay in the TIME_WAIT state. This configiration
+// option has no real implication, and it should be left untouched.
 #define UIP_TIME_WAIT_TIMEOUT 120
 
 
 /*------------------------------------------------------------------------------*/
-/**
- * ARP configuration options
- */
+// ARP configuration options
+/*------------------------------------------------------------------------------*/
 
-/**
- * The size of the ARP table.
- * This option should be set to a larger value if this uIP node will
- * have many connections from the local network.
- */
+// The size of the ARP table. This option should be set to a larger value if
+// this uIP node will have many connections from the local network.
 #define UIP_ARPTAB_SIZE 8
 
 
-/**
- * The maxium age of ARP table entries measured in 10ths of seconds.
- * A UIP_ARP_MAXAGE of 120 corresponds to 20 minutes (BSD default).
- */
+// The maxium age of ARP table entries measured in 10ths of seconds. A
+// UIP_ARP_MAXAGE of 120 corresponds to 20 minutes (BSD default).
 #define UIP_ARP_MAXAGE 120
 
 
 /*------------------------------------------------------------------------------*/
-/**
- * General configuration options
- */
+// General configuration options
+/*------------------------------------------------------------------------------*/
 
-
-/**
- * The size of the uIP packet buffer.
- *
- * The uIP packet buffer should not be smaller than 60 bytes, and does
- * not need to be larger than 1500 bytes. Lower size results in lower
- * TCP throughput, larger size results in higher TCP throughput.
- */
+// The size of the uIP packet buffer. The uIP packet buffer should not be smaller
+// than 60 bytes, and does not need to be larger than 1500 bytes. Lower size
+// results in lower TCP throughput, larger size results in higher TCP throughput.
 #define UIP_BUFSIZE     ENC28J60_MAXFRAME
 
 
-/**
- * Determines if statistics support should be compiled in.
- * The statistics are useful for debugging and to show the user.
- * If you are modifying the project and need more program space eliminating
- * the statistics pages and processes will free up considerable space.
- */
+// Determines if statistics support should be compiled in. The statistics are
+// useful for debugging and to show the user. If you are modifying the project
+// and need more program space eliminating the statistics pages and processes will
+// free up considerable space.
 #define UIP_STATISTICS  1
 
 
-/**
- * The link level header length.
- * This is the offset into the uip_buf where the IP header can be
- * found. For Ethernet, this should be set to 14. For SLIP, this
- * should be set to 0.
- */
+// The link level header length. This is the offset into the uip_buf where the IP
+// header can be found. For Ethernet, this should be set to 14. For SLIP, this
+// should be set to 0.
 #define UIP_LLH_LEN     14
 
 
-/**
- * Determines if help support should be compiled in.
- * If you are modifying the project and need more program space eliminating
- * the help pages and processes will free up considerable space.
- */
+// Determines if help support should be compiled in. If you are modifying the
+// project and need more program space eliminating the help pages and processes
+// will free up considerable space.
 #define HELP_SUPPORT  1
 
 
-/*------------------------------------------------------------------------------*/
-/**
- * CPU architecture configuration
- * The CPU architecture configuration is where the endianess of the CPU on which
- * uIP is to be run is specified. Most CPUs today are little endian, and the most
- * notable exception are the Motorolas which are big endian. The BYTE_ORDER macro
- * should be changed to reflect the CPU architecture on which uIP is to be run.
- * This option can be either BIG_ENDIAN (Motorola byte order) or LITTLE_ENDIAN
- * (Intel byte order).
- */
+// CPU architecture configuration. The CPU architecture configuration is where
+// the endianess of the CPU on which uIP is to be run is specified. Most CPUs
+// today are little endian, and the most notable exception are the Motorolas
+// which are big endian. The BYTE_ORDER macro should be changed to reflect the
+// CPU architecture on which uIP is to be run. This option can be either
+// BIG_ENDIAN (Motorola byte order) or LITTLE_ENDIAN (Intel byte order).
 #define UIP_BYTE_ORDER     UIP_BIG_ENDIAN
 
 

@@ -539,7 +539,7 @@ static const char g_HtmlPageHelp2[] =
   " Netmask 255.255.255.0<br>"
   " Port 08080<br>"
   " MAC c2-4d-69-6b-65-00<br><br>"
-  "Code Revision 20200619 1346</p>"
+  "Code Revision 20200709 1200</p>"
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
   "</body>"
   "</html>";

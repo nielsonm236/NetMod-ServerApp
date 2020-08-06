@@ -40,26 +40,26 @@
 #include "iostm8s005.h"
 #include "uip_TcpAppHub.h"
 
+/*---------------------------------------------------------------------------*/
 // EEPROM variable declarations
-// IT SEEMS ALL @eeprom DECLARATIONS AND USAGE MUST BE IN ONE FILE (like
-// main.c). Not sure about this - will need more experimentation.
-// EEPROM operation
-// When using the Cosmic compiler all variables stored in EEPROM must
-// be declared with the @eeprom identifier. This signals the Cosmic
-// compiler and linker to treat the variables as special and located in
-// the EEPROM. Code must unlock the EEPROM before using the variables.
-// NOTE1: The linker places the @eeprom variables in memory in reverse
-// order from the declarations below. SO - if any debug variables are
-// added it is recommended that they be declared ABOVE the Operating
-// Code variables to keep the Operating Code variables from being
-// relocated in the memory.
-// NOTE2: The order of the Operating Code variables should not be changed
-// if you want code updates to work without losing stored values.
-// NOTE3: Similar to NOTE1, if you add any new Operating Code variables
-// they should be added above the "magic" numbers in the list below.
-// That will keep all existing variables in the same place in EEPROM
-// which will allow new code updates to discover the magic number and
-// existing settings.
+// When using the Cosmic compiler all variables stored in EEPROM must be
+// declared with the @eeprom identifier. This signals the Cosmic compiler and
+// linker to treat the variables as special and located in the EEPROM. Code
+// must unlock the EEPROM before using the variables.
+//
+// NOTE1: The linker places the @eeprom variables in memory in reverse order
+// from the declarations below. SO - if any debug variables are added it is
+// recommended that they be declared ABOVE the Operating Code variables to
+// keep the Operating Code variables from being relocated in the memory.
+//
+// NOTE2: The order of the Operating Code variables should not be changed if
+// you want code updates to work without losing stored values.
+//
+// NOTE3: Similar to NOTE1, if you add any new Operating Code variables they
+// should be added above the "magic" numbers in the list below. That will keep
+// all existing variables in the same place in EEPROM which will allow new
+// code updates to discover the magic number and existing settings.
+// 
 // EEPROM Operating Code Variables:
 // >>> Add new variables HERE <<<
 @eeprom uint8_t magic4;			// MSB Magic Number stored in EEPROM
@@ -85,23 +85,17 @@
 @eeprom uint8_t stored_uip_ethaddr4;	//
 @eeprom uint8_t stored_uip_ethaddr5;	//
 @eeprom uint8_t stored_uip_ethaddr6;	// MAC LSB stored in EEPROM
-@eeprom uint8_t stored_Relays_16to9;    // Relay states for relays 16 to 9
-@eeprom uint8_t stored_Relays_8to1;     // Relay states for relays 8 to 1
+@eeprom uint8_t stored_IO_16to9;        // States for IO 16 to 9
+@eeprom uint8_t stored_IO_8to1;         // States for IO 8 to 1
 @eeprom uint8_t stored_invert_output;   // Relay state inversion control
 @eeprom uint8_t stored_devicename[20];  // Device name
+/*---------------------------------------------------------------------------*/
 
-uint16_t Port_Httpd;
-
-uint8_t Relays_16to9;
-uint8_t Relays_8to1;
-uint8_t invert_output;
-
-uip_ipaddr_t IpAddr;
-
-// The variables stored in EEPROM can only be accessed within the
-// file in which they are declared. But I need to display them from
-// within the httpd.c file. So additional variables are needed to
-// allow this to work.
+/*---------------------------------------------------------------------------*/
+// To make sure I can carefully control when the EEPROM is written all
+// variables that are stored in EEPROM have an equivalent stored in RAM. The
+// RAM values are used globally, but EEPROM values are used only within the
+// main.c file.
 uint8_t ex_stored_hostaddr4;	   // MSB hostaddr stored in EEPROM
 uint8_t ex_stored_hostaddr3;	   //
 uint8_t ex_stored_hostaddr2;	   //
@@ -115,8 +109,17 @@ uint8_t ex_stored_netmask3;	   //
 uint8_t ex_stored_netmask2;	   //
 uint8_t ex_stored_netmask1;	   // LSB netmask
 uint16_t ex_stored_port;	   // Port stored in EEPROM
+uint8_t IO_16to9;                  // Stores the IO states
+uint8_t IO_8to1;                   // Stores the IO states
+uint8_t invert_output;             // Stores the relay control pin invert
 uint8_t ex_stored_devicename[20];  // Device name
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+// Pending values are used to pass change requests from the user to the main.c
+// routines. Code in the main.c file will compare the values in use to the
+// "pending" values to determine if any changes occurred, and if so code will
+// update the "in use" values and will restart the firmware if needed.
 uint8_t Pending_hostaddr4;
 uint8_t Pending_hostaddr3;
 uint8_t Pending_hostaddr2;
@@ -150,6 +153,11 @@ uint8_t uip_ethaddr1;
 
 uint8_t submit_changes;
 uint8_t devicename_changed;
+/*---------------------------------------------------------------------------*/
+
+uint16_t Port_Httpd;
+uip_ipaddr_t IpAddr;
+
 
 /*---------------------------------------------------------------------------*/
 int
@@ -180,20 +188,19 @@ main(void)
 
   uip_arp_init();          // Initialize the ARP module
   
-  uip_init();              // Initialize uIP
+  uip_init();              // Initialize uIP Web Server
 
-  HttpDInit();             // Initialize httpd; sets up listening ports
+  HttpDInit();             // Initialize listening ports
 
   while (1) {
-    uip_len = Enc28j60Receive(uip_buf);
+    uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
 
     if (uip_len> 0) {
       if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
 	// uip_arp_ipin();
-	uip_input(); // calls uip_process(UIP_DATA)
-	// If the above function invocation resulted in data that
-	// should be sent out on the network, the global variable
-	// uip_len is set to a value > 0.
+	uip_input(); // Calls uip_process(UIP_DATA) to process incoming packet
+	// If the above process resulted in data that should be sent out on the
+	// network the global variable uip_len will have been set to a value > 0.
         if (uip_len> 0) {
           uip_arp_out();
 	  // The original uip code has a uip_split_output function. It is not
@@ -205,9 +212,8 @@ main(void)
       }
       else if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_ARP)) {
         uip_arp_arpin();
-	// If the above function invocation resulted in data that
-	// should be sent out on the network, the global variable
-	// uip_len is set to a value > 0.
+	// If the above process resulted in data that should be sent out on the
+	// network the global variable uip_len will have been set to a value > 0.
         if (uip_len> 0) {
 	  // The original uip code has a uip_split_output function. It is not
 	  // needed for this application due to small packet sizes, so the
@@ -221,9 +227,8 @@ main(void)
     if (periodic_timer_expired()) {
       for(i = 0; i < UIP_CONNS; i++) {
 	uip_periodic(i);
-	// If the above function invocation resulted in data that
-	// should be sent out on the network, the global variable
-	// uip_len is set to a value > 0.
+	// If the above process resulted in data that should be sent out on the
+	// network the global variable uip_len will have been set to a value > 0.
 	if (uip_len > 0) {
 	  uip_arp_out();
 	  // The original uip code has a uip_split_output function. It is not
@@ -236,12 +241,10 @@ main(void)
     }
 
     // Call the ARP timer function every 10 seconds.
-    if (arp_timer_expired()) {
-      uip_arp_timer();
-    }
+    if (arp_timer_expired()) uip_arp_timer();
         
-    // Check for changes in Relay control states, IP address,
-    // IP gateway address, and Netmask
+    // Check for changes in Relay control states, IP address, IP gateway address,
+    // Netmask, MAC, and Port number.
     check_runtime_changes();
     
     // Check for the Reset button
@@ -275,9 +278,10 @@ void unlock_eeprom(void)
   // Unlock the EEPROM
   // It appears that there is an errata in the STM8S device in that the specified
   // "unlock" keys need to be written in reverse order from the instructions in the
-  // documentation. Another user suggests the following code to unlock the EEPROM -
-  // it in effect writes the unlock at least twice, resulting in at least one correct
-  // combo of KEY1/KEY2 and KEY2/KEY1.
+  // documentation. Another user suggests the following code to unlock the EEPROM:
+  // this code in effect writes the unlock at least twice, resulting in at least one
+  // correct combo of KEY1/KEY2 and KEY2/KEY1, thus making sure the EEPROM is
+  // unlocked regardless of the errata.
   while (!(FLASH_IAPSR & 0x08)) {  // Check DUL bit, 0=Protected
     FLASH_DUKR = 0xAE; // MASS key 1
     FLASH_DUKR = 0x56; // MASS key 2
@@ -289,30 +293,37 @@ void check_eeprom_settings(void)
 {
   uint8_t i;
   
-  // Check magic number in EEPROM. If no magic number it is assumed that the
-  // EEPROM has never been written, in which case the default IP Address,
-  // Gateway Address, and Netmask will be used. If the magic number IS
-  // present then it is assumed that the EEPROM contains valid copies of
-  // the IP Address, Gateway Address, and Netmask.
+  // Check magic number in EEPROM.
+  // If no magic number is found it is assumed that the EEPROM has never been written,
+  // in which case the default Relay States, IP Address, Gateway Address, Netmask, MAC
+  // and Port number will be used.
+  // If the magic number IS found then it is assumed that the EEPROM contains valid
+  // copies of the Relay States, IP Address, Gateway Address, Netmask, MAC and Port
+  // number.
   // The magic number sequence is MSB 0x55 0xee 0x0f 0xf0 LSB
   
   if ((magic4 == 0x55) && 
       (magic3 == 0xee) && 
       (magic2 == 0x0f) && 
       (magic1 == 0xf0) == 1) {
-    // Magic number is present. Use the values in the EEPROM for the IP,
-    // Gateway, Netmask and MAC.
+    // Magic number is present. Use the values in the EEPROM for the Relays States, IP,
+    // Gateway, Netmask, MAC and Port Number.
+    
     // Read and use the IP Address from EEPROM
     uip_ipaddr(IpAddr, stored_hostaddr4, stored_hostaddr3, stored_hostaddr2, stored_hostaddr1);
     uip_sethostaddr(IpAddr);
+    
     // Read and use the Gateway Address from EEPROM
     uip_ipaddr(IpAddr, stored_draddr4, stored_draddr3, stored_draddr2, stored_draddr1);
     uip_setdraddr(IpAddr);
+    
     // Read and use the Netmask from EEPROM
     uip_ipaddr(IpAddr, stored_netmask4, stored_netmask3, stored_netmask2, stored_netmask1);
     uip_setnetmask(IpAddr);
+    
     // Read and use the Port from EEPROM
     Port_Httpd = stored_port;
+    
     // Read and use the MAC from EEPROM
     uip_ethaddr6 = stored_uip_ethaddr6;
     uip_ethaddr5 = stored_uip_ethaddr5;
@@ -327,16 +338,24 @@ void check_eeprom_settings(void)
     uip_ethaddr.addr[3] = uip_ethaddr4;
     uip_ethaddr.addr[4] = uip_ethaddr5;
     uip_ethaddr.addr[5] = uip_ethaddr6;
+    
     // Set the device name
     for(i=0; i<20; i++) { ex_stored_devicename[i] = stored_devicename[i]; }
     
-    // Now check the EEPROM to collect and use the relay states.
-    // Read the Relay states from EEPROM
+    // Read and use the Relay states from EEPROM
     invert_output = stored_invert_output;
-    Relays_16to9 = stored_Relays_16to9;
-    Relays_8to1 = stored_Relays_8to1;
+#if GPIO_SUPPORT == 1 // Build control for 16 outputs
+    IO_16to9 = stored_IO_16to9;
+    IO_8to1 = stored_IO_8to1;
+#endif // GPIO_SUPPORT == 1
+#if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
+    IO_8to1 = stored_IO_8to1;
+#endif // GPIO_SUPPORT == 2
+#if GPIO_SUPPORT == 3 // Build control for 16 inputs
+    // No action needed - all pins are inputs
+#endif // GPIO_SUPPORT == 3
     // Update the relay control registers
-    update_relay_control_registers();
+    write_output_registers();
   }
   
   else {
@@ -376,16 +395,17 @@ void check_eeprom_settings(void)
     // Set the "in use" port number to the default
     Port_Httpd = 8080;
 
-    // Update the MAC values
+    // Write the default MAC address to EEPROM
     // With a bogus Magic Number we have to assume that the Network Module
     // has never been used before. Therefore we need to program a default
     // MAC Address. After this the Magic Number should always be present
     // in which case a user programmed MAC is used.
     // Note there is nothing special about the default MAC used below. It
-    // appeared in sample code and doesn't appear to be registered, so I
-    // used it here. I assume the user will pick MACs that do not conflict
+    // must be a "Locally Administered" address and it must be a "Unicast"
+    // address. Both of these conditions are met via the bit settings of
+    // the most significant octet. Otherwise the default MAC is a random
+    // selection. I assume the user will pick MACs that do not conflict
     // within their networks.
-    // Update the MAC values stored in EEPROM
     stored_uip_ethaddr1 = 0xc2;	//MAC MSB
     stored_uip_ethaddr2 = 0x4d;
     stored_uip_ethaddr3 = 0x69;
@@ -431,11 +451,20 @@ void check_eeprom_settings(void)
     // Turn all Relays controls to 0 and store the state in EEPROM.
     invert_output = 0;                  // Turn off output invert bit
     stored_invert_output = 0;           // Store in EEPROM
-    Relays_16to9 = (uint8_t)0x00;       // Turn off Relays 16 to 9
-    Relays_8to1  = (uint8_t)0x00;       // Turn off Relays 8 to 1
-    stored_Relays_16to9 = Relays_16to9; // Store in EEPROM
-    stored_Relays_8to1 = Relays_8to1;   // Store in EEPROM
-    update_relay_control_registers();   // Set Relay Control outputs
+#if GPIO_SUPPORT == 1 // Build control for 16 outputs
+    IO_16to9  = (uint8_t)0x00;          // Turn off Relays 16 to 9
+    stored_IO_16to9 = IO_16to9;         // Store in EEPROM
+    IO_8to1  = (uint8_t)0x00;           // Turn off Relays 8 to 1
+    stored_IO_8to1 = IO_8to1;           // Store in EEPROM
+#endif // GPIO_SUPPORT == 1
+#if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
+    IO_8to1  = (uint8_t)0x00;           // Turn off Relays 8 to 1
+    stored_IO_8to1 = IO_8to1;           // Store in EEPROM
+#endif // GPIO_SUPPORT == 2
+#if GPIO_SUPPORT == 3 // Build control for 16 inputs
+    // No action needed - all pins are inputs
+#endif // GPIO_SUPPORT == 3
+    write_output_registers();          // Set Relay Control outputs
 
     // Write the magic number to the EEPROM MSB 0x55 0xee 0x0f 0xf0 LSB
     magic4 = 0x55;		// MSB
@@ -502,17 +531,37 @@ void check_runtime_changes(void)
   
   uint8_t i;
 
+  read_input_registers();
+
+#if GPIO_SUPPORT == 1 // Build control for 16 outputs
   if ((invert_output != stored_invert_output)
-   || (stored_Relays_16to9 != Relays_16to9)
-   || (stored_Relays_8to1 != Relays_8to1)) {
+   || (stored_IO_16to9 != IO_16to9)
+   || (stored_IO_8to1 != IO_8to1)) {
     // Write the Invert state value to the EEPROM
     stored_invert_output = invert_output;
     // Write the relay state values to the EEPROM
-    stored_Relays_16to9 = Relays_16to9;
-    stored_Relays_8to1 = Relays_8to1;
+    stored_IO_16to9 = IO_16to9;
+    stored_IO_8to1 = IO_8to1;
     // Update the relay control registers
-    update_relay_control_registers();
+    write_output_registers();
   }
+#endif // GPIO_SUPPORT == 1
+
+#if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
+  if ((invert_output != stored_invert_output)
+   || (stored_IO_8to1 != IO_8to1)) {
+    // Write the Invert state value to the EEPROM
+    stored_invert_output = invert_output;
+    // Write the relay state values to the EEPROM
+    stored_IO_8to1 = IO_8to1;
+    // Update the relay control registers
+    write_output_registers();
+  }
+#endif // GPIO_SUPPORT == 2
+
+#if GPIO_SUPPORT == 3 // Build control for 16 inputs
+    // No action needed - all pins are inputs
+#endif // GPIO_SUPPORT == 3
   
   // Check for changes in the IP Address
   if (stored_hostaddr4 != Pending_hostaddr4 ||
@@ -624,89 +673,209 @@ void check_runtime_changes(void)
 }
 
 
-void update_relay_control_registers(void)
+void read_input_registers(void)
 {
-  // Update the relay control registers to match the state control value.
-  // for relays 16 to 9.
-  // Note that the invert_output setting flips the state.
+  // This routine reads the Input GPIO pins and stores the values in the state
+  // variables.
+
+#if GPIO_SUPPORT == 1 // Build control for 16 outputs
+  // No action needed - all pins are outputs
+#endif // GPIO_SUPPORT == 1
+
+#if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
+  if (PC_IDR & (uint8_t)0x40) IO_16to9 |= 0x80; // PC bit 6 = 1, Input 8 = 1
+  else IO_16to9 &= (uint8_t)(~0x80);
+  if (PG_IDR & (uint8_t)0x01) IO_16to9 |= 0x40; // PG bit 0 = 1, Input 7 = 1
+  else IO_16to9 &= (uint8_t)(~0x40);
+  if (PE_IDR & (uint8_t)0x08) IO_16to9 |= 0x20; // PE bit 3 = 1, Input 6 = 1
+  else IO_16to9 &= (uint8_t)(~0x20);
+  if (PD_IDR & (uint8_t)0x01) IO_16to9 |= 0x10; // PD bit 0 = 1, Input 5 = 1
+  else IO_16to9 &= (uint8_t)(~0x10);
+  if (PD_IDR & (uint8_t)0x08) IO_16to9 |= 0x08; // PD bit 3 = 1, Input 4 = 1
+  else IO_16to9 &= (uint8_t)(~0x08);
+  if (PD_IDR & (uint8_t)0x20) IO_16to9 |= 0x04; // PD bit 5 = 1, Input 3 = 1
+  else IO_16to9 &= (uint8_t)(~0x04);
+  if (PD_IDR & (uint8_t)0x80) IO_16to9 |= 0x02; // PD bit 7 = 1, Input 2 = 1
+  else IO_16to9 &= (uint8_t)(~0x02);
+  if (PA_IDR & (uint8_t)0x10) IO_16to9 |= 0x01; // PA bit 4 = 1, Input 1 = 1
+  else IO_16to9 &= (uint8_t)(~0x01);
+#endif // GPIO_SUPPORT == 2
+
+#if GPIO_SUPPORT == 3 // Build control for 16 inputs
+  if (PC_IDR & (uint8_t)0x40) IO_16to9 |= 0x80; // PC bit 6 = 1, Input 16 = 1
+  else IO_16to9 &= (uint8_t)(~0x80);
+  if (PG_IDR & (uint8_t)0x01) IO_16to9 |= 0x40; // PG bit 0 = 1, Input 15 = 1
+  else IO_16to9 &= (uint8_t)(~0x40);
+  if (PE_IDR & (uint8_t)0x08) IO_16to9 |= 0x20; // PE bit 3 = 1, Input 14 = 1
+  else IO_16to9 &= (uint8_t)(~0x20);
+  if (PD_IDR & (uint8_t)0x01) IO_16to9 |= 0x10; // PD bit 0 = 1, Input 13 = 1
+  else IO_16to9 &= (uint8_t)(~0x10);
+  if (PD_IDR & (uint8_t)0x08) IO_16to9 |= 0x08; // PD bit 3 = 1, Input 12 = 1
+  else IO_16to9 &= (uint8_t)(~0x08);
+  if (PD_IDR & (uint8_t)0x20) IO_16to9 |= 0x04; // PD bit 5 = 1, Input 11 = 1
+  else IO_16to9 &= (uint8_t)(~0x04);
+  if (PD_IDR & (uint8_t)0x80) IO_16to9 |= 0x02; // PD bit 7 = 1, Input 10 = 1
+  else IO_16to9 &= (uint8_t)(~0x02);
+  if (PA_IDR & (uint8_t)0x10) IO_16to9 |= 0x01; // PA bit 4 = 1, Input 9 = 1
+  else IO_16to9 &= (uint8_t)(~0x01);
+  
+  if (PC_IDR & (uint8_t)0x80) IO_8to1 |= 0x80;  // PC bit 7 = 1, Input 8 = 1
+  else IO_8to1 &= (uint8_t)(~0x80);
+  if (PG_IDR & (uint8_t)0x02) IO_8to1 |= 0x40;  // PG bit 1 = 1, Input 7 = 1
+  else IO_8to1 &= (uint8_t)(~0x40);
+  if (PE_IDR & (uint8_t)0x01) IO_8to1 |= 0x20;  // PE bit 0 = 1, Input 6 = 1
+  else IO_8to1 &= (uint8_t)(~0x20);
+  if (PD_IDR & (uint8_t)0x04) IO_8to1 |= 0x10;  // PD bit 2 = 1, Input 5 = 1
+  else IO_8to1 &= (uint8_t)(~0x10);
+  if (PD_IDR & (uint8_t)0x10) IO_8to1 |= 0x08;  // PD bit 4 = 1, Input 4 = 1
+  else IO_8to1 &= (uint8_t)(~0x08);
+  if (PD_IDR & (uint8_t)0x40) IO_8to1 |= 0x04;  // PD bit 6 = 1, Input 3 = 1
+  else IO_8to1 &= (uint8_t)(~0x04);
+  if (PA_IDR & (uint8_t)0x20) IO_8to1 |= 0x02;  // PA bit 5 = 1, Input 2 = 1
+  else IO_8to1 &= (uint8_t)(~0x02);
+  if (PA_IDR & (uint8_t)0x08) IO_8to1 |= 0x01;  // PA bit 3 = 1, Input 1 = 1
+  else IO_8to1 &= (uint8_t)(~0x01);
+#endif // GPIO_SUPPORT == 3
+}
+
+
+void write_output_registers(void)
+{
+  // This routine updates the Output GPIO pins to match the relay control states.
+  // Note that the invert_output setting flips the state of the Output GPIO pins.
   // If invert_output = 0, then a 0 in the Relays_xxx variable sets the relay control to 0
   // If invert_output = 1, then a 0 in the Relays_xxx variable sets the relay control to 1
+  
+#if GPIO_SUPPORT == 1 // Build control for 16 outputs
   if (invert_output == 0) {
-    if (Relays_16to9 & 0x80) PC_ODR |= (uint8_t)0x40; // Relay 16 on, PC bit 6 = 1
+    // Update the relay control registers to match the state control value
+    // for relays 16 to 9
+    if (IO_16to9 & 0x80) PC_ODR |= (uint8_t)0x40; // Relay 16 on, PC bit 6 = 1
     else PC_ODR &= (uint8_t)(~0x40);
-    if (Relays_16to9 & 0x40) PG_ODR |= (uint8_t)0x01; // Relay 15 on, PG bit 0 = 1
+    if (IO_16to9 & 0x40) PG_ODR |= (uint8_t)0x01; // Relay 15 on, PG bit 0 = 1
     else PG_ODR &= (uint8_t)(~0x01);
-    if (Relays_16to9 & 0x20) PE_ODR |= (uint8_t)0x08; // Relay 14 on, PE bit 3 = 1
+    if (IO_16to9 & 0x20) PE_ODR |= (uint8_t)0x08; // Relay 14 on, PE bit 3 = 1
     else PE_ODR &= (uint8_t)(~0x08);
-    if (Relays_16to9 & 0x10) PD_ODR |= (uint8_t)0x01; // Relay 13 on, PD bit 0 = 1
+    if (IO_16to9 & 0x10) PD_ODR |= (uint8_t)0x01; // Relay 13 on, PD bit 0 = 1
     else PD_ODR &= (uint8_t)(~0x01);
-    if (Relays_16to9 & 0x08) PD_ODR |= (uint8_t)0x08; // Relay 12 on, PD bit 3 = 1
+    if (IO_16to9 & 0x08) PD_ODR |= (uint8_t)0x08; // Relay 12 on, PD bit 3 = 1
     else PD_ODR &= (uint8_t)(~0x08);
-    if (Relays_16to9 & 0x04) PD_ODR |= (uint8_t)0x20; // Relay 11 on, PD bit 5 = 1
+    if (IO_16to9 & 0x04) PD_ODR |= (uint8_t)0x20; // Relay 11 on, PD bit 5 = 1
     else PD_ODR &= (uint8_t)(~0x20);
-    if (Relays_16to9 & 0x02) PD_ODR |= (uint8_t)0x80; // Relay 10 on, PD bit 7 = 1
+    if (IO_16to9 & 0x02) PD_ODR |= (uint8_t)0x80; // Relay 10 on, PD bit 7 = 1
     else PD_ODR &= (uint8_t)(~0x80);
-    if (Relays_16to9 & 0x01) PA_ODR |= (uint8_t)0x10; // Relay  9 on, PA bit 4 = 1
+    if (IO_16to9 & 0x01) PA_ODR |= (uint8_t)0x10; // Relay  9 on, PA bit 4 = 1
     else PA_ODR &= (uint8_t)(~0x10);
 
     // Update the relay control registers to match the state control value
     // for relays 8 to 1
-    if (Relays_8to1 & 0x80) PC_ODR |= (uint8_t)0x80; // Relay  8 on, PC bit 7 = 1
+    if (IO_8to1 & 0x80) PC_ODR |= (uint8_t)0x80; // Relay  8 on, PC bit 7 = 1
     else PC_ODR &= (uint8_t)(~0x80);
-    if (Relays_8to1 & 0x40) PG_ODR |= (uint8_t)0x02; // Relay  7 on, PG bit 1 = 1
+    if (IO_8to1 & 0x40) PG_ODR |= (uint8_t)0x02; // Relay  7 on, PG bit 1 = 1
     else PG_ODR &= (uint8_t)(~0x02);
-    if (Relays_8to1 & 0x20) PE_ODR |= (uint8_t)0x01; // Relay  6 on, PE bit 0 = 1
+    if (IO_8to1 & 0x20) PE_ODR |= (uint8_t)0x01; // Relay  6 on, PE bit 0 = 1
     else PE_ODR &= (uint8_t)(~0x01);
-    if (Relays_8to1 & 0x10) PD_ODR |= (uint8_t)0x04; // Relay  5 on, PD bit 2 = 1
+    if (IO_8to1 & 0x10) PD_ODR |= (uint8_t)0x04; // Relay  5 on, PD bit 2 = 1
     else PD_ODR &= (uint8_t)(~0x04);
-    if (Relays_8to1 & 0x08) PD_ODR |= (uint8_t)0x10; // Relay  4 on, PD bit 4 = 1
+    if (IO_8to1 & 0x08) PD_ODR |= (uint8_t)0x10; // Relay  4 on, PD bit 4 = 1
     else PD_ODR &= (uint8_t)(~0x10);
-    if (Relays_8to1 & 0x04) PD_ODR |= (uint8_t)0x40; // Relay  3 on, PD bit 6 = 1
+    if (IO_8to1 & 0x04) PD_ODR |= (uint8_t)0x40; // Relay  3 on, PD bit 6 = 1
     else PD_ODR &= (uint8_t)(~0x40);
-    if (Relays_8to1 & 0x02) PA_ODR |= (uint8_t)0x20; // Relay  2 on, PA bit 5 = 1
+    if (IO_8to1 & 0x02) PA_ODR |= (uint8_t)0x20; // Relay  2 on, PA bit 5 = 1
     else PA_ODR &= (uint8_t)(~0x20);
-    if (Relays_8to1 & 0x01) PA_ODR |= (uint8_t)0x08; // Relay  1 on, PA bit 3 = 1
+    if (IO_8to1 & 0x01) PA_ODR |= (uint8_t)0x08; // Relay  1 on, PA bit 3 = 1
     else PA_ODR &= (uint8_t)(~0x08);
   }
   
   else if (invert_output == 1) {
-    if (Relays_16to9 & 0x80) PC_ODR &= (uint8_t)(~0x40); // Relay 16 off, PC bit 6 = 0
+    // Update the relay control registers to match the state control value
+    // for relays 16 to 9
+    if (IO_16to9 & 0x80) PC_ODR &= (uint8_t)(~0x40); // Relay 16 off, PC bit 6 = 0
     else PC_ODR |= (uint8_t)0x40;
-    if (Relays_16to9 & 0x40) PG_ODR &= (uint8_t)(~0x01); // Relay 15 off, PG bit 0 = 0
+    if (IO_16to9 & 0x40) PG_ODR &= (uint8_t)(~0x01); // Relay 15 off, PG bit 0 = 0
     else PG_ODR |= (uint8_t)0x01;
-    if (Relays_16to9 & 0x20) PE_ODR &= (uint8_t)(~0x08); // Relay 14 off, PE bit 3 = 0
+    if (IO_16to9 & 0x20) PE_ODR &= (uint8_t)(~0x08); // Relay 14 off, PE bit 3 = 0
     else PE_ODR |= (uint8_t)0x08;
-    if (Relays_16to9 & 0x10) PD_ODR &= (uint8_t)(~0x01); // Relay 13 off, PD bit 0 = 0
+    if (IO_16to9 & 0x10) PD_ODR &= (uint8_t)(~0x01); // Relay 13 off, PD bit 0 = 0
     else PD_ODR |= (uint8_t)0x01;
-    if (Relays_16to9 & 0x08) PD_ODR &= (uint8_t)(~0x08); // Relay 12 off, PD bit 3 = 0
+    if (IO_16to9 & 0x08) PD_ODR &= (uint8_t)(~0x08); // Relay 12 off, PD bit 3 = 0
     else PD_ODR |= (uint8_t)0x08;
-    if (Relays_16to9 & 0x04) PD_ODR &= (uint8_t)(~0x20); // Relay 11 off, PD bit 5 = 0
+    if (IO_16to9 & 0x04) PD_ODR &= (uint8_t)(~0x20); // Relay 11 off, PD bit 5 = 0
     else PD_ODR |= (uint8_t)0x20;
-    if (Relays_16to9 & 0x02) PD_ODR &= (uint8_t)(~0x80); // Relay 10 off, PD bit 7 = 0
+    if (IO_16to9 & 0x02) PD_ODR &= (uint8_t)(~0x80); // Relay 10 off, PD bit 7 = 0
     else PD_ODR |= (uint8_t)0x80;
-    if (Relays_16to9 & 0x01) PA_ODR &= (uint8_t)(~0x10); // Relay  9 off, PA bit 4 = 0
+    if (IO_16to9 & 0x01) PA_ODR &= (uint8_t)(~0x10); // Relay  9 off, PA bit 4 = 0
     else PA_ODR |= (uint8_t)0x10;
 
     // Update the relay control registers to match the state control value
     // for relays 8 to 1
-    if (Relays_8to1 & 0x80) PC_ODR &= (uint8_t)(~0x80); // Relay  8 off, PC bit 7 = 0
+    if (IO_8to1 & 0x80) PC_ODR &= (uint8_t)(~0x80); // Relay  8 off, PC bit 7 = 0
     else PC_ODR |= (uint8_t)0x80;
-    if (Relays_8to1 & 0x40) PG_ODR &= (uint8_t)(~0x02); // Relay  7 off, PG bit 1 = 0
+    if (IO_8to1 & 0x40) PG_ODR &= (uint8_t)(~0x02); // Relay  7 off, PG bit 1 = 0
     else PG_ODR |= (uint8_t)0x02;
-    if (Relays_8to1 & 0x20) PE_ODR &= (uint8_t)(~0x01); // Relay  6 off, PE bit 0 = 0
+    if (IO_8to1 & 0x20) PE_ODR &= (uint8_t)(~0x01); // Relay  6 off, PE bit 0 = 0
     else PE_ODR |= (uint8_t)0x01;
-    if (Relays_8to1 & 0x10) PD_ODR &= (uint8_t)(~0x04); // Relay  5 off, PD bit 2 = 0
+    if (IO_8to1 & 0x10) PD_ODR &= (uint8_t)(~0x04); // Relay  5 off, PD bit 2 = 0
     else PD_ODR |= (uint8_t)0x04;
-    if (Relays_8to1 & 0x08) PD_ODR &= (uint8_t)(~0x10); // Relay  4 off, PD bit 4 = 0
+    if (IO_8to1 & 0x08) PD_ODR &= (uint8_t)(~0x10); // Relay  4 off, PD bit 4 = 0
     else PD_ODR |= (uint8_t)0x10;
-    if (Relays_8to1 & 0x04) PD_ODR &= (uint8_t)(~0x40); // Relay  3 off, PD bit 6 = 0
+    if (IO_8to1 & 0x04) PD_ODR &= (uint8_t)(~0x40); // Relay  3 off, PD bit 6 = 0
     else PD_ODR |= (uint8_t)0x40;
-    if (Relays_8to1 & 0x02) PA_ODR &= (uint8_t)(~0x20); // Relay  2 off, PA bit 5 = 0
+    if (IO_8to1 & 0x02) PA_ODR &= (uint8_t)(~0x20); // Relay  2 off, PA bit 5 = 0
     else PA_ODR |= (uint8_t)0x20;
-    if (Relays_8to1 & 0x01) PA_ODR &= (uint8_t)(~0x08); // Relay  1 off, PA bit 3 = 0
+    if (IO_8to1 & 0x01) PA_ODR &= (uint8_t)(~0x08); // Relay  1 off, PA bit 3 = 0
     else PA_ODR |= (uint8_t)0x08;
   }
+#endif // GPIO_SUPPORT == 1
+
+#if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
+  if (invert_output == 0) {
+    // Update the relay control registers to match the state control value
+    // for relays 8 to 1
+    if (IO_8to1 & 0x80) PC_ODR |= (uint8_t)0x80; // Relay  8 on, PC bit 7 = 1
+    else PC_ODR &= (uint8_t)(~0x80);
+    if (IO_8to1 & 0x40) PG_ODR |= (uint8_t)0x02; // Relay  7 on, PG bit 1 = 1
+    else PG_ODR &= (uint8_t)(~0x02);
+    if (IO_8to1 & 0x20) PE_ODR |= (uint8_t)0x01; // Relay  6 on, PE bit 0 = 1
+    else PE_ODR &= (uint8_t)(~0x01);
+    if (IO_8to1 & 0x10) PD_ODR |= (uint8_t)0x04; // Relay  5 on, PD bit 2 = 1
+    else PD_ODR &= (uint8_t)(~0x04);
+    if (IO_8to1 & 0x08) PD_ODR |= (uint8_t)0x10; // Relay  4 on, PD bit 4 = 1
+    else PD_ODR &= (uint8_t)(~0x10);
+    if (IO_8to1 & 0x04) PD_ODR |= (uint8_t)0x40; // Relay  3 on, PD bit 6 = 1
+    else PD_ODR &= (uint8_t)(~0x40);
+    if (IO_8to1 & 0x02) PA_ODR |= (uint8_t)0x20; // Relay  2 on, PA bit 5 = 1
+    else PA_ODR &= (uint8_t)(~0x20);
+    if (IO_8to1 & 0x01) PA_ODR |= (uint8_t)0x08; // Relay  1 on, PA bit 3 = 1
+    else PA_ODR &= (uint8_t)(~0x08);
+  }
+  else if (invert_output == 1) {
+    // Update the relay control registers to match the state control value
+    // for relays 8 to 1
+    if (IO_8to1 & 0x80) PC_ODR &= (uint8_t)(~0x80); // Relay  8 off, PC bit 7 = 0
+    else PC_ODR |= (uint8_t)0x80;
+    if (IO_8to1 & 0x40) PG_ODR &= (uint8_t)(~0x02); // Relay  7 off, PG bit 1 = 0
+    else PG_ODR |= (uint8_t)0x02;
+    if (IO_8to1 & 0x20) PE_ODR &= (uint8_t)(~0x01); // Relay  6 off, PE bit 0 = 0
+    else PE_ODR |= (uint8_t)0x01;
+    if (IO_8to1 & 0x10) PD_ODR &= (uint8_t)(~0x04); // Relay  5 off, PD bit 2 = 0
+    else PD_ODR |= (uint8_t)0x04;
+    if (IO_8to1 & 0x08) PD_ODR &= (uint8_t)(~0x10); // Relay  4 off, PD bit 4 = 0
+    else PD_ODR |= (uint8_t)0x10;
+    if (IO_8to1 & 0x04) PD_ODR &= (uint8_t)(~0x40); // Relay  3 off, PD bit 6 = 0
+    else PD_ODR |= (uint8_t)0x40;
+    if (IO_8to1 & 0x02) PA_ODR &= (uint8_t)(~0x20); // Relay  2 off, PA bit 5 = 0
+    else PA_ODR |= (uint8_t)0x20;
+    if (IO_8to1 & 0x01) PA_ODR &= (uint8_t)(~0x08); // Relay  1 off, PA bit 3 = 0
+    else PA_ODR |= (uint8_t)0x08;
+  }
+#endif // GPIO_SUPPORT == 2
+
+#if GPIO_SUPPORT == 3 // Build control for 16 inputs
+  // No action needed - all pins are inputs
+#endif // GPIO_SUPPORT == 3
 }
+
 
 void check_reset_button(void)
 {
@@ -718,7 +887,7 @@ void check_reset_button(void)
     // Reset Button pressed
     for (i=0; i<100; i++) {
       wait_timer(50000); // wait 50ms
-      if ((PA_IDR & 0x02) == 1) {  // check Reset Button again. If released
+      if ((PA_IDR & 0x02) == 1) { // check Reset Button again. If released
                                   // exit.
         return;
       }
@@ -733,28 +902,35 @@ void check_reset_button(void)
     magic3 = 0x00;		   //
     magic2 = 0x00;		   //
     magic1 = 0x00;		   // LSB Magic Number
+    
     stored_hostaddr4 = 0x00;	   // MSB hostaddr stored in EEPROM
     stored_hostaddr3 = 0x00;	   //
     stored_hostaddr2 = 0x00;	   //
     stored_hostaddr1 = 0x00;	   // LSB hostaddr
+    
     stored_draddr4 = 0x00;	   // MSB draddr stored in EEPROM
     stored_draddr3 = 0x00;	   //
     stored_draddr2 = 0x00;	   //
     stored_draddr1 = 0x00;	   // LSB draddr
+    
     stored_netmask4 = 0x00;	   // MSB netmask stored in EEPROM
     stored_netmask3 = 0x00;	   //
     stored_netmask2 = 0x00;	   //
     stored_netmask1 = 0x00;	   // LSB netmask
+    
     stored_port = 0x0000;	   // Port stored in EEPROM
+    
     stored_uip_ethaddr1 = 0x00;	   // MAC MSB
     stored_uip_ethaddr2 = 0x00;	   //
     stored_uip_ethaddr3 = 0x00;	   //
     stored_uip_ethaddr4 = 0x00;	   //
     stored_uip_ethaddr5 = 0x00;	   //
     stored_uip_ethaddr6 = 0x00;	   // MAC LSB stored in EEPROM
-    stored_Relays_16to9 = 0x00;    // Relay states for relays 16 to 9
-    stored_Relays_8to1 = 0x00;     // Relay states for relays 8 to 1
+    
+    stored_IO_16to9 = 0x00;        // IO States 16 to 9
+    stored_IO_8to1 = 0x00;         // IO States 8 to 1
     stored_invert_output = 0x00;   // Relay state inversion control
+    
     stored_devicename[0] = 0x00;   // Device name
     stored_devicename[1] = 0x00;   // Device name
     stored_devicename[2] = 0x00;   // Device name
@@ -776,12 +952,12 @@ void check_reset_button(void)
     stored_devicename[18] = 0x00;  // Device name
     stored_devicename[19] = 0x00;  // Device name
     
-    WWDG_WR = (uint8_t)0x7f;     // Window register reset
-    WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
-    WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
-                                 // much as we plan to reset
+    WWDG_WR = (uint8_t)0x7f;       // Window register reset
+    WWDG_CR = (uint8_t)0xff;       // Set watchdog to timeout in 49ms
+    WWDG_WR = (uint8_t)0x60;       // Window register value - doesn't matter
+                                   // much as we plan to reset
 				 
-    wait_timer((uint16_t)50000); // Wait for watchdog to generate reset
+    wait_timer((uint16_t)50000);   // Wait for watchdog to generate reset
     wait_timer((uint16_t)50000);
     wait_timer((uint16_t)50000);
   }

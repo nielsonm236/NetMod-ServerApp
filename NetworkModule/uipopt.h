@@ -181,12 +181,6 @@
 #define UIP_LLH_LEN     14
 
 
-// Determines if help support should be compiled in. If you are modifying the
-// project and need more program space eliminating the help pages and processes
-// will free up considerable space.
-#define HELP_SUPPORT  1
-
-
 // CPU architecture configuration. The CPU architecture configuration is where
 // the endianess of the CPU on which uIP is to be run is specified. Most CPUs
 // today are little endian, and the most notable exception are the Motorolas
@@ -194,6 +188,36 @@
 // CPU architecture on which uIP is to be run. This option can be either
 // BIG_ENDIAN (Motorola byte order) or LITTLE_ENDIAN (Intel byte order).
 #define UIP_BYTE_ORDER     UIP_BIG_ENDIAN
+
+
+/*------------------------------------------------------------------------------*/
+/**
+ * Application specific compile controls
+ *
+ * Controls whether the options for code compile. For instance:
+ *  - Controls with/without Help web pages
+ *  - Control number of relay outputs / sense inputs
+ *      16 relay outputs (no inputs)
+ *        OR
+ *      8 relay outputs and 8 sense inputs
+ *        OR
+ *      16 sense inputs
+ */
+
+
+// Determines if help support should be compiled in. If you are modifying the
+// project and need more program space eliminating the help pages and processes
+// will free up considerable space.
+#define HELP_SUPPORT  1
+
+
+// Determines how many GPIO pins are relay control outputs and how many are
+// sense inputs. Due to flash space limitations this can't be a run time option.
+// It must be a build time option.
+// 1 = 16 relay outputs
+// 2 = 8 relay outputs / 8 sense inputs
+// 3 = 16 sense inputs
+#define GPIO_SUPPORT  1
 
 
 /*------------------------------------------------------------------------------*/

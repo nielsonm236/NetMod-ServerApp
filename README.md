@@ -14,6 +14,12 @@ number (a REAL port number), and MAC Address. I also added the ability for the d
 all these settings through a power cycle. Any Relay settings you make are also saved through
 a power cycle.
 
+Three configurations of the firmware are available. They allow the Network Module to have a) 16
+outputs (to drive 16 relays), or b) 8 outputs / 8 inputs, or c) 16 inputs. All three are
+included in the file set in binary form for immediate programming into your device. If you
+want to manipulate the source code the selection of the configuration is available in the
+uipopt.h file.
+
 Tested with:
 - Firefox 77.0.1 64bit
 - Chrome 83.0.4103.106 64bit

@@ -2,1678 +2,1508 @@
    2                     ; Parser V4.11.14 - 18 Nov 2019
    3                     ; Generator (Limited) V4.4.11 - 19 Nov 2019
    4                     ; Optimizer V4.4.11 - 19 Nov 2019
-2581                     ; 156 main(void)
-2581                     ; 157 {
+2581                     ; 164 main(void)
+2581                     ; 165 {
 2583                     	switch	.text
-2584  d875               _main:
-2586  d875 89            	pushw	x
+2584  c4ed               _main:
+2586  c4ed 89            	pushw	x
 2587       00000002      OFST:	set	2
-2590                     ; 161   devicename_changed = 0;
-2592  d876 725f001c      	clr	_devicename_changed
-2593                     ; 162   submit_changes = 0;
-2595  d87a 725f001d      	clr	_submit_changes
-2596                     ; 164   clock_init();            // Initialize and enable clocks and timers
-2598  d87e cde388        	call	_clock_init
-2600                     ; 166   gpio_init();             // Initialize and enable gpio pins
-2602  d881 cdc19a        	call	_gpio_init
-2604                     ; 168   spi_init();              // Initialize the SPI bit bang interface to the
-2606  d884 cde290        	call	_spi_init
-2608                     ; 171   LEDcontrol(1);           // turn LED on
-2610  d887 a601          	ld	a,#1
-2611  d889 cdc1df        	call	_LEDcontrol
-2613                     ; 173   unlock_eeprom();         // unlock the EEPROM so writes can be performed
-2615  d88c cdd92f        	call	_unlock_eeprom
-2617                     ; 175   check_eeprom_settings(); // Check the EEPROM for previously stored Address
-2619  d88f cdd93f        	call	_check_eeprom_settings
-2621                     ; 179   Enc28j60Init();          // Initialize the ENC28J60 ethernet interface
-2623  d892 cdbf6e        	call	_Enc28j60Init
-2625                     ; 181   uip_arp_init();          // Initialize the ARP module
-2627  d895 cdefc7        	call	_uip_arp_init
-2629                     ; 183   uip_init();              // Initialize uIP
-2631  d898 cde586        	call	_uip_init
-2633                     ; 185   HttpDInit();             // Initialize httpd; sets up listening ports
-2635  d89b cdccf2        	call	_HttpDInit
-2637  d89e               L1561:
-2638                     ; 188     uip_len = Enc28j60Receive(uip_buf);
-2640  d89e ae01db        	ldw	x,#_uip_buf
-2641  d8a1 cdc087        	call	_Enc28j60Receive
-2643  d8a4 cf01d7        	ldw	_uip_len,x
-2644                     ; 190     if (uip_len> 0) {
-2646  d8a7 273b          	jreq	L5561
-2647                     ; 191       if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
-2649  d8a9 ae0800        	ldw	x,#2048
-2650  d8ac cdefa2        	call	_htons
-2652  d8af c301e7        	cpw	x,_uip_buf+12
-2653  d8b2 2612          	jrne	L7561
-2654                     ; 193 	uip_input(); // calls uip_process(UIP_DATA)
-2656  d8b4 a601          	ld	a,#1
-2657  d8b6 cde6a9        	call	_uip_process
-2659                     ; 197         if (uip_len> 0) {
-2661  d8b9 ce01d7        	ldw	x,_uip_len
-2662  d8bc 2726          	jreq	L5561
-2663                     ; 198           uip_arp_out();
-2665  d8be cdf1f0        	call	_uip_arp_out
-2667                     ; 202           Enc28j60CopyPacket(uip_buf, uip_len);
-2669  d8c1 ce01d7        	ldw	x,_uip_len
-2671                     ; 203           Enc28j60Send();
-2673  d8c4 2013          	jp	LC001
-2674  d8c6               L7561:
-2675                     ; 206       else if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_ARP)) {
-2677  d8c6 ae0806        	ldw	x,#2054
-2678  d8c9 cdefa2        	call	_htons
-2680  d8cc c301e7        	cpw	x,_uip_buf+12
-2681  d8cf 2613          	jrne	L5561
-2682                     ; 207         uip_arp_arpin();
-2684  d8d1 cdf141        	call	_uip_arp_arpin
-2686                     ; 211         if (uip_len> 0) {
-2688  d8d4 ce01d7        	ldw	x,_uip_len
-2689  d8d7 270b          	jreq	L5561
-2690                     ; 215           Enc28j60CopyPacket(uip_buf, uip_len);
-2693                     ; 216           Enc28j60Send();
-2695  d8d9               LC001:
-2696  d8d9 89            	pushw	x
-2697  d8da ae01db        	ldw	x,#_uip_buf
-2698  d8dd cdc123        	call	_Enc28j60CopyPacket
-2699  d8e0 85            	popw	x
-2701  d8e1 cdc188        	call	_Enc28j60Send
-2703  d8e4               L5561:
-2704                     ; 221     if (periodic_timer_expired()) {
-2706  d8e4 cde40f        	call	_periodic_timer_expired
-2708  d8e7 4d            	tnz	a
-2709  d8e8 2733          	jreq	L1761
-2710                     ; 222       for(i = 0; i < UIP_CONNS; i++) {
-2712  d8ea 5f            	clrw	x
-2713  d8eb 1f01          	ldw	(OFST-1,sp),x
-2715  d8ed               L1071:
-2716                     ; 223 	uip_periodic(i);
-2718  d8ed a628          	ld	a,#40
-2719  d8ef cdf3ca        	call	c_bmulx
-2721  d8f2 1c00e5        	addw	x,#_uip_conns
-2722  d8f5 cf01d5        	ldw	_uip_conn,x
-2725  d8f8 a602          	ld	a,#2
-2726  d8fa cde6a9        	call	_uip_process
-2728                     ; 227 	if (uip_len > 0) {
-2730  d8fd ce01d7        	ldw	x,_uip_len
-2731  d900 2711          	jreq	L5071
-2732                     ; 228 	  uip_arp_out();
-2734  d902 cdf1f0        	call	_uip_arp_out
-2736                     ; 232           Enc28j60CopyPacket(uip_buf, uip_len);
-2738  d905 ce01d7        	ldw	x,_uip_len
-2739  d908 89            	pushw	x
-2740  d909 ae01db        	ldw	x,#_uip_buf
-2741  d90c cdc123        	call	_Enc28j60CopyPacket
-2743  d90f 85            	popw	x
-2744                     ; 233           Enc28j60Send();
-2746  d910 cdc188        	call	_Enc28j60Send
-2748  d913               L5071:
-2749                     ; 222       for(i = 0; i < UIP_CONNS; i++) {
-2751  d913 1e01          	ldw	x,(OFST-1,sp)
-2752  d915 5c            	incw	x
-2753  d916 1f01          	ldw	(OFST-1,sp),x
-2757  d918 a30006        	cpw	x,#6
-2758  d91b 2fd0          	jrslt	L1071
-2759  d91d               L1761:
-2760                     ; 239     if (arp_timer_expired()) {
-2762  d91d cde42f        	call	_arp_timer_expired
-2764  d920 4d            	tnz	a
-2765  d921 2703          	jreq	L7071
-2766                     ; 240       uip_arp_timer();
-2768  d923 cdefea        	call	_uip_arp_timer
-2770  d926               L7071:
-2771                     ; 245     check_runtime_changes();
-2773  d926 cddcde        	call	_check_runtime_changes
-2775                     ; 248     check_reset_button();
-2777  d929 cde0d4        	call	_check_reset_button
-2780  d92c ccd89e        	jra	L1561
-2805                     ; 273 void unlock_eeprom(void)
-2805                     ; 274 {
+2590                     ; 169   devicename_changed = 0;
+2592  c4ee 725f0022      	clr	_devicename_changed
+2593                     ; 170   submit_changes = 0;
+2595  c4f2 725f0023      	clr	_submit_changes
+2596                     ; 172   clock_init();            // Initialize and enable clocks and timers
+2598  c4f6 cdceb4        	call	_clock_init
+2600                     ; 174   gpio_init();             // Initialize and enable gpio pins
+2602  c4f9 cdb013        	call	_gpio_init
+2604                     ; 176   spi_init();              // Initialize the SPI bit bang interface to the
+2606  c4fc cdcdbc        	call	_spi_init
+2608                     ; 179   LEDcontrol(1);           // turn LED on
+2610  c4ff a601          	ld	a,#1
+2611  c501 cdb05c        	call	_LEDcontrol
+2613                     ; 181   unlock_eeprom();         // unlock the EEPROM so writes can be performed
+2615  c504 cdc5a7        	call	_unlock_eeprom
+2617                     ; 183   check_eeprom_settings(); // Check the EEPROM for previously stored Address
+2619  c507 cdc5b7        	call	_check_eeprom_settings
+2621                     ; 187   Enc28j60Init();          // Initialize the ENC28J60 ethernet interface
+2623  c50a cdade7        	call	_Enc28j60Init
+2625                     ; 189   uip_arp_init();          // Initialize the ARP module
+2627  c50d cddaf3        	call	_uip_arp_init
+2629                     ; 191   uip_init();              // Initialize uIP Web Server
+2631  c510 cdd0b2        	call	_uip_init
+2633                     ; 193   HttpDInit();             // Initialize listening ports
+2635  c513 cdbb6f        	call	_HttpDInit
+2637  c516               L1561:
+2638                     ; 196     uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
+2640  c516 ae01db        	ldw	x,#_uip_buf
+2641  c519 cdaf00        	call	_Enc28j60Receive
+2643  c51c cf01d7        	ldw	_uip_len,x
+2644                     ; 198     if (uip_len> 0) {
+2646  c51f 273b          	jreq	L5561
+2647                     ; 199       if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
+2649  c521 ae0800        	ldw	x,#2048
+2650  c524 cddace        	call	_htons
+2652  c527 c301e7        	cpw	x,_uip_buf+12
+2653  c52a 2612          	jrne	L7561
+2654                     ; 201 	uip_input(); // Calls uip_process(UIP_DATA) to process incoming packet
+2656  c52c a601          	ld	a,#1
+2657  c52e cdd1d5        	call	_uip_process
+2659                     ; 204         if (uip_len> 0) {
+2661  c531 ce01d7        	ldw	x,_uip_len
+2662  c534 2726          	jreq	L5561
+2663                     ; 205           uip_arp_out();
+2665  c536 cddd1c        	call	_uip_arp_out
+2667                     ; 209           Enc28j60CopyPacket(uip_buf, uip_len);
+2669  c539 ce01d7        	ldw	x,_uip_len
+2671                     ; 210           Enc28j60Send();
+2673  c53c 2013          	jp	LC001
+2674  c53e               L7561:
+2675                     ; 213       else if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_ARP)) {
+2677  c53e ae0806        	ldw	x,#2054
+2678  c541 cddace        	call	_htons
+2680  c544 c301e7        	cpw	x,_uip_buf+12
+2681  c547 2613          	jrne	L5561
+2682                     ; 214         uip_arp_arpin();
+2684  c549 cddc6d        	call	_uip_arp_arpin
+2686                     ; 217         if (uip_len> 0) {
+2688  c54c ce01d7        	ldw	x,_uip_len
+2689  c54f 270b          	jreq	L5561
+2690                     ; 221           Enc28j60CopyPacket(uip_buf, uip_len);
+2693                     ; 222           Enc28j60Send();
+2695  c551               LC001:
+2696  c551 89            	pushw	x
+2697  c552 ae01db        	ldw	x,#_uip_buf
+2698  c555 cdaf9c        	call	_Enc28j60CopyPacket
+2699  c558 85            	popw	x
+2701  c559 cdb001        	call	_Enc28j60Send
+2703  c55c               L5561:
+2704                     ; 227     if (periodic_timer_expired()) {
+2706  c55c cdcf3b        	call	_periodic_timer_expired
+2708  c55f 4d            	tnz	a
+2709  c560 2733          	jreq	L1761
+2710                     ; 228       for(i = 0; i < UIP_CONNS; i++) {
+2712  c562 5f            	clrw	x
+2713  c563 1f01          	ldw	(OFST-1,sp),x
+2715  c565               L1071:
+2716                     ; 229 	uip_periodic(i);
+2718  c565 a628          	ld	a,#40
+2719  c567 cddef6        	call	c_bmulx
+2721  c56a 1c00e5        	addw	x,#_uip_conns
+2722  c56d cf01d5        	ldw	_uip_conn,x
+2725  c570 a602          	ld	a,#2
+2726  c572 cdd1d5        	call	_uip_process
+2728                     ; 232 	if (uip_len > 0) {
+2730  c575 ce01d7        	ldw	x,_uip_len
+2731  c578 2711          	jreq	L5071
+2732                     ; 233 	  uip_arp_out();
+2734  c57a cddd1c        	call	_uip_arp_out
+2736                     ; 237           Enc28j60CopyPacket(uip_buf, uip_len);
+2738  c57d ce01d7        	ldw	x,_uip_len
+2739  c580 89            	pushw	x
+2740  c581 ae01db        	ldw	x,#_uip_buf
+2741  c584 cdaf9c        	call	_Enc28j60CopyPacket
+2743  c587 85            	popw	x
+2744                     ; 238           Enc28j60Send();
+2746  c588 cdb001        	call	_Enc28j60Send
+2748  c58b               L5071:
+2749                     ; 228       for(i = 0; i < UIP_CONNS; i++) {
+2751  c58b 1e01          	ldw	x,(OFST-1,sp)
+2752  c58d 5c            	incw	x
+2753  c58e 1f01          	ldw	(OFST-1,sp),x
+2757  c590 a30006        	cpw	x,#6
+2758  c593 2fd0          	jrslt	L1071
+2759  c595               L1761:
+2760                     ; 244     if (arp_timer_expired()) uip_arp_timer();
+2762  c595 cdcf5b        	call	_arp_timer_expired
+2764  c598 4d            	tnz	a
+2765  c599 2703          	jreq	L7071
+2768  c59b cddb16        	call	_uip_arp_timer
+2770  c59e               L7071:
+2771                     ; 248     check_runtime_changes();
+2773  c59e cdc936        	call	_check_runtime_changes
+2775                     ; 251     check_reset_button();
+2777  c5a1 cdcc00        	call	_check_reset_button
+2780  c5a4 ccc516        	jra	L1561
+2805                     ; 276 void unlock_eeprom(void)
+2805                     ; 277 {
 2806                     	switch	.text
-2807  d92f               _unlock_eeprom:
-2811  d92f 2008          	jra	L3271
-2812  d931               L1271:
-2813                     ; 282     FLASH_DUKR = 0xAE; // MASS key 1
-2815  d931 35ae5064      	mov	_FLASH_DUKR,#174
-2816                     ; 283     FLASH_DUKR = 0x56; // MASS key 2
-2818  d935 35565064      	mov	_FLASH_DUKR,#86
-2819  d939               L3271:
-2820                     ; 281   while (!(FLASH_IAPSR & 0x08)) {  // Check DUL bit, 0=Protected
-2822  d939 7207505ff3    	btjf	_FLASH_IAPSR,#3,L1271
-2823                     ; 285 }
-2826  d93e 81            	ret	
-2935                     ; 288 void check_eeprom_settings(void)
-2935                     ; 289 {
-2936                     	switch	.text
-2937  d93f               _check_eeprom_settings:
-2939  d93f 88            	push	a
-2940       00000001      OFST:	set	1
-2943                     ; 299   if ((magic4 == 0x55) && 
-2943                     ; 300       (magic3 == 0xee) && 
-2943                     ; 301       (magic2 == 0x0f) && 
-2943                     ; 302       (magic1 == 0xf0) == 1) {
-2945  d940 c6402e        	ld	a,_magic4
-2946  d943 a155          	cp	a,#85
-2947  d945 2703ccda2f    	jrne	L5002
-2949  d94a c6402d        	ld	a,_magic3
-2950  d94d a1ee          	cp	a,#238
-2951  d94f 26f6          	jrne	L5002
-2953  d951 c6402c        	ld	a,_magic2
-2954  d954 a10f          	cp	a,#15
-2955  d956 26ef          	jrne	L5002
-2957  d958 c6402b        	ld	a,_magic1
-2958  d95b a1f0          	cp	a,#240
-2959  d95d 26e8          	jrne	L5002
-2960                     ; 306     uip_ipaddr(IpAddr, stored_hostaddr4, stored_hostaddr3, stored_hostaddr2, stored_hostaddr1);
-2962  d95f c6402a        	ld	a,_stored_hostaddr4
-2963  d962 97            	ld	xl,a
-2964  d963 c64029        	ld	a,_stored_hostaddr3
-2965  d966 02            	rlwa	x,a
-2966  d967 cf005a        	ldw	_IpAddr,x
-2969  d96a c64028        	ld	a,_stored_hostaddr2
-2970  d96d 97            	ld	xl,a
-2971  d96e c64027        	ld	a,_stored_hostaddr1
-2972  d971 02            	rlwa	x,a
-2973  d972 cf005c        	ldw	_IpAddr+2,x
-2974                     ; 307     uip_sethostaddr(IpAddr);
-2976  d975 ce005a        	ldw	x,_IpAddr
-2977  d978 cf0084        	ldw	_uip_hostaddr,x
-2980  d97b ce005c        	ldw	x,_IpAddr+2
-2981  d97e cf0086        	ldw	_uip_hostaddr+2,x
-2982                     ; 309     uip_ipaddr(IpAddr, stored_draddr4, stored_draddr3, stored_draddr2, stored_draddr1);
-2984  d981 c64026        	ld	a,_stored_draddr4
-2985  d984 97            	ld	xl,a
-2986  d985 c64025        	ld	a,_stored_draddr3
-2987  d988 02            	rlwa	x,a
-2988  d989 cf005a        	ldw	_IpAddr,x
-2991  d98c c64024        	ld	a,_stored_draddr2
-2992  d98f 97            	ld	xl,a
-2993  d990 c64023        	ld	a,_stored_draddr1
-2994  d993 02            	rlwa	x,a
-2995  d994 cf005c        	ldw	_IpAddr+2,x
-2996                     ; 310     uip_setdraddr(IpAddr);
-2998  d997 ce005a        	ldw	x,_IpAddr
-2999  d99a cf007c        	ldw	_uip_draddr,x
-3002  d99d ce005c        	ldw	x,_IpAddr+2
-3003  d9a0 cf007e        	ldw	_uip_draddr+2,x
-3004                     ; 312     uip_ipaddr(IpAddr, stored_netmask4, stored_netmask3, stored_netmask2, stored_netmask1);
-3006  d9a3 c64022        	ld	a,_stored_netmask4
-3007  d9a6 97            	ld	xl,a
-3008  d9a7 c64021        	ld	a,_stored_netmask3
-3009  d9aa 02            	rlwa	x,a
-3010  d9ab cf005a        	ldw	_IpAddr,x
-3013  d9ae c64020        	ld	a,_stored_netmask2
-3014  d9b1 97            	ld	xl,a
-3015  d9b2 c6401f        	ld	a,_stored_netmask1
-3016  d9b5 02            	rlwa	x,a
-3017  d9b6 cf005c        	ldw	_IpAddr+2,x
-3018                     ; 313     uip_setnetmask(IpAddr);
-3020  d9b9 ce005a        	ldw	x,_IpAddr
-3021  d9bc cf0080        	ldw	_uip_netmask,x
-3024  d9bf ce005c        	ldw	x,_IpAddr+2
-3025  d9c2 cf0082        	ldw	_uip_netmask+2,x
-3026                     ; 315     Port_Httpd = stored_port;
-3028  d9c5 ce401d        	ldw	x,_stored_port
-3029  d9c8 cf0061        	ldw	_Port_Httpd,x
-3030                     ; 317     uip_ethaddr6 = stored_uip_ethaddr6;
-3032  d9cb 5540170023    	mov	_uip_ethaddr6,_stored_uip_ethaddr6
-3033                     ; 318     uip_ethaddr5 = stored_uip_ethaddr5;
-3035  d9d0 5540180022    	mov	_uip_ethaddr5,_stored_uip_ethaddr5
-3036                     ; 319     uip_ethaddr4 = stored_uip_ethaddr4;
-3038  d9d5 5540190021    	mov	_uip_ethaddr4,_stored_uip_ethaddr4
-3039                     ; 320     uip_ethaddr3 = stored_uip_ethaddr3;
-3041  d9da 55401a0020    	mov	_uip_ethaddr3,_stored_uip_ethaddr3
-3042                     ; 321     uip_ethaddr2 = stored_uip_ethaddr2;
-3044  d9df 55401b001f    	mov	_uip_ethaddr2,_stored_uip_ethaddr2
-3045                     ; 322     uip_ethaddr1 = stored_uip_ethaddr1;
-3047  d9e4 55401c001e    	mov	_uip_ethaddr1,_stored_uip_ethaddr1
-3048                     ; 324     uip_ethaddr.addr[0] = uip_ethaddr1;
-3050  d9e9 55001e000a    	mov	_uip_ethaddr,_uip_ethaddr1
-3051                     ; 325     uip_ethaddr.addr[1] = uip_ethaddr2;
-3053  d9ee 55001f000b    	mov	_uip_ethaddr+1,_uip_ethaddr2
-3054                     ; 326     uip_ethaddr.addr[2] = uip_ethaddr3;
-3056  d9f3 550020000c    	mov	_uip_ethaddr+2,_uip_ethaddr3
-3057                     ; 327     uip_ethaddr.addr[3] = uip_ethaddr4;
-3059  d9f8 550021000d    	mov	_uip_ethaddr+3,_uip_ethaddr4
-3060                     ; 328     uip_ethaddr.addr[4] = uip_ethaddr5;
-3062  d9fd 550022000e    	mov	_uip_ethaddr+4,_uip_ethaddr5
-3063                     ; 329     uip_ethaddr.addr[5] = uip_ethaddr6;
-3065                     ; 331     for(i=0; i<20; i++) { ex_stored_devicename[i] = stored_devicename[i]; }
-3067  da02 4f            	clr	a
-3068  da03 550023000f    	mov	_uip_ethaddr+5,_uip_ethaddr6
-3069  da08 6b01          	ld	(OFST+0,sp),a
-3071  da0a               L5771:
-3074  da0a 5f            	clrw	x
-3075  da0b 97            	ld	xl,a
-3076  da0c d64000        	ld	a,(_stored_devicename,x)
-3077  da0f d70038        	ld	(_ex_stored_devicename,x),a
-3080  da12 0c01          	inc	(OFST+0,sp)
-3084  da14 7b01          	ld	a,(OFST+0,sp)
-3085  da16 a114          	cp	a,#20
-3086  da18 25f0          	jrult	L5771
-3087                     ; 335     invert_output = stored_invert_output;
-3089  da1a 554014005e    	mov	_invert_output,_stored_invert_output
-3090                     ; 336     Relays_16to9 = stored_Relays_16to9;
-3092  da1f 5540160060    	mov	_Relays_16to9,_stored_Relays_16to9
-3093                     ; 337     Relays_8to1 = stored_Relays_8to1;
-3095  da24 554015005f    	mov	_Relays_8to1,_stored_Relays_8to1
-3096                     ; 339     update_relay_control_registers();
-3098  da29 cddeea        	call	_update_relay_control_registers
-3101  da2c ccdc2a        	jra	L3002
-3102  da2f               L5002:
-3103                     ; 348     uip_ipaddr(IpAddr, 192,168,1,4);
-3105  da2f aec0a8        	ldw	x,#49320
-3106  da32 cf005a        	ldw	_IpAddr,x
-3109  da35 ae0104        	ldw	x,#260
-3110  da38 cf005c        	ldw	_IpAddr+2,x
-3111                     ; 349     uip_sethostaddr(IpAddr);
-3113  da3b ce005a        	ldw	x,_IpAddr
-3114  da3e cf0084        	ldw	_uip_hostaddr,x
-3117  da41 ce005c        	ldw	x,_IpAddr+2
-3118  da44 cf0086        	ldw	_uip_hostaddr+2,x
-3119                     ; 351     stored_hostaddr4 = 192;	// MSB
-3121  da47 a6c0          	ld	a,#192
-3122  da49 ae402a        	ldw	x,#_stored_hostaddr4
-3123  da4c cdf3ee        	call	c_eewrc
-3125                     ; 352     stored_hostaddr3 = 168;	//
-3127  da4f a6a8          	ld	a,#168
-3128  da51 ae4029        	ldw	x,#_stored_hostaddr3
-3129  da54 cdf3ee        	call	c_eewrc
-3131                     ; 353     stored_hostaddr2 = 1;	//
-3133  da57 a601          	ld	a,#1
-3134  da59 ae4028        	ldw	x,#_stored_hostaddr2
-3135  da5c cdf3ee        	call	c_eewrc
-3137                     ; 354     stored_hostaddr1 = 4;	// LSB
-3139  da5f a604          	ld	a,#4
-3140  da61 ae4027        	ldw	x,#_stored_hostaddr1
-3141  da64 cdf3ee        	call	c_eewrc
-3143                     ; 357     uip_ipaddr(IpAddr, 192,168,1,1);
-3145  da67 aec0a8        	ldw	x,#49320
-3146  da6a cf005a        	ldw	_IpAddr,x
-3149  da6d ae0101        	ldw	x,#257
-3150  da70 cf005c        	ldw	_IpAddr+2,x
-3151                     ; 358     uip_setdraddr(IpAddr);
-3153  da73 ce005a        	ldw	x,_IpAddr
-3154  da76 cf007c        	ldw	_uip_draddr,x
-3157  da79 ce005c        	ldw	x,_IpAddr+2
-3158  da7c cf007e        	ldw	_uip_draddr+2,x
-3159                     ; 360     stored_draddr4 = 192;	// MSB
-3161  da7f a6c0          	ld	a,#192
-3162  da81 ae4026        	ldw	x,#_stored_draddr4
-3163  da84 cdf3ee        	call	c_eewrc
-3165                     ; 361     stored_draddr3 = 168;	//
-3167  da87 a6a8          	ld	a,#168
-3168  da89 ae4025        	ldw	x,#_stored_draddr3
-3169  da8c cdf3ee        	call	c_eewrc
-3171                     ; 362     stored_draddr2 = 1;		//
-3173  da8f a601          	ld	a,#1
-3174  da91 ae4024        	ldw	x,#_stored_draddr2
-3175  da94 cdf3ee        	call	c_eewrc
-3177                     ; 363     stored_draddr1 = 1;		// LSB
-3179  da97 a601          	ld	a,#1
-3180  da99 ae4023        	ldw	x,#_stored_draddr1
-3181  da9c cdf3ee        	call	c_eewrc
-3183                     ; 366     uip_ipaddr(IpAddr, 255,255,255,0);
-3185  da9f aeffff        	ldw	x,#65535
-3186  daa2 cf005a        	ldw	_IpAddr,x
-3189  daa5 aeff00        	ldw	x,#65280
-3190  daa8 cf005c        	ldw	_IpAddr+2,x
-3191                     ; 367     uip_setnetmask(IpAddr);
-3193  daab ce005a        	ldw	x,_IpAddr
-3194  daae cf0080        	ldw	_uip_netmask,x
-3197  dab1 ce005c        	ldw	x,_IpAddr+2
-3198  dab4 cf0082        	ldw	_uip_netmask+2,x
-3199                     ; 369     stored_netmask4 = 255;	// MSB
-3201  dab7 a6ff          	ld	a,#255
-3202  dab9 ae4022        	ldw	x,#_stored_netmask4
-3203  dabc cdf3ee        	call	c_eewrc
-3205                     ; 370     stored_netmask3 = 255;	//
-3207  dabf a6ff          	ld	a,#255
-3208  dac1 ae4021        	ldw	x,#_stored_netmask3
-3209  dac4 cdf3ee        	call	c_eewrc
-3211                     ; 371     stored_netmask2 = 255;	//
-3213  dac7 a6ff          	ld	a,#255
-3214  dac9 ae4020        	ldw	x,#_stored_netmask2
-3215  dacc cdf3ee        	call	c_eewrc
-3217                     ; 372     stored_netmask1 = 0;	// LSB
-3219  dacf 4f            	clr	a
-3220  dad0 ae401f        	ldw	x,#_stored_netmask1
-3221  dad3 cdf3ee        	call	c_eewrc
-3223                     ; 375     stored_port = 8080;		// Port
-3225  dad6 ae1f90        	ldw	x,#8080
-3226  dad9 89            	pushw	x
-3227  dada ae401d        	ldw	x,#_stored_port
-3228  dadd cdf3d8        	call	c_eewrw
-3230  dae0 85            	popw	x
-3231                     ; 377     Port_Httpd = 8080;
-3233  dae1 ae1f90        	ldw	x,#8080
-3234  dae4 cf0061        	ldw	_Port_Httpd,x
-3235                     ; 389     stored_uip_ethaddr1 = 0xc2;	//MAC MSB
-3237  dae7 a6c2          	ld	a,#194
-3238  dae9 ae401c        	ldw	x,#_stored_uip_ethaddr1
-3239  daec cdf3ee        	call	c_eewrc
-3241                     ; 390     stored_uip_ethaddr2 = 0x4d;
-3243  daef a64d          	ld	a,#77
-3244  daf1 ae401b        	ldw	x,#_stored_uip_ethaddr2
-3245  daf4 cdf3ee        	call	c_eewrc
-3247                     ; 391     stored_uip_ethaddr3 = 0x69;
-3249  daf7 a669          	ld	a,#105
-3250  daf9 ae401a        	ldw	x,#_stored_uip_ethaddr3
-3251  dafc cdf3ee        	call	c_eewrc
-3253                     ; 392     stored_uip_ethaddr4 = 0x6b;
-3255  daff a66b          	ld	a,#107
-3256  db01 ae4019        	ldw	x,#_stored_uip_ethaddr4
-3257  db04 cdf3ee        	call	c_eewrc
-3259                     ; 393     stored_uip_ethaddr5 = 0x65;
-3261  db07 a665          	ld	a,#101
-3262  db09 ae4018        	ldw	x,#_stored_uip_ethaddr5
-3263  db0c cdf3ee        	call	c_eewrc
-3265                     ; 394     stored_uip_ethaddr6 = 0x00;	//MAC LSB
-3267  db0f 4f            	clr	a
-3268  db10 ae4017        	ldw	x,#_stored_uip_ethaddr6
-3269  db13 cdf3ee        	call	c_eewrc
-3271                     ; 396     uip_ethaddr1 = stored_uip_ethaddr1;	//MAC MSB
-3273  db16 35c2001e      	mov	_uip_ethaddr1,#194
-3274                     ; 397     uip_ethaddr2 = stored_uip_ethaddr2;
-3276  db1a 354d001f      	mov	_uip_ethaddr2,#77
-3277                     ; 398     uip_ethaddr3 = stored_uip_ethaddr3;
-3279  db1e 35690020      	mov	_uip_ethaddr3,#105
-3280                     ; 399     uip_ethaddr4 = stored_uip_ethaddr4;
-3282  db22 356b0021      	mov	_uip_ethaddr4,#107
-3283                     ; 400     uip_ethaddr5 = stored_uip_ethaddr5;
-3285  db26 35650022      	mov	_uip_ethaddr5,#101
-3286                     ; 401     uip_ethaddr6 = stored_uip_ethaddr6;	//MAC LSB
-3288  db2a 725f0023      	clr	_uip_ethaddr6
-3289                     ; 403     uip_ethaddr.addr[0] = uip_ethaddr1;
-3291  db2e 35c2000a      	mov	_uip_ethaddr,#194
-3292                     ; 404     uip_ethaddr.addr[1] = uip_ethaddr2;
-3294  db32 354d000b      	mov	_uip_ethaddr+1,#77
-3295                     ; 405     uip_ethaddr.addr[2] = uip_ethaddr3;
-3297  db36 3569000c      	mov	_uip_ethaddr+2,#105
-3298                     ; 406     uip_ethaddr.addr[3] = uip_ethaddr4;
-3300  db3a 356b000d      	mov	_uip_ethaddr+3,#107
-3301                     ; 407     uip_ethaddr.addr[4] = uip_ethaddr5;
-3303  db3e 3565000e      	mov	_uip_ethaddr+4,#101
-3304                     ; 408     uip_ethaddr.addr[5] = uip_ethaddr6;
-3306  db42 725f000f      	clr	_uip_ethaddr+5
-3307                     ; 410     stored_devicename[0] = 'N' ; // Device name first character
-3309  db46 a64e          	ld	a,#78
-3310  db48 ae4000        	ldw	x,#_stored_devicename
-3311  db4b cdf3ee        	call	c_eewrc
-3313                     ; 411     stored_devicename[1] = 'e' ; //
-3315  db4e a665          	ld	a,#101
-3316  db50 ae4001        	ldw	x,#_stored_devicename+1
-3317  db53 cdf3ee        	call	c_eewrc
-3319                     ; 412     stored_devicename[2] = 'w' ; //
-3321  db56 a677          	ld	a,#119
-3322  db58 ae4002        	ldw	x,#_stored_devicename+2
-3323  db5b cdf3ee        	call	c_eewrc
-3325                     ; 413     stored_devicename[3] = 'D' ; //
-3327  db5e a644          	ld	a,#68
-3328  db60 ae4003        	ldw	x,#_stored_devicename+3
-3329  db63 cdf3ee        	call	c_eewrc
-3331                     ; 414     stored_devicename[4] = 'e' ; //
-3333  db66 a665          	ld	a,#101
-3334  db68 ae4004        	ldw	x,#_stored_devicename+4
-3335  db6b cdf3ee        	call	c_eewrc
-3337                     ; 415     stored_devicename[5] = 'v' ; //
-3339  db6e a676          	ld	a,#118
-3340  db70 ae4005        	ldw	x,#_stored_devicename+5
-3341  db73 cdf3ee        	call	c_eewrc
-3343                     ; 416     stored_devicename[6] = 'i' ; //
-3345  db76 a669          	ld	a,#105
-3346  db78 ae4006        	ldw	x,#_stored_devicename+6
-3347  db7b cdf3ee        	call	c_eewrc
-3349                     ; 417     stored_devicename[7] = 'c' ; //
-3351  db7e a663          	ld	a,#99
-3352  db80 ae4007        	ldw	x,#_stored_devicename+7
-3353  db83 cdf3ee        	call	c_eewrc
-3355                     ; 418     stored_devicename[8] = 'e' ; //
-3357  db86 a665          	ld	a,#101
-3358  db88 ae4008        	ldw	x,#_stored_devicename+8
-3359  db8b cdf3ee        	call	c_eewrc
-3361                     ; 419     stored_devicename[9] = '0' ; //
-3363  db8e a630          	ld	a,#48
-3364  db90 ae4009        	ldw	x,#_stored_devicename+9
-3365  db93 cdf3ee        	call	c_eewrc
-3367                     ; 420     stored_devicename[10] = '0' ; //
-3369  db96 a630          	ld	a,#48
-3370  db98 ae400a        	ldw	x,#_stored_devicename+10
-3371  db9b cdf3ee        	call	c_eewrc
-3373                     ; 421     stored_devicename[11] = '0' ; //
-3375  db9e a630          	ld	a,#48
-3376  dba0 ae400b        	ldw	x,#_stored_devicename+11
-3377  dba3 cdf3ee        	call	c_eewrc
-3379                     ; 422     stored_devicename[12] = ' ' ; //
-3381  dba6 a620          	ld	a,#32
-3382  dba8 ae400c        	ldw	x,#_stored_devicename+12
-3383  dbab cdf3ee        	call	c_eewrc
-3385                     ; 423     stored_devicename[13] = ' ' ; //
-3387  dbae a620          	ld	a,#32
-3388  dbb0 ae400d        	ldw	x,#_stored_devicename+13
-3389  dbb3 cdf3ee        	call	c_eewrc
-3391                     ; 424     stored_devicename[14] = ' ' ; //
-3393  dbb6 a620          	ld	a,#32
-3394  dbb8 ae400e        	ldw	x,#_stored_devicename+14
-3395  dbbb cdf3ee        	call	c_eewrc
-3397                     ; 425     stored_devicename[15] = ' ' ; //
-3399  dbbe a620          	ld	a,#32
-3400  dbc0 ae400f        	ldw	x,#_stored_devicename+15
-3401  dbc3 cdf3ee        	call	c_eewrc
-3403                     ; 426     stored_devicename[16] = ' ' ; //
-3405  dbc6 a620          	ld	a,#32
-3406  dbc8 ae4010        	ldw	x,#_stored_devicename+16
-3407  dbcb cdf3ee        	call	c_eewrc
-3409                     ; 427     stored_devicename[17] = ' ' ; //
-3411  dbce a620          	ld	a,#32
-3412  dbd0 ae4011        	ldw	x,#_stored_devicename+17
-3413  dbd3 cdf3ee        	call	c_eewrc
-3415                     ; 428     stored_devicename[18] = ' ' ; //
-3417  dbd6 a620          	ld	a,#32
-3418  dbd8 ae4012        	ldw	x,#_stored_devicename+18
-3419  dbdb cdf3ee        	call	c_eewrc
-3421                     ; 429     stored_devicename[19] = ' ' ; // Device name last character
-3423  dbde a620          	ld	a,#32
-3424  dbe0 ae4013        	ldw	x,#_stored_devicename+19
-3425  dbe3 cdf3ee        	call	c_eewrc
-3427                     ; 432     invert_output = 0;                  // Turn off output invert bit
-3429  dbe6 725f005e      	clr	_invert_output
-3430                     ; 433     stored_invert_output = 0;           // Store in EEPROM
-3432  dbea 4f            	clr	a
-3433  dbeb ae4014        	ldw	x,#_stored_invert_output
-3434  dbee cdf3ee        	call	c_eewrc
-3436                     ; 434     Relays_16to9 = (uint8_t)0x00;       // Turn off Relays 16 to 9
-3438  dbf1 725f0060      	clr	_Relays_16to9
-3439                     ; 435     Relays_8to1  = (uint8_t)0x00;       // Turn off Relays 8 to 1
-3441  dbf5 725f005f      	clr	_Relays_8to1
-3442                     ; 436     stored_Relays_16to9 = Relays_16to9; // Store in EEPROM
-3444  dbf9 4f            	clr	a
-3445  dbfa ae4016        	ldw	x,#_stored_Relays_16to9
-3446  dbfd cdf3ee        	call	c_eewrc
-3448                     ; 437     stored_Relays_8to1 = Relays_8to1;   // Store in EEPROM
-3450  dc00 4f            	clr	a
-3451  dc01 ae4015        	ldw	x,#_stored_Relays_8to1
-3452  dc04 cdf3ee        	call	c_eewrc
-3454                     ; 438     update_relay_control_registers();   // Set Relay Control outputs
-3456  dc07 cddeea        	call	_update_relay_control_registers
-3458                     ; 441     magic4 = 0x55;		// MSB
-3460  dc0a a655          	ld	a,#85
-3461  dc0c ae402e        	ldw	x,#_magic4
-3462  dc0f cdf3ee        	call	c_eewrc
-3464                     ; 442     magic3 = 0xee;		//
-3466  dc12 a6ee          	ld	a,#238
-3467  dc14 ae402d        	ldw	x,#_magic3
-3468  dc17 cdf3ee        	call	c_eewrc
-3470                     ; 443     magic2 = 0x0f;		//
-3472  dc1a a60f          	ld	a,#15
-3473  dc1c ae402c        	ldw	x,#_magic2
-3474  dc1f cdf3ee        	call	c_eewrc
-3476                     ; 444     magic1 = 0xf0;		// LSB
-3478  dc22 a6f0          	ld	a,#240
-3479  dc24 ae402b        	ldw	x,#_magic1
-3480  dc27 cdf3ee        	call	c_eewrc
-3482  dc2a               L3002:
-3483                     ; 449   Pending_hostaddr4 = stored_hostaddr4;
-3485  dc2a 55402a0037    	mov	_Pending_hostaddr4,_stored_hostaddr4
-3486                     ; 450   Pending_hostaddr3 = stored_hostaddr3;
-3488  dc2f 5540290036    	mov	_Pending_hostaddr3,_stored_hostaddr3
-3489                     ; 451   Pending_hostaddr2 = stored_hostaddr2;
-3491  dc34 5540280035    	mov	_Pending_hostaddr2,_stored_hostaddr2
-3492                     ; 452   Pending_hostaddr1 = stored_hostaddr1;
-3494  dc39 5540270034    	mov	_Pending_hostaddr1,_stored_hostaddr1
-3495                     ; 454   Pending_draddr4 = stored_draddr4;
-3497  dc3e 5540260033    	mov	_Pending_draddr4,_stored_draddr4
-3498                     ; 455   Pending_draddr3 = stored_draddr3;
-3500  dc43 5540250032    	mov	_Pending_draddr3,_stored_draddr3
-3501                     ; 456   Pending_draddr2 = stored_draddr2;
-3503  dc48 5540240031    	mov	_Pending_draddr2,_stored_draddr2
-3504                     ; 457   Pending_draddr1 = stored_draddr1;
-3506  dc4d 5540230030    	mov	_Pending_draddr1,_stored_draddr1
-3507                     ; 459   Pending_netmask4 = stored_netmask4;
-3509  dc52 554022002f    	mov	_Pending_netmask4,_stored_netmask4
-3510                     ; 460   Pending_netmask3 = stored_netmask3;
-3512  dc57 554021002e    	mov	_Pending_netmask3,_stored_netmask3
-3513                     ; 461   Pending_netmask2 = stored_netmask2;
-3515  dc5c 554020002d    	mov	_Pending_netmask2,_stored_netmask2
-3516                     ; 462   Pending_netmask1 = stored_netmask1;
-3518  dc61 55401f002c    	mov	_Pending_netmask1,_stored_netmask1
-3519                     ; 464   Pending_port = stored_port;
-3521  dc66 ce401d        	ldw	x,_stored_port
-3522  dc69 cf002a        	ldw	_Pending_port,x
-3523                     ; 466   Pending_uip_ethaddr6 = stored_uip_ethaddr6;
-3525  dc6c 5540170029    	mov	_Pending_uip_ethaddr6,_stored_uip_ethaddr6
-3526                     ; 467   Pending_uip_ethaddr5 = stored_uip_ethaddr5;
-3528  dc71 5540180028    	mov	_Pending_uip_ethaddr5,_stored_uip_ethaddr5
-3529                     ; 468   Pending_uip_ethaddr4 = stored_uip_ethaddr4;
-3531  dc76 5540190027    	mov	_Pending_uip_ethaddr4,_stored_uip_ethaddr4
-3532                     ; 469   Pending_uip_ethaddr3 = stored_uip_ethaddr3;
-3534  dc7b 55401a0026    	mov	_Pending_uip_ethaddr3,_stored_uip_ethaddr3
-3535                     ; 470   Pending_uip_ethaddr2 = stored_uip_ethaddr2;
-3537  dc80 55401b0025    	mov	_Pending_uip_ethaddr2,_stored_uip_ethaddr2
-3538                     ; 471   Pending_uip_ethaddr1 = stored_uip_ethaddr1;
-3540  dc85 55401c0024    	mov	_Pending_uip_ethaddr1,_stored_uip_ethaddr1
-3541                     ; 474   ex_stored_hostaddr4 = stored_hostaddr4;
-3543  dc8a 55402a0059    	mov	_ex_stored_hostaddr4,_stored_hostaddr4
-3544                     ; 475   ex_stored_hostaddr3 = stored_hostaddr3;
-3546  dc8f 5540290058    	mov	_ex_stored_hostaddr3,_stored_hostaddr3
-3547                     ; 476   ex_stored_hostaddr2 = stored_hostaddr2;
-3549  dc94 5540280057    	mov	_ex_stored_hostaddr2,_stored_hostaddr2
-3550                     ; 477   ex_stored_hostaddr1 = stored_hostaddr1;
-3552  dc99 5540270056    	mov	_ex_stored_hostaddr1,_stored_hostaddr1
-3553                     ; 479   ex_stored_draddr4 = stored_draddr4;
-3555  dc9e 5540260055    	mov	_ex_stored_draddr4,_stored_draddr4
-3556                     ; 480   ex_stored_draddr3 = stored_draddr3;
-3558  dca3 5540250054    	mov	_ex_stored_draddr3,_stored_draddr3
-3559                     ; 481   ex_stored_draddr2 = stored_draddr2;
-3561  dca8 5540240053    	mov	_ex_stored_draddr2,_stored_draddr2
-3562                     ; 482   ex_stored_draddr1 = stored_draddr1;
-3564  dcad 5540230052    	mov	_ex_stored_draddr1,_stored_draddr1
-3565                     ; 484   ex_stored_netmask4 = stored_netmask4;
-3567  dcb2 5540220051    	mov	_ex_stored_netmask4,_stored_netmask4
-3568                     ; 485   ex_stored_netmask3 = stored_netmask3;
-3570  dcb7 5540210050    	mov	_ex_stored_netmask3,_stored_netmask3
-3571                     ; 486   ex_stored_netmask2 = stored_netmask2;
-3573  dcbc 554020004f    	mov	_ex_stored_netmask2,_stored_netmask2
-3574                     ; 487   ex_stored_netmask1 = stored_netmask1;
-3576  dcc1 55401f004e    	mov	_ex_stored_netmask1,_stored_netmask1
-3577                     ; 489   ex_stored_port = stored_port;
-3579  dcc6 cf004c        	ldw	_ex_stored_port,x
-3580                     ; 491   for(i=0; i<20; i++) { ex_stored_devicename[i] = stored_devicename[i]; }
-3582  dcc9 4f            	clr	a
-3583  dcca 6b01          	ld	(OFST+0,sp),a
-3585  dccc               L5302:
-3588  dccc 5f            	clrw	x
-3589  dccd 97            	ld	xl,a
-3590  dcce d64000        	ld	a,(_stored_devicename,x)
-3591  dcd1 d70038        	ld	(_ex_stored_devicename,x),a
-3594  dcd4 0c01          	inc	(OFST+0,sp)
-3598  dcd6 7b01          	ld	a,(OFST+0,sp)
-3599  dcd8 a114          	cp	a,#20
-3600  dcda 25f0          	jrult	L5302
-3601                     ; 493 }
-3604  dcdc 84            	pop	a
-3605  dcdd 81            	ret	
-3696                     ; 496 void check_runtime_changes(void)
-3696                     ; 497 {
-3697                     	switch	.text
-3698  dcde               _check_runtime_changes:
-3700  dcde 88            	push	a
-3701       00000001      OFST:	set	1
-3704                     ; 505   if ((invert_output != stored_invert_output)
-3704                     ; 506    || (stored_Relays_16to9 != Relays_16to9)
-3704                     ; 507    || (stored_Relays_8to1 != Relays_8to1)) {
-3706  dcdf c6005e        	ld	a,_invert_output
-3707  dce2 c14014        	cp	a,_stored_invert_output
-3708  dce5 2610          	jrne	L1602
-3710  dce7 c64016        	ld	a,_stored_Relays_16to9
-3711  dcea c10060        	cp	a,_Relays_16to9
-3712  dced 2608          	jrne	L1602
-3714  dcef c64015        	ld	a,_stored_Relays_8to1
-3715  dcf2 c1005f        	cp	a,_Relays_8to1
-3716  dcf5 271e          	jreq	L7502
-3717  dcf7               L1602:
-3718                     ; 509     stored_invert_output = invert_output;
-3720  dcf7 c6005e        	ld	a,_invert_output
-3721  dcfa ae4014        	ldw	x,#_stored_invert_output
-3722  dcfd cdf3ee        	call	c_eewrc
-3724                     ; 511     stored_Relays_16to9 = Relays_16to9;
-3726  dd00 c60060        	ld	a,_Relays_16to9
-3727  dd03 ae4016        	ldw	x,#_stored_Relays_16to9
-3728  dd06 cdf3ee        	call	c_eewrc
-3730                     ; 512     stored_Relays_8to1 = Relays_8to1;
-3732  dd09 c6005f        	ld	a,_Relays_8to1
-3733  dd0c ae4015        	ldw	x,#_stored_Relays_8to1
-3734  dd0f cdf3ee        	call	c_eewrc
-3736                     ; 514     update_relay_control_registers();
-3738  dd12 cddeea        	call	_update_relay_control_registers
-3740  dd15               L7502:
-3741                     ; 518   if (stored_hostaddr4 != Pending_hostaddr4 ||
-3741                     ; 519       stored_hostaddr3 != Pending_hostaddr3 ||
-3741                     ; 520       stored_hostaddr2 != Pending_hostaddr2 ||
-3741                     ; 521       stored_hostaddr1 != Pending_hostaddr1) {
-3743  dd15 c6402a        	ld	a,_stored_hostaddr4
-3744  dd18 c10037        	cp	a,_Pending_hostaddr4
-3745  dd1b 2618          	jrne	L7602
-3747  dd1d c64029        	ld	a,_stored_hostaddr3
-3748  dd20 c10036        	cp	a,_Pending_hostaddr3
-3749  dd23 2610          	jrne	L7602
-3751  dd25 c64028        	ld	a,_stored_hostaddr2
-3752  dd28 c10035        	cp	a,_Pending_hostaddr2
-3753  dd2b 2608          	jrne	L7602
-3755  dd2d c64027        	ld	a,_stored_hostaddr1
-3756  dd30 c10034        	cp	a,_Pending_hostaddr1
-3757  dd33 2728          	jreq	L5602
-3758  dd35               L7602:
-3759                     ; 523     stored_hostaddr4 = Pending_hostaddr4;
-3761  dd35 c60037        	ld	a,_Pending_hostaddr4
-3762  dd38 ae402a        	ldw	x,#_stored_hostaddr4
-3763  dd3b cdf3ee        	call	c_eewrc
-3765                     ; 524     stored_hostaddr3 = Pending_hostaddr3;
-3767  dd3e c60036        	ld	a,_Pending_hostaddr3
-3768  dd41 ae4029        	ldw	x,#_stored_hostaddr3
-3769  dd44 cdf3ee        	call	c_eewrc
-3771                     ; 525     stored_hostaddr2 = Pending_hostaddr2;
-3773  dd47 c60035        	ld	a,_Pending_hostaddr2
-3774  dd4a ae4028        	ldw	x,#_stored_hostaddr2
-3775  dd4d cdf3ee        	call	c_eewrc
-3777                     ; 526     stored_hostaddr1 = Pending_hostaddr1;
-3779  dd50 c60034        	ld	a,_Pending_hostaddr1
-3780  dd53 ae4027        	ldw	x,#_stored_hostaddr1
-3781  dd56 cdf3ee        	call	c_eewrc
-3783                     ; 528     submit_changes = 1;
-3785  dd59 3501001d      	mov	_submit_changes,#1
-3786  dd5d               L5602:
-3787                     ; 532   if (stored_draddr4 != Pending_draddr4 ||
-3787                     ; 533       stored_draddr3 != Pending_draddr3 ||
-3787                     ; 534       stored_draddr2 != Pending_draddr2 ||
-3787                     ; 535       stored_draddr1 != Pending_draddr1) {
-3789  dd5d c64026        	ld	a,_stored_draddr4
-3790  dd60 c10033        	cp	a,_Pending_draddr4
-3791  dd63 2618          	jrne	L7702
-3793  dd65 c64025        	ld	a,_stored_draddr3
-3794  dd68 c10032        	cp	a,_Pending_draddr3
-3795  dd6b 2610          	jrne	L7702
-3797  dd6d c64024        	ld	a,_stored_draddr2
-3798  dd70 c10031        	cp	a,_Pending_draddr2
-3799  dd73 2608          	jrne	L7702
-3801  dd75 c64023        	ld	a,_stored_draddr1
-3802  dd78 c10030        	cp	a,_Pending_draddr1
-3803  dd7b 2728          	jreq	L5702
-3804  dd7d               L7702:
-3805                     ; 537     stored_draddr4 = Pending_draddr4;
-3807  dd7d c60033        	ld	a,_Pending_draddr4
-3808  dd80 ae4026        	ldw	x,#_stored_draddr4
-3809  dd83 cdf3ee        	call	c_eewrc
-3811                     ; 538     stored_draddr3 = Pending_draddr3;
-3813  dd86 c60032        	ld	a,_Pending_draddr3
-3814  dd89 ae4025        	ldw	x,#_stored_draddr3
-3815  dd8c cdf3ee        	call	c_eewrc
-3817                     ; 539     stored_draddr2 = Pending_draddr2;
-3819  dd8f c60031        	ld	a,_Pending_draddr2
-3820  dd92 ae4024        	ldw	x,#_stored_draddr2
-3821  dd95 cdf3ee        	call	c_eewrc
-3823                     ; 540     stored_draddr1 = Pending_draddr1;
-3825  dd98 c60030        	ld	a,_Pending_draddr1
-3826  dd9b ae4023        	ldw	x,#_stored_draddr1
-3827  dd9e cdf3ee        	call	c_eewrc
-3829                     ; 542     submit_changes = 1;
-3831  dda1 3501001d      	mov	_submit_changes,#1
-3832  dda5               L5702:
-3833                     ; 546   if (stored_netmask4 != Pending_netmask4 ||
-3833                     ; 547       stored_netmask3 != Pending_netmask3 ||
-3833                     ; 548       stored_netmask2 != Pending_netmask2 ||
-3833                     ; 549       stored_netmask1 != Pending_netmask1) {
-3835  dda5 c64022        	ld	a,_stored_netmask4
-3836  dda8 c1002f        	cp	a,_Pending_netmask4
-3837  ddab 2618          	jrne	L7012
-3839  ddad c64021        	ld	a,_stored_netmask3
-3840  ddb0 c1002e        	cp	a,_Pending_netmask3
-3841  ddb3 2610          	jrne	L7012
-3843  ddb5 c64020        	ld	a,_stored_netmask2
-3844  ddb8 c1002d        	cp	a,_Pending_netmask2
-3845  ddbb 2608          	jrne	L7012
-3847  ddbd c6401f        	ld	a,_stored_netmask1
-3848  ddc0 c1002c        	cp	a,_Pending_netmask1
-3849  ddc3 2728          	jreq	L5012
-3850  ddc5               L7012:
-3851                     ; 551     stored_netmask4 = Pending_netmask4;
-3853  ddc5 c6002f        	ld	a,_Pending_netmask4
-3854  ddc8 ae4022        	ldw	x,#_stored_netmask4
-3855  ddcb cdf3ee        	call	c_eewrc
-3857                     ; 552     stored_netmask3 = Pending_netmask3;
-3859  ddce c6002e        	ld	a,_Pending_netmask3
-3860  ddd1 ae4021        	ldw	x,#_stored_netmask3
-3861  ddd4 cdf3ee        	call	c_eewrc
-3863                     ; 553     stored_netmask2 = Pending_netmask2;
-3865  ddd7 c6002d        	ld	a,_Pending_netmask2
-3866  ddda ae4020        	ldw	x,#_stored_netmask2
-3867  dddd cdf3ee        	call	c_eewrc
-3869                     ; 554     stored_netmask1 = Pending_netmask1;
-3871  dde0 c6002c        	ld	a,_Pending_netmask1
-3872  dde3 ae401f        	ldw	x,#_stored_netmask1
-3873  dde6 cdf3ee        	call	c_eewrc
-3875                     ; 556     submit_changes = 1;
-3877  dde9 3501001d      	mov	_submit_changes,#1
-3878  dded               L5012:
-3879                     ; 560   if (stored_port != Pending_port) {
-3881  dded ce401d        	ldw	x,_stored_port
-3882  ddf0 c3002a        	cpw	x,_Pending_port
-3883  ddf3 270f          	jreq	L5112
-3884                     ; 562     stored_port = Pending_port;
-3886  ddf5 ce002a        	ldw	x,_Pending_port
-3887  ddf8 89            	pushw	x
-3888  ddf9 ae401d        	ldw	x,#_stored_port
-3889  ddfc cdf3d8        	call	c_eewrw
-3891  ddff 3501001d      	mov	_submit_changes,#1
-3892  de03 85            	popw	x
-3893                     ; 564     submit_changes = 1;
-3895  de04               L5112:
-3896                     ; 568   devicename_changed = 0;
-3898  de04 725f001c      	clr	_devicename_changed
-3899                     ; 569   for(i=0; i<20; i++) {
-3901  de08 4f            	clr	a
-3902  de09 6b01          	ld	(OFST+0,sp),a
-3904  de0b               L7112:
-3905                     ; 570     if (stored_devicename[i] != ex_stored_devicename[i]) devicename_changed = 1;
-3907  de0b 5f            	clrw	x
-3908  de0c 97            	ld	xl,a
-3909  de0d 905f          	clrw	y
-3910  de0f 9097          	ld	yl,a
-3911  de11 90d64000      	ld	a,(_stored_devicename,y)
-3912  de15 d10038        	cp	a,(_ex_stored_devicename,x)
-3913  de18 2704          	jreq	L5212
-3916  de1a 3501001c      	mov	_devicename_changed,#1
-3917  de1e               L5212:
-3918                     ; 569   for(i=0; i<20; i++) {
-3920  de1e 0c01          	inc	(OFST+0,sp)
-3924  de20 7b01          	ld	a,(OFST+0,sp)
-3925  de22 a114          	cp	a,#20
-3926  de24 25e5          	jrult	L7112
-3927                     ; 572   if (devicename_changed == 1) {
-3929  de26 c6001c        	ld	a,_devicename_changed
-3930  de29 4a            	dec	a
-3931  de2a 2612          	jrne	L7212
-3932                     ; 574     for(i=0; i<20; i++) { stored_devicename[i] = ex_stored_devicename[i]; }
-3934  de2c 6b01          	ld	(OFST+0,sp),a
-3936  de2e               L1312:
-3939  de2e 5f            	clrw	x
-3940  de2f 97            	ld	xl,a
-3941  de30 d60038        	ld	a,(_ex_stored_devicename,x)
-3942  de33 d74000        	ld	(_stored_devicename,x),a
-3945  de36 0c01          	inc	(OFST+0,sp)
-3949  de38 7b01          	ld	a,(OFST+0,sp)
-3950  de3a a114          	cp	a,#20
-3951  de3c 25f0          	jrult	L1312
-3952  de3e               L7212:
-3953                     ; 578   if (stored_uip_ethaddr6 != Pending_uip_ethaddr6 ||
-3953                     ; 579       stored_uip_ethaddr5 != Pending_uip_ethaddr5 ||
-3953                     ; 580       stored_uip_ethaddr4 != Pending_uip_ethaddr4 ||
-3953                     ; 581       stored_uip_ethaddr3 != Pending_uip_ethaddr3 ||
-3953                     ; 582       stored_uip_ethaddr2 != Pending_uip_ethaddr2 ||
-3953                     ; 583       stored_uip_ethaddr1 != Pending_uip_ethaddr1) {
-3955  de3e c64017        	ld	a,_stored_uip_ethaddr6
-3956  de41 c10029        	cp	a,_Pending_uip_ethaddr6
-3957  de44 2628          	jrne	L1412
-3959  de46 c64018        	ld	a,_stored_uip_ethaddr5
-3960  de49 c10028        	cp	a,_Pending_uip_ethaddr5
-3961  de4c 2620          	jrne	L1412
-3963  de4e c64019        	ld	a,_stored_uip_ethaddr4
-3964  de51 c10027        	cp	a,_Pending_uip_ethaddr4
-3965  de54 2618          	jrne	L1412
-3967  de56 c6401a        	ld	a,_stored_uip_ethaddr3
-3968  de59 c10026        	cp	a,_Pending_uip_ethaddr3
-3969  de5c 2610          	jrne	L1412
-3971  de5e c6401b        	ld	a,_stored_uip_ethaddr2
-3972  de61 c10025        	cp	a,_Pending_uip_ethaddr2
-3973  de64 2608          	jrne	L1412
-3975  de66 c6401c        	ld	a,_stored_uip_ethaddr1
-3976  de69 c10024        	cp	a,_Pending_uip_ethaddr1
-3977  de6c 273a          	jreq	L7312
-3978  de6e               L1412:
-3979                     ; 585     stored_uip_ethaddr6 = Pending_uip_ethaddr6;
-3981  de6e c60029        	ld	a,_Pending_uip_ethaddr6
-3982  de71 ae4017        	ldw	x,#_stored_uip_ethaddr6
-3983  de74 cdf3ee        	call	c_eewrc
-3985                     ; 586     stored_uip_ethaddr5 = Pending_uip_ethaddr5;
-3987  de77 c60028        	ld	a,_Pending_uip_ethaddr5
-3988  de7a ae4018        	ldw	x,#_stored_uip_ethaddr5
-3989  de7d cdf3ee        	call	c_eewrc
-3991                     ; 587     stored_uip_ethaddr4 = Pending_uip_ethaddr4;
-3993  de80 c60027        	ld	a,_Pending_uip_ethaddr4
-3994  de83 ae4019        	ldw	x,#_stored_uip_ethaddr4
-3995  de86 cdf3ee        	call	c_eewrc
-3997                     ; 588     stored_uip_ethaddr3 = Pending_uip_ethaddr3;
-3999  de89 c60026        	ld	a,_Pending_uip_ethaddr3
-4000  de8c ae401a        	ldw	x,#_stored_uip_ethaddr3
-4001  de8f cdf3ee        	call	c_eewrc
-4003                     ; 589     stored_uip_ethaddr2 = Pending_uip_ethaddr2;
-4005  de92 c60025        	ld	a,_Pending_uip_ethaddr2
-4006  de95 ae401b        	ldw	x,#_stored_uip_ethaddr2
-4007  de98 cdf3ee        	call	c_eewrc
-4009                     ; 590     stored_uip_ethaddr1 = Pending_uip_ethaddr1;
-4011  de9b c60024        	ld	a,_Pending_uip_ethaddr1
-4012  de9e ae401c        	ldw	x,#_stored_uip_ethaddr1
-4013  dea1 cdf3ee        	call	c_eewrc
-4015                     ; 592     submit_changes = 1;
-4017  dea4 3501001d      	mov	_submit_changes,#1
-4018  dea8               L7312:
-4019                     ; 595   if (submit_changes == 1) {
-4021  dea8 c6001d        	ld	a,_submit_changes
-4022  deab a101          	cp	a,#1
-4023  dead 2613          	jrne	L3512
-4024                     ; 602     check_eeprom_settings(); // Verify EEPROM up to date
-4026  deaf cdd93f        	call	_check_eeprom_settings
-4028                     ; 603     Enc28j60Init();          // Initialize the ENC28J60 ethernet interface
-4030  deb2 cdbf6e        	call	_Enc28j60Init
-4032                     ; 604     uip_arp_init();          // Initialize the ARP module
-4034  deb5 cdefc7        	call	_uip_arp_init
-4036                     ; 605     uip_init();              // Initialize uIP
-4038  deb8 cde586        	call	_uip_init
-4040                     ; 606     HttpDInit();             // Initialize httpd; sets up listening ports
-4042  debb cdccf2        	call	_HttpDInit
-4044                     ; 607     submit_changes = 0;
-4046  debe 4f            	clr	a
-4047  debf c7001d        	ld	_submit_changes,a
-4048  dec2               L3512:
-4049                     ; 610   if (submit_changes == 2) {
-4051  dec2 a102          	cp	a,#2
-4052  dec4 2622          	jrne	L5512
-4053                     ; 613     LEDcontrol(0);  // turn LED off
-4055  dec6 4f            	clr	a
-4056  dec7 cdc1df        	call	_LEDcontrol
-4058                     ; 615     WWDG_WR = (uint8_t)0x7f;     // Window register reset
-4060  deca 357f50d2      	mov	_WWDG_WR,#127
-4061                     ; 616     WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
-4063  dece 35ff50d1      	mov	_WWDG_CR,#255
-4064                     ; 617     WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
-4066  ded2 356050d2      	mov	_WWDG_WR,#96
-4067                     ; 620     wait_timer((uint16_t)50000); // Wait for watchdog to generate reset
-4069  ded6 aec350        	ldw	x,#50000
-4070  ded9 cde43f        	call	_wait_timer
-4072                     ; 621     wait_timer((uint16_t)50000);
-4074  dedc aec350        	ldw	x,#50000
-4075  dedf cde43f        	call	_wait_timer
-4077                     ; 622     wait_timer((uint16_t)50000);
-4079  dee2 aec350        	ldw	x,#50000
-4080  dee5 cde43f        	call	_wait_timer
-4082  dee8               L5512:
-4083                     ; 624 }
-4086  dee8 84            	pop	a
-4087  dee9 81            	ret	
-4119                     ; 627 void update_relay_control_registers(void)
-4119                     ; 628 {
-4120                     	switch	.text
-4121  deea               _update_relay_control_registers:
-4125                     ; 634   if (invert_output == 0) {
-4127  deea c6005e        	ld	a,_invert_output
-4128  deed 2703ccdfe0    	jrne	L7612
-4129                     ; 635     if (Relays_16to9 & 0x80) PC_ODR |= (uint8_t)0x40; // Relay 16 on, PC bit 6 = 1
-4131  def2 720f006006    	btjf	_Relays_16to9,#7,L1712
-4134  def7 721c500a      	bset	_PC_ODR,#6
-4136  defb 2004          	jra	L3712
-4137  defd               L1712:
-4138                     ; 636     else PC_ODR &= (uint8_t)(~0x40);
-4140  defd 721d500a      	bres	_PC_ODR,#6
-4141  df01               L3712:
-4142                     ; 637     if (Relays_16to9 & 0x40) PG_ODR |= (uint8_t)0x01; // Relay 15 on, PG bit 0 = 1
-4144  df01 720d006006    	btjf	_Relays_16to9,#6,L5712
-4147  df06 7210501e      	bset	_PG_ODR,#0
-4149  df0a 2004          	jra	L7712
-4150  df0c               L5712:
-4151                     ; 638     else PG_ODR &= (uint8_t)(~0x01);
-4153  df0c 7211501e      	bres	_PG_ODR,#0
-4154  df10               L7712:
-4155                     ; 639     if (Relays_16to9 & 0x20) PE_ODR |= (uint8_t)0x08; // Relay 14 on, PE bit 3 = 1
-4157  df10 720b006006    	btjf	_Relays_16to9,#5,L1022
-4160  df15 72165014      	bset	_PE_ODR,#3
-4162  df19 2004          	jra	L3022
-4163  df1b               L1022:
-4164                     ; 640     else PE_ODR &= (uint8_t)(~0x08);
-4166  df1b 72175014      	bres	_PE_ODR,#3
-4167  df1f               L3022:
-4168                     ; 641     if (Relays_16to9 & 0x10) PD_ODR |= (uint8_t)0x01; // Relay 13 on, PD bit 0 = 1
-4170  df1f 7209006006    	btjf	_Relays_16to9,#4,L5022
-4173  df24 7210500f      	bset	_PD_ODR,#0
-4175  df28 2004          	jra	L7022
-4176  df2a               L5022:
-4177                     ; 642     else PD_ODR &= (uint8_t)(~0x01);
-4179  df2a 7211500f      	bres	_PD_ODR,#0
-4180  df2e               L7022:
-4181                     ; 643     if (Relays_16to9 & 0x08) PD_ODR |= (uint8_t)0x08; // Relay 12 on, PD bit 3 = 1
-4183  df2e 7207006006    	btjf	_Relays_16to9,#3,L1122
-4186  df33 7216500f      	bset	_PD_ODR,#3
-4188  df37 2004          	jra	L3122
-4189  df39               L1122:
-4190                     ; 644     else PD_ODR &= (uint8_t)(~0x08);
-4192  df39 7217500f      	bres	_PD_ODR,#3
-4193  df3d               L3122:
-4194                     ; 645     if (Relays_16to9 & 0x04) PD_ODR |= (uint8_t)0x20; // Relay 11 on, PD bit 5 = 1
-4196  df3d 7205006006    	btjf	_Relays_16to9,#2,L5122
-4199  df42 721a500f      	bset	_PD_ODR,#5
-4201  df46 2004          	jra	L7122
-4202  df48               L5122:
-4203                     ; 646     else PD_ODR &= (uint8_t)(~0x20);
-4205  df48 721b500f      	bres	_PD_ODR,#5
-4206  df4c               L7122:
-4207                     ; 647     if (Relays_16to9 & 0x02) PD_ODR |= (uint8_t)0x80; // Relay 10 on, PD bit 7 = 1
-4209  df4c 7203006006    	btjf	_Relays_16to9,#1,L1222
-4212  df51 721e500f      	bset	_PD_ODR,#7
-4214  df55 2004          	jra	L3222
-4215  df57               L1222:
-4216                     ; 648     else PD_ODR &= (uint8_t)(~0x80);
-4218  df57 721f500f      	bres	_PD_ODR,#7
-4219  df5b               L3222:
-4220                     ; 649     if (Relays_16to9 & 0x01) PA_ODR |= (uint8_t)0x10; // Relay  9 on, PA bit 4 = 1
-4222  df5b 7201006006    	btjf	_Relays_16to9,#0,L5222
-4225  df60 72185000      	bset	_PA_ODR,#4
-4227  df64 2004          	jra	L7222
-4228  df66               L5222:
-4229                     ; 650     else PA_ODR &= (uint8_t)(~0x10);
-4231  df66 72195000      	bres	_PA_ODR,#4
-4232  df6a               L7222:
-4233                     ; 654     if (Relays_8to1 & 0x80) PC_ODR |= (uint8_t)0x80; // Relay  8 on, PC bit 7 = 1
-4235  df6a 720f005f06    	btjf	_Relays_8to1,#7,L1322
-4238  df6f 721e500a      	bset	_PC_ODR,#7
-4240  df73 2004          	jra	L3322
-4241  df75               L1322:
-4242                     ; 655     else PC_ODR &= (uint8_t)(~0x80);
-4244  df75 721f500a      	bres	_PC_ODR,#7
-4245  df79               L3322:
-4246                     ; 656     if (Relays_8to1 & 0x40) PG_ODR |= (uint8_t)0x02; // Relay  7 on, PG bit 1 = 1
-4248  df79 720d005f06    	btjf	_Relays_8to1,#6,L5322
-4251  df7e 7212501e      	bset	_PG_ODR,#1
-4253  df82 2004          	jra	L7322
-4254  df84               L5322:
-4255                     ; 657     else PG_ODR &= (uint8_t)(~0x02);
-4257  df84 7213501e      	bres	_PG_ODR,#1
-4258  df88               L7322:
-4259                     ; 658     if (Relays_8to1 & 0x20) PE_ODR |= (uint8_t)0x01; // Relay  6 on, PE bit 0 = 1
-4261  df88 720b005f06    	btjf	_Relays_8to1,#5,L1422
-4264  df8d 72105014      	bset	_PE_ODR,#0
-4266  df91 2004          	jra	L3422
-4267  df93               L1422:
-4268                     ; 659     else PE_ODR &= (uint8_t)(~0x01);
-4270  df93 72115014      	bres	_PE_ODR,#0
-4271  df97               L3422:
-4272                     ; 660     if (Relays_8to1 & 0x10) PD_ODR |= (uint8_t)0x04; // Relay  5 on, PD bit 2 = 1
-4274  df97 7209005f06    	btjf	_Relays_8to1,#4,L5422
-4277  df9c 7214500f      	bset	_PD_ODR,#2
-4279  dfa0 2004          	jra	L7422
-4280  dfa2               L5422:
-4281                     ; 661     else PD_ODR &= (uint8_t)(~0x04);
-4283  dfa2 7215500f      	bres	_PD_ODR,#2
-4284  dfa6               L7422:
-4285                     ; 662     if (Relays_8to1 & 0x08) PD_ODR |= (uint8_t)0x10; // Relay  4 on, PD bit 4 = 1
-4287  dfa6 7207005f06    	btjf	_Relays_8to1,#3,L1522
-4290  dfab 7218500f      	bset	_PD_ODR,#4
-4292  dfaf 2004          	jra	L3522
-4293  dfb1               L1522:
-4294                     ; 663     else PD_ODR &= (uint8_t)(~0x10);
-4296  dfb1 7219500f      	bres	_PD_ODR,#4
-4297  dfb5               L3522:
-4298                     ; 664     if (Relays_8to1 & 0x04) PD_ODR |= (uint8_t)0x40; // Relay  3 on, PD bit 6 = 1
-4300  dfb5 7205005f06    	btjf	_Relays_8to1,#2,L5522
-4303  dfba 721c500f      	bset	_PD_ODR,#6
-4305  dfbe 2004          	jra	L7522
-4306  dfc0               L5522:
-4307                     ; 665     else PD_ODR &= (uint8_t)(~0x40);
-4309  dfc0 721d500f      	bres	_PD_ODR,#6
-4310  dfc4               L7522:
-4311                     ; 666     if (Relays_8to1 & 0x02) PA_ODR |= (uint8_t)0x20; // Relay  2 on, PA bit 5 = 1
-4313  dfc4 7203005f06    	btjf	_Relays_8to1,#1,L1622
-4316  dfc9 721a5000      	bset	_PA_ODR,#5
-4318  dfcd 2004          	jra	L3622
-4319  dfcf               L1622:
-4320                     ; 667     else PA_ODR &= (uint8_t)(~0x20);
-4322  dfcf 721b5000      	bres	_PA_ODR,#5
-4323  dfd3               L3622:
-4324                     ; 668     if (Relays_8to1 & 0x01) PA_ODR |= (uint8_t)0x08; // Relay  1 on, PA bit 3 = 1
-4326  dfd3 7201005f03    	btjf	_Relays_8to1,#0,L5622
-4329  dfd8 cce0cf        	jp	L1732
-4330  dfdb               L5622:
-4331                     ; 669     else PA_ODR &= (uint8_t)(~0x08);
-4334  dfdb 72175000      	bres	_PA_ODR,#3
-4336  dfdf 81            	ret	
-4337  dfe0               L7612:
-4338                     ; 672   else if (invert_output == 1) {
-4340  dfe0 4a            	dec	a
-4341  dfe1 2703cce0d3    	jrne	L1722
-4342                     ; 673     if (Relays_16to9 & 0x80) PC_ODR &= (uint8_t)(~0x40); // Relay 16 off, PC bit 6 = 0
-4344  dfe6 720f006006    	btjf	_Relays_16to9,#7,L5722
-4347  dfeb 721d500a      	bres	_PC_ODR,#6
-4349  dfef 2004          	jra	L7722
-4350  dff1               L5722:
-4351                     ; 674     else PC_ODR |= (uint8_t)0x40;
-4353  dff1 721c500a      	bset	_PC_ODR,#6
-4354  dff5               L7722:
-4355                     ; 675     if (Relays_16to9 & 0x40) PG_ODR &= (uint8_t)(~0x01); // Relay 15 off, PG bit 0 = 0
-4357  dff5 720d006006    	btjf	_Relays_16to9,#6,L1032
-4360  dffa 7211501e      	bres	_PG_ODR,#0
-4362  dffe 2004          	jra	L3032
-4363  e000               L1032:
-4364                     ; 676     else PG_ODR |= (uint8_t)0x01;
-4366  e000 7210501e      	bset	_PG_ODR,#0
-4367  e004               L3032:
-4368                     ; 677     if (Relays_16to9 & 0x20) PE_ODR &= (uint8_t)(~0x08); // Relay 14 off, PE bit 3 = 0
-4370  e004 720b006006    	btjf	_Relays_16to9,#5,L5032
-4373  e009 72175014      	bres	_PE_ODR,#3
-4375  e00d 2004          	jra	L7032
-4376  e00f               L5032:
-4377                     ; 678     else PE_ODR |= (uint8_t)0x08;
-4379  e00f 72165014      	bset	_PE_ODR,#3
-4380  e013               L7032:
-4381                     ; 679     if (Relays_16to9 & 0x10) PD_ODR &= (uint8_t)(~0x01); // Relay 13 off, PD bit 0 = 0
-4383  e013 7209006006    	btjf	_Relays_16to9,#4,L1132
-4386  e018 7211500f      	bres	_PD_ODR,#0
-4388  e01c 2004          	jra	L3132
-4389  e01e               L1132:
-4390                     ; 680     else PD_ODR |= (uint8_t)0x01;
-4392  e01e 7210500f      	bset	_PD_ODR,#0
-4393  e022               L3132:
-4394                     ; 681     if (Relays_16to9 & 0x08) PD_ODR &= (uint8_t)(~0x08); // Relay 12 off, PD bit 3 = 0
-4396  e022 7207006006    	btjf	_Relays_16to9,#3,L5132
-4399  e027 7217500f      	bres	_PD_ODR,#3
-4401  e02b 2004          	jra	L7132
-4402  e02d               L5132:
-4403                     ; 682     else PD_ODR |= (uint8_t)0x08;
-4405  e02d 7216500f      	bset	_PD_ODR,#3
-4406  e031               L7132:
-4407                     ; 683     if (Relays_16to9 & 0x04) PD_ODR &= (uint8_t)(~0x20); // Relay 11 off, PD bit 5 = 0
-4409  e031 7205006006    	btjf	_Relays_16to9,#2,L1232
-4412  e036 721b500f      	bres	_PD_ODR,#5
-4414  e03a 2004          	jra	L3232
-4415  e03c               L1232:
-4416                     ; 684     else PD_ODR |= (uint8_t)0x20;
-4418  e03c 721a500f      	bset	_PD_ODR,#5
-4419  e040               L3232:
-4420                     ; 685     if (Relays_16to9 & 0x02) PD_ODR &= (uint8_t)(~0x80); // Relay 10 off, PD bit 7 = 0
-4422  e040 7203006006    	btjf	_Relays_16to9,#1,L5232
-4425  e045 721f500f      	bres	_PD_ODR,#7
-4427  e049 2004          	jra	L7232
-4428  e04b               L5232:
-4429                     ; 686     else PD_ODR |= (uint8_t)0x80;
-4431  e04b 721e500f      	bset	_PD_ODR,#7
-4432  e04f               L7232:
-4433                     ; 687     if (Relays_16to9 & 0x01) PA_ODR &= (uint8_t)(~0x10); // Relay  9 off, PA bit 4 = 0
-4435  e04f 7201006006    	btjf	_Relays_16to9,#0,L1332
-4438  e054 72195000      	bres	_PA_ODR,#4
-4440  e058 2004          	jra	L3332
-4441  e05a               L1332:
-4442                     ; 688     else PA_ODR |= (uint8_t)0x10;
-4444  e05a 72185000      	bset	_PA_ODR,#4
-4445  e05e               L3332:
-4446                     ; 692     if (Relays_8to1 & 0x80) PC_ODR &= (uint8_t)(~0x80); // Relay  8 off, PC bit 7 = 0
-4448  e05e 720f005f06    	btjf	_Relays_8to1,#7,L5332
-4451  e063 721f500a      	bres	_PC_ODR,#7
-4453  e067 2004          	jra	L7332
-4454  e069               L5332:
-4455                     ; 693     else PC_ODR |= (uint8_t)0x80;
-4457  e069 721e500a      	bset	_PC_ODR,#7
-4458  e06d               L7332:
-4459                     ; 694     if (Relays_8to1 & 0x40) PG_ODR &= (uint8_t)(~0x02); // Relay  7 off, PG bit 1 = 0
-4461  e06d 720d005f06    	btjf	_Relays_8to1,#6,L1432
-4464  e072 7213501e      	bres	_PG_ODR,#1
-4466  e076 2004          	jra	L3432
-4467  e078               L1432:
-4468                     ; 695     else PG_ODR |= (uint8_t)0x02;
-4470  e078 7212501e      	bset	_PG_ODR,#1
-4471  e07c               L3432:
-4472                     ; 696     if (Relays_8to1 & 0x20) PE_ODR &= (uint8_t)(~0x01); // Relay  6 off, PE bit 0 = 0
-4474  e07c 720b005f06    	btjf	_Relays_8to1,#5,L5432
-4477  e081 72115014      	bres	_PE_ODR,#0
-4479  e085 2004          	jra	L7432
-4480  e087               L5432:
-4481                     ; 697     else PE_ODR |= (uint8_t)0x01;
-4483  e087 72105014      	bset	_PE_ODR,#0
-4484  e08b               L7432:
-4485                     ; 698     if (Relays_8to1 & 0x10) PD_ODR &= (uint8_t)(~0x04); // Relay  5 off, PD bit 2 = 0
-4487  e08b 7209005f06    	btjf	_Relays_8to1,#4,L1532
-4490  e090 7215500f      	bres	_PD_ODR,#2
-4492  e094 2004          	jra	L3532
-4493  e096               L1532:
-4494                     ; 699     else PD_ODR |= (uint8_t)0x04;
-4496  e096 7214500f      	bset	_PD_ODR,#2
-4497  e09a               L3532:
-4498                     ; 700     if (Relays_8to1 & 0x08) PD_ODR &= (uint8_t)(~0x10); // Relay  4 off, PD bit 4 = 0
-4500  e09a 7207005f06    	btjf	_Relays_8to1,#3,L5532
-4503  e09f 7219500f      	bres	_PD_ODR,#4
-4505  e0a3 2004          	jra	L7532
-4506  e0a5               L5532:
-4507                     ; 701     else PD_ODR |= (uint8_t)0x10;
-4509  e0a5 7218500f      	bset	_PD_ODR,#4
-4510  e0a9               L7532:
-4511                     ; 702     if (Relays_8to1 & 0x04) PD_ODR &= (uint8_t)(~0x40); // Relay  3 off, PD bit 6 = 0
-4513  e0a9 7205005f06    	btjf	_Relays_8to1,#2,L1632
-4516  e0ae 721d500f      	bres	_PD_ODR,#6
-4518  e0b2 2004          	jra	L3632
-4519  e0b4               L1632:
-4520                     ; 703     else PD_ODR |= (uint8_t)0x40;
-4522  e0b4 721c500f      	bset	_PD_ODR,#6
-4523  e0b8               L3632:
-4524                     ; 704     if (Relays_8to1 & 0x02) PA_ODR &= (uint8_t)(~0x20); // Relay  2 off, PA bit 5 = 0
-4526  e0b8 7203005f06    	btjf	_Relays_8to1,#1,L5632
-4529  e0bd 721b5000      	bres	_PA_ODR,#5
-4531  e0c1 2004          	jra	L7632
-4532  e0c3               L5632:
-4533                     ; 705     else PA_ODR |= (uint8_t)0x20;
-4535  e0c3 721a5000      	bset	_PA_ODR,#5
-4536  e0c7               L7632:
-4537                     ; 706     if (Relays_8to1 & 0x01) PA_ODR &= (uint8_t)(~0x08); // Relay  1 off, PA bit 3 = 0
-4539  e0c7 7201005f03    	btjf	_Relays_8to1,#0,L1732
-4542  e0cc ccdfdb        	jp	L5622
-4543  e0cf               L1732:
-4544                     ; 707     else PA_ODR |= (uint8_t)0x08;
-4547  e0cf 72165000      	bset	_PA_ODR,#3
-4548  e0d3               L1722:
-4549                     ; 709 }
-4552  e0d3 81            	ret	
-4616                     ; 711 void check_reset_button(void)
-4616                     ; 712 {
-4617                     	switch	.text
-4618  e0d4               _check_reset_button:
-4620  e0d4 88            	push	a
-4621       00000001      OFST:	set	1
-4624                     ; 717   if ((PA_IDR & 0x02) == 0) {
-4626  e0d5 7203500103cc  	btjt	_PA_IDR,#1,L1142
-4627                     ; 719     for (i=0; i<100; i++) {
-4629  e0dd 0f01          	clr	(OFST+0,sp)
-4631  e0df               L3142:
-4632                     ; 720       wait_timer(50000); // wait 50ms
-4634  e0df aec350        	ldw	x,#50000
-4635  e0e2 cde43f        	call	_wait_timer
-4637                     ; 721       if ((PA_IDR & 0x02) == 1) {  // check Reset Button again. If released
-4639  e0e5 c65001        	ld	a,_PA_IDR
-4640  e0e8 a402          	and	a,#2
-4641  e0ea 4a            	dec	a
-4642  e0eb 2602          	jrne	L1242
-4643                     ; 723         return;
-4646  e0ed 84            	pop	a
-4647  e0ee 81            	ret	
-4648  e0ef               L1242:
-4649                     ; 719     for (i=0; i<100; i++) {
-4651  e0ef 0c01          	inc	(OFST+0,sp)
-4655  e0f1 7b01          	ld	a,(OFST+0,sp)
-4656  e0f3 a164          	cp	a,#100
-4657  e0f5 25e8          	jrult	L3142
-4658                     ; 728     LEDcontrol(0);  // turn LED off
-4660  e0f7 4f            	clr	a
-4661  e0f8 cdc1df        	call	_LEDcontrol
-4664  e0fb               L5242:
-4665                     ; 729     while((PA_IDR & 0x02) == 0) {  // Wait for button release
-4667  e0fb 72035001fb    	btjf	_PA_IDR,#1,L5242
-4668                     ; 732     magic4 = 0x00;		   // MSB Magic Number stored in EEPROM
-4670  e100 4f            	clr	a
-4671  e101 ae402e        	ldw	x,#_magic4
-4672  e104 cdf3ee        	call	c_eewrc
-4674                     ; 733     magic3 = 0x00;		   //
-4676  e107 4f            	clr	a
-4677  e108 ae402d        	ldw	x,#_magic3
-4678  e10b cdf3ee        	call	c_eewrc
-4680                     ; 734     magic2 = 0x00;		   //
-4682  e10e 4f            	clr	a
-4683  e10f ae402c        	ldw	x,#_magic2
-4684  e112 cdf3ee        	call	c_eewrc
-4686                     ; 735     magic1 = 0x00;		   // LSB Magic Number
-4688  e115 4f            	clr	a
-4689  e116 ae402b        	ldw	x,#_magic1
-4690  e119 cdf3ee        	call	c_eewrc
-4692                     ; 736     stored_hostaddr4 = 0x00;	   // MSB hostaddr stored in EEPROM
-4694  e11c 4f            	clr	a
-4695  e11d ae402a        	ldw	x,#_stored_hostaddr4
-4696  e120 cdf3ee        	call	c_eewrc
-4698                     ; 737     stored_hostaddr3 = 0x00;	   //
-4700  e123 4f            	clr	a
-4701  e124 ae4029        	ldw	x,#_stored_hostaddr3
-4702  e127 cdf3ee        	call	c_eewrc
-4704                     ; 738     stored_hostaddr2 = 0x00;	   //
-4706  e12a 4f            	clr	a
-4707  e12b ae4028        	ldw	x,#_stored_hostaddr2
-4708  e12e cdf3ee        	call	c_eewrc
-4710                     ; 739     stored_hostaddr1 = 0x00;	   // LSB hostaddr
-4712  e131 4f            	clr	a
-4713  e132 ae4027        	ldw	x,#_stored_hostaddr1
-4714  e135 cdf3ee        	call	c_eewrc
-4716                     ; 740     stored_draddr4 = 0x00;	   // MSB draddr stored in EEPROM
-4718  e138 4f            	clr	a
-4719  e139 ae4026        	ldw	x,#_stored_draddr4
-4720  e13c cdf3ee        	call	c_eewrc
-4722                     ; 741     stored_draddr3 = 0x00;	   //
-4724  e13f 4f            	clr	a
-4725  e140 ae4025        	ldw	x,#_stored_draddr3
-4726  e143 cdf3ee        	call	c_eewrc
-4728                     ; 742     stored_draddr2 = 0x00;	   //
-4730  e146 4f            	clr	a
-4731  e147 ae4024        	ldw	x,#_stored_draddr2
-4732  e14a cdf3ee        	call	c_eewrc
-4734                     ; 743     stored_draddr1 = 0x00;	   // LSB draddr
-4736  e14d 4f            	clr	a
-4737  e14e ae4023        	ldw	x,#_stored_draddr1
-4738  e151 cdf3ee        	call	c_eewrc
-4740                     ; 744     stored_netmask4 = 0x00;	   // MSB netmask stored in EEPROM
-4742  e154 4f            	clr	a
-4743  e155 ae4022        	ldw	x,#_stored_netmask4
-4744  e158 cdf3ee        	call	c_eewrc
-4746                     ; 745     stored_netmask3 = 0x00;	   //
-4748  e15b 4f            	clr	a
-4749  e15c ae4021        	ldw	x,#_stored_netmask3
-4750  e15f cdf3ee        	call	c_eewrc
-4752                     ; 746     stored_netmask2 = 0x00;	   //
-4754  e162 4f            	clr	a
-4755  e163 ae4020        	ldw	x,#_stored_netmask2
-4756  e166 cdf3ee        	call	c_eewrc
-4758                     ; 747     stored_netmask1 = 0x00;	   // LSB netmask
-4760  e169 4f            	clr	a
-4761  e16a ae401f        	ldw	x,#_stored_netmask1
-4762  e16d cdf3ee        	call	c_eewrc
-4764                     ; 748     stored_port = 0x0000;	   // Port stored in EEPROM
-4766  e170 5f            	clrw	x
-4767  e171 89            	pushw	x
-4768  e172 ae401d        	ldw	x,#_stored_port
-4769  e175 cdf3d8        	call	c_eewrw
-4771  e178 4f            	clr	a
-4772  e179 85            	popw	x
-4773                     ; 749     stored_uip_ethaddr1 = 0x00;	   // MAC MSB
-4775  e17a ae401c        	ldw	x,#_stored_uip_ethaddr1
-4776  e17d cdf3ee        	call	c_eewrc
-4778                     ; 750     stored_uip_ethaddr2 = 0x00;	   //
-4780  e180 4f            	clr	a
-4781  e181 ae401b        	ldw	x,#_stored_uip_ethaddr2
-4782  e184 cdf3ee        	call	c_eewrc
-4784                     ; 751     stored_uip_ethaddr3 = 0x00;	   //
-4786  e187 4f            	clr	a
-4787  e188 ae401a        	ldw	x,#_stored_uip_ethaddr3
-4788  e18b cdf3ee        	call	c_eewrc
-4790                     ; 752     stored_uip_ethaddr4 = 0x00;	   //
-4792  e18e 4f            	clr	a
-4793  e18f ae4019        	ldw	x,#_stored_uip_ethaddr4
-4794  e192 cdf3ee        	call	c_eewrc
-4796                     ; 753     stored_uip_ethaddr5 = 0x00;	   //
-4798  e195 4f            	clr	a
-4799  e196 ae4018        	ldw	x,#_stored_uip_ethaddr5
-4800  e199 cdf3ee        	call	c_eewrc
-4802                     ; 754     stored_uip_ethaddr6 = 0x00;	   // MAC LSB stored in EEPROM
-4804  e19c 4f            	clr	a
-4805  e19d ae4017        	ldw	x,#_stored_uip_ethaddr6
-4806  e1a0 cdf3ee        	call	c_eewrc
-4808                     ; 755     stored_Relays_16to9 = 0x00;    // Relay states for relays 16 to 9
-4810  e1a3 4f            	clr	a
-4811  e1a4 ae4016        	ldw	x,#_stored_Relays_16to9
-4812  e1a7 cdf3ee        	call	c_eewrc
-4814                     ; 756     stored_Relays_8to1 = 0x00;     // Relay states for relays 8 to 1
-4816  e1aa 4f            	clr	a
-4817  e1ab ae4015        	ldw	x,#_stored_Relays_8to1
-4818  e1ae cdf3ee        	call	c_eewrc
-4820                     ; 757     stored_invert_output = 0x00;   // Relay state inversion control
-4822  e1b1 4f            	clr	a
-4823  e1b2 ae4014        	ldw	x,#_stored_invert_output
-4824  e1b5 cdf3ee        	call	c_eewrc
-4826                     ; 758     stored_devicename[0] = 0x00;   // Device name
-4828  e1b8 4f            	clr	a
-4829  e1b9 ae4000        	ldw	x,#_stored_devicename
-4830  e1bc cdf3ee        	call	c_eewrc
-4832                     ; 759     stored_devicename[1] = 0x00;   // Device name
-4834  e1bf 4f            	clr	a
-4835  e1c0 ae4001        	ldw	x,#_stored_devicename+1
-4836  e1c3 cdf3ee        	call	c_eewrc
-4838                     ; 760     stored_devicename[2] = 0x00;   // Device name
-4840  e1c6 4f            	clr	a
-4841  e1c7 ae4002        	ldw	x,#_stored_devicename+2
-4842  e1ca cdf3ee        	call	c_eewrc
-4844                     ; 761     stored_devicename[3] = 0x00;   // Device name
-4846  e1cd 4f            	clr	a
-4847  e1ce ae4003        	ldw	x,#_stored_devicename+3
-4848  e1d1 cdf3ee        	call	c_eewrc
-4850                     ; 762     stored_devicename[4] = 0x00;   // Device name
-4852  e1d4 4f            	clr	a
-4853  e1d5 ae4004        	ldw	x,#_stored_devicename+4
-4854  e1d8 cdf3ee        	call	c_eewrc
-4856                     ; 763     stored_devicename[5] = 0x00;   // Device name
-4858  e1db 4f            	clr	a
-4859  e1dc ae4005        	ldw	x,#_stored_devicename+5
-4860  e1df cdf3ee        	call	c_eewrc
-4862                     ; 764     stored_devicename[6] = 0x00;   // Device name
-4864  e1e2 4f            	clr	a
-4865  e1e3 ae4006        	ldw	x,#_stored_devicename+6
-4866  e1e6 cdf3ee        	call	c_eewrc
-4868                     ; 765     stored_devicename[7] = 0x00;   // Device name
-4870  e1e9 4f            	clr	a
-4871  e1ea ae4007        	ldw	x,#_stored_devicename+7
-4872  e1ed cdf3ee        	call	c_eewrc
-4874                     ; 766     stored_devicename[8] = 0x00;   // Device name
-4876  e1f0 4f            	clr	a
-4877  e1f1 ae4008        	ldw	x,#_stored_devicename+8
-4878  e1f4 cdf3ee        	call	c_eewrc
-4880                     ; 767     stored_devicename[9] = 0x00;   // Device name
-4882  e1f7 4f            	clr	a
-4883  e1f8 ae4009        	ldw	x,#_stored_devicename+9
-4884  e1fb cdf3ee        	call	c_eewrc
-4886                     ; 768     stored_devicename[10] = 0x00;  // Device name
-4888  e1fe 4f            	clr	a
-4889  e1ff ae400a        	ldw	x,#_stored_devicename+10
-4890  e202 cdf3ee        	call	c_eewrc
-4892                     ; 769     stored_devicename[11] = 0x00;  // Device name
-4894  e205 4f            	clr	a
-4895  e206 ae400b        	ldw	x,#_stored_devicename+11
-4896  e209 cdf3ee        	call	c_eewrc
-4898                     ; 770     stored_devicename[12] = 0x00;  // Device name
-4900  e20c 4f            	clr	a
-4901  e20d ae400c        	ldw	x,#_stored_devicename+12
-4902  e210 cdf3ee        	call	c_eewrc
-4904                     ; 771     stored_devicename[13] = 0x00;  // Device name
-4906  e213 4f            	clr	a
-4907  e214 ae400d        	ldw	x,#_stored_devicename+13
-4908  e217 cdf3ee        	call	c_eewrc
-4910                     ; 772     stored_devicename[14] = 0x00;  // Device name
-4912  e21a 4f            	clr	a
-4913  e21b ae400e        	ldw	x,#_stored_devicename+14
-4914  e21e cdf3ee        	call	c_eewrc
-4916                     ; 773     stored_devicename[15] = 0x00;  // Device name
-4918  e221 4f            	clr	a
-4919  e222 ae400f        	ldw	x,#_stored_devicename+15
-4920  e225 cdf3ee        	call	c_eewrc
-4922                     ; 774     stored_devicename[16] = 0x00;  // Device name
-4924  e228 4f            	clr	a
-4925  e229 ae4010        	ldw	x,#_stored_devicename+16
-4926  e22c cdf3ee        	call	c_eewrc
-4928                     ; 775     stored_devicename[17] = 0x00;  // Device name
-4930  e22f 4f            	clr	a
-4931  e230 ae4011        	ldw	x,#_stored_devicename+17
-4932  e233 cdf3ee        	call	c_eewrc
-4934                     ; 776     stored_devicename[18] = 0x00;  // Device name
-4936  e236 4f            	clr	a
-4937  e237 ae4012        	ldw	x,#_stored_devicename+18
-4938  e23a cdf3ee        	call	c_eewrc
-4940                     ; 777     stored_devicename[19] = 0x00;  // Device name
-4942  e23d 4f            	clr	a
-4943  e23e ae4013        	ldw	x,#_stored_devicename+19
-4944  e241 cdf3ee        	call	c_eewrc
-4946                     ; 779     WWDG_WR = (uint8_t)0x7f;     // Window register reset
-4948  e244 357f50d2      	mov	_WWDG_WR,#127
-4949                     ; 780     WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
-4951  e248 35ff50d1      	mov	_WWDG_CR,#255
-4952                     ; 781     WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
-4954  e24c 356050d2      	mov	_WWDG_WR,#96
-4955                     ; 784     wait_timer((uint16_t)50000); // Wait for watchdog to generate reset
-4957  e250 aec350        	ldw	x,#50000
-4958  e253 cde43f        	call	_wait_timer
-4960                     ; 785     wait_timer((uint16_t)50000);
-4962  e256 aec350        	ldw	x,#50000
-4963  e259 cde43f        	call	_wait_timer
-4965                     ; 786     wait_timer((uint16_t)50000);
-4967  e25c aec350        	ldw	x,#50000
-4968  e25f cde43f        	call	_wait_timer
-4970  e262               L1142:
-4971                     ; 788 }
-4974  e262 84            	pop	a
-4975  e263 81            	ret	
-5009                     ; 791 void debugflash(void)
-5009                     ; 792 {
-5010                     	switch	.text
-5011  e264               _debugflash:
-5013  e264 88            	push	a
-5014       00000001      OFST:	set	1
-5017                     ; 807   LEDcontrol(0);     // turn LED off
-5019  e265 4f            	clr	a
-5020  e266 cdc1df        	call	_LEDcontrol
-5022                     ; 808   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
-5024  e269 0f01          	clr	(OFST+0,sp)
-5026  e26b               L5442:
-5029  e26b aec350        	ldw	x,#50000
-5030  e26e cde43f        	call	_wait_timer
-5034  e271 0c01          	inc	(OFST+0,sp)
-5038  e273 7b01          	ld	a,(OFST+0,sp)
-5039  e275 a10a          	cp	a,#10
-5040  e277 25f2          	jrult	L5442
-5041                     ; 810   LEDcontrol(1);     // turn LED on
-5043  e279 a601          	ld	a,#1
-5044  e27b cdc1df        	call	_LEDcontrol
-5046                     ; 811   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
-5048  e27e 0f01          	clr	(OFST+0,sp)
-5050  e280               L3542:
-5053  e280 aec350        	ldw	x,#50000
-5054  e283 cde43f        	call	_wait_timer
-5058  e286 0c01          	inc	(OFST+0,sp)
-5062  e288 7b01          	ld	a,(OFST+0,sp)
-5063  e28a a10a          	cp	a,#10
-5064  e28c 25f2          	jrult	L3542
-5065                     ; 812 }
-5068  e28e 84            	pop	a
-5069  e28f 81            	ret	
-5675                     	switch	.bss
-5676  001c               _devicename_changed:
-5677  001c 00            	ds.b	1
-5678                     	xdef	_devicename_changed
-5679  001d               _submit_changes:
-5680  001d 00            	ds.b	1
-5681                     	xdef	_submit_changes
-5682  001e               _uip_ethaddr1:
-5683  001e 00            	ds.b	1
-5684                     	xdef	_uip_ethaddr1
-5685  001f               _uip_ethaddr2:
-5686  001f 00            	ds.b	1
-5687                     	xdef	_uip_ethaddr2
-5688  0020               _uip_ethaddr3:
-5689  0020 00            	ds.b	1
-5690                     	xdef	_uip_ethaddr3
-5691  0021               _uip_ethaddr4:
-5692  0021 00            	ds.b	1
-5693                     	xdef	_uip_ethaddr4
-5694  0022               _uip_ethaddr5:
-5695  0022 00            	ds.b	1
-5696                     	xdef	_uip_ethaddr5
-5697  0023               _uip_ethaddr6:
-5698  0023 00            	ds.b	1
-5699                     	xdef	_uip_ethaddr6
-5700  0024               _Pending_uip_ethaddr1:
-5701  0024 00            	ds.b	1
-5702                     	xdef	_Pending_uip_ethaddr1
-5703  0025               _Pending_uip_ethaddr2:
-5704  0025 00            	ds.b	1
-5705                     	xdef	_Pending_uip_ethaddr2
-5706  0026               _Pending_uip_ethaddr3:
-5707  0026 00            	ds.b	1
-5708                     	xdef	_Pending_uip_ethaddr3
-5709  0027               _Pending_uip_ethaddr4:
-5710  0027 00            	ds.b	1
-5711                     	xdef	_Pending_uip_ethaddr4
-5712  0028               _Pending_uip_ethaddr5:
-5713  0028 00            	ds.b	1
-5714                     	xdef	_Pending_uip_ethaddr5
-5715  0029               _Pending_uip_ethaddr6:
-5716  0029 00            	ds.b	1
-5717                     	xdef	_Pending_uip_ethaddr6
-5718  002a               _Pending_port:
-5719  002a 0000          	ds.b	2
-5720                     	xdef	_Pending_port
-5721  002c               _Pending_netmask1:
-5722  002c 00            	ds.b	1
-5723                     	xdef	_Pending_netmask1
-5724  002d               _Pending_netmask2:
-5725  002d 00            	ds.b	1
-5726                     	xdef	_Pending_netmask2
-5727  002e               _Pending_netmask3:
-5728  002e 00            	ds.b	1
-5729                     	xdef	_Pending_netmask3
-5730  002f               _Pending_netmask4:
-5731  002f 00            	ds.b	1
-5732                     	xdef	_Pending_netmask4
-5733  0030               _Pending_draddr1:
-5734  0030 00            	ds.b	1
-5735                     	xdef	_Pending_draddr1
-5736  0031               _Pending_draddr2:
-5737  0031 00            	ds.b	1
-5738                     	xdef	_Pending_draddr2
-5739  0032               _Pending_draddr3:
-5740  0032 00            	ds.b	1
-5741                     	xdef	_Pending_draddr3
-5742  0033               _Pending_draddr4:
-5743  0033 00            	ds.b	1
-5744                     	xdef	_Pending_draddr4
-5745  0034               _Pending_hostaddr1:
-5746  0034 00            	ds.b	1
-5747                     	xdef	_Pending_hostaddr1
-5748  0035               _Pending_hostaddr2:
-5749  0035 00            	ds.b	1
-5750                     	xdef	_Pending_hostaddr2
-5751  0036               _Pending_hostaddr3:
-5752  0036 00            	ds.b	1
-5753                     	xdef	_Pending_hostaddr3
-5754  0037               _Pending_hostaddr4:
-5755  0037 00            	ds.b	1
-5756                     	xdef	_Pending_hostaddr4
-5757  0038               _ex_stored_devicename:
-5758  0038 000000000000  	ds.b	20
-5759                     	xdef	_ex_stored_devicename
-5760  004c               _ex_stored_port:
-5761  004c 0000          	ds.b	2
-5762                     	xdef	_ex_stored_port
-5763  004e               _ex_stored_netmask1:
-5764  004e 00            	ds.b	1
-5765                     	xdef	_ex_stored_netmask1
-5766  004f               _ex_stored_netmask2:
-5767  004f 00            	ds.b	1
-5768                     	xdef	_ex_stored_netmask2
-5769  0050               _ex_stored_netmask3:
-5770  0050 00            	ds.b	1
-5771                     	xdef	_ex_stored_netmask3
-5772  0051               _ex_stored_netmask4:
-5773  0051 00            	ds.b	1
-5774                     	xdef	_ex_stored_netmask4
-5775  0052               _ex_stored_draddr1:
-5776  0052 00            	ds.b	1
-5777                     	xdef	_ex_stored_draddr1
-5778  0053               _ex_stored_draddr2:
-5779  0053 00            	ds.b	1
-5780                     	xdef	_ex_stored_draddr2
-5781  0054               _ex_stored_draddr3:
-5782  0054 00            	ds.b	1
-5783                     	xdef	_ex_stored_draddr3
-5784  0055               _ex_stored_draddr4:
-5785  0055 00            	ds.b	1
-5786                     	xdef	_ex_stored_draddr4
-5787  0056               _ex_stored_hostaddr1:
-5788  0056 00            	ds.b	1
-5789                     	xdef	_ex_stored_hostaddr1
-5790  0057               _ex_stored_hostaddr2:
-5791  0057 00            	ds.b	1
-5792                     	xdef	_ex_stored_hostaddr2
-5793  0058               _ex_stored_hostaddr3:
-5794  0058 00            	ds.b	1
-5795                     	xdef	_ex_stored_hostaddr3
-5796  0059               _ex_stored_hostaddr4:
-5797  0059 00            	ds.b	1
-5798                     	xdef	_ex_stored_hostaddr4
-5799  005a               _IpAddr:
-5800  005a 00000000      	ds.b	4
-5801                     	xdef	_IpAddr
-5802  005e               _invert_output:
-5803  005e 00            	ds.b	1
-5804                     	xdef	_invert_output
-5805  005f               _Relays_8to1:
-5806  005f 00            	ds.b	1
-5807                     	xdef	_Relays_8to1
-5808  0060               _Relays_16to9:
-5809  0060 00            	ds.b	1
-5810                     	xdef	_Relays_16to9
-5811  0061               _Port_Httpd:
-5812  0061 0000          	ds.b	2
-5813                     	xdef	_Port_Httpd
-5814                     .eeprom:	section	.data
-5815  4000               _stored_devicename:
-5816  4000 000000000000  	ds.b	20
-5817                     	xdef	_stored_devicename
-5818  4014               _stored_invert_output:
-5819  4014 00            	ds.b	1
-5820                     	xdef	_stored_invert_output
-5821  4015               _stored_Relays_8to1:
-5822  4015 00            	ds.b	1
-5823                     	xdef	_stored_Relays_8to1
-5824  4016               _stored_Relays_16to9:
-5825  4016 00            	ds.b	1
-5826                     	xdef	_stored_Relays_16to9
-5827  4017               _stored_uip_ethaddr6:
-5828  4017 00            	ds.b	1
-5829                     	xdef	_stored_uip_ethaddr6
-5830  4018               _stored_uip_ethaddr5:
-5831  4018 00            	ds.b	1
-5832                     	xdef	_stored_uip_ethaddr5
-5833  4019               _stored_uip_ethaddr4:
-5834  4019 00            	ds.b	1
-5835                     	xdef	_stored_uip_ethaddr4
-5836  401a               _stored_uip_ethaddr3:
-5837  401a 00            	ds.b	1
-5838                     	xdef	_stored_uip_ethaddr3
-5839  401b               _stored_uip_ethaddr2:
-5840  401b 00            	ds.b	1
-5841                     	xdef	_stored_uip_ethaddr2
-5842  401c               _stored_uip_ethaddr1:
-5843  401c 00            	ds.b	1
-5844                     	xdef	_stored_uip_ethaddr1
-5845  401d               _stored_port:
-5846  401d 0000          	ds.b	2
-5847                     	xdef	_stored_port
-5848  401f               _stored_netmask1:
-5849  401f 00            	ds.b	1
-5850                     	xdef	_stored_netmask1
-5851  4020               _stored_netmask2:
-5852  4020 00            	ds.b	1
-5853                     	xdef	_stored_netmask2
-5854  4021               _stored_netmask3:
-5855  4021 00            	ds.b	1
-5856                     	xdef	_stored_netmask3
-5857  4022               _stored_netmask4:
-5858  4022 00            	ds.b	1
-5859                     	xdef	_stored_netmask4
-5860  4023               _stored_draddr1:
-5861  4023 00            	ds.b	1
-5862                     	xdef	_stored_draddr1
-5863  4024               _stored_draddr2:
-5864  4024 00            	ds.b	1
-5865                     	xdef	_stored_draddr2
-5866  4025               _stored_draddr3:
-5867  4025 00            	ds.b	1
-5868                     	xdef	_stored_draddr3
-5869  4026               _stored_draddr4:
-5870  4026 00            	ds.b	1
-5871                     	xdef	_stored_draddr4
-5872  4027               _stored_hostaddr1:
-5873  4027 00            	ds.b	1
-5874                     	xdef	_stored_hostaddr1
-5875  4028               _stored_hostaddr2:
-5876  4028 00            	ds.b	1
-5877                     	xdef	_stored_hostaddr2
-5878  4029               _stored_hostaddr3:
-5879  4029 00            	ds.b	1
-5880                     	xdef	_stored_hostaddr3
-5881  402a               _stored_hostaddr4:
-5882  402a 00            	ds.b	1
-5883                     	xdef	_stored_hostaddr4
-5884  402b               _magic1:
-5885  402b 00            	ds.b	1
-5886                     	xdef	_magic1
-5887  402c               _magic2:
-5888  402c 00            	ds.b	1
-5889                     	xdef	_magic2
-5890  402d               _magic3:
-5891  402d 00            	ds.b	1
-5892                     	xdef	_magic3
-5893  402e               _magic4:
-5894  402e 00            	ds.b	1
-5895                     	xdef	_magic4
-5896                     	xref	_wait_timer
-5897                     	xref	_arp_timer_expired
-5898                     	xref	_periodic_timer_expired
-5899                     	xref	_clock_init
-5900                     	xref	_LEDcontrol
-5901                     	xref	_gpio_init
-5902                     	xref	_uip_arp_timer
-5903                     	xref	_uip_arp_out
-5904                     	xref	_uip_arp_arpin
-5905                     	xref	_uip_arp_init
-5906                     	xref	_uip_ethaddr
-5907                     	xref	_uip_draddr
-5908                     	xref	_uip_netmask
-5909                     	xref	_uip_hostaddr
-5910                     	xref	_uip_process
-5911                     	xref	_uip_conns
-5912                     	xref	_uip_conn
-5913                     	xref	_uip_len
-5914                     	xref	_htons
-5915                     	xref	_uip_buf
-5916                     	xref	_uip_init
-5917                     	xref	_HttpDInit
-5918                     	xref	_Enc28j60Send
-5919                     	xref	_Enc28j60CopyPacket
-5920                     	xref	_Enc28j60Receive
-5921                     	xref	_Enc28j60Init
-5922                     	xref	_spi_init
-5923                     	xdef	_debugflash
-5924                     	xdef	_check_reset_button
-5925                     	xdef	_update_relay_control_registers
-5926                     	xdef	_check_runtime_changes
-5927                     	xdef	_check_eeprom_settings
-5928                     	xdef	_unlock_eeprom
-5929                     	xdef	_main
-5930                     	xref.b	c_x
-5950                     	xref	c_eewrw
-5951                     	xref	c_eewrc
-5952                     	xref	c_bmulx
-5953                     	end
+2807  c5a7               _unlock_eeprom:
+2811  c5a7 2008          	jra	L3271
+2812  c5a9               L1271:
+2813                     ; 286     FLASH_DUKR = 0xAE; // MASS key 1
+2815  c5a9 35ae5064      	mov	_FLASH_DUKR,#174
+2816                     ; 287     FLASH_DUKR = 0x56; // MASS key 2
+2818  c5ad 35565064      	mov	_FLASH_DUKR,#86
+2819  c5b1               L3271:
+2820                     ; 285   while (!(FLASH_IAPSR & 0x08)) {  // Check DUL bit, 0=Protected
+2822  c5b1 7207505ff3    	btjf	_FLASH_IAPSR,#3,L1271
+2823                     ; 289 }
+2826  c5b6 81            	ret	
+2931                     ; 292 void check_eeprom_settings(void)
+2931                     ; 293 {
+2932                     	switch	.text
+2933  c5b7               _check_eeprom_settings:
+2935  c5b7 88            	push	a
+2936       00000001      OFST:	set	1
+2939                     ; 305   if ((magic4 == 0x55) && 
+2939                     ; 306       (magic3 == 0xee) && 
+2939                     ; 307       (magic2 == 0x0f) && 
+2939                     ; 308       (magic1 == 0xf0) == 1) {
+2941  c5b8 c6402e        	ld	a,_magic4
+2942  c5bb a155          	cp	a,#85
+2943  c5bd 2703ccc69d    	jrne	L5002
+2945  c5c2 c6402d        	ld	a,_magic3
+2946  c5c5 a1ee          	cp	a,#238
+2947  c5c7 26f6          	jrne	L5002
+2949  c5c9 c6402c        	ld	a,_magic2
+2950  c5cc a10f          	cp	a,#15
+2951  c5ce 26ef          	jrne	L5002
+2953  c5d0 c6402b        	ld	a,_magic1
+2954  c5d3 a1f0          	cp	a,#240
+2955  c5d5 26e8          	jrne	L5002
+2956                     ; 313     uip_ipaddr(IpAddr, stored_hostaddr4, stored_hostaddr3, stored_hostaddr2, stored_hostaddr1);
+2958  c5d7 c6402a        	ld	a,_stored_hostaddr4
+2959  c5da 97            	ld	xl,a
+2960  c5db c64029        	ld	a,_stored_hostaddr3
+2961  c5de 02            	rlwa	x,a
+2962  c5df cf001c        	ldw	_IpAddr,x
+2965  c5e2 c64028        	ld	a,_stored_hostaddr2
+2966  c5e5 97            	ld	xl,a
+2967  c5e6 c64027        	ld	a,_stored_hostaddr1
+2968  c5e9 02            	rlwa	x,a
+2969  c5ea cf001e        	ldw	_IpAddr+2,x
+2970                     ; 314     uip_sethostaddr(IpAddr);
+2972  c5ed ce001c        	ldw	x,_IpAddr
+2973  c5f0 cf0084        	ldw	_uip_hostaddr,x
+2976  c5f3 ce001e        	ldw	x,_IpAddr+2
+2977  c5f6 cf0086        	ldw	_uip_hostaddr+2,x
+2978                     ; 317     uip_ipaddr(IpAddr, stored_draddr4, stored_draddr3, stored_draddr2, stored_draddr1);
+2980  c5f9 c64026        	ld	a,_stored_draddr4
+2981  c5fc 97            	ld	xl,a
+2982  c5fd c64025        	ld	a,_stored_draddr3
+2983  c600 02            	rlwa	x,a
+2984  c601 cf001c        	ldw	_IpAddr,x
+2987  c604 c64024        	ld	a,_stored_draddr2
+2988  c607 97            	ld	xl,a
+2989  c608 c64023        	ld	a,_stored_draddr1
+2990  c60b 02            	rlwa	x,a
+2991  c60c cf001e        	ldw	_IpAddr+2,x
+2992                     ; 318     uip_setdraddr(IpAddr);
+2994  c60f ce001c        	ldw	x,_IpAddr
+2995  c612 cf007c        	ldw	_uip_draddr,x
+2998  c615 ce001e        	ldw	x,_IpAddr+2
+2999  c618 cf007e        	ldw	_uip_draddr+2,x
+3000                     ; 321     uip_ipaddr(IpAddr, stored_netmask4, stored_netmask3, stored_netmask2, stored_netmask1);
+3002  c61b c64022        	ld	a,_stored_netmask4
+3003  c61e 97            	ld	xl,a
+3004  c61f c64021        	ld	a,_stored_netmask3
+3005  c622 02            	rlwa	x,a
+3006  c623 cf001c        	ldw	_IpAddr,x
+3009  c626 c64020        	ld	a,_stored_netmask2
+3010  c629 97            	ld	xl,a
+3011  c62a c6401f        	ld	a,_stored_netmask1
+3012  c62d 02            	rlwa	x,a
+3013  c62e cf001e        	ldw	_IpAddr+2,x
+3014                     ; 322     uip_setnetmask(IpAddr);
+3016  c631 ce001c        	ldw	x,_IpAddr
+3017  c634 cf0080        	ldw	_uip_netmask,x
+3020  c637 ce001e        	ldw	x,_IpAddr+2
+3021  c63a cf0082        	ldw	_uip_netmask+2,x
+3022                     ; 325     Port_Httpd = stored_port;
+3024  c63d ce401d        	ldw	x,_stored_port
+3025  c640 cf0020        	ldw	_Port_Httpd,x
+3026                     ; 328     uip_ethaddr6 = stored_uip_ethaddr6;
+3028  c643 5540170029    	mov	_uip_ethaddr6,_stored_uip_ethaddr6
+3029                     ; 329     uip_ethaddr5 = stored_uip_ethaddr5;
+3031  c648 5540180028    	mov	_uip_ethaddr5,_stored_uip_ethaddr5
+3032                     ; 330     uip_ethaddr4 = stored_uip_ethaddr4;
+3034  c64d 5540190027    	mov	_uip_ethaddr4,_stored_uip_ethaddr4
+3035                     ; 331     uip_ethaddr3 = stored_uip_ethaddr3;
+3037  c652 55401a0026    	mov	_uip_ethaddr3,_stored_uip_ethaddr3
+3038                     ; 332     uip_ethaddr2 = stored_uip_ethaddr2;
+3040  c657 55401b0025    	mov	_uip_ethaddr2,_stored_uip_ethaddr2
+3041                     ; 333     uip_ethaddr1 = stored_uip_ethaddr1;
+3043  c65c 55401c0024    	mov	_uip_ethaddr1,_stored_uip_ethaddr1
+3044                     ; 335     uip_ethaddr.addr[0] = uip_ethaddr1;
+3046  c661 550024000a    	mov	_uip_ethaddr,_uip_ethaddr1
+3047                     ; 336     uip_ethaddr.addr[1] = uip_ethaddr2;
+3049  c666 550025000b    	mov	_uip_ethaddr+1,_uip_ethaddr2
+3050                     ; 337     uip_ethaddr.addr[2] = uip_ethaddr3;
+3052  c66b 550026000c    	mov	_uip_ethaddr+2,_uip_ethaddr3
+3053                     ; 338     uip_ethaddr.addr[3] = uip_ethaddr4;
+3055  c670 550027000d    	mov	_uip_ethaddr+3,_uip_ethaddr4
+3056                     ; 339     uip_ethaddr.addr[4] = uip_ethaddr5;
+3058  c675 550028000e    	mov	_uip_ethaddr+4,_uip_ethaddr5
+3059                     ; 340     uip_ethaddr.addr[5] = uip_ethaddr6;
+3061                     ; 343     for(i=0; i<20; i++) { ex_stored_devicename[i] = stored_devicename[i]; }
+3063  c67a 4f            	clr	a
+3064  c67b 550029000f    	mov	_uip_ethaddr+5,_uip_ethaddr6
+3065  c680 6b01          	ld	(OFST+0,sp),a
+3067  c682               L5771:
+3070  c682 5f            	clrw	x
+3071  c683 97            	ld	xl,a
+3072  c684 d64000        	ld	a,(_stored_devicename,x)
+3073  c687 d7003e        	ld	(_ex_stored_devicename,x),a
+3076  c68a 0c01          	inc	(OFST+0,sp)
+3080  c68c 7b01          	ld	a,(OFST+0,sp)
+3081  c68e a114          	cp	a,#20
+3082  c690 25f0          	jrult	L5771
+3083                     ; 346     invert_output = stored_invert_output;
+3085  c692 5540140052    	mov	_invert_output,_stored_invert_output
+3086                     ; 358     write_output_registers();
+3088  c697 cdcbff        	call	_write_output_registers
+3091  c69a ccc882        	jra	L3002
+3092  c69d               L5002:
+3093                     ; 367     uip_ipaddr(IpAddr, 192,168,1,4);
+3095  c69d aec0a8        	ldw	x,#49320
+3096  c6a0 cf001c        	ldw	_IpAddr,x
+3099  c6a3 ae0104        	ldw	x,#260
+3100  c6a6 cf001e        	ldw	_IpAddr+2,x
+3101                     ; 368     uip_sethostaddr(IpAddr);
+3103  c6a9 ce001c        	ldw	x,_IpAddr
+3104  c6ac cf0084        	ldw	_uip_hostaddr,x
+3107  c6af ce001e        	ldw	x,_IpAddr+2
+3108  c6b2 cf0086        	ldw	_uip_hostaddr+2,x
+3109                     ; 370     stored_hostaddr4 = 192;	// MSB
+3111  c6b5 a6c0          	ld	a,#192
+3112  c6b7 ae402a        	ldw	x,#_stored_hostaddr4
+3113  c6ba cddf1a        	call	c_eewrc
+3115                     ; 371     stored_hostaddr3 = 168;	//
+3117  c6bd a6a8          	ld	a,#168
+3118  c6bf ae4029        	ldw	x,#_stored_hostaddr3
+3119  c6c2 cddf1a        	call	c_eewrc
+3121                     ; 372     stored_hostaddr2 = 1;	//
+3123  c6c5 a601          	ld	a,#1
+3124  c6c7 ae4028        	ldw	x,#_stored_hostaddr2
+3125  c6ca cddf1a        	call	c_eewrc
+3127                     ; 373     stored_hostaddr1 = 4;	// LSB
+3129  c6cd a604          	ld	a,#4
+3130  c6cf ae4027        	ldw	x,#_stored_hostaddr1
+3131  c6d2 cddf1a        	call	c_eewrc
+3133                     ; 376     uip_ipaddr(IpAddr, 192,168,1,1);
+3135  c6d5 aec0a8        	ldw	x,#49320
+3136  c6d8 cf001c        	ldw	_IpAddr,x
+3139  c6db ae0101        	ldw	x,#257
+3140  c6de cf001e        	ldw	_IpAddr+2,x
+3141                     ; 377     uip_setdraddr(IpAddr);
+3143  c6e1 ce001c        	ldw	x,_IpAddr
+3144  c6e4 cf007c        	ldw	_uip_draddr,x
+3147  c6e7 ce001e        	ldw	x,_IpAddr+2
+3148  c6ea cf007e        	ldw	_uip_draddr+2,x
+3149                     ; 379     stored_draddr4 = 192;	// MSB
+3151  c6ed a6c0          	ld	a,#192
+3152  c6ef ae4026        	ldw	x,#_stored_draddr4
+3153  c6f2 cddf1a        	call	c_eewrc
+3155                     ; 380     stored_draddr3 = 168;	//
+3157  c6f5 a6a8          	ld	a,#168
+3158  c6f7 ae4025        	ldw	x,#_stored_draddr3
+3159  c6fa cddf1a        	call	c_eewrc
+3161                     ; 381     stored_draddr2 = 1;		//
+3163  c6fd a601          	ld	a,#1
+3164  c6ff ae4024        	ldw	x,#_stored_draddr2
+3165  c702 cddf1a        	call	c_eewrc
+3167                     ; 382     stored_draddr1 = 1;		// LSB
+3169  c705 a601          	ld	a,#1
+3170  c707 ae4023        	ldw	x,#_stored_draddr1
+3171  c70a cddf1a        	call	c_eewrc
+3173                     ; 385     uip_ipaddr(IpAddr, 255,255,255,0);
+3175  c70d aeffff        	ldw	x,#65535
+3176  c710 cf001c        	ldw	_IpAddr,x
+3179  c713 aeff00        	ldw	x,#65280
+3180  c716 cf001e        	ldw	_IpAddr+2,x
+3181                     ; 386     uip_setnetmask(IpAddr);
+3183  c719 ce001c        	ldw	x,_IpAddr
+3184  c71c cf0080        	ldw	_uip_netmask,x
+3187  c71f ce001e        	ldw	x,_IpAddr+2
+3188  c722 cf0082        	ldw	_uip_netmask+2,x
+3189                     ; 388     stored_netmask4 = 255;	// MSB
+3191  c725 a6ff          	ld	a,#255
+3192  c727 ae4022        	ldw	x,#_stored_netmask4
+3193  c72a cddf1a        	call	c_eewrc
+3195                     ; 389     stored_netmask3 = 255;	//
+3197  c72d a6ff          	ld	a,#255
+3198  c72f ae4021        	ldw	x,#_stored_netmask3
+3199  c732 cddf1a        	call	c_eewrc
+3201                     ; 390     stored_netmask2 = 255;	//
+3203  c735 a6ff          	ld	a,#255
+3204  c737 ae4020        	ldw	x,#_stored_netmask2
+3205  c73a cddf1a        	call	c_eewrc
+3207                     ; 391     stored_netmask1 = 0;	// LSB
+3209  c73d 4f            	clr	a
+3210  c73e ae401f        	ldw	x,#_stored_netmask1
+3211  c741 cddf1a        	call	c_eewrc
+3213                     ; 394     stored_port = 8080;		// Port
+3215  c744 ae1f90        	ldw	x,#8080
+3216  c747 89            	pushw	x
+3217  c748 ae401d        	ldw	x,#_stored_port
+3218  c74b cddf04        	call	c_eewrw
+3220  c74e 85            	popw	x
+3221                     ; 396     Port_Httpd = 8080;
+3223  c74f ae1f90        	ldw	x,#8080
+3224  c752 cf0020        	ldw	_Port_Httpd,x
+3225                     ; 409     stored_uip_ethaddr1 = 0xc2;	//MAC MSB
+3227  c755 a6c2          	ld	a,#194
+3228  c757 ae401c        	ldw	x,#_stored_uip_ethaddr1
+3229  c75a cddf1a        	call	c_eewrc
+3231                     ; 410     stored_uip_ethaddr2 = 0x4d;
+3233  c75d a64d          	ld	a,#77
+3234  c75f ae401b        	ldw	x,#_stored_uip_ethaddr2
+3235  c762 cddf1a        	call	c_eewrc
+3237                     ; 411     stored_uip_ethaddr3 = 0x69;
+3239  c765 a669          	ld	a,#105
+3240  c767 ae401a        	ldw	x,#_stored_uip_ethaddr3
+3241  c76a cddf1a        	call	c_eewrc
+3243                     ; 412     stored_uip_ethaddr4 = 0x6b;
+3245  c76d a66b          	ld	a,#107
+3246  c76f ae4019        	ldw	x,#_stored_uip_ethaddr4
+3247  c772 cddf1a        	call	c_eewrc
+3249                     ; 413     stored_uip_ethaddr5 = 0x65;
+3251  c775 a665          	ld	a,#101
+3252  c777 ae4018        	ldw	x,#_stored_uip_ethaddr5
+3253  c77a cddf1a        	call	c_eewrc
+3255                     ; 414     stored_uip_ethaddr6 = 0x00;	//MAC LSB
+3257  c77d 4f            	clr	a
+3258  c77e ae4017        	ldw	x,#_stored_uip_ethaddr6
+3259  c781 cddf1a        	call	c_eewrc
+3261                     ; 416     uip_ethaddr1 = stored_uip_ethaddr1;	//MAC MSB
+3263  c784 35c20024      	mov	_uip_ethaddr1,#194
+3264                     ; 417     uip_ethaddr2 = stored_uip_ethaddr2;
+3266  c788 354d0025      	mov	_uip_ethaddr2,#77
+3267                     ; 418     uip_ethaddr3 = stored_uip_ethaddr3;
+3269  c78c 35690026      	mov	_uip_ethaddr3,#105
+3270                     ; 419     uip_ethaddr4 = stored_uip_ethaddr4;
+3272  c790 356b0027      	mov	_uip_ethaddr4,#107
+3273                     ; 420     uip_ethaddr5 = stored_uip_ethaddr5;
+3275  c794 35650028      	mov	_uip_ethaddr5,#101
+3276                     ; 421     uip_ethaddr6 = stored_uip_ethaddr6;	//MAC LSB
+3278  c798 725f0029      	clr	_uip_ethaddr6
+3279                     ; 423     uip_ethaddr.addr[0] = uip_ethaddr1;
+3281  c79c 35c2000a      	mov	_uip_ethaddr,#194
+3282                     ; 424     uip_ethaddr.addr[1] = uip_ethaddr2;
+3284  c7a0 354d000b      	mov	_uip_ethaddr+1,#77
+3285                     ; 425     uip_ethaddr.addr[2] = uip_ethaddr3;
+3287  c7a4 3569000c      	mov	_uip_ethaddr+2,#105
+3288                     ; 426     uip_ethaddr.addr[3] = uip_ethaddr4;
+3290  c7a8 356b000d      	mov	_uip_ethaddr+3,#107
+3291                     ; 427     uip_ethaddr.addr[4] = uip_ethaddr5;
+3293  c7ac 3565000e      	mov	_uip_ethaddr+4,#101
+3294                     ; 428     uip_ethaddr.addr[5] = uip_ethaddr6;
+3296  c7b0 725f000f      	clr	_uip_ethaddr+5
+3297                     ; 430     stored_devicename[0] = 'N' ; // Device name first character
+3299  c7b4 a64e          	ld	a,#78
+3300  c7b6 ae4000        	ldw	x,#_stored_devicename
+3301  c7b9 cddf1a        	call	c_eewrc
+3303                     ; 431     stored_devicename[1] = 'e' ; //
+3305  c7bc a665          	ld	a,#101
+3306  c7be ae4001        	ldw	x,#_stored_devicename+1
+3307  c7c1 cddf1a        	call	c_eewrc
+3309                     ; 432     stored_devicename[2] = 'w' ; //
+3311  c7c4 a677          	ld	a,#119
+3312  c7c6 ae4002        	ldw	x,#_stored_devicename+2
+3313  c7c9 cddf1a        	call	c_eewrc
+3315                     ; 433     stored_devicename[3] = 'D' ; //
+3317  c7cc a644          	ld	a,#68
+3318  c7ce ae4003        	ldw	x,#_stored_devicename+3
+3319  c7d1 cddf1a        	call	c_eewrc
+3321                     ; 434     stored_devicename[4] = 'e' ; //
+3323  c7d4 a665          	ld	a,#101
+3324  c7d6 ae4004        	ldw	x,#_stored_devicename+4
+3325  c7d9 cddf1a        	call	c_eewrc
+3327                     ; 435     stored_devicename[5] = 'v' ; //
+3329  c7dc a676          	ld	a,#118
+3330  c7de ae4005        	ldw	x,#_stored_devicename+5
+3331  c7e1 cddf1a        	call	c_eewrc
+3333                     ; 436     stored_devicename[6] = 'i' ; //
+3335  c7e4 a669          	ld	a,#105
+3336  c7e6 ae4006        	ldw	x,#_stored_devicename+6
+3337  c7e9 cddf1a        	call	c_eewrc
+3339                     ; 437     stored_devicename[7] = 'c' ; //
+3341  c7ec a663          	ld	a,#99
+3342  c7ee ae4007        	ldw	x,#_stored_devicename+7
+3343  c7f1 cddf1a        	call	c_eewrc
+3345                     ; 438     stored_devicename[8] = 'e' ; //
+3347  c7f4 a665          	ld	a,#101
+3348  c7f6 ae4008        	ldw	x,#_stored_devicename+8
+3349  c7f9 cddf1a        	call	c_eewrc
+3351                     ; 439     stored_devicename[9] = '0' ; //
+3353  c7fc a630          	ld	a,#48
+3354  c7fe ae4009        	ldw	x,#_stored_devicename+9
+3355  c801 cddf1a        	call	c_eewrc
+3357                     ; 440     stored_devicename[10] = '0' ; //
+3359  c804 a630          	ld	a,#48
+3360  c806 ae400a        	ldw	x,#_stored_devicename+10
+3361  c809 cddf1a        	call	c_eewrc
+3363                     ; 441     stored_devicename[11] = '0' ; //
+3365  c80c a630          	ld	a,#48
+3366  c80e ae400b        	ldw	x,#_stored_devicename+11
+3367  c811 cddf1a        	call	c_eewrc
+3369                     ; 442     stored_devicename[12] = ' ' ; //
+3371  c814 a620          	ld	a,#32
+3372  c816 ae400c        	ldw	x,#_stored_devicename+12
+3373  c819 cddf1a        	call	c_eewrc
+3375                     ; 443     stored_devicename[13] = ' ' ; //
+3377  c81c a620          	ld	a,#32
+3378  c81e ae400d        	ldw	x,#_stored_devicename+13
+3379  c821 cddf1a        	call	c_eewrc
+3381                     ; 444     stored_devicename[14] = ' ' ; //
+3383  c824 a620          	ld	a,#32
+3384  c826 ae400e        	ldw	x,#_stored_devicename+14
+3385  c829 cddf1a        	call	c_eewrc
+3387                     ; 445     stored_devicename[15] = ' ' ; //
+3389  c82c a620          	ld	a,#32
+3390  c82e ae400f        	ldw	x,#_stored_devicename+15
+3391  c831 cddf1a        	call	c_eewrc
+3393                     ; 446     stored_devicename[16] = ' ' ; //
+3395  c834 a620          	ld	a,#32
+3396  c836 ae4010        	ldw	x,#_stored_devicename+16
+3397  c839 cddf1a        	call	c_eewrc
+3399                     ; 447     stored_devicename[17] = ' ' ; //
+3401  c83c a620          	ld	a,#32
+3402  c83e ae4011        	ldw	x,#_stored_devicename+17
+3403  c841 cddf1a        	call	c_eewrc
+3405                     ; 448     stored_devicename[18] = ' ' ; //
+3407  c844 a620          	ld	a,#32
+3408  c846 ae4012        	ldw	x,#_stored_devicename+18
+3409  c849 cddf1a        	call	c_eewrc
+3411                     ; 449     stored_devicename[19] = ' ' ; // Device name last character
+3413  c84c a620          	ld	a,#32
+3414  c84e ae4013        	ldw	x,#_stored_devicename+19
+3415  c851 cddf1a        	call	c_eewrc
+3417                     ; 452     invert_output = 0;                  // Turn off output invert bit
+3419  c854 725f0052      	clr	_invert_output
+3420                     ; 453     stored_invert_output = 0;           // Store in EEPROM
+3422  c858 4f            	clr	a
+3423  c859 ae4014        	ldw	x,#_stored_invert_output
+3424  c85c cddf1a        	call	c_eewrc
+3426                     ; 467     write_output_registers();          // Set Relay Control outputs
+3428  c85f cdcbff        	call	_write_output_registers
+3430                     ; 470     magic4 = 0x55;		// MSB
+3432  c862 a655          	ld	a,#85
+3433  c864 ae402e        	ldw	x,#_magic4
+3434  c867 cddf1a        	call	c_eewrc
+3436                     ; 471     magic3 = 0xee;		//
+3438  c86a a6ee          	ld	a,#238
+3439  c86c ae402d        	ldw	x,#_magic3
+3440  c86f cddf1a        	call	c_eewrc
+3442                     ; 472     magic2 = 0x0f;		//
+3444  c872 a60f          	ld	a,#15
+3445  c874 ae402c        	ldw	x,#_magic2
+3446  c877 cddf1a        	call	c_eewrc
+3448                     ; 473     magic1 = 0xf0;		// LSB
+3450  c87a a6f0          	ld	a,#240
+3451  c87c ae402b        	ldw	x,#_magic1
+3452  c87f cddf1a        	call	c_eewrc
+3454  c882               L3002:
+3455                     ; 478   Pending_hostaddr4 = stored_hostaddr4;
+3457  c882 55402a003d    	mov	_Pending_hostaddr4,_stored_hostaddr4
+3458                     ; 479   Pending_hostaddr3 = stored_hostaddr3;
+3460  c887 554029003c    	mov	_Pending_hostaddr3,_stored_hostaddr3
+3461                     ; 480   Pending_hostaddr2 = stored_hostaddr2;
+3463  c88c 554028003b    	mov	_Pending_hostaddr2,_stored_hostaddr2
+3464                     ; 481   Pending_hostaddr1 = stored_hostaddr1;
+3466  c891 554027003a    	mov	_Pending_hostaddr1,_stored_hostaddr1
+3467                     ; 483   Pending_draddr4 = stored_draddr4;
+3469  c896 5540260039    	mov	_Pending_draddr4,_stored_draddr4
+3470                     ; 484   Pending_draddr3 = stored_draddr3;
+3472  c89b 5540250038    	mov	_Pending_draddr3,_stored_draddr3
+3473                     ; 485   Pending_draddr2 = stored_draddr2;
+3475  c8a0 5540240037    	mov	_Pending_draddr2,_stored_draddr2
+3476                     ; 486   Pending_draddr1 = stored_draddr1;
+3478  c8a5 5540230036    	mov	_Pending_draddr1,_stored_draddr1
+3479                     ; 488   Pending_netmask4 = stored_netmask4;
+3481  c8aa 5540220035    	mov	_Pending_netmask4,_stored_netmask4
+3482                     ; 489   Pending_netmask3 = stored_netmask3;
+3484  c8af 5540210034    	mov	_Pending_netmask3,_stored_netmask3
+3485                     ; 490   Pending_netmask2 = stored_netmask2;
+3487  c8b4 5540200033    	mov	_Pending_netmask2,_stored_netmask2
+3488                     ; 491   Pending_netmask1 = stored_netmask1;
+3490  c8b9 55401f0032    	mov	_Pending_netmask1,_stored_netmask1
+3491                     ; 493   Pending_port = stored_port;
+3493  c8be ce401d        	ldw	x,_stored_port
+3494  c8c1 cf0030        	ldw	_Pending_port,x
+3495                     ; 495   Pending_uip_ethaddr6 = stored_uip_ethaddr6;
+3497  c8c4 554017002f    	mov	_Pending_uip_ethaddr6,_stored_uip_ethaddr6
+3498                     ; 496   Pending_uip_ethaddr5 = stored_uip_ethaddr5;
+3500  c8c9 554018002e    	mov	_Pending_uip_ethaddr5,_stored_uip_ethaddr5
+3501                     ; 497   Pending_uip_ethaddr4 = stored_uip_ethaddr4;
+3503  c8ce 554019002d    	mov	_Pending_uip_ethaddr4,_stored_uip_ethaddr4
+3504                     ; 498   Pending_uip_ethaddr3 = stored_uip_ethaddr3;
+3506  c8d3 55401a002c    	mov	_Pending_uip_ethaddr3,_stored_uip_ethaddr3
+3507                     ; 499   Pending_uip_ethaddr2 = stored_uip_ethaddr2;
+3509  c8d8 55401b002b    	mov	_Pending_uip_ethaddr2,_stored_uip_ethaddr2
+3510                     ; 500   Pending_uip_ethaddr1 = stored_uip_ethaddr1;
+3512  c8dd 55401c002a    	mov	_Pending_uip_ethaddr1,_stored_uip_ethaddr1
+3513                     ; 503   ex_stored_hostaddr4 = stored_hostaddr4;
+3515  c8e2 55402a0062    	mov	_ex_stored_hostaddr4,_stored_hostaddr4
+3516                     ; 504   ex_stored_hostaddr3 = stored_hostaddr3;
+3518  c8e7 5540290061    	mov	_ex_stored_hostaddr3,_stored_hostaddr3
+3519                     ; 505   ex_stored_hostaddr2 = stored_hostaddr2;
+3521  c8ec 5540280060    	mov	_ex_stored_hostaddr2,_stored_hostaddr2
+3522                     ; 506   ex_stored_hostaddr1 = stored_hostaddr1;
+3524  c8f1 554027005f    	mov	_ex_stored_hostaddr1,_stored_hostaddr1
+3525                     ; 508   ex_stored_draddr4 = stored_draddr4;
+3527  c8f6 554026005e    	mov	_ex_stored_draddr4,_stored_draddr4
+3528                     ; 509   ex_stored_draddr3 = stored_draddr3;
+3530  c8fb 554025005d    	mov	_ex_stored_draddr3,_stored_draddr3
+3531                     ; 510   ex_stored_draddr2 = stored_draddr2;
+3533  c900 554024005c    	mov	_ex_stored_draddr2,_stored_draddr2
+3534                     ; 511   ex_stored_draddr1 = stored_draddr1;
+3536  c905 554023005b    	mov	_ex_stored_draddr1,_stored_draddr1
+3537                     ; 513   ex_stored_netmask4 = stored_netmask4;
+3539  c90a 554022005a    	mov	_ex_stored_netmask4,_stored_netmask4
+3540                     ; 514   ex_stored_netmask3 = stored_netmask3;
+3542  c90f 5540210059    	mov	_ex_stored_netmask3,_stored_netmask3
+3543                     ; 515   ex_stored_netmask2 = stored_netmask2;
+3545  c914 5540200058    	mov	_ex_stored_netmask2,_stored_netmask2
+3546                     ; 516   ex_stored_netmask1 = stored_netmask1;
+3548  c919 55401f0057    	mov	_ex_stored_netmask1,_stored_netmask1
+3549                     ; 518   ex_stored_port = stored_port;
+3551  c91e cf0055        	ldw	_ex_stored_port,x
+3552                     ; 520   for(i=0; i<20; i++) { ex_stored_devicename[i] = stored_devicename[i]; }
+3554  c921 4f            	clr	a
+3555  c922 6b01          	ld	(OFST+0,sp),a
+3557  c924               L5302:
+3560  c924 5f            	clrw	x
+3561  c925 97            	ld	xl,a
+3562  c926 d64000        	ld	a,(_stored_devicename,x)
+3563  c929 d7003e        	ld	(_ex_stored_devicename,x),a
+3566  c92c 0c01          	inc	(OFST+0,sp)
+3570  c92e 7b01          	ld	a,(OFST+0,sp)
+3571  c930 a114          	cp	a,#20
+3572  c932 25f0          	jrult	L5302
+3573                     ; 522 }
+3576  c934 84            	pop	a
+3577  c935 81            	ret	
+3662                     ; 525 void check_runtime_changes(void)
+3662                     ; 526 {
+3663                     	switch	.text
+3664  c936               _check_runtime_changes:
+3666  c936 88            	push	a
+3667       00000001      OFST:	set	1
+3670                     ; 534   read_input_registers();
+3672  c937 cdcb0f        	call	_read_input_registers
+3674                     ; 567   if (stored_hostaddr4 != Pending_hostaddr4 ||
+3674                     ; 568       stored_hostaddr3 != Pending_hostaddr3 ||
+3674                     ; 569       stored_hostaddr2 != Pending_hostaddr2 ||
+3674                     ; 570       stored_hostaddr1 != Pending_hostaddr1) {
+3676  c93a c6402a        	ld	a,_stored_hostaddr4
+3677  c93d c1003d        	cp	a,_Pending_hostaddr4
+3678  c940 2618          	jrne	L1602
+3680  c942 c64029        	ld	a,_stored_hostaddr3
+3681  c945 c1003c        	cp	a,_Pending_hostaddr3
+3682  c948 2610          	jrne	L1602
+3684  c94a c64028        	ld	a,_stored_hostaddr2
+3685  c94d c1003b        	cp	a,_Pending_hostaddr2
+3686  c950 2608          	jrne	L1602
+3688  c952 c64027        	ld	a,_stored_hostaddr1
+3689  c955 c1003a        	cp	a,_Pending_hostaddr1
+3690  c958 2728          	jreq	L7502
+3691  c95a               L1602:
+3692                     ; 572     stored_hostaddr4 = Pending_hostaddr4;
+3694  c95a c6003d        	ld	a,_Pending_hostaddr4
+3695  c95d ae402a        	ldw	x,#_stored_hostaddr4
+3696  c960 cddf1a        	call	c_eewrc
+3698                     ; 573     stored_hostaddr3 = Pending_hostaddr3;
+3700  c963 c6003c        	ld	a,_Pending_hostaddr3
+3701  c966 ae4029        	ldw	x,#_stored_hostaddr3
+3702  c969 cddf1a        	call	c_eewrc
+3704                     ; 574     stored_hostaddr2 = Pending_hostaddr2;
+3706  c96c c6003b        	ld	a,_Pending_hostaddr2
+3707  c96f ae4028        	ldw	x,#_stored_hostaddr2
+3708  c972 cddf1a        	call	c_eewrc
+3710                     ; 575     stored_hostaddr1 = Pending_hostaddr1;
+3712  c975 c6003a        	ld	a,_Pending_hostaddr1
+3713  c978 ae4027        	ldw	x,#_stored_hostaddr1
+3714  c97b cddf1a        	call	c_eewrc
+3716                     ; 577     submit_changes = 1;
+3718  c97e 35010023      	mov	_submit_changes,#1
+3719  c982               L7502:
+3720                     ; 581   if (stored_draddr4 != Pending_draddr4 ||
+3720                     ; 582       stored_draddr3 != Pending_draddr3 ||
+3720                     ; 583       stored_draddr2 != Pending_draddr2 ||
+3720                     ; 584       stored_draddr1 != Pending_draddr1) {
+3722  c982 c64026        	ld	a,_stored_draddr4
+3723  c985 c10039        	cp	a,_Pending_draddr4
+3724  c988 2618          	jrne	L1702
+3726  c98a c64025        	ld	a,_stored_draddr3
+3727  c98d c10038        	cp	a,_Pending_draddr3
+3728  c990 2610          	jrne	L1702
+3730  c992 c64024        	ld	a,_stored_draddr2
+3731  c995 c10037        	cp	a,_Pending_draddr2
+3732  c998 2608          	jrne	L1702
+3734  c99a c64023        	ld	a,_stored_draddr1
+3735  c99d c10036        	cp	a,_Pending_draddr1
+3736  c9a0 2728          	jreq	L7602
+3737  c9a2               L1702:
+3738                     ; 586     stored_draddr4 = Pending_draddr4;
+3740  c9a2 c60039        	ld	a,_Pending_draddr4
+3741  c9a5 ae4026        	ldw	x,#_stored_draddr4
+3742  c9a8 cddf1a        	call	c_eewrc
+3744                     ; 587     stored_draddr3 = Pending_draddr3;
+3746  c9ab c60038        	ld	a,_Pending_draddr3
+3747  c9ae ae4025        	ldw	x,#_stored_draddr3
+3748  c9b1 cddf1a        	call	c_eewrc
+3750                     ; 588     stored_draddr2 = Pending_draddr2;
+3752  c9b4 c60037        	ld	a,_Pending_draddr2
+3753  c9b7 ae4024        	ldw	x,#_stored_draddr2
+3754  c9ba cddf1a        	call	c_eewrc
+3756                     ; 589     stored_draddr1 = Pending_draddr1;
+3758  c9bd c60036        	ld	a,_Pending_draddr1
+3759  c9c0 ae4023        	ldw	x,#_stored_draddr1
+3760  c9c3 cddf1a        	call	c_eewrc
+3762                     ; 591     submit_changes = 1;
+3764  c9c6 35010023      	mov	_submit_changes,#1
+3765  c9ca               L7602:
+3766                     ; 595   if (stored_netmask4 != Pending_netmask4 ||
+3766                     ; 596       stored_netmask3 != Pending_netmask3 ||
+3766                     ; 597       stored_netmask2 != Pending_netmask2 ||
+3766                     ; 598       stored_netmask1 != Pending_netmask1) {
+3768  c9ca c64022        	ld	a,_stored_netmask4
+3769  c9cd c10035        	cp	a,_Pending_netmask4
+3770  c9d0 2618          	jrne	L1012
+3772  c9d2 c64021        	ld	a,_stored_netmask3
+3773  c9d5 c10034        	cp	a,_Pending_netmask3
+3774  c9d8 2610          	jrne	L1012
+3776  c9da c64020        	ld	a,_stored_netmask2
+3777  c9dd c10033        	cp	a,_Pending_netmask2
+3778  c9e0 2608          	jrne	L1012
+3780  c9e2 c6401f        	ld	a,_stored_netmask1
+3781  c9e5 c10032        	cp	a,_Pending_netmask1
+3782  c9e8 2728          	jreq	L7702
+3783  c9ea               L1012:
+3784                     ; 600     stored_netmask4 = Pending_netmask4;
+3786  c9ea c60035        	ld	a,_Pending_netmask4
+3787  c9ed ae4022        	ldw	x,#_stored_netmask4
+3788  c9f0 cddf1a        	call	c_eewrc
+3790                     ; 601     stored_netmask3 = Pending_netmask3;
+3792  c9f3 c60034        	ld	a,_Pending_netmask3
+3793  c9f6 ae4021        	ldw	x,#_stored_netmask3
+3794  c9f9 cddf1a        	call	c_eewrc
+3796                     ; 602     stored_netmask2 = Pending_netmask2;
+3798  c9fc c60033        	ld	a,_Pending_netmask2
+3799  c9ff ae4020        	ldw	x,#_stored_netmask2
+3800  ca02 cddf1a        	call	c_eewrc
+3802                     ; 603     stored_netmask1 = Pending_netmask1;
+3804  ca05 c60032        	ld	a,_Pending_netmask1
+3805  ca08 ae401f        	ldw	x,#_stored_netmask1
+3806  ca0b cddf1a        	call	c_eewrc
+3808                     ; 605     submit_changes = 1;
+3810  ca0e 35010023      	mov	_submit_changes,#1
+3811  ca12               L7702:
+3812                     ; 609   if (stored_port != Pending_port) {
+3814  ca12 ce401d        	ldw	x,_stored_port
+3815  ca15 c30030        	cpw	x,_Pending_port
+3816  ca18 270f          	jreq	L7012
+3817                     ; 611     stored_port = Pending_port;
+3819  ca1a ce0030        	ldw	x,_Pending_port
+3820  ca1d 89            	pushw	x
+3821  ca1e ae401d        	ldw	x,#_stored_port
+3822  ca21 cddf04        	call	c_eewrw
+3824  ca24 35010023      	mov	_submit_changes,#1
+3825  ca28 85            	popw	x
+3826                     ; 613     submit_changes = 1;
+3828  ca29               L7012:
+3829                     ; 617   devicename_changed = 0;
+3831  ca29 725f0022      	clr	_devicename_changed
+3832                     ; 618   for(i=0; i<20; i++) {
+3834  ca2d 4f            	clr	a
+3835  ca2e 6b01          	ld	(OFST+0,sp),a
+3837  ca30               L1112:
+3838                     ; 619     if (stored_devicename[i] != ex_stored_devicename[i]) devicename_changed = 1;
+3840  ca30 5f            	clrw	x
+3841  ca31 97            	ld	xl,a
+3842  ca32 905f          	clrw	y
+3843  ca34 9097          	ld	yl,a
+3844  ca36 90d64000      	ld	a,(_stored_devicename,y)
+3845  ca3a d1003e        	cp	a,(_ex_stored_devicename,x)
+3846  ca3d 2704          	jreq	L7112
+3849  ca3f 35010022      	mov	_devicename_changed,#1
+3850  ca43               L7112:
+3851                     ; 618   for(i=0; i<20; i++) {
+3853  ca43 0c01          	inc	(OFST+0,sp)
+3857  ca45 7b01          	ld	a,(OFST+0,sp)
+3858  ca47 a114          	cp	a,#20
+3859  ca49 25e5          	jrult	L1112
+3860                     ; 621   if (devicename_changed == 1) {
+3862  ca4b c60022        	ld	a,_devicename_changed
+3863  ca4e 4a            	dec	a
+3864  ca4f 2612          	jrne	L1212
+3865                     ; 623     for(i=0; i<20; i++) { stored_devicename[i] = ex_stored_devicename[i]; }
+3867  ca51 6b01          	ld	(OFST+0,sp),a
+3869  ca53               L3212:
+3872  ca53 5f            	clrw	x
+3873  ca54 97            	ld	xl,a
+3874  ca55 d6003e        	ld	a,(_ex_stored_devicename,x)
+3875  ca58 d74000        	ld	(_stored_devicename,x),a
+3878  ca5b 0c01          	inc	(OFST+0,sp)
+3882  ca5d 7b01          	ld	a,(OFST+0,sp)
+3883  ca5f a114          	cp	a,#20
+3884  ca61 25f0          	jrult	L3212
+3885  ca63               L1212:
+3886                     ; 627   if (stored_uip_ethaddr6 != Pending_uip_ethaddr6 ||
+3886                     ; 628       stored_uip_ethaddr5 != Pending_uip_ethaddr5 ||
+3886                     ; 629       stored_uip_ethaddr4 != Pending_uip_ethaddr4 ||
+3886                     ; 630       stored_uip_ethaddr3 != Pending_uip_ethaddr3 ||
+3886                     ; 631       stored_uip_ethaddr2 != Pending_uip_ethaddr2 ||
+3886                     ; 632       stored_uip_ethaddr1 != Pending_uip_ethaddr1) {
+3888  ca63 c64017        	ld	a,_stored_uip_ethaddr6
+3889  ca66 c1002f        	cp	a,_Pending_uip_ethaddr6
+3890  ca69 2628          	jrne	L3312
+3892  ca6b c64018        	ld	a,_stored_uip_ethaddr5
+3893  ca6e c1002e        	cp	a,_Pending_uip_ethaddr5
+3894  ca71 2620          	jrne	L3312
+3896  ca73 c64019        	ld	a,_stored_uip_ethaddr4
+3897  ca76 c1002d        	cp	a,_Pending_uip_ethaddr4
+3898  ca79 2618          	jrne	L3312
+3900  ca7b c6401a        	ld	a,_stored_uip_ethaddr3
+3901  ca7e c1002c        	cp	a,_Pending_uip_ethaddr3
+3902  ca81 2610          	jrne	L3312
+3904  ca83 c6401b        	ld	a,_stored_uip_ethaddr2
+3905  ca86 c1002b        	cp	a,_Pending_uip_ethaddr2
+3906  ca89 2608          	jrne	L3312
+3908  ca8b c6401c        	ld	a,_stored_uip_ethaddr1
+3909  ca8e c1002a        	cp	a,_Pending_uip_ethaddr1
+3910  ca91 273a          	jreq	L1312
+3911  ca93               L3312:
+3912                     ; 634     stored_uip_ethaddr6 = Pending_uip_ethaddr6;
+3914  ca93 c6002f        	ld	a,_Pending_uip_ethaddr6
+3915  ca96 ae4017        	ldw	x,#_stored_uip_ethaddr6
+3916  ca99 cddf1a        	call	c_eewrc
+3918                     ; 635     stored_uip_ethaddr5 = Pending_uip_ethaddr5;
+3920  ca9c c6002e        	ld	a,_Pending_uip_ethaddr5
+3921  ca9f ae4018        	ldw	x,#_stored_uip_ethaddr5
+3922  caa2 cddf1a        	call	c_eewrc
+3924                     ; 636     stored_uip_ethaddr4 = Pending_uip_ethaddr4;
+3926  caa5 c6002d        	ld	a,_Pending_uip_ethaddr4
+3927  caa8 ae4019        	ldw	x,#_stored_uip_ethaddr4
+3928  caab cddf1a        	call	c_eewrc
+3930                     ; 637     stored_uip_ethaddr3 = Pending_uip_ethaddr3;
+3932  caae c6002c        	ld	a,_Pending_uip_ethaddr3
+3933  cab1 ae401a        	ldw	x,#_stored_uip_ethaddr3
+3934  cab4 cddf1a        	call	c_eewrc
+3936                     ; 638     stored_uip_ethaddr2 = Pending_uip_ethaddr2;
+3938  cab7 c6002b        	ld	a,_Pending_uip_ethaddr2
+3939  caba ae401b        	ldw	x,#_stored_uip_ethaddr2
+3940  cabd cddf1a        	call	c_eewrc
+3942                     ; 639     stored_uip_ethaddr1 = Pending_uip_ethaddr1;
+3944  cac0 c6002a        	ld	a,_Pending_uip_ethaddr1
+3945  cac3 ae401c        	ldw	x,#_stored_uip_ethaddr1
+3946  cac6 cddf1a        	call	c_eewrc
+3948                     ; 641     submit_changes = 1;
+3950  cac9 35010023      	mov	_submit_changes,#1
+3951  cacd               L1312:
+3952                     ; 644   if (submit_changes == 1) {
+3954  cacd c60023        	ld	a,_submit_changes
+3955  cad0 a101          	cp	a,#1
+3956  cad2 2613          	jrne	L5412
+3957                     ; 651     check_eeprom_settings(); // Verify EEPROM up to date
+3959  cad4 cdc5b7        	call	_check_eeprom_settings
+3961                     ; 652     Enc28j60Init();          // Initialize the ENC28J60 ethernet interface
+3963  cad7 cdade7        	call	_Enc28j60Init
+3965                     ; 653     uip_arp_init();          // Initialize the ARP module
+3967  cada cddaf3        	call	_uip_arp_init
+3969                     ; 654     uip_init();              // Initialize uIP
+3971  cadd cdd0b2        	call	_uip_init
+3973                     ; 655     HttpDInit();             // Initialize httpd; sets up listening ports
+3975  cae0 cdbb6f        	call	_HttpDInit
+3977                     ; 656     submit_changes = 0;
+3979  cae3 4f            	clr	a
+3980  cae4 c70023        	ld	_submit_changes,a
+3981  cae7               L5412:
+3982                     ; 659   if (submit_changes == 2) {
+3984  cae7 a102          	cp	a,#2
+3985  cae9 2622          	jrne	L7412
+3986                     ; 662     LEDcontrol(0);  // turn LED off
+3988  caeb 4f            	clr	a
+3989  caec cdb05c        	call	_LEDcontrol
+3991                     ; 664     WWDG_WR = (uint8_t)0x7f;     // Window register reset
+3993  caef 357f50d2      	mov	_WWDG_WR,#127
+3994                     ; 665     WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
+3996  caf3 35ff50d1      	mov	_WWDG_CR,#255
+3997                     ; 666     WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
+3999  caf7 356050d2      	mov	_WWDG_WR,#96
+4000                     ; 669     wait_timer((uint16_t)50000); // Wait for watchdog to generate reset
+4002  cafb aec350        	ldw	x,#50000
+4003  cafe cdcf6b        	call	_wait_timer
+4005                     ; 670     wait_timer((uint16_t)50000);
+4007  cb01 aec350        	ldw	x,#50000
+4008  cb04 cdcf6b        	call	_wait_timer
+4010                     ; 671     wait_timer((uint16_t)50000);
+4012  cb07 aec350        	ldw	x,#50000
+4013  cb0a cdcf6b        	call	_wait_timer
+4015  cb0d               L7412:
+4016                     ; 673 }
+4019  cb0d 84            	pop	a
+4020  cb0e 81            	ret	
+4051                     ; 676 void read_input_registers(void)
+4051                     ; 677 {
+4052                     	switch	.text
+4053  cb0f               _read_input_registers:
+4057                     ; 705   if (PC_IDR & (uint8_t)0x40) IO_16to9 |= 0x80; // PC bit 6 = 1, Input 16 = 1
+4059  cb0f 720d500b06    	btjf	_PC_IDR,#6,L1612
+4062  cb14 721e0054      	bset	_IO_16to9,#7
+4064  cb18 2004          	jra	L3612
+4065  cb1a               L1612:
+4066                     ; 706   else IO_16to9 &= (uint8_t)(~0x80);
+4068  cb1a 721f0054      	bres	_IO_16to9,#7
+4069  cb1e               L3612:
+4070                     ; 707   if (PG_IDR & (uint8_t)0x01) IO_16to9 |= 0x40; // PG bit 0 = 1, Input 15 = 1
+4072  cb1e 7201501f06    	btjf	_PG_IDR,#0,L5612
+4075  cb23 721c0054      	bset	_IO_16to9,#6
+4077  cb27 2004          	jra	L7612
+4078  cb29               L5612:
+4079                     ; 708   else IO_16to9 &= (uint8_t)(~0x40);
+4081  cb29 721d0054      	bres	_IO_16to9,#6
+4082  cb2d               L7612:
+4083                     ; 709   if (PE_IDR & (uint8_t)0x08) IO_16to9 |= 0x20; // PE bit 3 = 1, Input 14 = 1
+4085  cb2d 7207501506    	btjf	_PE_IDR,#3,L1712
+4088  cb32 721a0054      	bset	_IO_16to9,#5
+4090  cb36 2004          	jra	L3712
+4091  cb38               L1712:
+4092                     ; 710   else IO_16to9 &= (uint8_t)(~0x20);
+4094  cb38 721b0054      	bres	_IO_16to9,#5
+4095  cb3c               L3712:
+4096                     ; 711   if (PD_IDR & (uint8_t)0x01) IO_16to9 |= 0x10; // PD bit 0 = 1, Input 13 = 1
+4098  cb3c 7201501006    	btjf	_PD_IDR,#0,L5712
+4101  cb41 72180054      	bset	_IO_16to9,#4
+4103  cb45 2004          	jra	L7712
+4104  cb47               L5712:
+4105                     ; 712   else IO_16to9 &= (uint8_t)(~0x10);
+4107  cb47 72190054      	bres	_IO_16to9,#4
+4108  cb4b               L7712:
+4109                     ; 713   if (PD_IDR & (uint8_t)0x08) IO_16to9 |= 0x08; // PD bit 3 = 1, Input 12 = 1
+4111  cb4b 7207501006    	btjf	_PD_IDR,#3,L1022
+4114  cb50 72160054      	bset	_IO_16to9,#3
+4116  cb54 2004          	jra	L3022
+4117  cb56               L1022:
+4118                     ; 714   else IO_16to9 &= (uint8_t)(~0x08);
+4120  cb56 72170054      	bres	_IO_16to9,#3
+4121  cb5a               L3022:
+4122                     ; 715   if (PD_IDR & (uint8_t)0x20) IO_16to9 |= 0x04; // PD bit 5 = 1, Input 11 = 1
+4124  cb5a 720b501006    	btjf	_PD_IDR,#5,L5022
+4127  cb5f 72140054      	bset	_IO_16to9,#2
+4129  cb63 2004          	jra	L7022
+4130  cb65               L5022:
+4131                     ; 716   else IO_16to9 &= (uint8_t)(~0x04);
+4133  cb65 72150054      	bres	_IO_16to9,#2
+4134  cb69               L7022:
+4135                     ; 717   if (PD_IDR & (uint8_t)0x80) IO_16to9 |= 0x02; // PD bit 7 = 1, Input 10 = 1
+4137  cb69 720f501006    	btjf	_PD_IDR,#7,L1122
+4140  cb6e 72120054      	bset	_IO_16to9,#1
+4142  cb72 2004          	jra	L3122
+4143  cb74               L1122:
+4144                     ; 718   else IO_16to9 &= (uint8_t)(~0x02);
+4146  cb74 72130054      	bres	_IO_16to9,#1
+4147  cb78               L3122:
+4148                     ; 719   if (PA_IDR & (uint8_t)0x10) IO_16to9 |= 0x01; // PA bit 4 = 1, Input 9 = 1
+4150  cb78 7209500106    	btjf	_PA_IDR,#4,L5122
+4153  cb7d 72100054      	bset	_IO_16to9,#0
+4155  cb81 2004          	jra	L7122
+4156  cb83               L5122:
+4157                     ; 720   else IO_16to9 &= (uint8_t)(~0x01);
+4159  cb83 72110054      	bres	_IO_16to9,#0
+4160  cb87               L7122:
+4161                     ; 722   if (PC_IDR & (uint8_t)0x80) IO_8to1 |= 0x80;  // PC bit 7 = 1, Input 8 = 1
+4163  cb87 720f500b06    	btjf	_PC_IDR,#7,L1222
+4166  cb8c 721e0053      	bset	_IO_8to1,#7
+4168  cb90 2004          	jra	L3222
+4169  cb92               L1222:
+4170                     ; 723   else IO_8to1 &= (uint8_t)(~0x80);
+4172  cb92 721f0053      	bres	_IO_8to1,#7
+4173  cb96               L3222:
+4174                     ; 724   if (PG_IDR & (uint8_t)0x02) IO_8to1 |= 0x40;  // PG bit 1 = 1, Input 7 = 1
+4176  cb96 7203501f06    	btjf	_PG_IDR,#1,L5222
+4179  cb9b 721c0053      	bset	_IO_8to1,#6
+4181  cb9f 2004          	jra	L7222
+4182  cba1               L5222:
+4183                     ; 725   else IO_8to1 &= (uint8_t)(~0x40);
+4185  cba1 721d0053      	bres	_IO_8to1,#6
+4186  cba5               L7222:
+4187                     ; 726   if (PE_IDR & (uint8_t)0x01) IO_8to1 |= 0x20;  // PE bit 0 = 1, Input 6 = 1
+4189  cba5 7201501506    	btjf	_PE_IDR,#0,L1322
+4192  cbaa 721a0053      	bset	_IO_8to1,#5
+4194  cbae 2004          	jra	L3322
+4195  cbb0               L1322:
+4196                     ; 727   else IO_8to1 &= (uint8_t)(~0x20);
+4198  cbb0 721b0053      	bres	_IO_8to1,#5
+4199  cbb4               L3322:
+4200                     ; 728   if (PD_IDR & (uint8_t)0x04) IO_8to1 |= 0x10;  // PD bit 2 = 1, Input 5 = 1
+4202  cbb4 7205501006    	btjf	_PD_IDR,#2,L5322
+4205  cbb9 72180053      	bset	_IO_8to1,#4
+4207  cbbd 2004          	jra	L7322
+4208  cbbf               L5322:
+4209                     ; 729   else IO_8to1 &= (uint8_t)(~0x10);
+4211  cbbf 72190053      	bres	_IO_8to1,#4
+4212  cbc3               L7322:
+4213                     ; 730   if (PD_IDR & (uint8_t)0x10) IO_8to1 |= 0x08;  // PD bit 4 = 1, Input 4 = 1
+4215  cbc3 7209501006    	btjf	_PD_IDR,#4,L1422
+4218  cbc8 72160053      	bset	_IO_8to1,#3
+4220  cbcc 2004          	jra	L3422
+4221  cbce               L1422:
+4222                     ; 731   else IO_8to1 &= (uint8_t)(~0x08);
+4224  cbce 72170053      	bres	_IO_8to1,#3
+4225  cbd2               L3422:
+4226                     ; 732   if (PD_IDR & (uint8_t)0x40) IO_8to1 |= 0x04;  // PD bit 6 = 1, Input 3 = 1
+4228  cbd2 720d501006    	btjf	_PD_IDR,#6,L5422
+4231  cbd7 72140053      	bset	_IO_8to1,#2
+4233  cbdb 2004          	jra	L7422
+4234  cbdd               L5422:
+4235                     ; 733   else IO_8to1 &= (uint8_t)(~0x04);
+4237  cbdd 72150053      	bres	_IO_8to1,#2
+4238  cbe1               L7422:
+4239                     ; 734   if (PA_IDR & (uint8_t)0x20) IO_8to1 |= 0x02;  // PA bit 5 = 1, Input 2 = 1
+4241  cbe1 720b500106    	btjf	_PA_IDR,#5,L1522
+4244  cbe6 72120053      	bset	_IO_8to1,#1
+4246  cbea 2004          	jra	L3522
+4247  cbec               L1522:
+4248                     ; 735   else IO_8to1 &= (uint8_t)(~0x02);
+4250  cbec 72130053      	bres	_IO_8to1,#1
+4251  cbf0               L3522:
+4252                     ; 736   if (PA_IDR & (uint8_t)0x08) IO_8to1 |= 0x01;  // PA bit 3 = 1, Input 1 = 1
+4254  cbf0 7207500105    	btjf	_PA_IDR,#3,L5522
+4257  cbf5 72100053      	bset	_IO_8to1,#0
+4260  cbf9 81            	ret	
+4261  cbfa               L5522:
+4262                     ; 737   else IO_8to1 &= (uint8_t)(~0x01);
+4264  cbfa 72110053      	bres	_IO_8to1,#0
+4265                     ; 739 }
+4268  cbfe 81            	ret	
+4292                     ; 742 void write_output_registers(void)
+4292                     ; 743 {
+4293                     	switch	.text
+4294  cbff               _write_output_registers:
+4298                     ; 877 }
+4301  cbff 81            	ret	
+4365                     ; 880 void check_reset_button(void)
+4365                     ; 881 {
+4366                     	switch	.text
+4367  cc00               _check_reset_button:
+4369  cc00 88            	push	a
+4370       00000001      OFST:	set	1
+4373                     ; 886   if ((PA_IDR & 0x02) == 0) {
+4375  cc01 7203500103cc  	btjt	_PA_IDR,#1,L5032
+4376                     ; 888     for (i=0; i<100; i++) {
+4378  cc09 0f01          	clr	(OFST+0,sp)
+4380  cc0b               L7032:
+4381                     ; 889       wait_timer(50000); // wait 50ms
+4383  cc0b aec350        	ldw	x,#50000
+4384  cc0e cdcf6b        	call	_wait_timer
+4386                     ; 890       if ((PA_IDR & 0x02) == 1) { // check Reset Button again. If released
+4388  cc11 c65001        	ld	a,_PA_IDR
+4389  cc14 a402          	and	a,#2
+4390  cc16 4a            	dec	a
+4391  cc17 2602          	jrne	L5132
+4392                     ; 892         return;
+4395  cc19 84            	pop	a
+4396  cc1a 81            	ret	
+4397  cc1b               L5132:
+4398                     ; 888     for (i=0; i<100; i++) {
+4400  cc1b 0c01          	inc	(OFST+0,sp)
+4404  cc1d 7b01          	ld	a,(OFST+0,sp)
+4405  cc1f a164          	cp	a,#100
+4406  cc21 25e8          	jrult	L7032
+4407                     ; 897     LEDcontrol(0);  // turn LED off
+4409  cc23 4f            	clr	a
+4410  cc24 cdb05c        	call	_LEDcontrol
+4413  cc27               L1232:
+4414                     ; 898     while((PA_IDR & 0x02) == 0) {  // Wait for button release
+4416  cc27 72035001fb    	btjf	_PA_IDR,#1,L1232
+4417                     ; 901     magic4 = 0x00;		   // MSB Magic Number stored in EEPROM
+4419  cc2c 4f            	clr	a
+4420  cc2d ae402e        	ldw	x,#_magic4
+4421  cc30 cddf1a        	call	c_eewrc
+4423                     ; 902     magic3 = 0x00;		   //
+4425  cc33 4f            	clr	a
+4426  cc34 ae402d        	ldw	x,#_magic3
+4427  cc37 cddf1a        	call	c_eewrc
+4429                     ; 903     magic2 = 0x00;		   //
+4431  cc3a 4f            	clr	a
+4432  cc3b ae402c        	ldw	x,#_magic2
+4433  cc3e cddf1a        	call	c_eewrc
+4435                     ; 904     magic1 = 0x00;		   // LSB Magic Number
+4437  cc41 4f            	clr	a
+4438  cc42 ae402b        	ldw	x,#_magic1
+4439  cc45 cddf1a        	call	c_eewrc
+4441                     ; 906     stored_hostaddr4 = 0x00;	   // MSB hostaddr stored in EEPROM
+4443  cc48 4f            	clr	a
+4444  cc49 ae402a        	ldw	x,#_stored_hostaddr4
+4445  cc4c cddf1a        	call	c_eewrc
+4447                     ; 907     stored_hostaddr3 = 0x00;	   //
+4449  cc4f 4f            	clr	a
+4450  cc50 ae4029        	ldw	x,#_stored_hostaddr3
+4451  cc53 cddf1a        	call	c_eewrc
+4453                     ; 908     stored_hostaddr2 = 0x00;	   //
+4455  cc56 4f            	clr	a
+4456  cc57 ae4028        	ldw	x,#_stored_hostaddr2
+4457  cc5a cddf1a        	call	c_eewrc
+4459                     ; 909     stored_hostaddr1 = 0x00;	   // LSB hostaddr
+4461  cc5d 4f            	clr	a
+4462  cc5e ae4027        	ldw	x,#_stored_hostaddr1
+4463  cc61 cddf1a        	call	c_eewrc
+4465                     ; 911     stored_draddr4 = 0x00;	   // MSB draddr stored in EEPROM
+4467  cc64 4f            	clr	a
+4468  cc65 ae4026        	ldw	x,#_stored_draddr4
+4469  cc68 cddf1a        	call	c_eewrc
+4471                     ; 912     stored_draddr3 = 0x00;	   //
+4473  cc6b 4f            	clr	a
+4474  cc6c ae4025        	ldw	x,#_stored_draddr3
+4475  cc6f cddf1a        	call	c_eewrc
+4477                     ; 913     stored_draddr2 = 0x00;	   //
+4479  cc72 4f            	clr	a
+4480  cc73 ae4024        	ldw	x,#_stored_draddr2
+4481  cc76 cddf1a        	call	c_eewrc
+4483                     ; 914     stored_draddr1 = 0x00;	   // LSB draddr
+4485  cc79 4f            	clr	a
+4486  cc7a ae4023        	ldw	x,#_stored_draddr1
+4487  cc7d cddf1a        	call	c_eewrc
+4489                     ; 916     stored_netmask4 = 0x00;	   // MSB netmask stored in EEPROM
+4491  cc80 4f            	clr	a
+4492  cc81 ae4022        	ldw	x,#_stored_netmask4
+4493  cc84 cddf1a        	call	c_eewrc
+4495                     ; 917     stored_netmask3 = 0x00;	   //
+4497  cc87 4f            	clr	a
+4498  cc88 ae4021        	ldw	x,#_stored_netmask3
+4499  cc8b cddf1a        	call	c_eewrc
+4501                     ; 918     stored_netmask2 = 0x00;	   //
+4503  cc8e 4f            	clr	a
+4504  cc8f ae4020        	ldw	x,#_stored_netmask2
+4505  cc92 cddf1a        	call	c_eewrc
+4507                     ; 919     stored_netmask1 = 0x00;	   // LSB netmask
+4509  cc95 4f            	clr	a
+4510  cc96 ae401f        	ldw	x,#_stored_netmask1
+4511  cc99 cddf1a        	call	c_eewrc
+4513                     ; 921     stored_port = 0x0000;	   // Port stored in EEPROM
+4515  cc9c 5f            	clrw	x
+4516  cc9d 89            	pushw	x
+4517  cc9e ae401d        	ldw	x,#_stored_port
+4518  cca1 cddf04        	call	c_eewrw
+4520  cca4 4f            	clr	a
+4521  cca5 85            	popw	x
+4522                     ; 923     stored_uip_ethaddr1 = 0x00;	   // MAC MSB
+4524  cca6 ae401c        	ldw	x,#_stored_uip_ethaddr1
+4525  cca9 cddf1a        	call	c_eewrc
+4527                     ; 924     stored_uip_ethaddr2 = 0x00;	   //
+4529  ccac 4f            	clr	a
+4530  ccad ae401b        	ldw	x,#_stored_uip_ethaddr2
+4531  ccb0 cddf1a        	call	c_eewrc
+4533                     ; 925     stored_uip_ethaddr3 = 0x00;	   //
+4535  ccb3 4f            	clr	a
+4536  ccb4 ae401a        	ldw	x,#_stored_uip_ethaddr3
+4537  ccb7 cddf1a        	call	c_eewrc
+4539                     ; 926     stored_uip_ethaddr4 = 0x00;	   //
+4541  ccba 4f            	clr	a
+4542  ccbb ae4019        	ldw	x,#_stored_uip_ethaddr4
+4543  ccbe cddf1a        	call	c_eewrc
+4545                     ; 927     stored_uip_ethaddr5 = 0x00;	   //
+4547  ccc1 4f            	clr	a
+4548  ccc2 ae4018        	ldw	x,#_stored_uip_ethaddr5
+4549  ccc5 cddf1a        	call	c_eewrc
+4551                     ; 928     stored_uip_ethaddr6 = 0x00;	   // MAC LSB stored in EEPROM
+4553  ccc8 4f            	clr	a
+4554  ccc9 ae4017        	ldw	x,#_stored_uip_ethaddr6
+4555  cccc cddf1a        	call	c_eewrc
+4557                     ; 930     stored_IO_16to9 = 0x00;        // IO States 16 to 9
+4559  cccf 4f            	clr	a
+4560  ccd0 ae4016        	ldw	x,#_stored_IO_16to9
+4561  ccd3 cddf1a        	call	c_eewrc
+4563                     ; 931     stored_IO_8to1 = 0x00;         // IO States 8 to 1
+4565  ccd6 4f            	clr	a
+4566  ccd7 ae4015        	ldw	x,#_stored_IO_8to1
+4567  ccda cddf1a        	call	c_eewrc
+4569                     ; 932     stored_invert_output = 0x00;   // Relay state inversion control
+4571  ccdd 4f            	clr	a
+4572  ccde ae4014        	ldw	x,#_stored_invert_output
+4573  cce1 cddf1a        	call	c_eewrc
+4575                     ; 934     stored_devicename[0] = 0x00;   // Device name
+4577  cce4 4f            	clr	a
+4578  cce5 ae4000        	ldw	x,#_stored_devicename
+4579  cce8 cddf1a        	call	c_eewrc
+4581                     ; 935     stored_devicename[1] = 0x00;   // Device name
+4583  cceb 4f            	clr	a
+4584  ccec ae4001        	ldw	x,#_stored_devicename+1
+4585  ccef cddf1a        	call	c_eewrc
+4587                     ; 936     stored_devicename[2] = 0x00;   // Device name
+4589  ccf2 4f            	clr	a
+4590  ccf3 ae4002        	ldw	x,#_stored_devicename+2
+4591  ccf6 cddf1a        	call	c_eewrc
+4593                     ; 937     stored_devicename[3] = 0x00;   // Device name
+4595  ccf9 4f            	clr	a
+4596  ccfa ae4003        	ldw	x,#_stored_devicename+3
+4597  ccfd cddf1a        	call	c_eewrc
+4599                     ; 938     stored_devicename[4] = 0x00;   // Device name
+4601  cd00 4f            	clr	a
+4602  cd01 ae4004        	ldw	x,#_stored_devicename+4
+4603  cd04 cddf1a        	call	c_eewrc
+4605                     ; 939     stored_devicename[5] = 0x00;   // Device name
+4607  cd07 4f            	clr	a
+4608  cd08 ae4005        	ldw	x,#_stored_devicename+5
+4609  cd0b cddf1a        	call	c_eewrc
+4611                     ; 940     stored_devicename[6] = 0x00;   // Device name
+4613  cd0e 4f            	clr	a
+4614  cd0f ae4006        	ldw	x,#_stored_devicename+6
+4615  cd12 cddf1a        	call	c_eewrc
+4617                     ; 941     stored_devicename[7] = 0x00;   // Device name
+4619  cd15 4f            	clr	a
+4620  cd16 ae4007        	ldw	x,#_stored_devicename+7
+4621  cd19 cddf1a        	call	c_eewrc
+4623                     ; 942     stored_devicename[8] = 0x00;   // Device name
+4625  cd1c 4f            	clr	a
+4626  cd1d ae4008        	ldw	x,#_stored_devicename+8
+4627  cd20 cddf1a        	call	c_eewrc
+4629                     ; 943     stored_devicename[9] = 0x00;   // Device name
+4631  cd23 4f            	clr	a
+4632  cd24 ae4009        	ldw	x,#_stored_devicename+9
+4633  cd27 cddf1a        	call	c_eewrc
+4635                     ; 944     stored_devicename[10] = 0x00;  // Device name
+4637  cd2a 4f            	clr	a
+4638  cd2b ae400a        	ldw	x,#_stored_devicename+10
+4639  cd2e cddf1a        	call	c_eewrc
+4641                     ; 945     stored_devicename[11] = 0x00;  // Device name
+4643  cd31 4f            	clr	a
+4644  cd32 ae400b        	ldw	x,#_stored_devicename+11
+4645  cd35 cddf1a        	call	c_eewrc
+4647                     ; 946     stored_devicename[12] = 0x00;  // Device name
+4649  cd38 4f            	clr	a
+4650  cd39 ae400c        	ldw	x,#_stored_devicename+12
+4651  cd3c cddf1a        	call	c_eewrc
+4653                     ; 947     stored_devicename[13] = 0x00;  // Device name
+4655  cd3f 4f            	clr	a
+4656  cd40 ae400d        	ldw	x,#_stored_devicename+13
+4657  cd43 cddf1a        	call	c_eewrc
+4659                     ; 948     stored_devicename[14] = 0x00;  // Device name
+4661  cd46 4f            	clr	a
+4662  cd47 ae400e        	ldw	x,#_stored_devicename+14
+4663  cd4a cddf1a        	call	c_eewrc
+4665                     ; 949     stored_devicename[15] = 0x00;  // Device name
+4667  cd4d 4f            	clr	a
+4668  cd4e ae400f        	ldw	x,#_stored_devicename+15
+4669  cd51 cddf1a        	call	c_eewrc
+4671                     ; 950     stored_devicename[16] = 0x00;  // Device name
+4673  cd54 4f            	clr	a
+4674  cd55 ae4010        	ldw	x,#_stored_devicename+16
+4675  cd58 cddf1a        	call	c_eewrc
+4677                     ; 951     stored_devicename[17] = 0x00;  // Device name
+4679  cd5b 4f            	clr	a
+4680  cd5c ae4011        	ldw	x,#_stored_devicename+17
+4681  cd5f cddf1a        	call	c_eewrc
+4683                     ; 952     stored_devicename[18] = 0x00;  // Device name
+4685  cd62 4f            	clr	a
+4686  cd63 ae4012        	ldw	x,#_stored_devicename+18
+4687  cd66 cddf1a        	call	c_eewrc
+4689                     ; 953     stored_devicename[19] = 0x00;  // Device name
+4691  cd69 4f            	clr	a
+4692  cd6a ae4013        	ldw	x,#_stored_devicename+19
+4693  cd6d cddf1a        	call	c_eewrc
+4695                     ; 955     WWDG_WR = (uint8_t)0x7f;       // Window register reset
+4697  cd70 357f50d2      	mov	_WWDG_WR,#127
+4698                     ; 956     WWDG_CR = (uint8_t)0xff;       // Set watchdog to timeout in 49ms
+4700  cd74 35ff50d1      	mov	_WWDG_CR,#255
+4701                     ; 957     WWDG_WR = (uint8_t)0x60;       // Window register value - doesn't matter
+4703  cd78 356050d2      	mov	_WWDG_WR,#96
+4704                     ; 960     wait_timer((uint16_t)50000);   // Wait for watchdog to generate reset
+4706  cd7c aec350        	ldw	x,#50000
+4707  cd7f cdcf6b        	call	_wait_timer
+4709                     ; 961     wait_timer((uint16_t)50000);
+4711  cd82 aec350        	ldw	x,#50000
+4712  cd85 cdcf6b        	call	_wait_timer
+4714                     ; 962     wait_timer((uint16_t)50000);
+4716  cd88 aec350        	ldw	x,#50000
+4717  cd8b cdcf6b        	call	_wait_timer
+4719  cd8e               L5032:
+4720                     ; 964 }
+4723  cd8e 84            	pop	a
+4724  cd8f 81            	ret	
+4758                     ; 967 void debugflash(void)
+4758                     ; 968 {
+4759                     	switch	.text
+4760  cd90               _debugflash:
+4762  cd90 88            	push	a
+4763       00000001      OFST:	set	1
+4766                     ; 983   LEDcontrol(0);     // turn LED off
+4768  cd91 4f            	clr	a
+4769  cd92 cdb05c        	call	_LEDcontrol
+4771                     ; 984   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
+4773  cd95 0f01          	clr	(OFST+0,sp)
+4775  cd97               L1432:
+4778  cd97 aec350        	ldw	x,#50000
+4779  cd9a cdcf6b        	call	_wait_timer
+4783  cd9d 0c01          	inc	(OFST+0,sp)
+4787  cd9f 7b01          	ld	a,(OFST+0,sp)
+4788  cda1 a10a          	cp	a,#10
+4789  cda3 25f2          	jrult	L1432
+4790                     ; 986   LEDcontrol(1);     // turn LED on
+4792  cda5 a601          	ld	a,#1
+4793  cda7 cdb05c        	call	_LEDcontrol
+4795                     ; 987   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
+4797  cdaa 0f01          	clr	(OFST+0,sp)
+4799  cdac               L7432:
+4802  cdac aec350        	ldw	x,#50000
+4803  cdaf cdcf6b        	call	_wait_timer
+4807  cdb2 0c01          	inc	(OFST+0,sp)
+4811  cdb4 7b01          	ld	a,(OFST+0,sp)
+4812  cdb6 a10a          	cp	a,#10
+4813  cdb8 25f2          	jrult	L7432
+4814                     ; 988 }
+4817  cdba 84            	pop	a
+4818  cdbb 81            	ret	
+5423                     	switch	.bss
+5424  001c               _IpAddr:
+5425  001c 00000000      	ds.b	4
+5426                     	xdef	_IpAddr
+5427  0020               _Port_Httpd:
+5428  0020 0000          	ds.b	2
+5429                     	xdef	_Port_Httpd
+5430  0022               _devicename_changed:
+5431  0022 00            	ds.b	1
+5432                     	xdef	_devicename_changed
+5433  0023               _submit_changes:
+5434  0023 00            	ds.b	1
+5435                     	xdef	_submit_changes
+5436  0024               _uip_ethaddr1:
+5437  0024 00            	ds.b	1
+5438                     	xdef	_uip_ethaddr1
+5439  0025               _uip_ethaddr2:
+5440  0025 00            	ds.b	1
+5441                     	xdef	_uip_ethaddr2
+5442  0026               _uip_ethaddr3:
+5443  0026 00            	ds.b	1
+5444                     	xdef	_uip_ethaddr3
+5445  0027               _uip_ethaddr4:
+5446  0027 00            	ds.b	1
+5447                     	xdef	_uip_ethaddr4
+5448  0028               _uip_ethaddr5:
+5449  0028 00            	ds.b	1
+5450                     	xdef	_uip_ethaddr5
+5451  0029               _uip_ethaddr6:
+5452  0029 00            	ds.b	1
+5453                     	xdef	_uip_ethaddr6
+5454  002a               _Pending_uip_ethaddr1:
+5455  002a 00            	ds.b	1
+5456                     	xdef	_Pending_uip_ethaddr1
+5457  002b               _Pending_uip_ethaddr2:
+5458  002b 00            	ds.b	1
+5459                     	xdef	_Pending_uip_ethaddr2
+5460  002c               _Pending_uip_ethaddr3:
+5461  002c 00            	ds.b	1
+5462                     	xdef	_Pending_uip_ethaddr3
+5463  002d               _Pending_uip_ethaddr4:
+5464  002d 00            	ds.b	1
+5465                     	xdef	_Pending_uip_ethaddr4
+5466  002e               _Pending_uip_ethaddr5:
+5467  002e 00            	ds.b	1
+5468                     	xdef	_Pending_uip_ethaddr5
+5469  002f               _Pending_uip_ethaddr6:
+5470  002f 00            	ds.b	1
+5471                     	xdef	_Pending_uip_ethaddr6
+5472  0030               _Pending_port:
+5473  0030 0000          	ds.b	2
+5474                     	xdef	_Pending_port
+5475  0032               _Pending_netmask1:
+5476  0032 00            	ds.b	1
+5477                     	xdef	_Pending_netmask1
+5478  0033               _Pending_netmask2:
+5479  0033 00            	ds.b	1
+5480                     	xdef	_Pending_netmask2
+5481  0034               _Pending_netmask3:
+5482  0034 00            	ds.b	1
+5483                     	xdef	_Pending_netmask3
+5484  0035               _Pending_netmask4:
+5485  0035 00            	ds.b	1
+5486                     	xdef	_Pending_netmask4
+5487  0036               _Pending_draddr1:
+5488  0036 00            	ds.b	1
+5489                     	xdef	_Pending_draddr1
+5490  0037               _Pending_draddr2:
+5491  0037 00            	ds.b	1
+5492                     	xdef	_Pending_draddr2
+5493  0038               _Pending_draddr3:
+5494  0038 00            	ds.b	1
+5495                     	xdef	_Pending_draddr3
+5496  0039               _Pending_draddr4:
+5497  0039 00            	ds.b	1
+5498                     	xdef	_Pending_draddr4
+5499  003a               _Pending_hostaddr1:
+5500  003a 00            	ds.b	1
+5501                     	xdef	_Pending_hostaddr1
+5502  003b               _Pending_hostaddr2:
+5503  003b 00            	ds.b	1
+5504                     	xdef	_Pending_hostaddr2
+5505  003c               _Pending_hostaddr3:
+5506  003c 00            	ds.b	1
+5507                     	xdef	_Pending_hostaddr3
+5508  003d               _Pending_hostaddr4:
+5509  003d 00            	ds.b	1
+5510                     	xdef	_Pending_hostaddr4
+5511  003e               _ex_stored_devicename:
+5512  003e 000000000000  	ds.b	20
+5513                     	xdef	_ex_stored_devicename
+5514  0052               _invert_output:
+5515  0052 00            	ds.b	1
+5516                     	xdef	_invert_output
+5517  0053               _IO_8to1:
+5518  0053 00            	ds.b	1
+5519                     	xdef	_IO_8to1
+5520  0054               _IO_16to9:
+5521  0054 00            	ds.b	1
+5522                     	xdef	_IO_16to9
+5523  0055               _ex_stored_port:
+5524  0055 0000          	ds.b	2
+5525                     	xdef	_ex_stored_port
+5526  0057               _ex_stored_netmask1:
+5527  0057 00            	ds.b	1
+5528                     	xdef	_ex_stored_netmask1
+5529  0058               _ex_stored_netmask2:
+5530  0058 00            	ds.b	1
+5531                     	xdef	_ex_stored_netmask2
+5532  0059               _ex_stored_netmask3:
+5533  0059 00            	ds.b	1
+5534                     	xdef	_ex_stored_netmask3
+5535  005a               _ex_stored_netmask4:
+5536  005a 00            	ds.b	1
+5537                     	xdef	_ex_stored_netmask4
+5538  005b               _ex_stored_draddr1:
+5539  005b 00            	ds.b	1
+5540                     	xdef	_ex_stored_draddr1
+5541  005c               _ex_stored_draddr2:
+5542  005c 00            	ds.b	1
+5543                     	xdef	_ex_stored_draddr2
+5544  005d               _ex_stored_draddr3:
+5545  005d 00            	ds.b	1
+5546                     	xdef	_ex_stored_draddr3
+5547  005e               _ex_stored_draddr4:
+5548  005e 00            	ds.b	1
+5549                     	xdef	_ex_stored_draddr4
+5550  005f               _ex_stored_hostaddr1:
+5551  005f 00            	ds.b	1
+5552                     	xdef	_ex_stored_hostaddr1
+5553  0060               _ex_stored_hostaddr2:
+5554  0060 00            	ds.b	1
+5555                     	xdef	_ex_stored_hostaddr2
+5556  0061               _ex_stored_hostaddr3:
+5557  0061 00            	ds.b	1
+5558                     	xdef	_ex_stored_hostaddr3
+5559  0062               _ex_stored_hostaddr4:
+5560  0062 00            	ds.b	1
+5561                     	xdef	_ex_stored_hostaddr4
+5562                     .eeprom:	section	.data
+5563  4000               _stored_devicename:
+5564  4000 000000000000  	ds.b	20
+5565                     	xdef	_stored_devicename
+5566  4014               _stored_invert_output:
+5567  4014 00            	ds.b	1
+5568                     	xdef	_stored_invert_output
+5569  4015               _stored_IO_8to1:
+5570  4015 00            	ds.b	1
+5571                     	xdef	_stored_IO_8to1
+5572  4016               _stored_IO_16to9:
+5573  4016 00            	ds.b	1
+5574                     	xdef	_stored_IO_16to9
+5575  4017               _stored_uip_ethaddr6:
+5576  4017 00            	ds.b	1
+5577                     	xdef	_stored_uip_ethaddr6
+5578  4018               _stored_uip_ethaddr5:
+5579  4018 00            	ds.b	1
+5580                     	xdef	_stored_uip_ethaddr5
+5581  4019               _stored_uip_ethaddr4:
+5582  4019 00            	ds.b	1
+5583                     	xdef	_stored_uip_ethaddr4
+5584  401a               _stored_uip_ethaddr3:
+5585  401a 00            	ds.b	1
+5586                     	xdef	_stored_uip_ethaddr3
+5587  401b               _stored_uip_ethaddr2:
+5588  401b 00            	ds.b	1
+5589                     	xdef	_stored_uip_ethaddr2
+5590  401c               _stored_uip_ethaddr1:
+5591  401c 00            	ds.b	1
+5592                     	xdef	_stored_uip_ethaddr1
+5593  401d               _stored_port:
+5594  401d 0000          	ds.b	2
+5595                     	xdef	_stored_port
+5596  401f               _stored_netmask1:
+5597  401f 00            	ds.b	1
+5598                     	xdef	_stored_netmask1
+5599  4020               _stored_netmask2:
+5600  4020 00            	ds.b	1
+5601                     	xdef	_stored_netmask2
+5602  4021               _stored_netmask3:
+5603  4021 00            	ds.b	1
+5604                     	xdef	_stored_netmask3
+5605  4022               _stored_netmask4:
+5606  4022 00            	ds.b	1
+5607                     	xdef	_stored_netmask4
+5608  4023               _stored_draddr1:
+5609  4023 00            	ds.b	1
+5610                     	xdef	_stored_draddr1
+5611  4024               _stored_draddr2:
+5612  4024 00            	ds.b	1
+5613                     	xdef	_stored_draddr2
+5614  4025               _stored_draddr3:
+5615  4025 00            	ds.b	1
+5616                     	xdef	_stored_draddr3
+5617  4026               _stored_draddr4:
+5618  4026 00            	ds.b	1
+5619                     	xdef	_stored_draddr4
+5620  4027               _stored_hostaddr1:
+5621  4027 00            	ds.b	1
+5622                     	xdef	_stored_hostaddr1
+5623  4028               _stored_hostaddr2:
+5624  4028 00            	ds.b	1
+5625                     	xdef	_stored_hostaddr2
+5626  4029               _stored_hostaddr3:
+5627  4029 00            	ds.b	1
+5628                     	xdef	_stored_hostaddr3
+5629  402a               _stored_hostaddr4:
+5630  402a 00            	ds.b	1
+5631                     	xdef	_stored_hostaddr4
+5632  402b               _magic1:
+5633  402b 00            	ds.b	1
+5634                     	xdef	_magic1
+5635  402c               _magic2:
+5636  402c 00            	ds.b	1
+5637                     	xdef	_magic2
+5638  402d               _magic3:
+5639  402d 00            	ds.b	1
+5640                     	xdef	_magic3
+5641  402e               _magic4:
+5642  402e 00            	ds.b	1
+5643                     	xdef	_magic4
+5644                     	xref	_wait_timer
+5645                     	xref	_arp_timer_expired
+5646                     	xref	_periodic_timer_expired
+5647                     	xref	_clock_init
+5648                     	xref	_LEDcontrol
+5649                     	xref	_gpio_init
+5650                     	xref	_uip_arp_timer
+5651                     	xref	_uip_arp_out
+5652                     	xref	_uip_arp_arpin
+5653                     	xref	_uip_arp_init
+5654                     	xref	_uip_ethaddr
+5655                     	xref	_uip_draddr
+5656                     	xref	_uip_netmask
+5657                     	xref	_uip_hostaddr
+5658                     	xref	_uip_process
+5659                     	xref	_uip_conns
+5660                     	xref	_uip_conn
+5661                     	xref	_uip_len
+5662                     	xref	_htons
+5663                     	xref	_uip_buf
+5664                     	xref	_uip_init
+5665                     	xref	_HttpDInit
+5666                     	xref	_Enc28j60Send
+5667                     	xref	_Enc28j60CopyPacket
+5668                     	xref	_Enc28j60Receive
+5669                     	xref	_Enc28j60Init
+5670                     	xref	_spi_init
+5671                     	xdef	_debugflash
+5672                     	xdef	_check_reset_button
+5673                     	xdef	_write_output_registers
+5674                     	xdef	_read_input_registers
+5675                     	xdef	_check_runtime_changes
+5676                     	xdef	_check_eeprom_settings
+5677                     	xdef	_unlock_eeprom
+5678                     	xdef	_main
+5679                     	xref.b	c_x
+5699                     	xref	c_eewrw
+5700                     	xref	c_eewrc
+5701                     	xref	c_bmulx
+5702                     	end

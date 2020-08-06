@@ -80,8 +80,8 @@ uint8_t current_webpage;                // Tracks the web page that is currently
 
 extern uint16_t Port_Httpd;             // Port number in use
 
-extern uint8_t Relays_16to9;            // State of upper 8 relays
-extern uint8_t Relays_8to1;             // State of lower 8 relays
+extern uint8_t IO_16to9;                // State of upper 8 IO
+extern uint8_t IO_8to1;                 // State of lower 8 IO
 extern uint8_t invert_output;           // Relay output inversion control
 
 extern uint8_t Pending_hostaddr4;       // Temp storage for new IP address
@@ -145,11 +145,18 @@ uint8_t OctetArray[11];		          // Used in conversion of integer values to
 					  // character values
 
 
-// Relay Control Webpage (Default)
+#if GPIO_SUPPORT == 1 // Build control for 16 outputs
+// IO Webpage (Default)
 // Below is the parse bytes limit for POST data sent by the form below. This value MUST
 // be calculated based on the amount of data expected to be returned by the form. Note
 // that a form submittal always returns the exact same amount of information even if
 // no fields were changed on the form (with the exception of the devicename field).
+//
+// Note: In the webpage below you'll see a line like this:
+//   "<input type='hidden' name='z00' value='0'<br>"
+// This inserts a hidden variable in the webpage to make sure that all real data is
+// followed by an &. This makes it easier to parse variable lenght POST data when the
+// user POSTs the form. It otherwise serves no purpose.
 //
 // The form contained in the g_HtmlPageDefault webpage will generate 18 data update
 // replies. These replies need to be parsed to extract the data from them. We need to
@@ -185,7 +192,7 @@ static const char g_HtmlPageDefault[] =
   "<!DOCTYPE html>"
   "<html lang='en-US'>"
   "<head>"
-  "<title>Relay Control</title>"
+  "<title>IO Control</title>"
   "<style>"
   ".s0 { background-color: red; width: 30px; }"
   ".s1 { background-color: green; width: 30px; }"
@@ -197,7 +204,7 @@ static const char g_HtmlPageDefault[] =
   "</style>"
   "</head>"
   "<body>"
-  "<h1>Relay Control</h1>"
+  "<h1>IO Control</h1>"
   "<form method='POST' action='/'>"
   "<table>"
   "<tr><td class='t1'>Name:</td><td><input type='text' name='a00' class='t2' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20'></td></tr>"
@@ -222,9 +229,11 @@ static const char g_HtmlPageDefault[] =
   "<tr><td class='t1'>Relay16</td><td class='s%i15'></td><td class='t4'><input type='radio' id='16on' name='o15' value='1' %o15><label for='16on'>ON</label><input type='radio' id='16off' name='o15' value='0' %p15><label for='16off'>OFF</label></td></tr>"
   "<tr><td class='t1'>Invert</td><td class='t3'></td><td class='t4'><input type='radio' id='invOn' name='g00' value='1' %g00><label for='invOn'>ON</label><input type='radio' id='invOff' name='g00' value='0' %h00><label for='invOff'>OFF</label></td></tr>"
   "</table>"
+  "<input type='hidden' name='z00' value='0'<br>"
   "<button type='submit' title='Saves your changes - does not restart the Network Module'>Save</button>"
   "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
   "</form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Save first! This button will not save your changes'>Refresh</button></form>"
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/61' method='GET'><button title='Save first! This button will not save your changes'>Address Settings</button></form>"
 #if UIP_STATISTICS == 1
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='GET'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
@@ -234,66 +243,193 @@ static const char g_HtmlPageDefault[] =
 #endif // HELP_SUPPORT == 1
   "</body>"
   "</html>";
+#endif // GPIO_SUPPORT == 1
 
-/*
-// Keep the below experiment for awhile. According to online references the above method
-// where "a table is wrapped by a form" does not conform with html standards. But it works
-// in Chrome, IE, Edge, and Firefox. The below code was developed to "emulate a table" but
-// conform with html rules. Unfortunately it uses up a lot more memory and isn't as clean
-// looking in the GUI.
+
+#if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
+// IO Webpage (Default)
+// Below is the parse bytes limit for POST data sent by the form below. This value MUST
+// be calculated based on the amount of data expected to be returned by the form. Note
+// that a form submittal always returns the exact same amount of information even if
+// no fields were changed on the form (with the exception of the devicename field).
+//
+// Note: In the webpage below you'll see a line like this:
+//   "<input type='hidden' name='z00' value='0'<br>"
+// This inserts a hidden variable in the webpage to make sure that all real data is
+// followed by an &. This makes it easier to parse variable lenght POST data when the
+// user POSTs the form. It otherwise serves no purpose.
+//
+// The form contained in the g_HtmlPageDefault webpage will generate 10 data update
+// replies. These replies need to be parsed to extract the data from them. We need to
+// stop parsing the reply POST data after all update bytes are parsed. The formula for
+// determining the stop value is as follows:
+//   For 1 of the replies (device name):
+//   POST consists of a ParseCmd (an "a" in this case) in 1 byte
+//   Followed by the ParseNum in 2 bytes
+//   Followed by an equal sign in 1 byte
+//   Followed by a device name in 1 to 20 bytes
+//   Followed by a parse delimiter in 1 byte
+//     PLUS
+//   For 8 of the replies (relay items):
+//   POST consists of a ParseCmd (an "o" in this case) in 1 byte
+//   Followed by the ParseNum in 2 bytes
+//   Followed by an equal sign in 1 byte
+//   Followed by a state value in 1 byte
+//   Followed by a parse delimiter in 1 byte
+//     PLUS
+//   For 1 of the replies (invert):
+//   POST consists of a ParseCmd (a "g" in this case) in 1 byte
+//   Followed by the ParseNum in 2 bytes
+//   Followed by an equal sign in 1 byte
+//   Followed by a state value in 1 byte
+//   Followed by a parse delimiter in 1 byte
+// The formula is
+// PARSEBYTES = (#device name bytes x 1) + (#data items x 6) + (#invert x 6) - 1
+// In this case: (25 x 1) + (8 x 6) + (1 x 6) - 1 = 78 bytes
+#define WEBPAGE_DEFAULT		0
+#define PARSEBYTES_DEFAULT	78
+static const unsigned char checked[] = "checked";
 static const char g_HtmlPageDefault[] =
   "<!DOCTYPE html>"
   "<html lang='en-US'>"
   "<head>"
-  "<title>Relay Control</title>"
+  "<title>IO Control</title>"
   "<style>"
-  ".t2 { width: 149px; }"
-  "#s1{ height: 21px; width: 80px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
-  "#s2{ height: 21px; width: 155px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
-  "#s3w{ height: 21px; width: 30px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
-  "#s3r{ height: 21px; width: 30px; background: red; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
-  "#s3g{ height: 21px; width: 30px; background: green; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
-  "#s4{ height: 21px; width: 120px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
+  ".s0 { background-color: red; width: 30px; }"
+  ".s1 { background-color: green; width: 30px; }"
+  ".t1 { width: 100px; }"
+  ".t2 { width: 148px; }"
+  ".t3 { width: 30px; }"
+  ".t4 { width: 120px; }"
+  "td { text-align: center; border: 1px black solid; }"
   "</style>"
   "</head>"
   "<body>"
-  "<h1>Relay Control</h1>"
-  "<form method='POST'>"
-  "<div id='s1'>Name:  </div><div id='s2'><input type='text' name='a00' class='t2' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20' size='20'></div><br>"
-  "<div id='s1'>       </div><div id='s3w'></div><div id='s4'>SET</div><br>"
-  "<div id='s1'>Relay01</div><div id='s%i00'></div><div id='s4'><input type='radio' id='01on' name='o00' value='1' %o00><label for='01on'>ON</label><input type='radio' id='01off' name='o00' value='0' %p00><label for='01off'>OFF</label></div><br>"
-  "<div id='s1'>Relay02</div><div id='s%i01'></div><div id='s4'><input type='radio' id='02on' name='o01' value='1' %o01><label for='02on'>ON</label><input type='radio' id='02off' name='o01' value='0' %p01><label for='02off'>OFF</label></div><br>"
-  "<div id='s1'>Relay03</div><div id='s%i02'></div><div id='s4'><input type='radio' id='03on' name='o02' value='1' %o02><label for='03on'>ON</label><input type='radio' id='03off' name='o02' value='0' %p02><label for='03off'>OFF</label></div><br>"
-  "<div id='s1'>Relay04</div><div id='s%i03'></div><div id='s4'><input type='radio' id='04on' name='o03' value='1' %o03><label for='04on'>ON</label><input type='radio' id='04off' name='o03' value='0' %p03><label for='04off'>OFF</label></div><br>"
-  "<div id='s1'>Relay05</div><div id='s%i04'></div><div id='s4'><input type='radio' id='05on' name='o04' value='1' %o04><label for='05on'>ON</label><input type='radio' id='05off' name='o04' value='0' %p04><label for='05off'>OFF</label></div><br>"
-  "<div id='s1'>Relay06</div><div id='s%i05'></div><div id='s4'><input type='radio' id='06on' name='o05' value='1' %o05><label for='06on'>ON</label><input type='radio' id='06off' name='o05' value='0' %p05><label for='06off'>OFF</label></div><br>"
-  "<div id='s1'>Relay07</div><div id='s%i06'></div><div id='s4'><input type='radio' id='07on' name='o06' value='1' %o06><label for='07on'>ON</label><input type='radio' id='07off' name='o06' value='0' %p06><label for='07off'>OFF</label></div><br>"
-  "<div id='s1'>Relay08</div><div id='s%i07'></div><div id='s4'><input type='radio' id='08on' name='o07' value='1' %o07><label for='08on'>ON</label><input type='radio' id='08off' name='o07' value='0' %p07><label for='08off'>OFF</label></div><br>"
-  "<div id='s1'>Relay09</div><div id='s%i08'></div><div id='s4'><input type='radio' id='09on' name='o08' value='1' %o08><label for='09on'>ON</label><input type='radio' id='09off' name='o08' value='0' %p08><label for='09off'>OFF</label></div><br>"
-  "<div id='s1'>Relay10</div><div id='s%i09'></div><div id='s4'><input type='radio' id='10on' name='o09' value='1' %o09><label for='10on'>ON</label><input type='radio' id='10off' name='o09' value='0' %p09><label for='10off'>OFF</label></div><br>"
-  "<div id='s1'>Relay11</div><div id='s%i10'></div><div id='s4'><input type='radio' id='11on' name='o10' value='1' %o10><label for='11on'>ON</label><input type='radio' id='11off' name='o10' value='0' %p10><label for='11off'>OFF</label></div><br>"
-  "<div id='s1'>Relay12</div><div id='s%i11'></div><div id='s4'><input type='radio' id='12on' name='o11' value='1' %o11><label for='12on'>ON</label><input type='radio' id='12off' name='o11' value='0' %p11><label for='12off'>OFF</label></div><br>"
-  "<div id='s1'>Relay13</div><div id='s%i12'></div><div id='s4'><input type='radio' id='13on' name='o12' value='1' %o12><label for='13on'>ON</label><input type='radio' id='13off' name='o12' value='0' %p12><label for='13off'>OFF</label></div><br>"
-  "<div id='s1'>Relay14</div><div id='s%i13'></div><div id='s4'><input type='radio' id='14on' name='o13' value='1' %o13><label for='14on'>ON</label><input type='radio' id='14off' name='o13' value='0' %p13><label for='14off'>OFF</label></div><br>"
-  "<div id='s1'>Relay15</div><div id='s%i14'></div><div id='s4'><input type='radio' id='15on' name='o14' value='1' %o14><label for='15on'>ON</label><input type='radio' id='15off' name='o14' value='0' %p14><label for='15off'>OFF</label></div><br>"
-  "<div id='s1'>Relay16</div><div id='s%i15'></div><div id='s4'><input type='radio' id='16on' name='o15' value='1' %o15><label for='16on'>ON</label><input type='radio' id='16off' name='o15' value='0' %p15><label for='16off'>OFF</label></div><br>"
-  "<div id='s1'>Invert </div><div id='s3w'></div><div id='s4'><input type='radio' id='invertOn' name='g00' value='1' %g00><label for='invertOn'>ON</label><input type='radio' id='invertOff' name='g00' value='0' %h00><label for='invertOff'>OFF</label></div><br>"
+  "<h1>IO Control</h1>"
+  "<form method='POST' action='/'>"
+  "<table>"
+  "<tr><td class='t1'>Name:</td><td><input type='text' name='a00' class='t2' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20'></td></tr>"
+  "</table>"
+  "<table>"
+  "<tr><td class='t1'></td><td class='t3'></td><td class='t4'>SET</td></tr>"
+  "<tr><td class='t1'>Output01</td><td class='s%i00'></td><td class='t4'><input type='radio' id='01on' name='o00' value='1' %o00><label for='01on'>ON</label><input type='radio' id='01off' name='o00' value='0' %p00><label for='01off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Output02</td><td class='s%i01'></td><td class='t4'><input type='radio' id='02on' name='o01' value='1' %o01><label for='02on'>ON</label><input type='radio' id='02off' name='o01' value='0' %p01><label for='02off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Output03</td><td class='s%i02'></td><td class='t4'><input type='radio' id='03on' name='o02' value='1' %o02><label for='03on'>ON</label><input type='radio' id='03off' name='o02' value='0' %p02><label for='03off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Output04</td><td class='s%i03'></td><td class='t4'><input type='radio' id='04on' name='o03' value='1' %o03><label for='04on'>ON</label><input type='radio' id='04off' name='o03' value='0' %p03><label for='04off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Output05</td><td class='s%i04'></td><td class='t4'><input type='radio' id='05on' name='o04' value='1' %o04><label for='05on'>ON</label><input type='radio' id='05off' name='o04' value='0' %p04><label for='05off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Output06</td><td class='s%i05'></td><td class='t4'><input type='radio' id='06on' name='o05' value='1' %o05><label for='06on'>ON</label><input type='radio' id='06off' name='o05' value='0' %p05><label for='06off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Output07</td><td class='s%i06'></td><td class='t4'><input type='radio' id='07on' name='o06' value='1' %o06><label for='07on'>ON</label><input type='radio' id='07off' name='o06' value='0' %p06><label for='07off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Output08</td><td class='s%i07'></td><td class='t4'><input type='radio' id='08on' name='o07' value='1' %o07><label for='08on'>ON</label><input type='radio' id='08off' name='o07' value='0' %p07><label for='08off'>OFF</label></td></tr>"
+  "<tr><td class='t1'>Invert</td><td class='t3'></td><td class='t4'><input type='radio' id='invOn' name='g00' value='1' %g00><label for='invOn'>ON</label><input type='radio' id='invOff' name='g00' value='0' %h00><label for='invOff'>OFF</label></td>"
+  "<tr><td class='t1'>Input01</td><td class='s%i08'></td></tr>"
+  "<tr><td class='t1'>Input02</td><td class='s%i09'></td></tr>"
+  "<tr><td class='t1'>Input03</td><td class='s%i10'></td></tr>"
+  "<tr><td class='t1'>Input04</td><td class='s%i11'></td></tr>"
+  "<tr><td class='t1'>Input05</td><td class='s%i12'></td></tr>"
+  "<tr><td class='t1'>Input06</td><td class='s%i13'></td></tr>"
+  "<tr><td class='t1'>Input07</td><td class='s%i14'></td></tr>"
+  "<tr><td class='t1'>Input08</td><td class='s%i15'></td></tr>"
+  "</table>"
+  "<input type='hidden' name='z00' value='0'<br>"
   "<button type='submit' title='Saves your changes - does not restart the Network Module'>Save</button>"
   "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
   "</form>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/61' method='get'><button title='Save first! This button will not save your changes'>Address Settings</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Save first! This button will not save your changes'>Refresh</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/61' method='GET'><button title='Save first! This button will not save your changes'>Address Settings</button></form>"
 #if UIP_STATISTICS == 1
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='get'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='GET'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
 #endif // UIP_STATISTICS == 1
 #if HELP_SUPPORT == 1
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='get'><button title='Save first! This button will not save your changes'>Help</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='GET'><button title='Save first! This button will not save your changes'>Help</button></form>"
 #endif // HELP_SUPPORT == 1
   "</body>"
   "</html>";
-*/
+#endif // GPIO_SUPPORT == 2
 
 
-
+#if GPIO_SUPPORT == 3 // Build control for 16 inputs
+// IO Webpage (Default)
+// Below is the parse bytes limit for POST data sent by the form below. This value MUST
+// be calculated based on the amount of data expected to be returned by the form. Note
+// that a form submittal always returns the exact same amount of information even if
+// no fields were changed on the form (with the exception of the devicename field).
+//
+// Note: In the webpage below you'll see a line like this:
+//   "<input type='hidden' name='z00' value='0'<br>"
+// This inserts a hidden variable in the webpage to make sure that all real data is
+// followed by an &. This makes it easier to parse variable lenght POST data when the
+// user POSTs the form. It otherwise serves no purpose.
+//
+// The form contained in the g_HtmlPageDefault webpage will generate 10 data update
+// replies. These replies need to be parsed to extract the data from them. We need to
+// stop parsing the reply POST data after all update bytes are parsed. The formula for
+// determining the stop value is as follows:
+//   For 1 of the replies (device name):
+//   POST consists of a ParseCmd (an "a" in this case) in 1 byte
+//   Followed by the ParseNum in 2 bytes
+//   Followed by an equal sign in 1 byte
+//   Followed by a device name in 1 to 20 bytes
+//   Followed by a parse delimiter in 1 byte
+// The formula is
+// PARSEBYTES = (#device name bytes x 1) - 1
+// In this case: (25 x 1) - 1 = 24 bytes
+#define WEBPAGE_DEFAULT		0
+#define PARSEBYTES_DEFAULT	24
+static const unsigned char checked[] = "checked";
+static const char g_HtmlPageDefault[] =
+  "<!DOCTYPE html>"
+  "<html lang='en-US'>"
+  "<head>"
+  "<title>IO Control</title>"
+  "<style>"
+  ".s0 { background-color: red; width: 30px; }"
+  ".s1 { background-color: green; width: 30px; }"
+  ".t1 { width: 100px; }"
+  ".t2 { width: 148px; }"
+  ".t3 { width: 30px; }"
+  ".t4 { width: 120px; }"
+  "td { text-align: center; border: 1px black solid; }"
+  "</style>"
+  "</head>"
+  "<body>"
+  "<h1>IO Control</h1>"
+  "<form method='POST' action='/'>"
+  "<table>"
+  "<tr><td class='t1'>Name:</td><td><input type='text' name='a00' class='t2' value='%a00xxxxxxxxxxxxxxxxxxxx' pattern='[0-9a-zA-Z-_*.]{1,20}' title='1 to 20 letters, numbers, and -_*. no spaces' maxlength='20'></td></tr>"
+  "</table>"
+  "<table>"
+  "<tr><td class='t1'>Input01</td><td class='s%i00'></td></tr>"
+  "<tr><td class='t1'>Input02</td><td class='s%i01'></td></tr>"
+  "<tr><td class='t1'>Input03</td><td class='s%i02'></td></tr>"
+  "<tr><td class='t1'>Input04</td><td class='s%i03'></td></tr>"
+  "<tr><td class='t1'>Input05</td><td class='s%i04'></td></tr>"
+  "<tr><td class='t1'>Input06</td><td class='s%i05'></td></tr>"
+  "<tr><td class='t1'>Input07</td><td class='s%i06'></td></tr>"
+  "<tr><td class='t1'>Input08</td><td class='s%i07'></td></tr>"
+  "<tr><td class='t1'>Input09</td><td class='s%i08'></td></tr>"
+  "<tr><td class='t1'>Input10</td><td class='s%i09'></td></tr>"
+  "<tr><td class='t1'>Input11</td><td class='s%i10'></td></tr>"
+  "<tr><td class='t1'>Input12</td><td class='s%i11'></td></tr>"
+  "<tr><td class='t1'>Input13</td><td class='s%i12'></td></tr>"
+  "<tr><td class='t1'>Input14</td><td class='s%i13'></td></tr>"
+  "<tr><td class='t1'>Input15</td><td class='s%i14'></td></tr>"
+  "<tr><td class='t1'>Input16</td><td class='s%i15'></td></tr>"
+  "</table>"
+  "<input type='hidden' name='z00' value='0'<br>"
+  "<button type='submit' title='Saves your changes - does not restart the Network Module'>Save</button>"
+  "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
+  "</form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Save first! This button will not save your changes'>Refresh</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/61' method='GET'><button title='Save first! This button will not save your changes'>Address Settings</button></form>"
+#if UIP_STATISTICS == 1
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='GET'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
+#endif // UIP_STATISTICS == 1
+#if HELP_SUPPORT == 1
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='GET'><button title='Save first! This button will not save your changes'>Help</button></form>"
+#endif // HELP_SUPPORT == 1
+  "</body>"
+  "</html>";
+#endif // GPIO_SUPPORT == 3
 
 
 
@@ -389,7 +525,7 @@ static const char g_HtmlPageAddress[] =
   "multicast and will not work.</p>"
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/91' method='GET'><button title='Save first! This button will not save your changes'>Reboot</button></form>"
   "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Save first! This button will not save your changes'>Relay Controls</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Save first! This button will not save your changes'>IO Control</button></form>"
 #if UIP_STATISTICS == 1
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='GET'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
 #endif // UIP_STATISTICS == 1
@@ -400,76 +536,11 @@ static const char g_HtmlPageAddress[] =
   "</html>";
 
 
-/*
-// Keep the below experiment for awhile. According to online references the above method
-// where "a table is wrapped by a form" does not conform with html standards. But it works
-// in Chrome, IE, Edge, and Firefox. The below code was developed to "emulate a table" but
-// conform with html rules. Unfortunately it uses up a lot more memory and isn't as clean
-// looking in the GUI.
-static const char g_HtmlPageAddress[] =
-  "<!DOCTYPE html>"
-  "<html lang='en-US'>"
-  "<head>"
-  "<title>Address Settings</title>"
-  "<style>"
-  ".t2 { width: 25px; }"
-  ".t3 { width: 18px; }"
-  ".t4 { width: 40px; }"
-  "#s1{ height: 21px; width: 100px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
-  "#s2{ height: 21px; width: 32px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
-  "#s3{ height: 21px; width: 24px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
-  "#s4{ height: 21px; width: 47px; background: white; text-align: center; vertical-align: middle; margin: 2px; border: 1px solid black; display: inline-block; }"
-  "</style>"
-  "</head>"
-  "<body>"
-  "<h1>Address Settings</h1>"
-  "<form method='POST'>"
-  "<div id='s1'>IP Addr</div><div id='s2'><input type='text' name='b00' class='t2' value='%b00' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-                            "<div id='s2'><input type='text' name='b01' class='t2' value='%b01' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b02' class='t2' value='%b02' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b03' class='t2' value='%b03' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
-  "<div id='s1'>Gateway</div><div id='s2'><input type='text' name='b04' class='t2' value='%b04' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-                            "<div id='s2'><input type='text' name='b05' class='t2' value='%b05' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b06' class='t2' value='%b06' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b07' class='t2' value='%b07' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
-  "<div id='s1'>Netmask</div><div id='s2'><input type='text' name='b08' class='t2' value='%b08' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-                            "<div id='s2'><input type='text' name='b09' class='t2' value='%b09' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b10' class='t2' value='%b10' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div>"
-		            "<div id='s2'><input type='text' name='b11' class='t2' value='%b11' pattern='[0-9]{3}' title='Three digits from 000 to 255' maxlength='3' size='3'></div><br>"
-  "<div id='s1'>Port   </div><div id='s4'><input type='text' name='c00' class='t4' value='%c00' pattern='[0-9]{5}' title='Five digits from 00000 to 65536' maxlength='5' size='5'></div><br>"
-  "<div id='s1'>MAC Address</div><div id='s3'><input type='text' name='d00' class='t3' value='%d00' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d01' class='t3' value='%d01' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d02' class='t3' value='%d02' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d03' class='t3' value='%d03' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d04' class='t3' value='%d04' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div>"
-                                "<div id='s3'><input type='text' name='d05' class='t3' value='%d05' pattern='[0-9a-f]{2}' title='Two hex digits from 00 to ff' maxlength='2' size='2'></div><br>"
-  "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
-  "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
-  "</form>"
-  "<p line-height 20px>"
-  "Use caution when changing the above. If you make a mistake you may have to<br>"
-  "restore factory defaults by holding down the reset button for 10 seconds.<br><br>"
-  "Make sure the MAC you assign is unique to your local network. Recommended<br>"
-  "is that you just increment the lowest octet and then label your devices for<br>"
-  "future reference.<br><br>"
-  "If you change the highest octet of the MAC you MUST use an even number to<br>"
-  "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
-  "multicast and will not work.</p>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/91' method='GET'><button title='Save first! This button will not save your changes'>Reboot</button></form>"
-  "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Save first! This button will not save your changes'>Relay Controls</button></form>"
-#if UIP_STATISTICS == 1
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/66' method='GET'><button title='Save first! This button will not save your changes'>Network Statistics</button></form>"
-#endif // UIP_STATISTICS == 1
-#if HELP_SUPPORT == 1
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/63' method='GET'><button title='Save first! This button will not save your changes'>Help</button></form>"
-#endif // HELP_SUPPORT == 1
-  "</body>"
-  "</html>";
-*/
 
 
 #if HELP_SUPPORT == 1
+
+#if GPIO_SUPPORT == 1 // Build control for 16 outputs
 // Help page
 #define WEBPAGE_HELP		3
 #define PARSEBYTES_HELP		0
@@ -503,7 +574,7 @@ static const char g_HtmlPageHelp[] =
   "55 = All Relays ON<br>"
   "56 = All Relays OFF<br><br>"
   "The following are also available:<br>"
-  "60 = Show Relay Control page<br>"
+  "60 = Show IO Control page<br>"
   "61 = Show Address Settings page<br>"
   "63 = Show Help Page 1<br>"
   "64 = Show Help Page 2<br>"
@@ -511,13 +582,105 @@ static const char g_HtmlPageHelp[] =
   "66 = Show Statistics<br>"
   "67 = Clear Statistics<br>"
   "91 = Reboot<br>"
-  "99 = Show Short Form Relay Settings<br>"
+  "99 = Show Short Form IO Settings<br>"
   "</p>"
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/64' method='GET'><button title='Go to next Help page'>Next Help Page</button></form>"
   "</body>"
   "</html>";
+#endif // GPIO_SUPPORT == 1
 
 
+#if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
+// Help page
+#define WEBPAGE_HELP		3
+#define PARSEBYTES_HELP		0
+static const char g_HtmlPageHelp[] =
+  "<!DOCTYPE html>"
+  "<html lang='en-US'>"
+  "<head>"
+  "<title>Help Page</title>"
+  "<style>"
+  "td { width: 140px; padding: 0px; }"
+  "</style>"
+  "</head>"
+  "<body>"
+  "<h1>Help Page 1</h1>"
+  "<p line-height 20px>"
+  "An alternative to using the web interface for changing relay states is to send relay<br>"
+  "specific html commands. Enter http://IP:Port/xx where<br>"
+  "- IP = the device IP Address, for example 192.168.1.4<br>"
+  "- Port = the device Port number, for example 8080<br>"
+  "- xx = one of the codes below:<br>"
+  "<table>"
+  "<tr><td>00 = Relay-01 OFF</td><td>09 = Relay-05 OFF<br></td></tr>"
+  "<tr><td>01 = Relay-01  ON</td><td>10 = Relay-05  ON<br></td></tr>"
+  "<tr><td>02 = Relay-02 OFF</td><td>11 = Relay-06 OFF<br></td></tr>"
+  "<tr><td>03 = Relay-02  ON</td><td>12 = Relay-06  ON<br></td></tr>"
+  "<tr><td>04 = Relay-03 OFF</td><td>13 = Relay-07 OFF<br></td></tr>"
+  "<tr><td>05 = Relay-03  ON</td><td>14 = Relay-07  ON<br></td></tr>"
+  "<tr><td>07 = Relay-04 OFF</td><td>15 = Relay-08 OFF<br></td></tr>"
+  "<tr><td>08 = Relay-04  ON</td><td>16 = Relay-08  ON<br></td></tr>"
+  "</table>"
+  "55 = All Relays ON<br>"
+  "56 = All Relays OFF<br><br>"
+  "The following are also available:<br>"
+  "60 = Show IO Control page<br>"
+  "61 = Show Address Settings page<br>"
+  "63 = Show Help Page 1<br>"
+  "64 = Show Help Page 2<br>"
+  "65 = Flash LED<br>"
+  "66 = Show Statistics<br>"
+  "67 = Clear Statistics<br>"
+  "91 = Reboot<br>"
+  "99 = Show Short Form IO Status<br>"
+  "</p>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/64' method='GET'><button title='Go to next Help page'>Next Help Page</button></form>"
+  "</body>"
+  "</html>";
+#endif // GPIO_SUPPORT == 2
+
+
+#if GPIO_SUPPORT == 3 // Build control for 16 inputs
+// Help page
+#define WEBPAGE_HELP		3
+#define PARSEBYTES_HELP		0
+static const char g_HtmlPageHelp[] =
+  "<!DOCTYPE html>"
+  "<html lang='en-US'>"
+  "<head>"
+  "<title>Help Page</title>"
+  "<style>"
+  "td { width: 140px; padding: 0px; }"
+  "</style>"
+  "</head>"
+  "<body>"
+  "<h1>Help Page 1</h1>"
+  "<p line-height 20px>"
+  "REST commands<br>"
+  "Enter http://IP:Port/xx where<br>"
+  "- IP = the device IP Address, for example 192.168.1.4<br>"
+  "- Port = the device Port number, for example 8080<br>"
+  "- xx = one of the codes below:<br>"
+  "60 = Show IO Control page<br>"
+  "61 = Show Address Settings page<br>"
+  "63 = Show Help Page 1<br>"
+  "64 = Show Help Page 2<br>"
+  "65 = Flash LED<br>"
+  "66 = Show Statistics<br>"
+  "67 = Clear Statistics<br>"
+  "91 = Reboot<br>"
+  "99 = Show Short Form IO Status<br>"
+  "</p>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/64' method='GET'><button title='Go to next Help page'>Next Help Page</button></form>"
+  "</body>"
+  "</html>";
+#endif // GPIO_SUPPORT == 3
+  
+#endif // HELP_SUPPORT == 1
+
+
+
+#if HELP_SUPPORT == 1
 // Help page 2
 #define WEBPAGE_HELP2		4
 #define PARSEBYTES_HELP2	0
@@ -539,11 +702,12 @@ static const char g_HtmlPageHelp2[] =
   " Netmask 255.255.255.0<br>"
   " Port 08080<br>"
   " MAC c2-4d-69-6b-65-00<br><br>"
-  "Code Revision 20200709 1200</p>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
+  "Code Revision 20200802 1800</p>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Go to IO Control Page'>IO Control</button></form>"
   "</body>"
   "</html>";
 #endif // HELP_SUPPORT == 1
+
 
 
 #if UIP_STATISTICS == 1
@@ -587,14 +751,15 @@ static const char g_HtmlPageStats[] =
   "<tr><td class='t1'>%e20xxxxxxxxxx</td><td class='t2'>Dropped SYNs due to too few connections avaliable</td></tr>"
   "<tr><td class='t1'>%e21xxxxxxxxxx</td><td class='t2'>SYNs for closed ports, triggering a RST</td></tr>"
   "</table>"
-  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Go to Relay Control Page'>Relay Controls</button></form>"
+  "<form style='display: inline' action='%x00http://192.168.001.004:08080/60' method='GET'><button title='Go to IO Control Page'>IO Control</button></form>"
   "<form style='display: inline' action='%x00http://192.168.001.004:08080/67' method='GET'><button title='Clear Statistics'>Clear Statistics</button></form>"
   "</body>"
   "</html>";
 #endif /* UIP_STATISTICS == 1 */
 
 
-// Shortened relay state page
+
+// Shortened IO state page
 // Mimics original Network Module relay state report
 #define WEBPAGE_RSTATE		6
 static const char g_HtmlPageRstate[] =
@@ -607,6 +772,7 @@ static const char g_HtmlPageRstate[] =
   "<p>%f00xxxxxxxxxxxxxxxx</p>"
   "</body>"
   "</html>";
+
 
 
 static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString)
@@ -889,6 +1055,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
       // %h - "OFF" radio button to control the Invert function for GPIO pins
       // %x - Indicates the start of the http field that identifies the IP Address
       //      and Port Number for the "Next Page". Output only.
+      // %z - A bogus variable inserted at the end of the form data to make sure
+      //      that all real data is followed by an & character. This helps to find
+      //      the end of variable length values in the POST form. The z value
+      //      itself is never used.
       
       if (nByte == '%') {
         *ppData = *ppData + 1;
@@ -1765,8 +1935,12 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // command specific action by the webserver. Following are the commands for the
 	  // Network Module.
 	  //
-	  // For 00-31, 55, and 56 you won’t see any screen updates unless you are already
-	  // on the Relay Control page or the Short Form Relay States page of the webserver.
+	  // For 00-15, 55, and 56 you won’t see any screen updates unless you are already
+	  // on the IO Control page or the Short Form IO States page of the webserver.
+	  // Note: Only those Relay ON/OFF commands that are specific to a build type will
+	  // work. For GPIO_SUPPORT = 1 the on/off commands for all 16 relays work. For
+	  // GPIO_SUPPORT = 2 the on/off commands for Relays 1 to 8 work. For GPIO_SUPPORT = 3
+	  // no on/off commands work.
 	  // http://IP/00  Relay-01OFF
 	  // http://IP/01  Relay-01ON
 	  // http://IP/02  Relay-02OFF
@@ -1802,7 +1976,7 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/55  All Relays ON
 	  // http://IP/56  All Relays OFF
 	  //
-	  // http://IP/60  Show Relay Control page
+	  // http://IP/60  Show IO Control page
 	  // http://IP/61  Show Address Settings page
 	  // http://IP/63  Show Help page
 	  // http://IP/64  Show Help2 page
@@ -1810,52 +1984,83 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/66  Show Statistics page
 	  // http://IP/67  Clear Statistics
 	  // http://IP/91  Reboot
-	  // http://IP/99  Show Short Form Relay States page
+	  // http://IP/99  Show Short Form IO States page
 	  //
           switch(pSocket->ParseNum)
 	  {
-	    case 0:  Relays_8to1 &= (uint8_t)(~0x01);  break; // Relay-01 OFF
-	    case 1:  Relays_8to1 |= (uint8_t)0x01;     break; // Relay-01 ON
-	    case 2:  Relays_8to1 &= (uint8_t)(~0x02);  break; // Relay-02 OFF
-	    case 3:  Relays_8to1 |= (uint8_t)0x02;     break; // Relay-02 ON
-	    case 4:  Relays_8to1 &= (uint8_t)(~0x04);  break; // Relay-03 OFF
-	    case 5:  Relays_8to1 |= (uint8_t)0x04;     break; // Relay-03 ON
-	    case 6:  Relays_8to1 &= (uint8_t)(~0x08);  break; // Relay-04 OFF
-	    case 7:  Relays_8to1 |= (uint8_t)0x08;     break; // Relay-04 ON
-	    case 8:  Relays_8to1 &= (uint8_t)(~0x10);  break; // Relay-05 OFF
-	    case 9:  Relays_8to1 |= (uint8_t)0x10;     break; // Relay-05 ON
-	    case 10: Relays_8to1 &= (uint8_t)(~0x20);  break; // Relay-06 OFF
-	    case 11: Relays_8to1 |= (uint8_t)0x20;     break; // Relay-06 ON
-	    case 12: Relays_8to1 &= (uint8_t)(~0x40);  break; // Relay-07 OFF
-	    case 13: Relays_8to1 |= (uint8_t)0x40;     break; // Relay-07 ON
-	    case 14: Relays_8to1 &= (uint8_t)(~0x80);  break; // Relay-08 OFF
-	    case 15: Relays_8to1 |= (uint8_t)0x80;     break; // Relay-08 ON
-	    case 16: Relays_16to9 &= (uint8_t)(~0x01); break; // Relay-09 OFF
-	    case 17: Relays_16to9 |= (uint8_t)0x01;    break; // Relay-09 ON
-	    case 18: Relays_16to9 &= (uint8_t)(~0x02); break; // Relay-10 OFF
-	    case 19: Relays_16to9 |= (uint8_t)0x02;    break; // Relay-10 ON
-	    case 20: Relays_16to9 &= (uint8_t)(~0x04); break; // Relay-11 OFF
-	    case 21: Relays_16to9 |= (uint8_t)0x04;    break; // Relay-11 ON
-	    case 22: Relays_16to9 &= (uint8_t)(~0x08); break; // Relay-12 OFF
-	    case 23: Relays_16to9 |= (uint8_t)0x08;    break; // Relay-12 ON
-	    case 24: Relays_16to9 &= (uint8_t)(~0x10); break; // Relay-13 OFF
-	    case 25: Relays_16to9 |= (uint8_t)0x10;    break; // Relay-13 ON
-	    case 26: Relays_16to9 &= (uint8_t)(~0x20); break; // Relay-14 OFF
-	    case 27: Relays_16to9 |= (uint8_t)0x20;    break; // Relay-14 ON
-	    case 28: Relays_16to9 &= (uint8_t)(~0x40); break; // Relay-15 OFF
-	    case 29: Relays_16to9 |= (uint8_t)0x40;    break; // Relay-15 ON
-	    case 30: Relays_16to9 &= (uint8_t)(~0x80); break; // Relay-16 OFF
-	    case 31: Relays_16to9 |= (uint8_t)0x80;    break; // Relay-16 ON
+#if GPIO_SUPPORT == 1 // Build control for 16 outputs
+	    case 0:  IO_8to1 &= (uint8_t)(~0x01);  break; // Relay-01 OFF
+	    case 1:  IO_8to1 |= (uint8_t)0x01;     break; // Relay-01 ON
+	    case 2:  IO_8to1 &= (uint8_t)(~0x02);  break; // Relay-02 OFF
+	    case 3:  IO_8to1 |= (uint8_t)0x02;     break; // Relay-02 ON
+	    case 4:  IO_8to1 &= (uint8_t)(~0x04);  break; // Relay-03 OFF
+	    case 5:  IO_8to1 |= (uint8_t)0x04;     break; // Relay-03 ON
+	    case 6:  IO_8to1 &= (uint8_t)(~0x08);  break; // Relay-04 OFF
+	    case 7:  IO_8to1 |= (uint8_t)0x08;     break; // Relay-04 ON
+	    case 8:  IO_8to1 &= (uint8_t)(~0x10);  break; // Relay-05 OFF
+	    case 9:  IO_8to1 |= (uint8_t)0x10;     break; // Relay-05 ON
+	    case 10: IO_8to1 &= (uint8_t)(~0x20);  break; // Relay-06 OFF
+	    case 11: IO_8to1 |= (uint8_t)0x20;     break; // Relay-06 ON
+	    case 12: IO_8to1 &= (uint8_t)(~0x40);  break; // Relay-07 OFF
+	    case 13: IO_8to1 |= (uint8_t)0x40;     break; // Relay-07 ON
+	    case 14: IO_8to1 &= (uint8_t)(~0x80);  break; // Relay-08 OFF
+	    case 15: IO_8to1 |= (uint8_t)0x80;     break; // Relay-08 ON
+	    case 16: IO_16to9 &= (uint8_t)(~0x01); break; // Relay-09 OFF
+	    case 17: IO_16to9 |= (uint8_t)0x01;    break; // Relay-09 ON
+	    case 18: IO_16to9 &= (uint8_t)(~0x02); break; // Relay-10 OFF
+	    case 19: IO_16to9 |= (uint8_t)0x02;    break; // Relay-10 ON
+	    case 20: IO_16to9 &= (uint8_t)(~0x04); break; // Relay-11 OFF
+	    case 21: IO_16to9 |= (uint8_t)0x04;    break; // Relay-11 ON
+	    case 22: IO_16to9 &= (uint8_t)(~0x08); break; // Relay-12 OFF
+	    case 23: IO_16to9 |= (uint8_t)0x08;    break; // Relay-12 ON
+	    case 24: IO_16to9 &= (uint8_t)(~0x10); break; // Relay-13 OFF
+	    case 25: IO_16to9 |= (uint8_t)0x10;    break; // Relay-13 ON
+	    case 26: IO_16to9 &= (uint8_t)(~0x20); break; // Relay-14 OFF
+	    case 27: IO_16to9 |= (uint8_t)0x20;    break; // Relay-14 ON
+	    case 28: IO_16to9 &= (uint8_t)(~0x40); break; // Relay-15 OFF
+	    case 29: IO_16to9 |= (uint8_t)0x40;    break; // Relay-15 ON
+	    case 30: IO_16to9 &= (uint8_t)(~0x80); break; // Relay-16 OFF
+	    case 31: IO_16to9 |= (uint8_t)0x80;    break; // Relay-16 ON
 	    case 55:
-  	      Relays_8to1 = (uint8_t)0xff; // Relays 1-8 ON
-  	      Relays_16to9 = (uint8_t)0xff; // Relays 9-16 ON
+  	      IO_8to1 = (uint8_t)0xff;  // Relays 1-8 ON
+  	      IO_16to9 = (uint8_t)0xff; // Relays 9-16 ON
 	      break;
 	    case 56:
-              Relays_8to1 = (uint8_t)0x00; // Relays 1-8 OFF
-              Relays_16to9 = (uint8_t)0x00; // Relays 9-16 OFF
+              IO_8to1 = (uint8_t)0x00;  // Relays 1-8 OFF
+              IO_16to9 = (uint8_t)0x00; // Relays 9-16 OFF
 	      break;
-	      
-	    case 60: // Show relay states page
+#endif // GPIO_SUPPORT == 1
+
+#if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
+	    case 0:  IO_8to1 &= (uint8_t)(~0x01);  break; // Relay-01 OFF
+	    case 1:  IO_8to1 |= (uint8_t)0x01;     break; // Relay-01 ON
+	    case 2:  IO_8to1 &= (uint8_t)(~0x02);  break; // Relay-02 OFF
+	    case 3:  IO_8to1 |= (uint8_t)0x02;     break; // Relay-02 ON
+	    case 4:  IO_8to1 &= (uint8_t)(~0x04);  break; // Relay-03 OFF
+	    case 5:  IO_8to1 |= (uint8_t)0x04;     break; // Relay-03 ON
+	    case 6:  IO_8to1 &= (uint8_t)(~0x08);  break; // Relay-04 OFF
+	    case 7:  IO_8to1 |= (uint8_t)0x08;     break; // Relay-04 ON
+	    case 8:  IO_8to1 &= (uint8_t)(~0x10);  break; // Relay-05 OFF
+	    case 9:  IO_8to1 |= (uint8_t)0x10;     break; // Relay-05 ON
+	    case 10: IO_8to1 &= (uint8_t)(~0x20);  break; // Relay-06 OFF
+	    case 11: IO_8to1 |= (uint8_t)0x20;     break; // Relay-06 ON
+	    case 12: IO_8to1 &= (uint8_t)(~0x40);  break; // Relay-07 OFF
+	    case 13: IO_8to1 |= (uint8_t)0x40;     break; // Relay-07 ON
+	    case 14: IO_8to1 &= (uint8_t)(~0x80);  break; // Relay-08 OFF
+	    case 15: IO_8to1 |= (uint8_t)0x80;     break; // Relay-08 ON
+	    case 55:
+  	      IO_8to1 = (uint8_t)0xff; // Relays 1-8 ON
+	      break;
+	    case 56:
+              IO_8to1 = (uint8_t)0x00; // Relays 1-8 OFF
+	      break;
+#endif // GPIO_SUPPORT == 2
+
+#if GPIO_SUPPORT == 3 // Build control for 16 inputs
+        // No Relay on/off commands supported (all pins are inputs)
+#endif // GPIO_SUPPORT == 3
+
+	    case 60: // Show IO states page
 	      current_webpage = WEBPAGE_DEFAULT;
               pSocket->pData = g_HtmlPageDefault;
               pSocket->nDataLeft = sizeof(g_HtmlPageDefault)-1;
@@ -1930,7 +2135,7 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      submit_changes = 2;
 	      break;
 	      
-            case 99: // Show simplified relay state page
+            case 99: // Show simplified IO state page
 	      current_webpage = WEBPAGE_RSTATE;
               pSocket->pData = g_HtmlPageRstate;
               pSocket->nDataLeft = sizeof(g_HtmlPageRstate)-1;
@@ -1939,7 +2144,7 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
 	      
-	    default: // Show relay state page
+	    default: // Show IO state page
 	      current_webpage = WEBPAGE_DEFAULT;
               pSocket->pData = g_HtmlPageDefault;
               pSocket->nDataLeft = sizeof(g_HtmlPageDefault)-1;
@@ -2023,27 +2228,29 @@ void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 uint8_t GpioGetPin(uint8_t nGpio)
 {
-  // Pin value (0 or 1)
-  if (nGpio == 0       && (Relays_8to1  & (uint8_t)(0x01))) return 1; // Relay-01 is ON
-  else if (nGpio == 1  && (Relays_8to1  & (uint8_t)(0x02))) return 1; // Relay-02 is ON
-  else if (nGpio == 2  && (Relays_8to1  & (uint8_t)(0x04))) return 1; // Relay-03 is ON
-  else if (nGpio == 3  && (Relays_8to1  & (uint8_t)(0x08))) return 1; // Relay-04 is ON
-  else if (nGpio == 4  && (Relays_8to1  & (uint8_t)(0x10))) return 1; // Relay-05 is ON
-  else if (nGpio == 5  && (Relays_8to1  & (uint8_t)(0x20))) return 1; // Relay-06 is ON
-  else if (nGpio == 6  && (Relays_8to1  & (uint8_t)(0x40))) return 1; // Relay-07 is ON
-  else if (nGpio == 7  && (Relays_8to1  & (uint8_t)(0x80))) return 1; // Relay-08 is ON
-  else if (nGpio == 8  && (Relays_16to9 & (uint8_t)(0x01))) return 1; // Relay-09 is ON
-  else if (nGpio == 9  && (Relays_16to9 & (uint8_t)(0x02))) return 1; // Relay-10 is ON
-  else if (nGpio == 10 && (Relays_16to9 & (uint8_t)(0x04))) return 1; // Relay-11 is ON
-  else if (nGpio == 11 && (Relays_16to9 & (uint8_t)(0x08))) return 1; // Relay-12 is ON
-  else if (nGpio == 12 && (Relays_16to9 & (uint8_t)(0x10))) return 1; // Relay-13 is ON
-  else if (nGpio == 13 && (Relays_16to9 & (uint8_t)(0x20))) return 1; // Relay-14 is ON
-  else if (nGpio == 14 && (Relays_16to9 & (uint8_t)(0x40))) return 1; // Relay-15 is ON
-  else if (nGpio == 15 && (Relays_16to9 & (uint8_t)(0x80))) return 1; // Relay-16 is ON
+  // This routine returns a 1 or 0 indicating the state of the requested IO pin
+  // (either input or output) as stored in the IO_8to1 and IO_16to9 variables.
+  if (nGpio == 0       && (IO_8to1  & (uint8_t)(0x01))) return 1;
+  else if (nGpio == 1  && (IO_8to1  & (uint8_t)(0x02))) return 1;
+  else if (nGpio == 2  && (IO_8to1  & (uint8_t)(0x04))) return 1;
+  else if (nGpio == 3  && (IO_8to1  & (uint8_t)(0x08))) return 1;
+  else if (nGpio == 4  && (IO_8to1  & (uint8_t)(0x10))) return 1;
+  else if (nGpio == 5  && (IO_8to1  & (uint8_t)(0x20))) return 1;
+  else if (nGpio == 6  && (IO_8to1  & (uint8_t)(0x40))) return 1;
+  else if (nGpio == 7  && (IO_8to1  & (uint8_t)(0x80))) return 1;
+  else if (nGpio == 8  && (IO_16to9 & (uint8_t)(0x01))) return 1;
+  else if (nGpio == 9  && (IO_16to9 & (uint8_t)(0x02))) return 1;
+  else if (nGpio == 10 && (IO_16to9 & (uint8_t)(0x04))) return 1;
+  else if (nGpio == 11 && (IO_16to9 & (uint8_t)(0x08))) return 1;
+  else if (nGpio == 12 && (IO_16to9 & (uint8_t)(0x10))) return 1;
+  else if (nGpio == 13 && (IO_16to9 & (uint8_t)(0x20))) return 1;
+  else if (nGpio == 14 && (IO_16to9 & (uint8_t)(0x40))) return 1;
+  else if (nGpio == 15 && (IO_16to9 & (uint8_t)(0x80))) return 1;
   return 0;
 }
 
 
+#if GPIO_SUPPORT == 1 // Build control for 16 outputs
 void GpioSetPin(uint8_t nGpio, uint8_t nState)
 {
   // Routine will set or clear Relays based on GUI input
@@ -2054,72 +2261,129 @@ void GpioSetPin(uint8_t nGpio, uint8_t nState)
   switch(nGpio)
   {
   case 0:
-    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x01); // Relay-01 OFF
-    else Relays_8to1 |= (uint8_t)0x01; // Relay-01 ON
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x01); // Relay-01 OFF
+    else IO_8to1 |= (uint8_t)0x01; // Relay-01 ON
     break;
   case 1:
-    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x02); // Relay-02 OFF
-    else Relays_8to1 |= (uint8_t)0x02; // Relay-02 ON
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x02); // Relay-02 OFF
+    else IO_8to1 |= (uint8_t)0x02; // Relay-02 ON
     break;
   case 2:
-    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x04); // Relay-03 OFF
-    else Relays_8to1 |= (uint8_t)0x04; // Relay-03 ON
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x04); // Relay-03 OFF
+    else IO_8to1 |= (uint8_t)0x04; // Relay-03 ON
     break;
   case 3:
-    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x08); // Relay-04 OFF
-    else Relays_8to1 |= (uint8_t)0x08; // Relay-04 ON
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x08); // Relay-04 OFF
+    else IO_8to1 |= (uint8_t)0x08; // Relay-04 ON
     break;
   case 4:
-    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x10); // Relay-05 OFF
-    else Relays_8to1 |= (uint8_t)0x10; // Relay-05 ON
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x10); // Relay-05 OFF
+    else IO_8to1 |= (uint8_t)0x10; // Relay-05 ON
     break;
   case 5:
-    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x20); // Relay-06 OFF
-    else Relays_8to1 |= (uint8_t)0x20; // Relay-06 ON
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x20); // Relay-06 OFF
+    else IO_8to1 |= (uint8_t)0x20; // Relay-06 ON
     break;
   case 6:
-    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x40); // Relay-07 OFF
-    else Relays_8to1 |= (uint8_t)0x40; // Relay-07 ON
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x40); // Relay-07 OFF
+    else IO_8to1 |= (uint8_t)0x40; // Relay-07 ON
     break;
   case 7:
-    if (nState == 0) Relays_8to1 &= (uint8_t)(~0x80); // Relay-08 OFF
-    else Relays_8to1 |= (uint8_t)0x80; // Relay-08 ON
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x80); // Relay-08 OFF
+    else IO_8to1 |= (uint8_t)0x80; // Relay-08 ON
     break;
   case 8:
-    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x01); // Relay-09 OFF
-    else Relays_16to9 |= (uint8_t)0x01; // Relay-09 ON
+    if (nState == 0) IO_16to9 &= (uint8_t)(~0x01); // Relay-09 OFF
+    else IO_16to9 |= (uint8_t)0x01; // Relay-09 ON
     break;
   case 9:
-    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x02); // Relay-10 OFF
-    else Relays_16to9 |= (uint8_t)0x02; // Relay-10 ON
+    if (nState == 0) IO_16to9 &= (uint8_t)(~0x02); // Relay-10 OFF
+    else IO_16to9 |= (uint8_t)0x02; // Relay-10 ON
     break;
   case 10:
-    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x04); // Relay-11 OFF
-    else Relays_16to9 |= (uint8_t)0x04; // Relay-11 ON
+    if (nState == 0) IO_16to9 &= (uint8_t)(~0x04); // Relay-11 OFF
+    else IO_16to9 |= (uint8_t)0x04; // Relay-11 ON
     break;
   case 11:
-    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x08); // Relay-12 OFF
-    else Relays_16to9 |= (uint8_t)0x08; // Relay-12 ON
+    if (nState == 0) IO_16to9 &= (uint8_t)(~0x08); // Relay-12 OFF
+    else IO_16to9 |= (uint8_t)0x08; // Relay-12 ON
     break;
   case 12:
-    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x10); // Relay-13 OFF
-    else Relays_16to9 |= (uint8_t)0x10; // Relay-13 ON
+    if (nState == 0) IO_16to9 &= (uint8_t)(~0x10); // Relay-13 OFF
+    else IO_16to9 |= (uint8_t)0x10; // Relay-13 ON
     break;
   case 13:
-    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x20); // Relay-14 OFF
-    else Relays_16to9 |= (uint8_t)0x20; // Relay-14 ON
+    if (nState == 0) IO_16to9 &= (uint8_t)(~0x20); // Relay-14 OFF
+    else IO_16to9 |= (uint8_t)0x20; // Relay-14 ON
     break;
   case 14:
-    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x40); // Relay-15 OFF
-    else Relays_16to9 |= (uint8_t)0x40; // Relay-15 ON
+    if (nState == 0) IO_16to9 &= (uint8_t)(~0x40); // Relay-15 OFF
+    else IO_16to9 |= (uint8_t)0x40; // Relay-15 ON
     break;
   case 15:
-    if (nState == 0) Relays_16to9 &= (uint8_t)(~0x80); // Relay-16 OFF
-    else Relays_16to9 |= (uint8_t)0x80; // Relay-16 ON
+    if (nState == 0) IO_16to9 &= (uint8_t)(~0x80); // Relay-16 OFF
+    else IO_16to9 |= (uint8_t)0x80; // Relay-16 ON
     break;
   default: break;
   }
 }
+#endif // GPIO_SUPPORT == 1
+
+
+#if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
+void GpioSetPin(uint8_t nGpio, uint8_t nState)
+{
+  // Routine will set or clear Relays based on GUI input
+  // nState is a digit, not a character
+
+  if (nState != 0 && nState != 1) nState = 1;
+
+  switch(nGpio)
+  {
+  case 0:
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x01); // Relay-01 OFF
+    else IO_8to1 |= (uint8_t)0x01; // Relay-01 ON
+    break;
+  case 1:
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x02); // Relay-02 OFF
+    else IO_8to1 |= (uint8_t)0x02; // Relay-02 ON
+    break;
+  case 2:
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x04); // Relay-03 OFF
+    else IO_8to1 |= (uint8_t)0x04; // Relay-03 ON
+    break;
+  case 3:
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x08); // Relay-04 OFF
+    else IO_8to1 |= (uint8_t)0x08; // Relay-04 ON
+    break;
+  case 4:
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x10); // Relay-05 OFF
+    else IO_8to1 |= (uint8_t)0x10; // Relay-05 ON
+    break;
+  case 5:
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x20); // Relay-06 OFF
+    else IO_8to1 |= (uint8_t)0x20; // Relay-06 ON
+    break;
+  case 6:
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x40); // Relay-07 OFF
+    else IO_8to1 |= (uint8_t)0x40; // Relay-07 ON
+    break;
+  case 7:
+    if (nState == 0) IO_8to1 &= (uint8_t)(~0x80); // Relay-08 OFF
+    else IO_8to1 |= (uint8_t)0x80; // Relay-08 ON
+    break;
+  default: break;
+  }
+}
+#endif // GPIO_SUPPORT == 2
+
+
+#if GPIO_SUPPORT == 3 // Build control for 16 inputs
+void GpioSetPin(uint8_t nGpio, uint8_t nState)
+{
+  // No Set Pin support - all pins are inputs
+}
+#endif // GPIO_SUPPORT == 3
 
 
 void SetAddresses(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2, uint8_t alpha3)

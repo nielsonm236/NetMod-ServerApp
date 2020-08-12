@@ -20,6 +20,8 @@ included in the file set in binary form for immediate programming into your devi
 want to manipulate the source code the selection of the configuration is available in the
 uipopt.h file.
 
+See videos listed in the Wiki.
+
 Tested with:
 - Firefox 77.0.1 64bit
 - Chrome 83.0.4103.106 64bit

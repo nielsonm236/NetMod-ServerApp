@@ -52,6 +52,8 @@ Many thanks to Carlos Ladeira for his help with user interface ideas, many hours
 his patience during development of the MQTT version of this code. His collaboration was extremely
 helpful.
 
+See videos listed in the Wiki.
+
 Tested with:
 - Firefox 82.0.3 64bit
 - Chrome 87.0.4280.66 64bit

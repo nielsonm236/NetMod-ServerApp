@@ -36,7 +36,7 @@ void gpio_init(void)
   // GPIO Definitions for 16 outputs
   //
   // Assumption is that power-on reset has set all GPIO to default
-  // states. This routine will set the GPIO registers to states for
+  // states. This function will set the GPIO registers to states for
   // the specific application (Network Module). Only the GPIO bits
   // that are attached to pins are manipulated here.
   //
@@ -174,7 +174,7 @@ void gpio_init(void)
   // GPIO Definitions for 8 outputs / 8 inputs
   //
   // Assumption is that power-on reset has set all GPIO to default
-  // states. This routine will set the GPIO registers to states for
+  // states. This function will set the GPIO registers to states for
   // the specific application (Network Module). Only the GPIO bits
   // that are attached to pins are manipulated here.
   //
@@ -317,7 +317,7 @@ void gpio_init(void)
   // GPIO Definitions for 16 inputs
   //
   // Assumption is that power-on reset has set all GPIO to default
-  // states. This routine will set the GPIO registers to states for
+  // states. This function will set the GPIO registers to states for
   // the specific application (Network Module). Only the GPIO bits
   // that are attached to pins are manipulated here.
   //

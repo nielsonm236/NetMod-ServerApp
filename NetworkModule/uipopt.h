@@ -101,14 +101,14 @@
 //
 // Comment MN: Experiment shows actual RAM consumption per connection to be 40
 // bytes.
-#define UIP_CONNS       6
+#define UIP_CONNS       4
 
 
 // The maximum number of simultaneously listening TCP ports. Each listening TCP
 // port requires 2 bytes of memory.
 //
 // Comment MN: Experiment shows the 2 bytes of RAM estimate to be correct.
-#define UIP_LISTENPORTS 5
+#define UIP_LISTENPORTS 2
 
 
 // The initial retransmission timeout counted in timer pulses.
@@ -128,9 +128,11 @@
 #define UIP_MAXSYNRTX      5
 
 
-// The TCP maximum segment size. This is should not be to set to more than
+// The TCP maximum segment size. This should not be to set to more than
 // UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN.
-#define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN)
+// In this application the headers occupy a total of 54 bytes.
+// #define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN)
+#define UIP_TCP_MSS     440
 
 
 // The size of the advertised receiver's window. Should be set low (i.e., to the
@@ -150,7 +152,8 @@
 
 // The size of the ARP table. This option should be set to a larger value if
 // this uIP node will have many connections from the local network.
-#define UIP_ARPTAB_SIZE 8
+// Comment MN: Experimentation shows each ARP table entry uses 11 bytes.
+#define UIP_ARPTAB_SIZE 4
 
 
 // The maxium age of ARP table entries measured in 10ths of seconds. A
@@ -165,14 +168,8 @@
 // The size of the uIP packet buffer. The uIP packet buffer should not be smaller
 // than 60 bytes, and does not need to be larger than 1500 bytes. Lower size
 // results in lower TCP throughput, larger size results in higher TCP throughput.
+// ENC28J60_MAXFRAME is defined in enc28j60.h
 #define UIP_BUFSIZE     ENC28J60_MAXFRAME
-
-
-// Determines if statistics support should be compiled in. The statistics are
-// useful for debugging and to show the user. If you are modifying the project
-// and need more program space eliminating the statistics pages and processes will
-// free up considerable space.
-#define UIP_STATISTICS  1
 
 
 // The link level header length. This is the offset into the uip_buf where the IP
@@ -191,24 +188,37 @@
 
 
 /*------------------------------------------------------------------------------*/
-/**
- * Application specific compile controls
- *
- * Controls whether the options for code compile. For instance:
- *  - Controls with/without Help web pages
- *  - Control number of relay outputs / sense inputs
- *      16 relay outputs (no inputs)
- *        OR
- *      8 relay outputs and 8 sense inputs
- *        OR
- *      16 sense inputs
- */
+// Application specific compile controls
+//
+// Controls whether the options for code compile. For instance:
+//  - Controls with/without Help web pages
+//  - Control number of relay outputs / sense inputs
+//      16 relay outputs (no inputs)
+//        OR
+//      8 relay outputs and 8 sense inputs
+//        OR
+//      16 sense inputs
+//  - Controls inclusion of MQTT support.
+//  - Controls full/half duplex support.
+//  - Contols inclusion of Debug support. This is only useful for development.
+
+
+// Determines if statistics support should be compiled in. The statistics are
+// useful for debugging and to show the user. If you are modifying the project
+// and need more program space eliminating the statistics pages and processes will
+// free up considerable space.
+// 0 = disabled
+// 1 = full statistics page
+// 2 = reduced statistics page DEVELOPMENT USE ONLY
+#define UIP_STATISTICS  0
 
 
 // Determines if help support should be compiled in. If you are modifying the
 // project and need more program space eliminating the help pages and processes
 // will free up considerable space.
-#define HELP_SUPPORT  1
+// 0 = disable
+// 1 = enable
+#define HELP_SUPPORT  0
 
 
 // Determines how many GPIO pins are relay control outputs and how many are
@@ -217,7 +227,36 @@
 // 1 = 16 relay outputs
 // 2 = 8 relay outputs / 8 sense inputs
 // 3 = 16 sense inputs
-#define GPIO_SUPPORT  1
+#define GPIO_SUPPORT  2
+
+
+// Determines if MQTT support is compiled in.
+// IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
+//   MQTT requires a lot of code space. For this reason if MQTT is enabled:
+//     HELP_SUPPORT *MUST* be turned OFF (set to 0)
+//     UIP_STATISTICS *MUST* be turned OFF (set to 0)
+//     GPIO_SUPPORT *MUST* be set to 8out/8in (set to 2)
+// 
+// 0 = disable
+// 1 = enable
+#define MQTT_SUPPORT 1
+
+
+// Determines if DEBUG code is compiled in
+// IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
+// DEBUG requires a lot of RAM and EEPROM - about 55 bytes depending on the number
+// of debug bytes collected. Be sure there is enough space available before
+// enabling.
+//
+// DEBUG support allocates EEPROM and RAM space to collect debug data and store it
+// in the EEPROM for viewing with the STVP programmer or Network Statistics special
+// debug display. THIS IS ONLY USEFUL DURING DEVELOPMENT AND THE DEFINITIONS MAY
+// CHANGE AT ANY TIME. 'DISABLE' IS THE RECOMMENED SETTING FOR MOST NORMAL BUILDS.
+// 0 = disable
+// 1 = enable
+// 2 = enable with "reset source" data collection
+// 3 = enable with "reset source" and "additional" data collection
+#define DEBUG_SUPPORT 0
 
 
 /*------------------------------------------------------------------------------*/

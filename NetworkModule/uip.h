@@ -153,6 +153,15 @@ typedef uip_ip4addr_t uip_ipaddr_t;
  */
 #define uip_getnetmask(addr) uip_ipaddr_copy((addr), uip_netmask)
 
+//#if MQTT_SUPPORT == 1
+/**
+ * Set the MQTT Server IP Address.
+ * addr - A pointer to a uip_ipaddr_t variable containing the IP address of
+ * the MQTT Server.
+ */
+#define uip_setmqttserveraddr(addr) uip_ipaddr_copy(uip_mqttserveraddr, (addr))
+//#endif // MQTT_SUPPORT == 1
+
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -299,6 +308,17 @@ void uip_setipid(uint16_t id);
  * Similar to uip_periodic_conn() but does not perform any timer processing.
  * The application is polled for new data.
  *
+ * conn - The number of the connection which is to be polled.
+ *
+ */
+#define uip_poll_one(conn) do { uip_conn = &uip_conns[conn]; \
+                                 uip_process(UIP_POLL_REQUEST); } while (0)
+
+/**
+ * Reuqest that a particular connection should be polled.
+ * Similar to uip_periodic_conn() but does not perform any timer processing.
+ * The application is polled for new data.
+ *
  * conn - A pointer to the uip_conn struct for the connection to be processed.
  *
  */
@@ -370,6 +390,42 @@ void uip_listen(uint16_t port);
  * port - A 16-bit port number in network byte order.
  */
 void uip_unlisten(uint16_t port);
+
+
+/**
+ * Connect to a remote host using TCP.
+ *
+ * This function is used to start a new connection to the specified
+ * port on the specied host. It allocates a new connection identifier,
+ * sets the connection to the SYN_SENT state and sets the
+ * retransmission timer to 0. This will cause a TCP SYN segment to be
+ * sent out the next time this connection is periodically processed,
+ * which usually is done within 0.5 seconds after the call to
+ * uip_connect().
+ *
+ * \note This function is avaliable only if support for active open
+ * has been configured by defining UIP_ACTIVE_OPEN to 1 in uipopt.h.
+ * CHANGED THIS TO MAKE THIS FUNCTION AVAILABLE ONLY FOR MQTT_SUPPORT == 1
+ *
+ * \note Since this function requires the port number to be in network
+ * byte order, a conversion using HTONS() or htons() is necessary.
+ *
+ \code
+ uip_ipaddr_t ipaddr;
+
+ uip_ipaddr(&ipaddr, 192,168,1,2);
+ uip_connect(&ipaddr, HTONS(80));
+ \endcode
+ *
+ * \param ripaddr The IP address of the remote host
+ * \param rport 16-bit port number of the remote host
+ * \param rport 16-bit port number of the local host
+ *
+ * \return A pointer to the uIP connection identifier for the new connection,
+ * or NULL if no connection could be allocated.
+ *
+ */
+struct uip_conn *uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport);
 
 
 /**
@@ -1051,6 +1107,9 @@ struct uip_icmpip_hdr {
 
 extern uip_ipaddr_t uip_hostaddr, uip_netmask, uip_draddr;
 
+// #if MQTT_SUPPORT == 1
+extern uip_ipaddr_t uip_mqttserveraddr;
+// #endif // MQTT_SUPPORT == 1
 
 
 /**

@@ -49,7 +49,9 @@
 #include "timer.h"
 #include "iostm8s005.h"
 #include "stm8s-005.h"
-
+#include "uip.h"
+#include "uipopt.h"
+#include "main.h"
 
 void spi_init(void)
 {
@@ -126,7 +128,7 @@ void SpiWriteChunk(const uint8_t* pChunk, uint16_t nBytes)
 {
   uint8_t bitnum;
   uint8_t OutByte;
-
+  
   while (nBytes--) {
     bitnum = (uint8_t)0x80;                          // Point at MSB
     OutByte = *pChunk++;
@@ -184,11 +186,11 @@ void SpiReadChunk(uint8_t* pChunk, uint16_t nBytes)
   // MSB is received first
   uint8_t bitnum;
   uint8_t InByte;
-
+  
   PC_ODR &= (uint8_t)(~0x08);                        // SO low
 
   while (nBytes--) {
-    bitnum = (uint8_t)0x80;                          // Point at MSB
+    bitnum = (uint8_t)0x80;                          // Point at MSBif
     InByte = 0;
     while(bitnum != 0) {
       // Read SI and set appropriate bit in InByte

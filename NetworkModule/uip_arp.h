@@ -146,4 +146,15 @@ void uip_arp_timer(void);
                               uip_ethaddr.addr[5] = eaddr.addr[5];} while(0)
 
 
+
+// #if MQTT_SUPPORT == 1
+// Send an ARP Request for a specific MQTT Server IP address
+// void uip_get_mqtt_server_mac(uip_ipaddr_t uip_mqttserveraddr);
+
+// Check for the MQTT Server entry in the ARP Table
+int check_mqtt_server_arp_entry(void);
+// #endif // MQTT_SUPPORT == 1
+
+
+
 #endif /* __UIP_ARP_H__ */

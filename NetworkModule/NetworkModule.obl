@@ -5,6 +5,8 @@
 "gpio.o"
 "httpd.o"
 "main.o"
+"mqtt.o"
+"mqtt_pal.o"
 "spi.o"
 "timer.o"
 "uip.o"

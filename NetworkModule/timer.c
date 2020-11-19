@@ -36,6 +36,8 @@ unsigned char arp_timer;  // Arp_timer counter. This counter is incremented by 1
                           // 500ms counter expires. It is checked in the arp_timer_expired function
 			  // until a count of 20 is reached (10 seconds) and cleared at that time.
 
+uint8_t second_toggle;    // MQTT timing: Used in developing a 1 second counter
+uint32_t second_counter;  // MQTT timing: 1 second counter
 
 void clock_init(void)
 {
@@ -133,7 +135,7 @@ void clock_init(void)
 
   // Notes on timers
   // The TIM1 counter can have a pre-scale value of any integer from 1
-  // to 65536, meaning the counter can be set to increment at any rate
+  // to 65535, meaning the counter can be set to increment at any rate
   // of 16MHz divided by the pre-scale value. See the TIM1_PSCRH and
   // TIM1_PSCRL registers.
   // The TIM2 and TIM3 counters can have a pre-scale value of 2 to the
@@ -165,26 +167,46 @@ void clock_init(void)
   // Set UG bit to load the PSCR. The bit is auto-cleared by hardware.
   TIM3_EGR = (uint8_t)0x01;
 
-  arp_timer = 0x00; // Initialize arp timer
+  arp_timer = 0x00;   // Initialize arp timer
+  second_toggle = 0;  // Initialize toggle for seconds counter
+  second_counter = 0; // Initialize seconds counter
 }
 
 
 uint8_t
 periodic_timer_expired(void)
 {
-  // This function checks for expiration of the periodic timer (TIM2) and
-  // if expired resets the timer to a count of zero so that it can repeat its
-  // 1ms uptick to 500ms.
+  // The periodic timer uses TIM2. TIM2 is incrementing at a 1.024ms rate.
+  //
+  // This function checks for a count in TIM2 of 98 (0x62) which is a time
+  // of ~100ms.  At this count the timer is reset to a count of zero so that
+  // it can repeat its 1ms uptick to 100ms.
   //
   // Each time the periodic timer is reset the arp_timer value is incremented
   // to create a 10 second count. The arp_timer_expired function will clear
   // the incremented value.
-  if ((uint8_t)TIM2_CNTRH > 1) {        // For simplification evaluate at 512ms
+  //
+  // Every 10th time the periodic timer is reset the second_counter is
+  // incremented. The second_counter is a 32 bit unsigned integer, so its
+  // lifetime is about 136 years if never power cycled - essentially forever 
+  // in this application.
+  //
+  if ((uint8_t)TIM2_CNTRL > 0x62) {     // Evaluate at 100ms
     TIM2_CR1 &= (uint8_t)(~0x01);	// Disable counter
     TIM2_CNTRH = (uint8_t)0x00;		// Clear counter High
     TIM2_CNTRL = (uint8_t)0x00;		// Clear counter Low
     TIM2_CR1 |= (uint8_t)0x01;		// Enable counter
-    arp_timer++;			// Increment arp_timer
+    
+    arp_timer++;			// Increment arp_timer every ~100 ms
+    
+    if (second_toggle < 10) {
+      second_toggle++;			// Increment second_toggle every ~100 ms
+    }
+    else {
+      second_toggle = 0;
+      second_counter++;			// Increment second_counter every ~1000 ms
+    }
+    
     return(1);
   }
   else return(0);
@@ -194,10 +216,10 @@ periodic_timer_expired(void)
 uint8_t
 arp_timer_expired(void)
 {
-  // This function checks for expiration of the arp timer and if expired
-  // resets the timer to a count of zero so that it can repeat its uptick to
-  // 10 seconds.
-  if (arp_timer > 19) {
+  // This function indicates expiration of the arp timer at a count indicating
+  // that 10 seconds have passed. If expired the function resets the arp_timer
+  // counter to zero so that it can repeat its uptick to 10 seconds.
+  if (arp_timer > 99) {
     arp_timer = 0;       // Reset arp_timer
     return(1);
   }
@@ -213,7 +235,7 @@ wait_timer(uint16_t wait)
   //
   // Call the function by supplying a wait value in micro-seconds. A 16 bit
   // unsigned value may be provided for a maximum of 50000 micro-seconds wait
-  // time. While the counter can count to 65536 it is recommended that a max
+  // time. While the counter can count to 65535 it is recommended that a max
   // wait of 50000 be used so that the code has time to evaluate. Call the
   // delay multiple times if more than 50000uS is needed.
   uint16_t counter;

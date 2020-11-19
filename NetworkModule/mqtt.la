@@ -1,0 +1,4003 @@
+   1                     ; C Compiler for STM8 (COSMIC Software)
+   2                     ; Parser V4.11.14 - 18 Nov 2019
+   3                     ; Generator (Limited) V4.4.11 - 19 Nov 2019
+   4                     ; Optimizer V4.4.11 - 19 Nov 2019
+ 508                     ; 77 int16_t mqtt_sync(struct mqtt_client *client)
+ 508                     ; 78 {
+ 510                     .text:	section	.text,new
+ 511  cc6a               _mqtt_sync:
+ 513  cc6a 89            	pushw	x
+ 514  cc6b 89            	pushw	x
+ 515       00000002      OFST:	set	2
+ 518                     ; 86     if ((uip_newdata() || uip_acked()) && uip_len > 0) {
+ 520  cc6c 720202b805    	btjt	_uip_flags,#1,L172
+ 522  cc71 720102b811    	btjf	_uip_flags,#0,L762
+ 523  cc76               L172:
+ 525  cc76 ce0363        	ldw	x,_uip_len
+ 526  cc79 270c          	jreq	L762
+ 527                     ; 87       err = __mqtt_recv(client);
+ 529  cc7b 1e03          	ldw	x,(OFST+1,sp)
+ 530  cc7d cdd390        	call	___mqtt_recv
+ 532  cc80 1f01          	ldw	(OFST-1,sp),x
+ 534                     ; 88       if (err != MQTT_OK) {
+ 536  cc82 a30001        	cpw	x,#1
+ 537                     ; 89         return err;
+ 540  cc85 2616          	jrne	L772
+ 541  cc87               L762:
+ 542                     ; 98     err = __mqtt_send(client);
+ 544  cc87 1e03          	ldw	x,(OFST+1,sp)
+ 545  cc89 cdd1b0        	call	___mqtt_send
+ 547  cc8c 1f01          	ldw	(OFST-1,sp),x
+ 549                     ; 101     if (err == MQTT_OK) {
+ 551  cc8e a30001        	cpw	x,#1
+ 552  cc91 2606          	jrne	L572
+ 553                     ; 102       MQTT_error_status = 1;
+ 555  cc93 3501028f      	mov	_MQTT_error_status,#1
+ 557  cc97 2004          	jra	L772
+ 558  cc99               L572:
+ 559                     ; 104     else MQTT_error_status = 0;
+ 561  cc99 725f028f      	clr	_MQTT_error_status
+ 562  cc9d               L772:
+ 563                     ; 105     return err;
+ 567  cc9d 5b04          	addw	sp,#4
+ 568  cc9f 81            	ret	
+ 631                     ; 109 uint16_t __mqtt_next_pid(struct mqtt_client *client)
+ 631                     ; 110 {
+ 632                     .text:	section	.text,new
+ 633  cca0               ___mqtt_next_pid:
+ 635  cca0 89            	pushw	x
+ 636  cca1 5204          	subw	sp,#4
+ 637       00000004      OFST:	set	4
+ 640                     ; 112     int16_t pid_exists = 0;
+ 642                     ; 113     if (client->pid_lfsr == 0) client->pid_lfsr = 163u;
+ 644  cca3 e601          	ld	a,(1,x)
+ 645  cca5 fa            	or	a,(x)
+ 646  cca6 2605          	jrne	L533
+ 649  cca8 90ae00a3      	ldw	y,#163
+ 650  ccac ff            	ldw	(x),y
+ 651  ccad               L533:
+ 652                     ; 119         unsigned lsb = client->pid_lfsr & 1;
+ 654  ccad 1e05          	ldw	x,(OFST+1,sp)
+ 655  ccaf fe            	ldw	x,(x)
+ 656  ccb0 01            	rrwa	x,a
+ 657  ccb1 a401          	and	a,#1
+ 658  ccb3 5f            	clrw	x
+ 659  ccb4 02            	rlwa	x,a
+ 660  ccb5 1f03          	ldw	(OFST-1,sp),x
+ 661  ccb7 01            	rrwa	x,a
+ 663                     ; 120         (client->pid_lfsr) >>= 1;
+ 665  ccb8 1e05          	ldw	x,(OFST+1,sp)
+ 666  ccba 74            	srl	(x)
+ 667  ccbb 6601          	rrc	(1,x)
+ 668                     ; 121         if (lsb) client->pid_lfsr ^= 0xB400u;
+ 670  ccbd 1e03          	ldw	x,(OFST-1,sp)
+ 671  ccbf 2706          	jreq	L343
+ 674  ccc1 1e05          	ldw	x,(OFST+1,sp)
+ 675  ccc3 f6            	ld	a,(x)
+ 676  ccc4 a8b4          	xor	a,#180
+ 677  ccc6 f7            	ld	(x),a
+ 678  ccc7               L343:
+ 679                     ; 124         pid_exists = 0;
+ 681  ccc7 5f            	clrw	x
+ 682  ccc8 1f03          	ldw	(OFST-1,sp),x
+ 684                     ; 125         for(curr = mqtt_mq_get(&(client->mq), 0); curr >= client->mq.queue_tail; --curr) {
+ 686  ccca 1e05          	ldw	x,(OFST+1,sp)
+ 687  cccc ee24          	ldw	x,(36,x)
+ 689  ccce 201b          	jra	L153
+ 690  ccd0               L543:
+ 691                     ; 126             if (curr->packet_id == client->pid_lfsr) {
+ 693  ccd0 1e01          	ldw	x,(OFST-3,sp)
+ 694  ccd2 1605          	ldw	y,(OFST+1,sp)
+ 695  ccd4 ee0a          	ldw	x,(10,x)
+ 696  ccd6 90f3          	cpw	x,(y)
+ 697  ccd8 260f          	jrne	L553
+ 698                     ; 127                 pid_exists = 1;
+ 700  ccda ae0001        	ldw	x,#1
+ 701  ccdd 1f03          	ldw	(OFST-1,sp),x
+ 703                     ; 128                 break;
+ 704  ccdf               L733:
+ 705                     ; 132     } while(pid_exists);
+ 707  ccdf 1e03          	ldw	x,(OFST-1,sp)
+ 708  cce1 26ca          	jrne	L533
+ 709                     ; 134     return client->pid_lfsr;
+ 711  cce3 1e05          	ldw	x,(OFST+1,sp)
+ 712  cce5 fe            	ldw	x,(x)
+ 715  cce6 5b06          	addw	sp,#6
+ 716  cce8 81            	ret	
+ 717  cce9               L553:
+ 718                     ; 125         for(curr = mqtt_mq_get(&(client->mq), 0); curr >= client->mq.queue_tail; --curr) {
+ 720  cce9 1e01          	ldw	x,(OFST-3,sp)
+ 721  cceb               L153:
+ 722  cceb 1d000c        	subw	x,#12
+ 723  ccee 1f01          	ldw	(OFST-3,sp),x
+ 727  ccf0 1e05          	ldw	x,(OFST+1,sp)
+ 728  ccf2 ee2a          	ldw	x,(42,x)
+ 729  ccf4 1301          	cpw	x,(OFST-3,sp)
+ 730  ccf6 23d8          	jrule	L543
+ 731  ccf8 20e5          	jra	L733
+ 815                     ; 138 int16_t mqtt_init(struct mqtt_client *client,
+ 815                     ; 139                uint8_t *sendbuf, uint16_t sendbufsz,
+ 815                     ; 140                uint8_t *recvbuf, uint16_t recvbufsz,
+ 815                     ; 141                void (*publish_response_callback)(void** state,struct mqtt_response_publish *publish))
+ 815                     ; 142 {
+ 816                     .text:	section	.text,new
+ 817  ccfa               _mqtt_init:
+ 819  ccfa 89            	pushw	x
+ 820       00000000      OFST:	set	0
+ 823                     ; 143     if (client == NULL || sendbuf == NULL || recvbuf == NULL) {
+ 825  ccfb 5d            	tnzw	x
+ 826  ccfc 2708          	jreq	L124
+ 828  ccfe 1e05          	ldw	x,(OFST+5,sp)
+ 829  cd00 2704          	jreq	L124
+ 831  cd02 1e09          	ldw	x,(OFST+9,sp)
+ 832  cd04 2605          	jrne	L714
+ 833  cd06               L124:
+ 834                     ; 144       return MQTT_ERROR_NULLPTR;
+ 836  cd06 ae8001        	ldw	x,#32769
+ 838  cd09 2044          	jra	L22
+ 839  cd0b               L714:
+ 840                     ; 147     mqtt_mq_init(&client->mq, sendbuf, sendbufsz);
+ 842  cd0b 1e07          	ldw	x,(OFST+7,sp)
+ 843  cd0d 89            	pushw	x
+ 844  cd0e 1e07          	ldw	x,(OFST+7,sp)
+ 845  cd10 89            	pushw	x
+ 846  cd11 1e05          	ldw	x,(OFST+5,sp)
+ 847  cd13 1c0022        	addw	x,#34
+ 848  cd16 cdddc1        	call	_mqtt_mq_init
+ 850  cd19 5b04          	addw	sp,#4
+ 851                     ; 149     client->recv_buffer.mem_start = recvbuf;
+ 853  cd1b 1e01          	ldw	x,(OFST+1,sp)
+ 854  cd1d 1609          	ldw	y,(OFST+9,sp)
+ 855  cd1f ef1a          	ldw	(26,x),y
+ 856                     ; 150     client->recv_buffer.mem_size = recvbufsz;
+ 858  cd21 160b          	ldw	y,(OFST+11,sp)
+ 859  cd23 ef1c          	ldw	(28,x),y
+ 860                     ; 151     client->recv_buffer.curr = client->recv_buffer.mem_start;
+ 862  cd25 9093          	ldw	y,x
+ 863  cd27 90ee1a        	ldw	y,(26,y)
+ 864  cd2a ef1e          	ldw	(30,x),y
+ 865                     ; 152     client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
+ 867  cd2c 9093          	ldw	y,x
+ 868  cd2e 90ee1c        	ldw	y,(28,y)
+ 869  cd31 ef20          	ldw	(32,x),y
+ 870                     ; 154     client->error = MQTT_ERROR_CONNECT_NOT_CALLED;
+ 872  cd33 90ae800f      	ldw	y,#32783
+ 873  cd37 ef0a          	ldw	(10,x),y
+ 874                     ; 155     client->response_timeout = 30;
+ 876  cd39 90ae001e      	ldw	y,#30
+ 877  cd3d ef0c          	ldw	(12,x),y
+ 878                     ; 156     client->number_of_timeouts = 0;
+ 880  cd3f 905f          	clrw	y
+ 881  cd41 ef0e          	ldw	(14,x),y
+ 882                     ; 157     client->publish_response_callback = publish_response_callback;
+ 884  cd43 160d          	ldw	y,(OFST+13,sp)
+ 885  cd45 ef10          	ldw	(16,x),y
+ 886                     ; 158     client->pid_lfsr = 0;
+ 888  cd47 905f          	clrw	y
+ 889  cd49 ff            	ldw	(x),y
+ 890                     ; 159     client->send_offset = 0;
+ 892  cd4a ef04          	ldw	(4,x),y
+ 893                     ; 161     return MQTT_OK;
+ 895  cd4c ae0001        	ldw	x,#1
+ 897  cd4f               L22:
+ 899  cd4f 5b02          	addw	sp,#2
+ 900  cd51 81            	ret	
+1030                     ; 228 int16_t mqtt_connect(struct mqtt_client *client,
+1030                     ; 229                      const char* client_id,
+1030                     ; 230                      const char* will_topic,
+1030                     ; 231                      const void* will_message,
+1030                     ; 232                      uint16_t will_message_size,
+1030                     ; 233                      const char* user_name,
+1030                     ; 234                      const char* password,
+1030                     ; 235                      uint8_t connect_flags,
+1030                     ; 236                      uint16_t keep_alive)
+1030                     ; 237 {
+1031                     .text:	section	.text,new
+1032  cd52               _mqtt_connect:
+1034  cd52 89            	pushw	x
+1035  cd53 89            	pushw	x
+1036       00000002      OFST:	set	2
+1039                     ; 242     client->keep_alive = keep_alive;
+1041  cd54 1614          	ldw	y,(OFST+18,sp)
+1042  cd56 ef02          	ldw	(2,x),y
+1043                     ; 244     if (client->error == MQTT_ERROR_CONNECT_NOT_CALLED) {
+1045  cd58 9093          	ldw	y,x
+1046  cd5a 90ee0a        	ldw	y,(10,y)
+1047  cd5d 90a3800f      	cpw	y,#32783
+1048  cd61 2606          	jrne	L705
+1049                     ; 245         client->error = MQTT_OK;
+1051  cd63 90ae0001      	ldw	y,#1
+1052  cd67 ef0a          	ldw	(10,x),y
+1053  cd69               L705:
+1054                     ; 249     MQTT_CLIENT_TRY_PACK(rv, msg, client, 
+1056  cd69 e60a          	ld	a,(10,x)
+1057  cd6b 2a04          	jrpl	L115
+1060  cd6d ee0a          	ldw	x,(10,x)
+1062  cd6f 2031          	jra	L63
+1063  cd71               L115:
+1066  cd71 1e14          	ldw	x,(OFST+18,sp)
+1067  cd73 89            	pushw	x
+1068  cd74 7b15          	ld	a,(OFST+19,sp)
+1069  cd76 88            	push	a
+1070  cd77 1e14          	ldw	x,(OFST+18,sp)
+1071  cd79 89            	pushw	x
+1072  cd7a 1e14          	ldw	x,(OFST+18,sp)
+1073  cd7c 89            	pushw	x
+1074  cd7d 1e14          	ldw	x,(OFST+18,sp)
+1075  cd7f 89            	pushw	x
+1076  cd80 1e14          	ldw	x,(OFST+18,sp)
+1077  cd82 89            	pushw	x
+1078  cd83 1e14          	ldw	x,(OFST+18,sp)
+1079  cd85 89            	pushw	x
+1080  cd86 1e14          	ldw	x,(OFST+18,sp)
+1081  cd88 89            	pushw	x
+1082  cd89 1e12          	ldw	x,(OFST+16,sp)
+1083  cd8b ee28          	ldw	x,(40,x)
+1084  cd8d 89            	pushw	x
+1085  cd8e 1e14          	ldw	x,(OFST+18,sp)
+1086  cd90 ee26          	ldw	x,(38,x)
+1087  cd92 cdd7d9        	call	_mqtt_pack_connection_request
+1089  cd95 5b11          	addw	sp,#17
+1090  cd97 1f01          	ldw	(OFST-1,sp),x
+1094  cd99 2a0a          	jrpl	L315
+1099  cd9b               LC001:
+1101  cd9b 1e03          	ldw	x,(OFST+1,sp)
+1102  cd9d 1601          	ldw	y,(OFST-1,sp)
+1103  cd9f ef0a          	ldw	(10,x),y
+1105  cda1 93            	ldw	x,y
+1107  cda2               L63:
+1109  cda2 5b04          	addw	sp,#4
+1110  cda4 81            	ret	
+1111  cda5               L315:
+1114  cda5 2641          	jrne	L515
+1117  cda7 1e03          	ldw	x,(OFST+1,sp)
+1118  cda9 1c0022        	addw	x,#34
+1119  cdac cdde77        	call	_mqtt_mq_clean
+1123  cdaf 1e14          	ldw	x,(OFST+18,sp)
+1124  cdb1 89            	pushw	x
+1125  cdb2 7b15          	ld	a,(OFST+19,sp)
+1126  cdb4 88            	push	a
+1127  cdb5 1e14          	ldw	x,(OFST+18,sp)
+1128  cdb7 89            	pushw	x
+1129  cdb8 1e14          	ldw	x,(OFST+18,sp)
+1130  cdba 89            	pushw	x
+1131  cdbb 1e14          	ldw	x,(OFST+18,sp)
+1132  cdbd 89            	pushw	x
+1133  cdbe 1e14          	ldw	x,(OFST+18,sp)
+1134  cdc0 89            	pushw	x
+1135  cdc1 1e14          	ldw	x,(OFST+18,sp)
+1136  cdc3 89            	pushw	x
+1137  cdc4 1e14          	ldw	x,(OFST+18,sp)
+1138  cdc6 89            	pushw	x
+1139  cdc7 1e12          	ldw	x,(OFST+16,sp)
+1140  cdc9 ee28          	ldw	x,(40,x)
+1141  cdcb 89            	pushw	x
+1142  cdcc 1e14          	ldw	x,(OFST+18,sp)
+1143  cdce ee26          	ldw	x,(38,x)
+1144  cdd0 cdd7d9        	call	_mqtt_pack_connection_request
+1146  cdd3 5b11          	addw	sp,#17
+1147  cdd5 1f01          	ldw	(OFST-1,sp),x
+1154  cdd7 2bc2          	jrmi	LC001
+1157  cdd9 260d          	jrne	L515
+1160  cddb 1e03          	ldw	x,(OFST+1,sp)
+1161  cddd 90ae8010      	ldw	y,#32784
+1162  cde1 ef0a          	ldw	(10,x),y
+1165  cde3 ae8010        	ldw	x,#32784
+1167  cde6 20ba          	jra	L63
+1168  cde8               L515:
+1171  cde8 89            	pushw	x
+1172  cde9 1e05          	ldw	x,(OFST+3,sp)
+1173  cdeb 1c0022        	addw	x,#34
+1174  cdee cdde10        	call	_mqtt_mq_register
+1176  cdf1 5b02          	addw	sp,#2
+1178                     ; 266     msg->control_type = MQTT_CONTROL_CONNECT;
+1181  cdf3 a601          	ld	a,#1
+1182  cdf5 e709          	ld	(9,x),a
+1183                     ; 268     return MQTT_OK;
+1185  cdf7 ae0001        	ldw	x,#1
+1187  cdfa 20a6          	jra	L63
+1290                     ; 272 int16_t mqtt_publish(struct mqtt_client *client,
+1290                     ; 273                      const char* topic_name,
+1290                     ; 274                      const void* application_message,
+1290                     ; 275                      uint16_t application_message_size,
+1290                     ; 276                      uint8_t publish_flags)
+1290                     ; 277 {
+1291                     .text:	section	.text,new
+1292  cdfc               _mqtt_publish:
+1294  cdfc 89            	pushw	x
+1295  cdfd 5204          	subw	sp,#4
+1296       00000004      OFST:	set	4
+1299                     ; 281     packet_id = __mqtt_next_pid(client);
+1301  cdff cdcca0        	call	___mqtt_next_pid
+1303  ce02 1f01          	ldw	(OFST-3,sp),x
+1305                     ; 284     MQTT_CLIENT_TRY_PACK(
+1307  ce04 1e05          	ldw	x,(OFST+1,sp)
+1308  ce06 e60a          	ld	a,(10,x)
+1309  ce08 2a04          	jrpl	L575
+1312  ce0a ee0a          	ldw	x,(10,x)
+1314  ce0c 2028          	jra	L45
+1315  ce0e               L575:
+1318  ce0e 7b0f          	ld	a,(OFST+11,sp)
+1319  ce10 88            	push	a
+1320  ce11 1e0e          	ldw	x,(OFST+10,sp)
+1321  ce13 89            	pushw	x
+1322  ce14 1e0e          	ldw	x,(OFST+10,sp)
+1323  ce16 89            	pushw	x
+1324  ce17 1e06          	ldw	x,(OFST+2,sp)
+1325  ce19 89            	pushw	x
+1326  ce1a 1e10          	ldw	x,(OFST+12,sp)
+1327  ce1c 89            	pushw	x
+1328  ce1d 1e0e          	ldw	x,(OFST+10,sp)
+1329  ce1f ee28          	ldw	x,(40,x)
+1330  ce21 89            	pushw	x
+1331  ce22 1e10          	ldw	x,(OFST+12,sp)
+1332  ce24 ee26          	ldw	x,(38,x)
+1333  ce26 cdd9d3        	call	_mqtt_pack_publish_request
+1335  ce29 5b0b          	addw	sp,#11
+1336  ce2b 1f03          	ldw	(OFST-1,sp),x
+1340  ce2d 2a0a          	jrpl	L775
+1345  ce2f               LC002:
+1347  ce2f 1e05          	ldw	x,(OFST+1,sp)
+1348  ce31 1603          	ldw	y,(OFST-1,sp)
+1349  ce33 ef0a          	ldw	(10,x),y
+1351  ce35 93            	ldw	x,y
+1353  ce36               L45:
+1355  ce36 5b06          	addw	sp,#6
+1356  ce38 81            	ret	
+1357  ce39               L775:
+1360  ce39 2638          	jrne	L106
+1363  ce3b 1e05          	ldw	x,(OFST+1,sp)
+1364  ce3d 1c0022        	addw	x,#34
+1365  ce40 cdde77        	call	_mqtt_mq_clean
+1369  ce43 7b0f          	ld	a,(OFST+11,sp)
+1370  ce45 88            	push	a
+1371  ce46 1e0e          	ldw	x,(OFST+10,sp)
+1372  ce48 89            	pushw	x
+1373  ce49 1e0e          	ldw	x,(OFST+10,sp)
+1374  ce4b 89            	pushw	x
+1375  ce4c 1e06          	ldw	x,(OFST+2,sp)
+1376  ce4e 89            	pushw	x
+1377  ce4f 1e10          	ldw	x,(OFST+12,sp)
+1378  ce51 89            	pushw	x
+1379  ce52 1e0e          	ldw	x,(OFST+10,sp)
+1380  ce54 ee28          	ldw	x,(40,x)
+1381  ce56 89            	pushw	x
+1382  ce57 1e10          	ldw	x,(OFST+12,sp)
+1383  ce59 ee26          	ldw	x,(38,x)
+1384  ce5b cdd9d3        	call	_mqtt_pack_publish_request
+1386  ce5e 5b0b          	addw	sp,#11
+1387  ce60 1f03          	ldw	(OFST-1,sp),x
+1394  ce62 2bcb          	jrmi	LC002
+1397  ce64 260d          	jrne	L106
+1400  ce66 1e05          	ldw	x,(OFST+1,sp)
+1401  ce68 90ae8010      	ldw	y,#32784
+1402  ce6c ef0a          	ldw	(10,x),y
+1405  ce6e ae8010        	ldw	x,#32784
+1407  ce71 20c3          	jra	L45
+1408  ce73               L106:
+1411  ce73 89            	pushw	x
+1412  ce74 1e07          	ldw	x,(OFST+3,sp)
+1413  ce76 1c0022        	addw	x,#34
+1414  ce79 cdde10        	call	_mqtt_mq_register
+1416  ce7c 5b02          	addw	sp,#2
+1417  ce7e 1f03          	ldw	(OFST-1,sp),x
+1419                     ; 298     msg->control_type = MQTT_CONTROL_PUBLISH;
+1422  ce80 a603          	ld	a,#3
+1423  ce82 e709          	ld	(9,x),a
+1424                     ; 299     msg->packet_id = packet_id;
+1426  ce84 1601          	ldw	y,(OFST-3,sp)
+1427  ce86 ef0a          	ldw	(10,x),y
+1428                     ; 301     return MQTT_OK;
+1430  ce88 ae0001        	ldw	x,#1
+1432  ce8b 20a9          	jra	L45
+1498                     ; 305 int16_t __mqtt_puback(struct mqtt_client *client, uint16_t packet_id) {
+1499                     .text:	section	.text,new
+1500  ce8d               ___mqtt_puback:
+1502  ce8d 89            	pushw	x
+1503  ce8e 89            	pushw	x
+1504       00000002      OFST:	set	2
+1507                     ; 310     MQTT_CLIENT_TRY_PACK(
+1509  ce8f e60a          	ld	a,(10,x)
+1510  ce91 2a04          	jrpl	L546
+1513  ce93 ee0a          	ldw	x,(10,x)
+1515  ce95 201e          	jra	L07
+1516  ce97               L546:
+1519  ce97 1e07          	ldw	x,(OFST+5,sp)
+1520  ce99 89            	pushw	x
+1521  ce9a 4b04          	push	#4
+1522  ce9c 1e06          	ldw	x,(OFST+4,sp)
+1523  ce9e ee28          	ldw	x,(40,x)
+1524  cea0 89            	pushw	x
+1525  cea1 1e08          	ldw	x,(OFST+6,sp)
+1526  cea3 ee26          	ldw	x,(38,x)
+1527  cea5 cddb6f        	call	_mqtt_pack_pubxxx_request
+1529  cea8 5b05          	addw	sp,#5
+1530  ceaa 1f01          	ldw	(OFST-1,sp),x
+1534  ceac 2a0a          	jrpl	L746
+1539  ceae               LC003:
+1541  ceae 1e03          	ldw	x,(OFST+1,sp)
+1542  ceb0 1601          	ldw	y,(OFST-1,sp)
+1543  ceb2 ef0a          	ldw	(10,x),y
+1545  ceb4 93            	ldw	x,y
+1547  ceb5               L07:
+1549  ceb5 5b04          	addw	sp,#4
+1550  ceb7 81            	ret	
+1551  ceb8               L746:
+1554  ceb8 262e          	jrne	L156
+1557  ceba 1e03          	ldw	x,(OFST+1,sp)
+1558  cebc 1c0022        	addw	x,#34
+1559  cebf cdde77        	call	_mqtt_mq_clean
+1563  cec2 1e07          	ldw	x,(OFST+5,sp)
+1564  cec4 89            	pushw	x
+1565  cec5 4b04          	push	#4
+1566  cec7 1e06          	ldw	x,(OFST+4,sp)
+1567  cec9 ee28          	ldw	x,(40,x)
+1568  cecb 89            	pushw	x
+1569  cecc 1e08          	ldw	x,(OFST+6,sp)
+1570  cece ee26          	ldw	x,(38,x)
+1571  ced0 cddb6f        	call	_mqtt_pack_pubxxx_request
+1573  ced3 5b05          	addw	sp,#5
+1574  ced5 1f01          	ldw	(OFST-1,sp),x
+1581  ced7 2bd5          	jrmi	LC003
+1584  ced9 260d          	jrne	L156
+1587  cedb 1e03          	ldw	x,(OFST+1,sp)
+1588  cedd 90ae8010      	ldw	y,#32784
+1589  cee1 ef0a          	ldw	(10,x),y
+1592  cee3 ae8010        	ldw	x,#32784
+1594  cee6 20cd          	jra	L07
+1595  cee8               L156:
+1598  cee8 89            	pushw	x
+1599  cee9 1e05          	ldw	x,(OFST+3,sp)
+1600  ceeb 1c0022        	addw	x,#34
+1601  ceee cdde10        	call	_mqtt_mq_register
+1603  cef1 5b02          	addw	sp,#2
+1604  cef3 1f01          	ldw	(OFST-1,sp),x
+1606                     ; 321     msg->control_type = MQTT_CONTROL_PUBACK;
+1609  cef5 a604          	ld	a,#4
+1610  cef7 e709          	ld	(9,x),a
+1611                     ; 322     msg->packet_id = packet_id;
+1613  cef9 1607          	ldw	y,(OFST+5,sp)
+1614  cefb ef0a          	ldw	(10,x),y
+1615                     ; 324     return MQTT_OK;
+1617  cefd ae0001        	ldw	x,#1
+1619  cf00 20b3          	jra	L07
+1685                     ; 328 int16_t __mqtt_pubrec(struct mqtt_client *client, uint16_t packet_id)
+1685                     ; 329 {
+1686                     .text:	section	.text,new
+1687  cf02               ___mqtt_pubrec:
+1689  cf02 89            	pushw	x
+1690  cf03 89            	pushw	x
+1691       00000002      OFST:	set	2
+1694                     ; 334     MQTT_CLIENT_TRY_PACK(
+1696  cf04 e60a          	ld	a,(10,x)
+1697  cf06 2a04          	jrpl	L517
+1700  cf08 ee0a          	ldw	x,(10,x)
+1702  cf0a 201e          	jra	L401
+1703  cf0c               L517:
+1706  cf0c 1e07          	ldw	x,(OFST+5,sp)
+1707  cf0e 89            	pushw	x
+1708  cf0f 4b05          	push	#5
+1709  cf11 1e06          	ldw	x,(OFST+4,sp)
+1710  cf13 ee28          	ldw	x,(40,x)
+1711  cf15 89            	pushw	x
+1712  cf16 1e08          	ldw	x,(OFST+6,sp)
+1713  cf18 ee26          	ldw	x,(38,x)
+1714  cf1a cddb6f        	call	_mqtt_pack_pubxxx_request
+1716  cf1d 5b05          	addw	sp,#5
+1717  cf1f 1f01          	ldw	(OFST-1,sp),x
+1721  cf21 2a0a          	jrpl	L717
+1726  cf23               LC004:
+1728  cf23 1e03          	ldw	x,(OFST+1,sp)
+1729  cf25 1601          	ldw	y,(OFST-1,sp)
+1730  cf27 ef0a          	ldw	(10,x),y
+1732  cf29 93            	ldw	x,y
+1734  cf2a               L401:
+1736  cf2a 5b04          	addw	sp,#4
+1737  cf2c 81            	ret	
+1738  cf2d               L717:
+1741  cf2d 262e          	jrne	L127
+1744  cf2f 1e03          	ldw	x,(OFST+1,sp)
+1745  cf31 1c0022        	addw	x,#34
+1746  cf34 cdde77        	call	_mqtt_mq_clean
+1750  cf37 1e07          	ldw	x,(OFST+5,sp)
+1751  cf39 89            	pushw	x
+1752  cf3a 4b05          	push	#5
+1753  cf3c 1e06          	ldw	x,(OFST+4,sp)
+1754  cf3e ee28          	ldw	x,(40,x)
+1755  cf40 89            	pushw	x
+1756  cf41 1e08          	ldw	x,(OFST+6,sp)
+1757  cf43 ee26          	ldw	x,(38,x)
+1758  cf45 cddb6f        	call	_mqtt_pack_pubxxx_request
+1760  cf48 5b05          	addw	sp,#5
+1761  cf4a 1f01          	ldw	(OFST-1,sp),x
+1768  cf4c 2bd5          	jrmi	LC004
+1771  cf4e 260d          	jrne	L127
+1774  cf50 1e03          	ldw	x,(OFST+1,sp)
+1775  cf52 90ae8010      	ldw	y,#32784
+1776  cf56 ef0a          	ldw	(10,x),y
+1779  cf58 ae8010        	ldw	x,#32784
+1781  cf5b 20cd          	jra	L401
+1782  cf5d               L127:
+1785  cf5d 89            	pushw	x
+1786  cf5e 1e05          	ldw	x,(OFST+3,sp)
+1787  cf60 1c0022        	addw	x,#34
+1788  cf63 cdde10        	call	_mqtt_mq_register
+1790  cf66 5b02          	addw	sp,#2
+1791  cf68 1f01          	ldw	(OFST-1,sp),x
+1793                     ; 345     msg->control_type = MQTT_CONTROL_PUBREC;
+1796  cf6a a605          	ld	a,#5
+1797  cf6c e709          	ld	(9,x),a
+1798                     ; 346     msg->packet_id = packet_id;
+1800  cf6e 1607          	ldw	y,(OFST+5,sp)
+1801  cf70 ef0a          	ldw	(10,x),y
+1802                     ; 348     return MQTT_OK;
+1804  cf72 ae0001        	ldw	x,#1
+1806  cf75 20b3          	jra	L401
+1872                     ; 352 int16_t __mqtt_pubrel(struct mqtt_client *client, uint16_t packet_id)
+1872                     ; 353 {
+1873                     .text:	section	.text,new
+1874  cf77               ___mqtt_pubrel:
+1876  cf77 89            	pushw	x
+1877  cf78 89            	pushw	x
+1878       00000002      OFST:	set	2
+1881                     ; 358     MQTT_CLIENT_TRY_PACK(
+1883  cf79 e60a          	ld	a,(10,x)
+1884  cf7b 2a04          	jrpl	L567
+1887  cf7d ee0a          	ldw	x,(10,x)
+1889  cf7f 201e          	jra	L021
+1890  cf81               L567:
+1893  cf81 1e07          	ldw	x,(OFST+5,sp)
+1894  cf83 89            	pushw	x
+1895  cf84 4b06          	push	#6
+1896  cf86 1e06          	ldw	x,(OFST+4,sp)
+1897  cf88 ee28          	ldw	x,(40,x)
+1898  cf8a 89            	pushw	x
+1899  cf8b 1e08          	ldw	x,(OFST+6,sp)
+1900  cf8d ee26          	ldw	x,(38,x)
+1901  cf8f cddb6f        	call	_mqtt_pack_pubxxx_request
+1903  cf92 5b05          	addw	sp,#5
+1904  cf94 1f01          	ldw	(OFST-1,sp),x
+1908  cf96 2a0a          	jrpl	L767
+1913  cf98               LC005:
+1915  cf98 1e03          	ldw	x,(OFST+1,sp)
+1916  cf9a 1601          	ldw	y,(OFST-1,sp)
+1917  cf9c ef0a          	ldw	(10,x),y
+1919  cf9e 93            	ldw	x,y
+1921  cf9f               L021:
+1923  cf9f 5b04          	addw	sp,#4
+1924  cfa1 81            	ret	
+1925  cfa2               L767:
+1928  cfa2 262e          	jrne	L177
+1931  cfa4 1e03          	ldw	x,(OFST+1,sp)
+1932  cfa6 1c0022        	addw	x,#34
+1933  cfa9 cdde77        	call	_mqtt_mq_clean
+1937  cfac 1e07          	ldw	x,(OFST+5,sp)
+1938  cfae 89            	pushw	x
+1939  cfaf 4b06          	push	#6
+1940  cfb1 1e06          	ldw	x,(OFST+4,sp)
+1941  cfb3 ee28          	ldw	x,(40,x)
+1942  cfb5 89            	pushw	x
+1943  cfb6 1e08          	ldw	x,(OFST+6,sp)
+1944  cfb8 ee26          	ldw	x,(38,x)
+1945  cfba cddb6f        	call	_mqtt_pack_pubxxx_request
+1947  cfbd 5b05          	addw	sp,#5
+1948  cfbf 1f01          	ldw	(OFST-1,sp),x
+1955  cfc1 2bd5          	jrmi	LC005
+1958  cfc3 260d          	jrne	L177
+1961  cfc5 1e03          	ldw	x,(OFST+1,sp)
+1962  cfc7 90ae8010      	ldw	y,#32784
+1963  cfcb ef0a          	ldw	(10,x),y
+1966  cfcd ae8010        	ldw	x,#32784
+1968  cfd0 20cd          	jra	L021
+1969  cfd2               L177:
+1972  cfd2 89            	pushw	x
+1973  cfd3 1e05          	ldw	x,(OFST+3,sp)
+1974  cfd5 1c0022        	addw	x,#34
+1975  cfd8 cdde10        	call	_mqtt_mq_register
+1977  cfdb 5b02          	addw	sp,#2
+1978  cfdd 1f01          	ldw	(OFST-1,sp),x
+1980                     ; 369     msg->control_type = MQTT_CONTROL_PUBREL;
+1983  cfdf a606          	ld	a,#6
+1984  cfe1 e709          	ld	(9,x),a
+1985                     ; 370     msg->packet_id = packet_id;
+1987  cfe3 1607          	ldw	y,(OFST+5,sp)
+1988  cfe5 ef0a          	ldw	(10,x),y
+1989                     ; 372     return MQTT_OK;
+1991  cfe7 ae0001        	ldw	x,#1
+1993  cfea 20b3          	jra	L021
+2059                     ; 376 int16_t __mqtt_pubcomp(struct mqtt_client *client, uint16_t packet_id)
+2059                     ; 377 {
+2060                     .text:	section	.text,new
+2061  cfec               ___mqtt_pubcomp:
+2063  cfec 89            	pushw	x
+2064  cfed 89            	pushw	x
+2065       00000002      OFST:	set	2
+2068                     ; 382     MQTT_CLIENT_TRY_PACK(
+2070  cfee e60a          	ld	a,(10,x)
+2071  cff0 2a04          	jrpl	L5301
+2074  cff2 ee0a          	ldw	x,(10,x)
+2076  cff4 201e          	jra	L431
+2077  cff6               L5301:
+2080  cff6 1e07          	ldw	x,(OFST+5,sp)
+2081  cff8 89            	pushw	x
+2082  cff9 4b07          	push	#7
+2083  cffb 1e06          	ldw	x,(OFST+4,sp)
+2084  cffd ee28          	ldw	x,(40,x)
+2085  cfff 89            	pushw	x
+2086  d000 1e08          	ldw	x,(OFST+6,sp)
+2087  d002 ee26          	ldw	x,(38,x)
+2088  d004 cddb6f        	call	_mqtt_pack_pubxxx_request
+2090  d007 5b05          	addw	sp,#5
+2091  d009 1f01          	ldw	(OFST-1,sp),x
+2095  d00b 2a0a          	jrpl	L7301
+2100  d00d               LC006:
+2102  d00d 1e03          	ldw	x,(OFST+1,sp)
+2103  d00f 1601          	ldw	y,(OFST-1,sp)
+2104  d011 ef0a          	ldw	(10,x),y
+2106  d013 93            	ldw	x,y
+2108  d014               L431:
+2110  d014 5b04          	addw	sp,#4
+2111  d016 81            	ret	
+2112  d017               L7301:
+2115  d017 262e          	jrne	L1401
+2118  d019 1e03          	ldw	x,(OFST+1,sp)
+2119  d01b 1c0022        	addw	x,#34
+2120  d01e cdde77        	call	_mqtt_mq_clean
+2124  d021 1e07          	ldw	x,(OFST+5,sp)
+2125  d023 89            	pushw	x
+2126  d024 4b07          	push	#7
+2127  d026 1e06          	ldw	x,(OFST+4,sp)
+2128  d028 ee28          	ldw	x,(40,x)
+2129  d02a 89            	pushw	x
+2130  d02b 1e08          	ldw	x,(OFST+6,sp)
+2131  d02d ee26          	ldw	x,(38,x)
+2132  d02f cddb6f        	call	_mqtt_pack_pubxxx_request
+2134  d032 5b05          	addw	sp,#5
+2135  d034 1f01          	ldw	(OFST-1,sp),x
+2142  d036 2bd5          	jrmi	LC006
+2145  d038 260d          	jrne	L1401
+2148  d03a 1e03          	ldw	x,(OFST+1,sp)
+2149  d03c 90ae8010      	ldw	y,#32784
+2150  d040 ef0a          	ldw	(10,x),y
+2153  d042 ae8010        	ldw	x,#32784
+2155  d045 20cd          	jra	L431
+2156  d047               L1401:
+2159  d047 89            	pushw	x
+2160  d048 1e05          	ldw	x,(OFST+3,sp)
+2161  d04a 1c0022        	addw	x,#34
+2162  d04d cdde10        	call	_mqtt_mq_register
+2164  d050 5b02          	addw	sp,#2
+2165  d052 1f01          	ldw	(OFST-1,sp),x
+2167                     ; 393     msg->control_type = MQTT_CONTROL_PUBCOMP;
+2170  d054 a607          	ld	a,#7
+2171  d056 e709          	ld	(9,x),a
+2172                     ; 394     msg->packet_id = packet_id;
+2174  d058 1607          	ldw	y,(OFST+5,sp)
+2175  d05a ef0a          	ldw	(10,x),y
+2176                     ; 396     return MQTT_OK;
+2178  d05c ae0001        	ldw	x,#1
+2180  d05f 20b3          	jra	L431
+2264                     ; 400 int16_t mqtt_subscribe(struct mqtt_client *client,
+2264                     ; 401                        const char* topic_name,
+2264                     ; 402                        int16_t max_qos_level)
+2264                     ; 403 {
+2265                     .text:	section	.text,new
+2266  d061               _mqtt_subscribe:
+2268  d061 89            	pushw	x
+2269  d062 5204          	subw	sp,#4
+2270       00000004      OFST:	set	4
+2273                     ; 407     packet_id = __mqtt_next_pid(client);
+2275  d064 cdcca0        	call	___mqtt_next_pid
+2277  d067 1f01          	ldw	(OFST-3,sp),x
+2279                     ; 410     MQTT_CLIENT_TRY_PACK(
+2281  d069 1e05          	ldw	x,(OFST+1,sp)
+2282  d06b e60a          	ld	a,(10,x)
+2283  d06d 2a04          	jrpl	L3111
+2286  d06f ee0a          	ldw	x,(10,x)
+2288  d071 2024          	jra	L251
+2289  d073               L3111:
+2292  d073 5f            	clrw	x
+2293  d074 89            	pushw	x
+2294  d075 1e0d          	ldw	x,(OFST+9,sp)
+2295  d077 89            	pushw	x
+2296  d078 1e0d          	ldw	x,(OFST+9,sp)
+2297  d07a 89            	pushw	x
+2298  d07b 1e07          	ldw	x,(OFST+3,sp)
+2299  d07d 89            	pushw	x
+2300  d07e 1e0d          	ldw	x,(OFST+9,sp)
+2301  d080 ee28          	ldw	x,(40,x)
+2302  d082 89            	pushw	x
+2303  d083 1e0f          	ldw	x,(OFST+11,sp)
+2304  d085 ee26          	ldw	x,(38,x)
+2305  d087 cddc7b        	call	_mqtt_pack_subscribe_request
+2307  d08a 5b0a          	addw	sp,#10
+2308  d08c 1f03          	ldw	(OFST-1,sp),x
+2312  d08e 2a0a          	jrpl	L5111
+2317  d090               LC007:
+2319  d090 1e05          	ldw	x,(OFST+1,sp)
+2320  d092 1603          	ldw	y,(OFST-1,sp)
+2321  d094 ef0a          	ldw	(10,x),y
+2323  d096 93            	ldw	x,y
+2325  d097               L251:
+2327  d097 5b06          	addw	sp,#6
+2328  d099 81            	ret	
+2329  d09a               L5111:
+2332  d09a 2634          	jrne	L7111
+2335  d09c 1e05          	ldw	x,(OFST+1,sp)
+2336  d09e 1c0022        	addw	x,#34
+2337  d0a1 cdde77        	call	_mqtt_mq_clean
+2341  d0a4 5f            	clrw	x
+2342  d0a5 89            	pushw	x
+2343  d0a6 1e0d          	ldw	x,(OFST+9,sp)
+2344  d0a8 89            	pushw	x
+2345  d0a9 1e0d          	ldw	x,(OFST+9,sp)
+2346  d0ab 89            	pushw	x
+2347  d0ac 1e07          	ldw	x,(OFST+3,sp)
+2348  d0ae 89            	pushw	x
+2349  d0af 1e0d          	ldw	x,(OFST+9,sp)
+2350  d0b1 ee28          	ldw	x,(40,x)
+2351  d0b3 89            	pushw	x
+2352  d0b4 1e0f          	ldw	x,(OFST+11,sp)
+2353  d0b6 ee26          	ldw	x,(38,x)
+2354  d0b8 cddc7b        	call	_mqtt_pack_subscribe_request
+2356  d0bb 5b0a          	addw	sp,#10
+2357  d0bd 1f03          	ldw	(OFST-1,sp),x
+2364  d0bf 2bcf          	jrmi	LC007
+2367  d0c1 260d          	jrne	L7111
+2370  d0c3 1e05          	ldw	x,(OFST+1,sp)
+2371  d0c5 90ae8010      	ldw	y,#32784
+2372  d0c9 ef0a          	ldw	(10,x),y
+2375  d0cb ae8010        	ldw	x,#32784
+2377  d0ce 20c7          	jra	L251
+2378  d0d0               L7111:
+2381  d0d0 89            	pushw	x
+2382  d0d1 1e07          	ldw	x,(OFST+3,sp)
+2383  d0d3 1c0022        	addw	x,#34
+2384  d0d6 cdde10        	call	_mqtt_mq_register
+2386  d0d9 5b02          	addw	sp,#2
+2387  d0db 1f03          	ldw	(OFST-1,sp),x
+2389                     ; 423     msg->control_type = MQTT_CONTROL_SUBSCRIBE;
+2392  d0dd a608          	ld	a,#8
+2393  d0df e709          	ld	(9,x),a
+2394                     ; 424     msg->packet_id = packet_id;
+2396  d0e1 1601          	ldw	y,(OFST-3,sp)
+2397  d0e3 ef0a          	ldw	(10,x),y
+2398                     ; 425     return MQTT_OK;
+2400  d0e5 ae0001        	ldw	x,#1
+2402  d0e8 20ad          	jra	L251
+2479                     ; 429 int16_t mqtt_unsubscribe(struct mqtt_client *client,
+2479                     ; 430                          const char* topic_name)
+2479                     ; 431 {
+2480                     .text:	section	.text,new
+2481                     _mqtt_unsubscribe:
+2483                     	pushw	x
+2484                     	subw	sp,#4
+2485       00000004      OFST:	set	4
+2488                     ; 432     uint16_t packet_id = __mqtt_next_pid(client);
+2490                     	call	___mqtt_next_pid
+2492                     	ldw	(OFST-3,sp),x
+2494                     ; 437     MQTT_CLIENT_TRY_PACK(
+2496                     	ldw	x,(OFST+1,sp)
+2497                     	ld	a,(10,x)
+2498                     	jrpl	L7611
+2501                     	ldw	x,(10,x)
+2503                     	jra	L071
+2504                     L7611:
+2507                     	clrw	x
+2508                     	pushw	x
+2509                     	ldw	x,(OFST+7,sp)
+2510                     	pushw	x
+2511                     	ldw	x,(OFST+1,sp)
+2512                     	pushw	x
+2513                     	ldw	x,(OFST+7,sp)
+2514                     	ldw	x,(40,x)
+2515                     	pushw	x
+2516                     	ldw	x,(OFST+9,sp)
+2517                     	ldw	x,(38,x)
+2518                     	call	_mqtt_pack_unsubscribe_request
+2520                     	addw	sp,#8
+2521                     	ldw	(OFST-1,sp),x
+2525                     	jrpl	L1711
+2530                     LC008:
+2532                     	ldw	x,(OFST+1,sp)
+2533                     	ldw	y,(OFST-1,sp)
+2534                     	ldw	(10,x),y
+2536                     	ldw	x,y
+2538                     L071:
+2540                     	addw	sp,#6
+2541                     	ret	
+2542                     L1711:
+2545                     	jrne	L3711
+2548                     	ldw	x,(OFST+1,sp)
+2549                     	addw	x,#34
+2550                     	call	_mqtt_mq_clean
+2554                     	clrw	x
+2555                     	pushw	x
+2556                     	ldw	x,(OFST+7,sp)
+2557                     	pushw	x
+2558                     	ldw	x,(OFST+1,sp)
+2559                     	pushw	x
+2560                     	ldw	x,(OFST+7,sp)
+2561                     	ldw	x,(40,x)
+2562                     	pushw	x
+2563                     	ldw	x,(OFST+9,sp)
+2564                     	ldw	x,(38,x)
+2565                     	call	_mqtt_pack_unsubscribe_request
+2567                     	addw	sp,#8
+2568                     	ldw	(OFST-1,sp),x
+2575                     	jrmi	LC008
+2578                     	jrne	L3711
+2581                     	ldw	x,(OFST+1,sp)
+2582                     	ldw	y,#32784
+2583                     	ldw	(10,x),y
+2586                     	ldw	x,#32784
+2588                     	jra	L071
+2589                     L3711:
+2592                     	pushw	x
+2593                     	ldw	x,(OFST+3,sp)
+2594                     	addw	x,#34
+2595                     	call	_mqtt_mq_register
+2597                     	addw	sp,#2
+2598                     	ldw	(OFST-1,sp),x
+2600                     ; 449     msg->control_type = MQTT_CONTROL_UNSUBSCRIBE;
+2603                     	ld	a,#10
+2604                     	ld	(9,x),a
+2605                     ; 450     msg->packet_id = packet_id;
+2607                     	ldw	y,(OFST-3,sp)
+2608                     	ldw	(10,x),y
+2609                     ; 452     return MQTT_OK;
+2611                     	ldw	x,#1
+2613                     	jra	L071
+2658                     ; 456 int16_t mqtt_ping(struct mqtt_client *client)
+2658                     ; 457 {
+2659                     .text:	section	.text,new
+2660                     _mqtt_ping:
+2662                     	pushw	x
+2663       00000002      OFST:	set	2
+2666                     ; 459     rv = __mqtt_ping(client);
+2668                     	call	___mqtt_ping
+2671                     ; 460     return rv;
+2675                     	addw	sp,#2
+2676                     	ret	
+2735                     ; 464 int16_t __mqtt_ping(struct mqtt_client *client) 
+2735                     ; 465 {
+2736                     .text:	section	.text,new
+2737  d0ea               ___mqtt_ping:
+2739  d0ea 89            	pushw	x
+2740  d0eb 89            	pushw	x
+2741       00000002      OFST:	set	2
+2744                     ; 470     MQTT_CLIENT_TRY_PACK(
+2746  d0ec e60a          	ld	a,(10,x)
+2747  d0ee 2a04          	jrpl	L7521
+2750  d0f0 ee0a          	ldw	x,(10,x)
+2752  d0f2 2017          	jra	L012
+2753  d0f4               L7521:
+2756  d0f4 ee28          	ldw	x,(40,x)
+2757  d0f6 89            	pushw	x
+2758  d0f7 1e05          	ldw	x,(OFST+3,sp)
+2759  d0f9 ee26          	ldw	x,(38,x)
+2760  d0fb cdd9b3        	call	_mqtt_pack_ping_request
+2762  d0fe 5b02          	addw	sp,#2
+2763  d100 1f01          	ldw	(OFST-1,sp),x
+2767  d102 2a0a          	jrpl	L1621
+2772  d104               LC009:
+2774  d104 1e03          	ldw	x,(OFST+1,sp)
+2775  d106 1601          	ldw	y,(OFST-1,sp)
+2776  d108 ef0a          	ldw	(10,x),y
+2778  d10a 93            	ldw	x,y
+2780  d10b               L012:
+2782  d10b 5b04          	addw	sp,#4
+2783  d10d 81            	ret	
+2784  d10e               L1621:
+2787  d10e 2629          	jrne	L3621
+2790  d110 1e03          	ldw	x,(OFST+1,sp)
+2791  d112 1c0022        	addw	x,#34
+2792  d115 cdde77        	call	_mqtt_mq_clean
+2796  d118 1e03          	ldw	x,(OFST+1,sp)
+2797  d11a ee28          	ldw	x,(40,x)
+2798  d11c 89            	pushw	x
+2799  d11d 1e05          	ldw	x,(OFST+3,sp)
+2800  d11f ee26          	ldw	x,(38,x)
+2801  d121 cdd9b3        	call	_mqtt_pack_ping_request
+2803  d124 5b02          	addw	sp,#2
+2804  d126 1f01          	ldw	(OFST-1,sp),x
+2811  d128 2bda          	jrmi	LC009
+2814  d12a 260d          	jrne	L3621
+2817  d12c 1e03          	ldw	x,(OFST+1,sp)
+2818  d12e 90ae8010      	ldw	y,#32784
+2819  d132 ef0a          	ldw	(10,x),y
+2822  d134 ae8010        	ldw	x,#32784
+2824  d137 20d2          	jra	L012
+2825  d139               L3621:
+2828  d139 89            	pushw	x
+2829  d13a 1e05          	ldw	x,(OFST+3,sp)
+2830  d13c 1c0022        	addw	x,#34
+2831  d13f cdde10        	call	_mqtt_mq_register
+2833  d142 5b02          	addw	sp,#2
+2835                     ; 479     msg->control_type = MQTT_CONTROL_PINGREQ;
+2838  d144 a60c          	ld	a,#12
+2839  d146 e709          	ld	(9,x),a
+2840                     ; 481     return MQTT_OK;
+2842  d148 ae0001        	ldw	x,#1
+2844  d14b 20be          	jra	L012
+2903                     ; 485 int16_t mqtt_disconnect(struct mqtt_client *client) 
+2903                     ; 486 {
+2904                     .text:	section	.text,new
+2905  d14d               _mqtt_disconnect:
+2907  d14d 89            	pushw	x
+2908  d14e 89            	pushw	x
+2909       00000002      OFST:	set	2
+2912                     ; 491     MQTT_CLIENT_TRY_PACK(
+2914  d14f e60a          	ld	a,(10,x)
+2915  d151 2a04          	jrpl	L5231
+2918  d153 ee0a          	ldw	x,(10,x)
+2920  d155 2017          	jra	L422
+2921  d157               L5231:
+2924  d157 ee28          	ldw	x,(40,x)
+2925  d159 89            	pushw	x
+2926  d15a 1e05          	ldw	x,(OFST+3,sp)
+2927  d15c ee26          	ldw	x,(38,x)
+2928  d15e cdd993        	call	_mqtt_pack_disconnect
+2930  d161 5b02          	addw	sp,#2
+2931  d163 1f01          	ldw	(OFST-1,sp),x
+2935  d165 2a0a          	jrpl	L7231
+2940  d167               LC010:
+2942  d167 1e03          	ldw	x,(OFST+1,sp)
+2943  d169 1601          	ldw	y,(OFST-1,sp)
+2944  d16b ef0a          	ldw	(10,x),y
+2946  d16d 93            	ldw	x,y
+2948  d16e               L422:
+2950  d16e 5b04          	addw	sp,#4
+2951  d170 81            	ret	
+2952  d171               L7231:
+2955  d171 2629          	jrne	L1331
+2958  d173 1e03          	ldw	x,(OFST+1,sp)
+2959  d175 1c0022        	addw	x,#34
+2960  d178 cdde77        	call	_mqtt_mq_clean
+2964  d17b 1e03          	ldw	x,(OFST+1,sp)
+2965  d17d ee28          	ldw	x,(40,x)
+2966  d17f 89            	pushw	x
+2967  d180 1e05          	ldw	x,(OFST+3,sp)
+2968  d182 ee26          	ldw	x,(38,x)
+2969  d184 cdd993        	call	_mqtt_pack_disconnect
+2971  d187 5b02          	addw	sp,#2
+2972  d189 1f01          	ldw	(OFST-1,sp),x
+2979  d18b 2bda          	jrmi	LC010
+2982  d18d 260d          	jrne	L1331
+2985  d18f 1e03          	ldw	x,(OFST+1,sp)
+2986  d191 90ae8010      	ldw	y,#32784
+2987  d195 ef0a          	ldw	(10,x),y
+2990  d197 ae8010        	ldw	x,#32784
+2992  d19a 20d2          	jra	L422
+2993  d19c               L1331:
+2996  d19c 89            	pushw	x
+2997  d19d 1e05          	ldw	x,(OFST+3,sp)
+2998  d19f 1c0022        	addw	x,#34
+2999  d1a2 cdde10        	call	_mqtt_mq_register
+3001  d1a5 5b02          	addw	sp,#2
+3003                     ; 500     msg->control_type = MQTT_CONTROL_DISCONNECT;
+3006  d1a7 a60e          	ld	a,#14
+3007  d1a9 e709          	ld	(9,x),a
+3008                     ; 502     return MQTT_OK;
+3010  d1ab ae0001        	ldw	x,#1
+3012  d1ae 20be          	jra	L422
+3120                     ; 506 int16_t __mqtt_send(struct mqtt_client *client) 
+3120                     ; 507 {
+3121                     .text:	section	.text,new
+3122  d1b0               ___mqtt_send:
+3124  d1b0 89            	pushw	x
+3125  d1b1 520d          	subw	sp,#13
+3126       0000000d      OFST:	set	13
+3129                     ; 510     int16_t inflight_qos2 = 0;
+3131  d1b3 5f            	clrw	x
+3132  d1b4 1f07          	ldw	(OFST-6,sp),x
+3134                     ; 511     int16_t i = 0;
+3136  d1b6 1f0b          	ldw	(OFST-2,sp),x
+3138                     ; 513     if (client->error < 0 && client->error != MQTT_ERROR_SEND_BUFFER_IS_FULL) {
+3140  d1b8 1e0e          	ldw	x,(OFST+1,sp)
+3141  d1ba 6d0a          	tnz	(10,x)
+3142  d1bc 2a10          	jrpl	L1241
+3144  d1be 9093          	ldw	y,x
+3145  d1c0 90ee0a        	ldw	y,(10,y)
+3146  d1c3 90a38010      	cpw	y,#32784
+3147  d1c7 2705          	jreq	L1241
+3148                     ; 514       return client->error;
+3150  d1c9 ee0a          	ldw	x,(10,x)
+3152  d1cb ccd293        	jra	L432
+3153  d1ce               L1241:
+3154                     ; 518     len = mqtt_mq_length(&client->mq);
+3156  d1ce ee24          	ldw	x,(36,x)
+3157  d1d0 160e          	ldw	y,(OFST+1,sp)
+3158  d1d2 01            	rrwa	x,a
+3159  d1d3 90e02b        	sub	a,(43,y)
+3160  d1d6 01            	rrwa	x,a
+3161  d1d7 90e22a        	sbc	a,(42,y)
+3162  d1da 01            	rrwa	x,a
+3163  d1db a60c          	ld	a,#12
+3164  d1dd cdf77c        	call	c_sdivx
+3166  d1e0 1f09          	ldw	(OFST-4,sp),x
+3169  d1e2 ccd37e        	jra	L7241
+3170  d1e5               L3241:
+3171                     ; 520         struct mqtt_queued_message *msg = mqtt_mq_get(&client->mq, i);
+3173  d1e5 a60c          	ld	a,#12
+3174  d1e7 cdf37d        	call	c_bmulx
+3176  d1ea 1f01          	ldw	(OFST-12,sp),x
+3178  d1ec 1e0e          	ldw	x,(OFST+1,sp)
+3179  d1ee ee24          	ldw	x,(36,x)
+3180  d1f0 1d000c        	subw	x,#12
+3181  d1f3 72f001        	subw	x,(OFST-12,sp)
+3182  d1f6 1f05          	ldw	(OFST-8,sp),x
+3184                     ; 521         int16_t resend = 0;
+3186  d1f8 5f            	clrw	x
+3187  d1f9 1f03          	ldw	(OFST-10,sp),x
+3189                     ; 522         if (msg->state == MQTT_QUEUED_UNSENT) {
+3191  d1fb 1e05          	ldw	x,(OFST-8,sp)
+3192  d1fd e604          	ld	a,(4,x)
+3193  d1ff 2607          	jrne	L3341
+3194                     ; 524             resend = 1;
+3196  d201 ae0001        	ldw	x,#1
+3197  d204 1f03          	ldw	(OFST-10,sp),x
+3200  d206 202f          	jra	L5341
+3201  d208               L3341:
+3202                     ; 526 	else if (msg->state == MQTT_QUEUED_AWAITING_ACK) {
+3204  d208 4a            	dec	a
+3205  d209 262c          	jrne	L5341
+3206                     ; 528             if (second_counter > msg->time_sent + client->response_timeout) {
+3208  d20b 1e0e          	ldw	x,(OFST+1,sp)
+3209  d20d ee0c          	ldw	x,(12,x)
+3210  d20f cdf549        	call	c_itolx
+3212  d212 1e05          	ldw	x,(OFST-8,sp)
+3213  d214 1c0005        	addw	x,#5
+3214  d217 cdf57b        	call	c_ladd
+3216  d21a ae0290        	ldw	x,#_second_counter
+3217  d21d cdf593        	call	c_lcmp
+3219  d220 2415          	jruge	L5341
+3220                     ; 529                 resend = 1;
+3222  d222 ae0001        	ldw	x,#1
+3223  d225 1f03          	ldw	(OFST-10,sp),x
+3225                     ; 530                 client->number_of_timeouts += 1;
+3227  d227 1e0e          	ldw	x,(OFST+1,sp)
+3228  d229 9093          	ldw	y,x
+3229  d22b ee0e          	ldw	x,(14,x)
+3230  d22d 5c            	incw	x
+3231  d22e 90ef0e        	ldw	(14,y),x
+3232                     ; 531                 client->send_offset = 0;
+3234  d231 1e0e          	ldw	x,(OFST+1,sp)
+3235  d233 905f          	clrw	y
+3236  d235 ef04          	ldw	(4,x),y
+3237  d237               L5341:
+3238                     ; 536         if (msg->control_type == MQTT_CONTROL_PUBLISH
+3238                     ; 537             && (msg->state == MQTT_QUEUED_UNSENT || msg->state == MQTT_QUEUED_AWAITING_ACK)) 
+3240  d237 1e05          	ldw	x,(OFST-8,sp)
+3241  d239 e609          	ld	a,(9,x)
+3242  d23b a103          	cp	a,#3
+3243  d23d 261f          	jrne	L3441
+3245  d23f e604          	ld	a,(4,x)
+3246  d241 2704          	jreq	L5441
+3248  d243 a101          	cp	a,#1
+3249  d245 2617          	jrne	L3441
+3250  d247               L5441:
+3251                     ; 539             inspected = (uint8_t)(0x03 & ((msg->start[0]) >> 1)); // qos
+3253  d247 fe            	ldw	x,(x)
+3254  d248 f6            	ld	a,(x)
+3255  d249 a406          	and	a,#6
+3256  d24b 44            	srl	a
+3257  d24c 6b0d          	ld	(OFST+0,sp),a
+3259                     ; 540             if (inspected == 2) {
+3261  d24e a102          	cp	a,#2
+3262  d250 260c          	jrne	L3441
+3263                     ; 541                 if (inflight_qos2) resend = 0;
+3265  d252 1e07          	ldw	x,(OFST-6,sp)
+3266  d254 2703          	jreq	L1541
+3269  d256 5f            	clrw	x
+3270  d257 1f03          	ldw	(OFST-10,sp),x
+3272  d259               L1541:
+3273                     ; 542                 inflight_qos2 = 1;
+3275  d259 ae0001        	ldw	x,#1
+3276  d25c 1f07          	ldw	(OFST-6,sp),x
+3278  d25e               L3441:
+3279                     ; 547         if (!resend) continue;
+3281  d25e 1e03          	ldw	x,(OFST-10,sp)
+3282  d260 2603ccd355    	jreq	L5241
+3285                     ; 551           int16_t tmp = mqtt_pal_sendall(msg->start + client->send_offset, msg->size - client->send_offset);
+3287  d265 1e05          	ldw	x,(OFST-8,sp)
+3288  d267 160e          	ldw	y,(OFST+1,sp)
+3289  d269 ee02          	ldw	x,(2,x)
+3290  d26b 01            	rrwa	x,a
+3291  d26c 90e005        	sub	a,(5,y)
+3292  d26f 01            	rrwa	x,a
+3293  d270 90e204        	sbc	a,(4,y)
+3294  d273 01            	rrwa	x,a
+3295  d274 89            	pushw	x
+3296  d275 1e10          	ldw	x,(OFST+3,sp)
+3297  d277 1607          	ldw	y,(OFST-6,sp)
+3298  d279 ee04          	ldw	x,(4,x)
+3299  d27b 01            	rrwa	x,a
+3300  d27c 90eb01        	add	a,(1,y)
+3301  d27f 01            	rrwa	x,a
+3302  d280 90f9          	adc	a,(y)
+3303  d282 01            	rrwa	x,a
+3304  d283 cde129        	call	_mqtt_pal_sendall
+3306  d286 5b02          	addw	sp,#2
+3307  d288 1f03          	ldw	(OFST-10,sp),x
+3309                     ; 554           if (tmp < 0) {
+3311  d28a 2a0a          	jrpl	L5541
+3312                     ; 555             client->error = tmp;
+3314  d28c 1e0e          	ldw	x,(OFST+1,sp)
+3315  d28e 1603          	ldw	y,(OFST-10,sp)
+3316                     ; 556             return tmp;
+3318  d290               LC014:
+3319  d290 ef0a          	ldw	(10,x),y
+3321  d292 93            	ldw	x,y
+3323  d293               L432:
+3325  d293 5b0f          	addw	sp,#15
+3326  d295 81            	ret	
+3327  d296               L5541:
+3328                     ; 559             client->send_offset += tmp;
+3330  d296 1e0e          	ldw	x,(OFST+1,sp)
+3331  d298 9093          	ldw	y,x
+3332  d29a ee04          	ldw	x,(4,x)
+3333  d29c 72fb03        	addw	x,(OFST-10,sp)
+3334  d29f 90ef04        	ldw	(4,y),x
+3335                     ; 560             if(client->send_offset < msg->size) {
+3337  d2a2 1e0e          	ldw	x,(OFST+1,sp)
+3338  d2a4 1605          	ldw	y,(OFST-8,sp)
+3339  d2a6 ee04          	ldw	x,(4,x)
+3340  d2a8 90e302        	cpw	x,(2,y)
+3341  d2ab 2441          	jruge	L1641
+3342                     ; 562               break;
+3343  d2ad               L1341:
+3344                     ; 629         uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((float)(client->keep_alive) * 0.75);
+3346  d2ad 1e0e          	ldw	x,(OFST+1,sp)
+3347  d2af ee02          	ldw	x,(2,x)
+3348  d2b1 cdf7a1        	call	c_uitof
+3350  d2b4 ae9d68        	ldw	x,#L5051
+3351  d2b7 cdf3f1        	call	c_fmul
+3353  d2ba cdf4cc        	call	c_ftol
+3355  d2bd 1e0e          	ldw	x,(OFST+1,sp)
+3356  d2bf 1c0006        	addw	x,#6
+3357  d2c2 cdf57b        	call	c_ladd
+3359  d2c5 96            	ldw	x,sp
+3360  d2c6 1c0003        	addw	x,#OFST-10
+3361  d2c9 cdf764        	call	c_rtol
+3364                     ; 630         if (second_counter > keep_alive_timeout) {
+3366  d2cc ae0290        	ldw	x,#_second_counter
+3367  d2cf cdf5fe        	call	c_ltor
+3369  d2d2 96            	ldw	x,sp
+3370  d2d3 1c0003        	addw	x,#OFST-10
+3371  d2d6 cdf593        	call	c_lcmp
+3373  d2d9 2203ccd38a    	jrule	L1151
+3374                     ; 631           int16_t rv = __mqtt_ping(client);
+3376  d2de 1e0e          	ldw	x,(OFST+1,sp)
+3377  d2e0 cdd0ea        	call	___mqtt_ping
+3379  d2e3 1f09          	ldw	(OFST-4,sp),x
+3381                     ; 632           if (rv != MQTT_OK) {
+3383  d2e5 5a            	decw	x
+3384  d2e6 27f3          	jreq	L1151
+3385                     ; 633             client->error = rv;
+3387  d2e8 1e0e          	ldw	x,(OFST+1,sp)
+3388  d2ea 1609          	ldw	y,(OFST-4,sp)
+3389                     ; 634             return rv;
+3391  d2ec 20a2          	jp	LC014
+3392  d2ee               L1641:
+3393                     ; 567               client->send_offset = 0;
+3395  d2ee 1e0e          	ldw	x,(OFST+1,sp)
+3396  d2f0 905f          	clrw	y
+3397  d2f2 ef04          	ldw	(4,x),y
+3398                     ; 573         client->time_of_last_send = second_counter;
+3400  d2f4 c60293        	ld	a,_second_counter+3
+3401  d2f7 e709          	ld	(9,x),a
+3402  d2f9 c60292        	ld	a,_second_counter+2
+3403  d2fc e708          	ld	(8,x),a
+3404  d2fe c60291        	ld	a,_second_counter+1
+3405  d301 e707          	ld	(7,x),a
+3406  d303 c60290        	ld	a,_second_counter
+3407  d306 e706          	ld	(6,x),a
+3408                     ; 574         msg->time_sent = client->time_of_last_send;
+3410  d308 1605          	ldw	y,(OFST-8,sp)
+3411  d30a e609          	ld	a,(9,x)
+3412  d30c 90e708        	ld	(8,y),a
+3413  d30f e608          	ld	a,(8,x)
+3414  d311 90e707        	ld	(7,y),a
+3415  d314 e607          	ld	a,(7,x)
+3416  d316 90e706        	ld	(6,y),a
+3417  d319 e606          	ld	a,(6,x)
+3418                     ; 593         switch (msg->control_type) {
+3420  d31b 93            	ldw	x,y
+3421  d31c 90e705        	ld	(5,y),a
+3422  d31f e609          	ld	a,(9,x)
+3424                     ; 623             return MQTT_ERROR_MALFORMED_REQUEST;
+3425  d321 4a            	dec	a
+3426  d322 2756          	jreq	L7431
+3427  d324 a002          	sub	a,#2
+3428  d326 2734          	jreq	L5431
+3429  d328 4a            	dec	a
+3430  d329 2726          	jreq	L3431
+3431  d32b 4a            	dec	a
+3432  d32c 274c          	jreq	L7431
+3433  d32e 4a            	dec	a
+3434  d32f 2749          	jreq	L7431
+3435  d331 4a            	dec	a
+3436  d332 271d          	jreq	L3431
+3437  d334 4a            	dec	a
+3438  d335 2743          	jreq	L7431
+3439  d337 a002          	sub	a,#2
+3440  d339 273f          	jreq	L7431
+3441  d33b a002          	sub	a,#2
+3442  d33d 273b          	jreq	L7431
+3443  d33f a002          	sub	a,#2
+3444  d341 270e          	jreq	L3431
+3445                     ; 621         default:
+3445                     ; 622             client->error = MQTT_ERROR_MALFORMED_REQUEST;
+3447  d343 1e0e          	ldw	x,(OFST+1,sp)
+3448  d345 90ae8012      	ldw	y,#32786
+3449  d349 ef0a          	ldw	(10,x),y
+3450                     ; 623             return MQTT_ERROR_MALFORMED_REQUEST;
+3452  d34b ae8012        	ldw	x,#32786
+3454  d34e ccd293        	jra	L432
+3455  d351               L3431:
+3456                     ; 594         case MQTT_CONTROL_PUBACK:
+3456                     ; 595         case MQTT_CONTROL_PUBCOMP:
+3456                     ; 596         case MQTT_CONTROL_DISCONNECT:
+3456                     ; 597             msg->state = MQTT_QUEUED_COMPLETE;
+3458  d351 a602          	ld	a,#2
+3459  d353               LC011:
+3460  d353 e704          	ld	(4,x),a
+3461                     ; 598             break;
+3462  d355               L5241:
+3463                     ; 519     for(; i < len; ++i) {
+3465  d355 1e0b          	ldw	x,(OFST-2,sp)
+3466  d357 5c            	incw	x
+3467  d358 1f0b          	ldw	(OFST-2,sp),x
+3469  d35a 2022          	jra	L7241
+3470  d35c               L5431:
+3471                     ; 599         case MQTT_CONTROL_PUBLISH:
+3471                     ; 600             inspected = (uint8_t)(( MQTT_PUBLISH_QOS_MASK & (msg->start[0]) ) >> 1); /* qos */
+3473  d35c fe            	ldw	x,(x)
+3474  d35d f6            	ld	a,(x)
+3475  d35e a406          	and	a,#6
+3476  d360 44            	srl	a
+3477  d361 6b0d          	ld	(OFST+0,sp),a
+3479                     ; 601             if (inspected == 0) {
+3481  d363 2604          	jrne	L1741
+3482                     ; 602                 msg->state = MQTT_QUEUED_COMPLETE;
+3484  d365 1e05          	ldw	x,(OFST-8,sp)
+3486  d367 20e8          	jp	L3431
+3487  d369               L1741:
+3488                     ; 604 	    else if (inspected == 1) {
+3490  d369 4a            	dec	a
+3491  d36a 260c          	jrne	L5741
+3492                     ; 605                 msg->state = MQTT_QUEUED_AWAITING_ACK;
+3494  d36c 1e05          	ldw	x,(OFST-8,sp)
+3495  d36e 4c            	inc	a
+3496  d36f e704          	ld	(4,x),a
+3497                     ; 607                 msg->start[0] |= MQTT_PUBLISH_DUP;
+3499  d371 fe            	ldw	x,(x)
+3500  d372 f6            	ld	a,(x)
+3501  d373 aa08          	or	a,#8
+3502  d375 f7            	ld	(x),a
+3504  d376 20dd          	jra	L5241
+3505  d378               L5741:
+3506                     ; 610                 msg->state = MQTT_QUEUED_AWAITING_ACK;
+3508  d378 1e05          	ldw	x,(OFST-8,sp)
+3509  d37a               L7431:
+3510                     ; 613         case MQTT_CONTROL_CONNECT:
+3510                     ; 614         case MQTT_CONTROL_PUBREC:
+3510                     ; 615         case MQTT_CONTROL_PUBREL:
+3510                     ; 616         case MQTT_CONTROL_SUBSCRIBE:
+3510                     ; 617         case MQTT_CONTROL_UNSUBSCRIBE:
+3510                     ; 618         case MQTT_CONTROL_PINGREQ:
+3510                     ; 619             msg->state = MQTT_QUEUED_AWAITING_ACK;
+3512  d37a a601          	ld	a,#1
+3513                     ; 620             break;
+3515  d37c 20d5          	jp	LC011
+3516  d37e               L7241:
+3517                     ; 519     for(; i < len; ++i) {
+3519  d37e 1e0b          	ldw	x,(OFST-2,sp)
+3520  d380 1309          	cpw	x,(OFST-4,sp)
+3521  d382 2e03ccd1e5    	jrslt	L3241
+3522  d387 ccd2ad        	jra	L1341
+3523  d38a               L1151:
+3524                     ; 639     return MQTT_OK;
+3526  d38a ae0001        	ldw	x,#1
+3528  d38d ccd293        	jra	L432
+4080                     ; 643 int16_t __mqtt_recv(struct mqtt_client *client)
+4080                     ; 644 {
+4081                     .text:	section	.text,new
+4082  d390               ___mqtt_recv:
+4084  d390 89            	pushw	x
+4085  d391 5220          	subw	sp,#32
+4086       00000020      OFST:	set	32
+4089                     ; 646     int16_t mqtt_recv_ret = MQTT_OK;
+4091  d393 ae0001        	ldw	x,#1
+4092  d396 1f07          	ldw	(OFST-25,sp),x
+4094                     ; 648     struct mqtt_queued_message *msg = NULL;
+4096                     ; 656     rv = mqtt_pal_recvall(client->recv_buffer.curr, client->recv_buffer.curr_sz);
+4098  d398 1e21          	ldw	x,(OFST+1,sp)
+4099  d39a ee20          	ldw	x,(32,x)
+4100  d39c 89            	pushw	x
+4101  d39d 1e23          	ldw	x,(OFST+3,sp)
+4102  d39f ee1e          	ldw	x,(30,x)
+4103  d3a1 cde140        	call	_mqtt_pal_recvall
+4105  d3a4 5b02          	addw	sp,#2
+4106  d3a6 1f1f          	ldw	(OFST-1,sp),x
+4108                     ; 658     client->recv_buffer.curr += rv;
+4110  d3a8 1e21          	ldw	x,(OFST+1,sp)
+4111  d3aa 9093          	ldw	y,x
+4112  d3ac ee1e          	ldw	x,(30,x)
+4113  d3ae 72fb1f        	addw	x,(OFST-1,sp)
+4114  d3b1 90ef1e        	ldw	(30,y),x
+4115                     ; 659     client->recv_buffer.curr_sz -= rv;
+4117  d3b4 1e21          	ldw	x,(OFST+1,sp)
+4118  d3b6 9093          	ldw	y,x
+4119  d3b8 ee20          	ldw	x,(32,x)
+4120  d3ba 72f01f        	subw	x,(OFST-1,sp)
+4121  d3bd 90ef20        	ldw	(32,y),x
+4122                     ; 662     consumed = mqtt_unpack_response(&response, client->recv_buffer.mem_start, client->recv_buffer.curr - client->recv_buffer.mem_start);
+4124  d3c0 1e21          	ldw	x,(OFST+1,sp)
+4125  d3c2 1621          	ldw	y,(OFST+1,sp)
+4126  d3c4 ee1e          	ldw	x,(30,x)
+4127  d3c6 01            	rrwa	x,a
+4128  d3c7 90e01b        	sub	a,(27,y)
+4129  d3ca 01            	rrwa	x,a
+4130  d3cb 90e21a        	sbc	a,(26,y)
+4131  d3ce 01            	rrwa	x,a
+4132  d3cf 89            	pushw	x
+4133  d3d0 1e23          	ldw	x,(OFST+3,sp)
+4134  d3d2 ee1a          	ldw	x,(26,x)
+4135  d3d4 89            	pushw	x
+4136  d3d5 96            	ldw	x,sp
+4137  d3d6 1c000d        	addw	x,#OFST-19
+4138  d3d9 cde001        	call	_mqtt_unpack_response
+4140  d3dc 5b04          	addw	sp,#4
+4141  d3de 1f05          	ldw	(OFST-27,sp),x
+4143                     ; 664     if (consumed < 0) {
+4145  d3e0 2a09          	jrpl	L7502
+4146                     ; 665         client->error = consumed;
+4148  d3e2 1e21          	ldw	x,(OFST+1,sp)
+4149  d3e4 1605          	ldw	y,(OFST-27,sp)
+4150  d3e6 ef0a          	ldw	(10,x),y
+4151                     ; 666         return consumed;
+4153  d3e8 93            	ldw	x,y
+4155  d3e9 2013          	jra	L403
+4156  d3eb               L7502:
+4157                     ; 668     else if (consumed == 0) {
+4159  d3eb 2619          	jrne	L1602
+4160                     ; 674         if (client->recv_buffer.curr_sz == 0) {
+4162  d3ed 1e21          	ldw	x,(OFST+1,sp)
+4163  d3ef e621          	ld	a,(33,x)
+4164  d3f1 ea20          	or	a,(32,x)
+4165  d3f3 260c          	jrne	L5602
+4166                     ; 675             client->error = MQTT_ERROR_RECV_BUFFER_TOO_SMALL;
+4168  d3f5 90ae8013      	ldw	y,#32787
+4169  d3f9 ef0a          	ldw	(10,x),y
+4170                     ; 676             return MQTT_ERROR_RECV_BUFFER_TOO_SMALL;
+4172  d3fb ae8013        	ldw	x,#32787
+4174  d3fe               L403:
+4176  d3fe 5b22          	addw	sp,#34
+4177  d400 81            	ret	
+4178  d401               L5602:
+4179                     ; 680         return MQTT_OK;
+4181  d401 ae0001        	ldw	x,#1
+4183  d404 20f8          	jra	L403
+4184  d406               L1602:
+4185                     ; 712     switch (response.fixed_header.control_type) {
+4187  d406 7b09          	ld	a,(OFST-23,sp)
+4189                     ; 861             break;
+4190  d408 a002          	sub	a,#2
+4191  d40a 2741          	jreq	L5151
+4192  d40c 4a            	dec	a
+4193  d40d 2603ccd48f    	jreq	L7151
+4194  d412 4a            	dec	a
+4195  d413 2603ccd4f4    	jreq	L1251
+4196  d418 4a            	dec	a
+4197  d419 2603ccd51a    	jreq	L3251
+4198  d41e 4a            	dec	a
+4199  d41f 2603ccd55f    	jreq	L5251
+4200  d424 4a            	dec	a
+4201  d425 2603ccd590    	jreq	L7251
+4202  d42a a002          	sub	a,#2
+4203  d42c 2603ccd59a    	jreq	L1351
+4204  d431 a002          	sub	a,#2
+4205  d433 2603ccd5cc    	jreq	L3351
+4206  d438 a002          	sub	a,#2
+4207  d43a 2603ccd5d6    	jreq	L5351
+4208                     ; 858         default:
+4208                     ; 859             client->error = MQTT_ERROR_MALFORMED_RESPONSE;
+4210  d43f 1e21          	ldw	x,(OFST+1,sp)
+4211  d441 90ae800c      	ldw	y,#32780
+4212  d445 ef0a          	ldw	(10,x),y
+4213                     ; 860             mqtt_recv_ret = MQTT_ERROR_MALFORMED_RESPONSE;
+4215  d447 ae800c        	ldw	x,#32780
+4216                     ; 861             break;
+4218  d44a ccd5c8        	jp	LC016
+4219  d44d               L5151:
+4220                     ; 713         case MQTT_CONTROL_CONNACK:
+4220                     ; 714 
+4220                     ; 715             // release associated CONNECT
+4220                     ; 716             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_CONNECT, NULL);
+4222  d44d 5f            	clrw	x
+4223  d44e 89            	pushw	x
+4224  d44f 4b01          	push	#1
+4225  d451 1e24          	ldw	x,(OFST+4,sp)
+4226  d453 1c0022        	addw	x,#34
+4227  d456 cddfc5        	call	_mqtt_mq_find
+4229  d459 5b03          	addw	sp,#3
+4230  d45b 1f1f          	ldw	(OFST-1,sp),x
+4232                     ; 717             if (msg == NULL) {
+4234                     ; 718                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+4235                     ; 719                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+4236                     ; 720                 break;
+4238  d45d 2603ccd50c    	jreq	LC017
+4239                     ; 722             msg->state = MQTT_QUEUED_COMPLETE;
+4241  d462 a602          	ld	a,#2
+4242  d464 e704          	ld	(4,x),a
+4243                     ; 724             if (response.decoded.connack.return_code != MQTT_CONNACK_ACCEPTED) {
+4245  d466 0d13          	tnz	(OFST-13,sp)
+4246  d468 2603ccd5ec    	jreq	L1702
+4247                     ; 725                 if (response.decoded.connack.return_code == MQTT_CONNACK_REFUSED_IDENTIFIER_REJECTED) {
+4249  d46d 7b13          	ld	a,(OFST-13,sp)
+4250  d46f a102          	cp	a,#2
+4251  d471 260e          	jrne	L7702
+4252                     ; 726                     client->error = MQTT_ERROR_CONNECT_CLIENT_ID_REFUSED;
+4254  d473 1e21          	ldw	x,(OFST+1,sp)
+4255  d475 90ae8005      	ldw	y,#32773
+4256  d479 ef0a          	ldw	(10,x),y
+4257                     ; 727                     mqtt_recv_ret = MQTT_ERROR_CONNECT_CLIENT_ID_REFUSED;
+4259  d47b ae8005        	ldw	x,#32773
+4261  d47e ccd5c8        	jp	LC016
+4262  d481               L7702:
+4263                     ; 730                     client->error = MQTT_ERROR_CONNECTION_REFUSED;
+4265  d481 1e21          	ldw	x,(OFST+1,sp)
+4266  d483 90ae8016      	ldw	y,#32790
+4267  d487 ef0a          	ldw	(10,x),y
+4268                     ; 731                     mqtt_recv_ret = MQTT_ERROR_CONNECTION_REFUSED;
+4270  d489 ae8016        	ldw	x,#32790
+4271  d48c ccd5c8        	jp	LC016
+4272  d48f               L7151:
+4273                     ; 736         case MQTT_CONTROL_PUBLISH:
+4273                     ; 737             // stage response, none if qos==0, PUBACK if qos==1, PUBREC if qos==2
+4273                     ; 738             if (response.decoded.publish.qos_level == 1) {
+4275  d48f 7b13          	ld	a,(OFST-13,sp)
+4276  d491 a101          	cp	a,#1
+4277  d493 2619          	jrne	L3012
+4278                     ; 739                 rv = __mqtt_puback(client, response.decoded.publish.packet_id);
+4280  d495 1e19          	ldw	x,(OFST-7,sp)
+4281  d497 89            	pushw	x
+4282  d498 1e23          	ldw	x,(OFST+3,sp)
+4283  d49a cdce8d        	call	___mqtt_puback
+4285  d49d 5b02          	addw	sp,#2
+4286  d49f 1f1f          	ldw	(OFST-1,sp),x
+4288                     ; 740                 if (rv != MQTT_OK) {
+4290  d4a1 5a            	decw	x
+4291  d4a2 273b          	jreq	L7012
+4292                     ; 741                     client->error = rv;
+4294  d4a4 1e21          	ldw	x,(OFST+1,sp)
+4295  d4a6 161f          	ldw	y,(OFST-1,sp)
+4296  d4a8 ef0a          	ldw	(10,x),y
+4297                     ; 742                     mqtt_recv_ret = rv;
+4299  d4aa 93            	ldw	x,y
+4300                     ; 743                     break;
+4302  d4ab ccd5c8        	jp	LC016
+4303  d4ae               L3012:
+4304                     ; 746             else if (response.decoded.publish.qos_level == 2) {
+4306  d4ae a102          	cp	a,#2
+4307  d4b0 262d          	jrne	L7012
+4308                     ; 748                 if (mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBREC, &response.decoded.publish.packet_id) != NULL) {
+4310  d4b2 96            	ldw	x,sp
+4311  d4b3 1c0019        	addw	x,#OFST-7
+4312  d4b6 89            	pushw	x
+4313  d4b7 4b05          	push	#5
+4314  d4b9 1e24          	ldw	x,(OFST+4,sp)
+4315  d4bb 1c0022        	addw	x,#34
+4316  d4be cddfc5        	call	_mqtt_mq_find
+4318  d4c1 5b03          	addw	sp,#3
+4319  d4c3 5d            	tnzw	x
+4320  d4c4 26a4          	jrne	L1702
+4321                     ; 749                     break;
+4323                     ; 752                 rv = __mqtt_pubrec(client, response.decoded.publish.packet_id);
+4325  d4c6 1e19          	ldw	x,(OFST-7,sp)
+4326  d4c8 89            	pushw	x
+4327  d4c9 1e23          	ldw	x,(OFST+3,sp)
+4328  d4cb cdcf02        	call	___mqtt_pubrec
+4330  d4ce 5b02          	addw	sp,#2
+4331  d4d0 1f1f          	ldw	(OFST-1,sp),x
+4333                     ; 753                 if (rv != MQTT_OK) {
+4335  d4d2 5a            	decw	x
+4336  d4d3 270a          	jreq	L7012
+4337                     ; 754                     client->error = rv;
+4339  d4d5 1e21          	ldw	x,(OFST+1,sp)
+4340  d4d7 161f          	ldw	y,(OFST-1,sp)
+4341  d4d9 ef0a          	ldw	(10,x),y
+4342                     ; 755                     mqtt_recv_ret = rv;
+4344  d4db 93            	ldw	x,y
+4345                     ; 756                     break;
+4347  d4dc ccd5c8        	jp	LC016
+4348  d4df               L7012:
+4349                     ; 761             client->publish_response_callback(&client->publish_response_callback_state, &response.decoded.publish);
+4351  d4df 96            	ldw	x,sp
+4352  d4e0 1c0012        	addw	x,#OFST-14
+4353  d4e3 89            	pushw	x
+4354  d4e4 1e23          	ldw	x,(OFST+3,sp)
+4355  d4e6 1623          	ldw	y,(OFST+3,sp)
+4356  d4e8 1c0012        	addw	x,#18
+4357  d4eb 90ee10        	ldw	y,(16,y)
+4358  d4ee 90fd          	call	(y)
+4360  d4f0 85            	popw	x
+4361                     ; 762             break;
+4363  d4f1 ccd5ec        	jra	L1702
+4364  d4f4               L1251:
+4365                     ; 763         case MQTT_CONTROL_PUBACK:
+4365                     ; 764             // release associated PUBLISH
+4365                     ; 765             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBLISH, &response.decoded.puback.packet_id);
+4367  d4f4 96            	ldw	x,sp
+4368  d4f5 1c0012        	addw	x,#OFST-14
+4369  d4f8 89            	pushw	x
+4370  d4f9 4b03          	push	#3
+4372                     ; 766             if (msg == NULL) {
+4374  d4fb               LC018:
+4375  d4fb 1e24          	ldw	x,(OFST+4,sp)
+4376  d4fd 1c0022        	addw	x,#34
+4377  d500 cddfc5        	call	_mqtt_mq_find
+4378  d503 5b03          	addw	sp,#3
+4379  d505 1f1f          	ldw	(OFST-1,sp),x
+4383  d507 2703ccd5e8    	jrne	L3412
+4384                     ; 767                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+4386                     ; 768                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+4388  d50c               LC017:
+4396  d50c 1e21          	ldw	x,(OFST+1,sp)
+4397  d50e 90ae8014      	ldw	y,#32788
+4398  d512 ef0a          	ldw	(10,x),y
+4406  d514 ae8014        	ldw	x,#32788
+4407                     ; 769                 break;
+4409  d517 ccd5c8        	jp	LC016
+4410                     ; 771             msg->state = MQTT_QUEUED_COMPLETE;
+4411                     ; 772             break;
+4413  d51a               L3251:
+4414                     ; 773         case MQTT_CONTROL_PUBREC:
+4414                     ; 774             // check if this is a duplicate
+4414                     ; 775             if (mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBREL, &response.decoded.pubrec.packet_id) != NULL) {
+4416  d51a 96            	ldw	x,sp
+4417  d51b 1c0012        	addw	x,#OFST-14
+4418  d51e 89            	pushw	x
+4419  d51f 4b06          	push	#6
+4420  d521 1e24          	ldw	x,(OFST+4,sp)
+4421  d523 1c0022        	addw	x,#34
+4422  d526 cddfc5        	call	_mqtt_mq_find
+4424  d529 5b03          	addw	sp,#3
+4425  d52b 5d            	tnzw	x
+4426  d52c 26c3          	jrne	L1702
+4427                     ; 776                 break;
+4429                     ; 779             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBLISH, &response.decoded.pubrec.packet_id);
+4431  d52e 96            	ldw	x,sp
+4432  d52f 1c0012        	addw	x,#OFST-14
+4433  d532 89            	pushw	x
+4434  d533 4b03          	push	#3
+4435  d535 1e24          	ldw	x,(OFST+4,sp)
+4436  d537 1c0022        	addw	x,#34
+4437  d53a cddfc5        	call	_mqtt_mq_find
+4439  d53d 5b03          	addw	sp,#3
+4440  d53f 1f1f          	ldw	(OFST-1,sp),x
+4442                     ; 780             if (msg == NULL) {
+4444                     ; 781                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+4445                     ; 782                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+4446                     ; 783                 break;
+4448  d541 27c9          	jreq	LC017
+4449                     ; 785             msg->state = MQTT_QUEUED_COMPLETE;
+4451  d543 a602          	ld	a,#2
+4452  d545 e704          	ld	(4,x),a
+4453                     ; 787             rv = __mqtt_pubrel(client, response.decoded.pubrec.packet_id);
+4455  d547 1e12          	ldw	x,(OFST-14,sp)
+4456  d549 89            	pushw	x
+4457  d54a 1e23          	ldw	x,(OFST+3,sp)
+4458  d54c cdcf77        	call	___mqtt_pubrel
+4460  d54f 5b02          	addw	sp,#2
+4461  d551 1f1f          	ldw	(OFST-1,sp),x
+4463                     ; 788             if (rv != MQTT_OK) {
+4465  d553 5a            	decw	x
+4466  d554 279b          	jreq	L1702
+4467                     ; 789                 client->error = rv;
+4469  d556 1e21          	ldw	x,(OFST+1,sp)
+4470  d558 161f          	ldw	y,(OFST-1,sp)
+4471  d55a ef0a          	ldw	(10,x),y
+4472                     ; 790                 mqtt_recv_ret = rv;
+4474  d55c 93            	ldw	x,y
+4475                     ; 791                 break;
+4477  d55d 2069          	jp	LC016
+4478  d55f               L5251:
+4479                     ; 794         case MQTT_CONTROL_PUBREL:
+4479                     ; 795             // release associated PUBREC
+4479                     ; 796             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBREC, &response.decoded.pubrel.packet_id);
+4481  d55f 96            	ldw	x,sp
+4482  d560 1c0012        	addw	x,#OFST-14
+4483  d563 89            	pushw	x
+4484  d564 4b05          	push	#5
+4485  d566 1e24          	ldw	x,(OFST+4,sp)
+4486  d568 1c0022        	addw	x,#34
+4487  d56b cddfc5        	call	_mqtt_mq_find
+4489  d56e 5b03          	addw	sp,#3
+4490  d570 1f1f          	ldw	(OFST-1,sp),x
+4492                     ; 797             if (msg == NULL) {
+4494                     ; 798                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+4495                     ; 799                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+4496                     ; 800                 break;
+4498  d572 2798          	jreq	LC017
+4499                     ; 802             msg->state = MQTT_QUEUED_COMPLETE;
+4501  d574 a602          	ld	a,#2
+4502  d576 e704          	ld	(4,x),a
+4503                     ; 804             rv = __mqtt_pubcomp(client, response.decoded.pubrec.packet_id);
+4505  d578 1e12          	ldw	x,(OFST-14,sp)
+4506  d57a 89            	pushw	x
+4507  d57b 1e23          	ldw	x,(OFST+3,sp)
+4508  d57d cdcfec        	call	___mqtt_pubcomp
+4510  d580 5b02          	addw	sp,#2
+4511  d582 1f1f          	ldw	(OFST-1,sp),x
+4513                     ; 805             if (rv != MQTT_OK) {
+4515  d584 5a            	decw	x
+4516  d585 2765          	jreq	L1702
+4517                     ; 806                 client->error = rv;
+4519  d587 1e21          	ldw	x,(OFST+1,sp)
+4520  d589 161f          	ldw	y,(OFST-1,sp)
+4521  d58b ef0a          	ldw	(10,x),y
+4522                     ; 807                 mqtt_recv_ret = rv;
+4524  d58d 93            	ldw	x,y
+4525                     ; 808                 break;
+4527  d58e 2038          	jp	LC016
+4528  d590               L7251:
+4529                     ; 811         case MQTT_CONTROL_PUBCOMP:
+4529                     ; 812             // release associated PUBREL
+4529                     ; 813             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBREL, &response.decoded.pubcomp.packet_id);
+4531  d590 96            	ldw	x,sp
+4532  d591 1c0012        	addw	x,#OFST-14
+4533  d594 89            	pushw	x
+4534  d595 4b06          	push	#6
+4536                     ; 814             if (msg == NULL) {
+4537                     ; 815                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+4538                     ; 816                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+4539                     ; 817                 break;
+4541  d597 ccd4fb        	jp	LC018
+4542                     ; 819             msg->state = MQTT_QUEUED_COMPLETE;
+4543                     ; 820             break;
+4545  d59a               L1351:
+4546                     ; 821         case MQTT_CONTROL_SUBACK:
+4546                     ; 822             // release associated SUBSCRIBE
+4546                     ; 823             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_SUBSCRIBE, &response.decoded.suback.packet_id);
+4548  d59a 96            	ldw	x,sp
+4549  d59b 1c0012        	addw	x,#OFST-14
+4550  d59e 89            	pushw	x
+4551  d59f 4b08          	push	#8
+4552  d5a1 1e24          	ldw	x,(OFST+4,sp)
+4553  d5a3 1c0022        	addw	x,#34
+4554  d5a6 cddfc5        	call	_mqtt_mq_find
+4556  d5a9 5b03          	addw	sp,#3
+4557  d5ab 1f1f          	ldw	(OFST-1,sp),x
+4559                     ; 824             if (msg == NULL) {
+4561                     ; 825                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+4562                     ; 826                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+4563                     ; 827                 break;
+4565  d5ad 2603ccd50c    	jreq	LC017
+4566                     ; 829             msg->state = MQTT_QUEUED_COMPLETE;
+4568  d5b2 a602          	ld	a,#2
+4569  d5b4 e704          	ld	(4,x),a
+4570                     ; 832             if (response.decoded.suback.return_codes[0] == MQTT_SUBACK_FAILURE) {
+4572  d5b6 1e14          	ldw	x,(OFST-12,sp)
+4573  d5b8 f6            	ld	a,(x)
+4574  d5b9 a180          	cp	a,#128
+4575  d5bb 262f          	jrne	L1702
+4576                     ; 833                 client->error = MQTT_ERROR_SUBSCRIBE_FAILED;
+4578  d5bd 1e21          	ldw	x,(OFST+1,sp)
+4579  d5bf 90ae8017      	ldw	y,#32791
+4580  d5c3 ef0a          	ldw	(10,x),y
+4581                     ; 834                 mqtt_recv_ret = MQTT_ERROR_SUBSCRIBE_FAILED;
+4583  d5c5 ae8017        	ldw	x,#32791
+4584  d5c8               LC016:
+4585  d5c8 1f07          	ldw	(OFST-25,sp),x
+4587                     ; 835                 break;
+4589  d5ca 2020          	jra	L1702
+4590  d5cc               L3351:
+4591                     ; 838         case MQTT_CONTROL_UNSUBACK:
+4591                     ; 839             // release associated UNSUBSCRIBE
+4591                     ; 840             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_UNSUBSCRIBE, &response.decoded.unsuback.packet_id);
+4593  d5cc 96            	ldw	x,sp
+4594  d5cd 1c0012        	addw	x,#OFST-14
+4595  d5d0 89            	pushw	x
+4596  d5d1 4b0a          	push	#10
+4598                     ; 841             if (msg == NULL) {
+4599                     ; 842                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+4600                     ; 843                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+4601                     ; 844                 break;
+4603  d5d3 ccd4fb        	jp	LC018
+4604                     ; 846             msg->state = MQTT_QUEUED_COMPLETE;
+4605                     ; 847             break;
+4607  d5d6               L5351:
+4608                     ; 848         case MQTT_CONTROL_PINGRESP:
+4608                     ; 849             // release associated PINGREQ
+4608                     ; 850             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PINGREQ, NULL);
+4610  d5d6 5f            	clrw	x
+4611  d5d7 89            	pushw	x
+4612  d5d8 4b0c          	push	#12
+4613  d5da 1e24          	ldw	x,(OFST+4,sp)
+4614  d5dc 1c0022        	addw	x,#34
+4615  d5df cddfc5        	call	_mqtt_mq_find
+4617  d5e2 5b03          	addw	sp,#3
+4618  d5e4 1f1f          	ldw	(OFST-1,sp),x
+4620                     ; 851             if (msg == NULL) {
+4622                     ; 852                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+4623                     ; 853                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+4624                     ; 854                 break;
+4626  d5e6 27c7          	jreq	LC017
+4627  d5e8               L3412:
+4628                     ; 856             msg->state = MQTT_QUEUED_COMPLETE;
+4633  d5e8 a602          	ld	a,#2
+4634  d5ea e704          	ld	(4,x),a
+4635                     ; 857             break;
+4637  d5ec               L1702:
+4638                     ; 890         void* dest = (unsigned char*)client->recv_buffer.mem_start;
+4640  d5ec 1e21          	ldw	x,(OFST+1,sp)
+4641  d5ee ee1a          	ldw	x,(26,x)
+4642  d5f0 1f01          	ldw	(OFST-31,sp),x
+4644                     ; 891         void* src  = (unsigned char*)client->recv_buffer.mem_start + consumed;
+4646  d5f2 1e21          	ldw	x,(OFST+1,sp)
+4647  d5f4 ee1a          	ldw	x,(26,x)
+4648  d5f6 72fb05        	addw	x,(OFST-27,sp)
+4649  d5f9 1f03          	ldw	(OFST-29,sp),x
+4651                     ; 892         uint16_t n = client->recv_buffer.curr - client->recv_buffer.mem_start - consumed;
+4653  d5fb 1e21          	ldw	x,(OFST+1,sp)
+4654  d5fd 1621          	ldw	y,(OFST+1,sp)
+4655  d5ff ee1e          	ldw	x,(30,x)
+4656  d601 01            	rrwa	x,a
+4657  d602 90e01b        	sub	a,(27,y)
+4658  d605 01            	rrwa	x,a
+4659  d606 90e21a        	sbc	a,(26,y)
+4660  d609 01            	rrwa	x,a
+4661  d60a 72f005        	subw	x,(OFST-27,sp)
+4662  d60d 1f1f          	ldw	(OFST-1,sp),x
+4664                     ; 893         memmove(dest, src, n);
+4666  d60f 89            	pushw	x
+4667  d610 1e05          	ldw	x,(OFST-27,sp)
+4668  d612 89            	pushw	x
+4669  d613 1e05          	ldw	x,(OFST-27,sp)
+4670  d615 cdf30c        	call	_memmove
+4672  d618 5b04          	addw	sp,#4
+4673                     ; 894         client->recv_buffer.curr -= consumed;
+4675  d61a 1e21          	ldw	x,(OFST+1,sp)
+4676  d61c 9093          	ldw	y,x
+4677  d61e ee1e          	ldw	x,(30,x)
+4678  d620 72f005        	subw	x,(OFST-27,sp)
+4679  d623 90ef1e        	ldw	(30,y),x
+4680                     ; 895         client->recv_buffer.curr_sz += consumed;
+4682  d626 1e21          	ldw	x,(OFST+1,sp)
+4683  d628 9093          	ldw	y,x
+4684  d62a ee20          	ldw	x,(32,x)
+4685  d62c 72fb05        	addw	x,(OFST-27,sp)
+4686  d62f 90ef20        	ldw	(32,y),x
+4687                     ; 904     return mqtt_recv_ret;
+4689  d632 1e07          	ldw	x,(OFST-25,sp)
+4691  d634 ccd3fe        	jra	L403
+4694                     .const:	section	.text
+4695  9d28               L5412_control_type_is_valid:
+4696  9d28 00            	dc.b	0
+4697  9d29 01            	dc.b	1
+4698  9d2a 01            	dc.b	1
+4699  9d2b 01            	dc.b	1
+4700  9d2c 01            	dc.b	1
+4701  9d2d 01            	dc.b	1
+4702  9d2e 01            	dc.b	1
+4703  9d2f 01            	dc.b	1
+4704  9d30 01            	dc.b	1
+4705  9d31 01            	dc.b	1
+4706  9d32 01            	dc.b	1
+4707  9d33 01            	dc.b	1
+4708  9d34 01            	dc.b	1
+4709  9d35 01            	dc.b	1
+4710  9d36 01            	dc.b	1
+4711  9d37 00            	dc.b	0
+4712  9d38               L7412_required_flags:
+4713  9d38 00            	dc.b	0
+4714  9d39 00            	dc.b	0
+4715  9d3a 00            	dc.b	0
+4716  9d3b 00            	dc.b	0
+4717  9d3c 00            	dc.b	0
+4718  9d3d 00            	dc.b	0
+4719  9d3e 02            	dc.b	2
+4720  9d3f 00            	dc.b	0
+4721  9d40 02            	dc.b	2
+4722  9d41 00            	dc.b	0
+4723  9d42 02            	dc.b	2
+4724  9d43 00            	dc.b	0
+4725  9d44 00            	dc.b	0
+4726  9d45 00            	dc.b	0
+4727  9d46 00            	dc.b	0
+4728  9d47 00            	dc.b	0
+4729  9d48               L1512_mask_required_flags:
+4730  9d48 00            	dc.b	0
+4731  9d49 0f            	dc.b	15
+4732  9d4a 0f            	dc.b	15
+4733  9d4b 00            	dc.b	0
+4734  9d4c 0f            	dc.b	15
+4735  9d4d 0f            	dc.b	15
+4736  9d4e 0f            	dc.b	15
+4737  9d4f 0f            	dc.b	15
+4738  9d50 0f            	dc.b	15
+4739  9d51 0f            	dc.b	15
+4740  9d52 0f            	dc.b	15
+4741  9d53 0f            	dc.b	15
+4742  9d54 0f            	dc.b	15
+4743  9d55 0f            	dc.b	15
+4744  9d56 0f            	dc.b	15
+4745  9d57 00            	dc.b	0
+4798                     ; 966 static int16_t mqtt_fixed_header_rule_violation(const struct mqtt_fixed_header *fixed_header)
+4798                     ; 967 {
+4799                     .text:	section	.text,new
+4800  d637               L3512_mqtt_fixed_header_rule_violation:
+4802  d637 89            	pushw	x
+4803       00000002      OFST:	set	2
+4806                     ; 972     control_type = fixed_header->control_type;
+4808  d638 f6            	ld	a,(x)
+4809  d639 6b02          	ld	(OFST+0,sp),a
+4811                     ; 973     control_flags = fixed_header->control_flags;
+4813  d63b e604          	ld	a,(4,x)
+4814  d63d a40f          	and	a,#15
+4815  d63f 6b01          	ld	(OFST-1,sp),a
+4817                     ; 976     if (control_type_is_valid[control_type] != 0x01) {
+4819  d641 5f            	clrw	x
+4820  d642 7b02          	ld	a,(OFST+0,sp)
+4821  d644 97            	ld	xl,a
+4822  d645 d69d28        	ld	a,(L5412_control_type_is_valid,x)
+4823  d648 4a            	dec	a
+4824  d649 2705          	jreq	L1022
+4825                     ; 977         return MQTT_ERROR_CONTROL_FORBIDDEN_TYPE;
+4827  d64b ae8002        	ldw	x,#32770
+4829  d64e 2017          	jra	L013
+4830  d650               L1022:
+4831                     ; 981     if(((control_flags ^ required_flags[control_type]) & mask_required_flags[control_type]) == 1) {
+4833  d650 7b02          	ld	a,(OFST+0,sp)
+4834  d652 5f            	clrw	x
+4835  d653 97            	ld	xl,a
+4836  d654 905f          	clrw	y
+4837  d656 9097          	ld	yl,a
+4838  d658 90d69d38      	ld	a,(L7412_required_flags,y)
+4839  d65c 1801          	xor	a,(OFST-1,sp)
+4840  d65e d49d48        	and	a,(L1512_mask_required_flags,x)
+4841  d661 4a            	dec	a
+4842  d662 2606          	jrne	L3022
+4843                     ; 982         return MQTT_ERROR_CONTROL_INVALID_FLAGS;
+4845  d664 ae8003        	ldw	x,#32771
+4847  d667               L013:
+4849  d667 5b02          	addw	sp,#2
+4850  d669 81            	ret	
+4851  d66a               L3022:
+4852                     ; 985     return 0;
+4854  d66a 5f            	clrw	x
+4856  d66b 20fa          	jra	L013
+4948                     ; 989 int16_t mqtt_unpack_fixed_header(struct mqtt_response *response, const uint8_t *buf, uint16_t bufsz)
+4948                     ; 990 {
+4949                     .text:	section	.text,new
+4950  d66d               _mqtt_unpack_fixed_header:
+4952  d66d 89            	pushw	x
+4953  d66e 520a          	subw	sp,#10
+4954       0000000a      OFST:	set	10
+4957                     ; 992     const uint8_t *start = buf;
+4959  d670 1e0f          	ldw	x,(OFST+5,sp)
+4960  d672 1f05          	ldw	(OFST-5,sp),x
+4962                     ; 997     if (response == NULL || buf == NULL) {
+4964  d674 1e0b          	ldw	x,(OFST+1,sp)
+4965  d676 2704          	jreq	L3522
+4967  d678 1e0f          	ldw	x,(OFST+5,sp)
+4968  d67a 2605          	jrne	L1522
+4969  d67c               L3522:
+4970                     ; 998       return MQTT_ERROR_NULLPTR;
+4972  d67c ae8001        	ldw	x,#32769
+4974  d67f 2009          	jra	L223
+4975  d681               L1522:
+4976                     ; 1000     fixed_header = &(response->fixed_header);
+4978  d681 1e0b          	ldw	x,(OFST+1,sp)
+4979  d683 1f07          	ldw	(OFST-3,sp),x
+4981                     ; 1003     if (bufsz == 0) return 0;
+4983  d685 1e11          	ldw	x,(OFST+7,sp)
+4984  d687 2604          	jrne	L5522
+4987  d689               LC019:
+4990  d689 5f            	clrw	x
+4992  d68a               L223:
+4994  d68a 5b0c          	addw	sp,#12
+4995  d68c 81            	ret	
+4996  d68d               L5522:
+4997                     ; 1006     fixed_header->control_type  = (uint8_t)(*buf >> 4);
+4999  d68d 1e0f          	ldw	x,(OFST+5,sp)
+5000  d68f f6            	ld	a,(x)
+5001  d690 4e            	swap	a
+5002  d691 1e07          	ldw	x,(OFST-3,sp)
+5003  d693 a40f          	and	a,#15
+5004  d695 f7            	ld	(x),a
+5005                     ; 1007     fixed_header->control_flags = (uint8_t)(*buf & 0x0F);
+5007  d696 1e0f          	ldw	x,(OFST+5,sp)
+5008  d698 f6            	ld	a,(x)
+5009  d699 1e07          	ldw	x,(OFST-3,sp)
+5010  d69b e804          	xor	a,(4,x)
+5011  d69d a40f          	and	a,#15
+5012  d69f e804          	xor	a,(4,x)
+5013  d6a1 e704          	ld	(4,x),a
+5014                     ; 1010     fixed_header->remaining_length = 0;
+5016  d6a3 4f            	clr	a
+5017  d6a4 e708          	ld	(8,x),a
+5018  d6a6 e707          	ld	(7,x),a
+5019  d6a8 e706          	ld	(6,x),a
+5020  d6aa e705          	ld	(5,x),a
+5021                     ; 1012     lshift = 0;
+5023  d6ac 5f            	clrw	x
+5024  d6ad 1f09          	ldw	(OFST-1,sp),x
+5026  d6af               L7522:
+5027                     ; 1015         if(lshift == 28) {
+5029  d6af 1e09          	ldw	x,(OFST-1,sp)
+5030  d6b1 a3001c        	cpw	x,#28
+5031  d6b4 2605          	jrne	L5622
+5032                     ; 1016             return MQTT_ERROR_INVALID_REMAINING_LENGTH;
+5034  d6b6 ae801a        	ldw	x,#32794
+5036  d6b9 20cf          	jra	L223
+5037  d6bb               L5622:
+5038                     ; 1020         --bufsz;
+5040  d6bb 1e11          	ldw	x,(OFST+7,sp)
+5041  d6bd 5a            	decw	x
+5042  d6be 1f11          	ldw	(OFST+7,sp),x
+5043                     ; 1021         ++buf;
+5045  d6c0 1e0f          	ldw	x,(OFST+5,sp)
+5046  d6c2 5c            	incw	x
+5047  d6c3 1f0f          	ldw	(OFST+5,sp),x
+5048                     ; 1022         if (bufsz == 0) return 0;
+5050  d6c5 1e11          	ldw	x,(OFST+7,sp)
+5053  d6c7 27c0          	jreq	LC019
+5054                     ; 1025         fixed_header->remaining_length += (*buf & 0x7F) << lshift;
+5056  d6c9 160f          	ldw	y,(OFST+5,sp)
+5057  d6cb 1e07          	ldw	x,(OFST-3,sp)
+5058  d6cd 90f6          	ld	a,(y)
+5059  d6cf a47f          	and	a,#127
+5060  d6d1 905f          	clrw	y
+5061  d6d3 9097          	ld	yl,a
+5062  d6d5 7b0a          	ld	a,(OFST+0,sp)
+5063  d6d7 2705          	jreq	L413
+5064  d6d9               L613:
+5065  d6d9 9058          	sllw	y
+5066  d6db 4a            	dec	a
+5067  d6dc 26fb          	jrne	L613
+5068  d6de               L413:
+5069  d6de cdf557        	call	c_itoly
+5071  d6e1 1c0005        	addw	x,#5
+5072  d6e4 cdf5c3        	call	c_lgadd
+5074                     ; 1026         lshift += 7;
+5076  d6e7 1e09          	ldw	x,(OFST-1,sp)
+5077  d6e9 1c0007        	addw	x,#7
+5078  d6ec 1f09          	ldw	(OFST-1,sp),x
+5080                     ; 1027     } while(*buf & 0x80); /* while continue bit is set */ 
+5082  d6ee 1e0f          	ldw	x,(OFST+5,sp)
+5083  d6f0 f6            	ld	a,(x)
+5084  d6f1 2bbc          	jrmi	L7522
+5085                     ; 1030     --bufsz;
+5087  d6f3 1e11          	ldw	x,(OFST+7,sp)
+5088  d6f5 5a            	decw	x
+5089  d6f6 1f11          	ldw	(OFST+7,sp),x
+5090                     ; 1031     ++buf;
+5092  d6f8 1e0f          	ldw	x,(OFST+5,sp)
+5093  d6fa 5c            	incw	x
+5094  d6fb 1f0f          	ldw	(OFST+5,sp),x
+5095                     ; 1034     errcode = mqtt_fixed_header_rule_violation(fixed_header);
+5097  d6fd 1e07          	ldw	x,(OFST-3,sp)
+5098  d6ff cdd637        	call	L3512_mqtt_fixed_header_rule_violation
+5100  d702 1f09          	ldw	(OFST-1,sp),x
+5102                     ; 1035     if (errcode) return errcode;
+5107  d704 2684          	jrne	L223
+5108                     ; 1038     if (bufsz < fixed_header->remaining_length) return 0;
+5110  d706 1e11          	ldw	x,(OFST+7,sp)
+5111  d708 cdf7c5        	call	c_uitolx
+5113  d70b 96            	ldw	x,sp
+5114  d70c 5c            	incw	x
+5115  d70d cdf764        	call	c_rtol
+5118  d710 1e07          	ldw	x,(OFST-3,sp)
+5119  d712 1c0005        	addw	x,#5
+5120  d715 cdf5fe        	call	c_ltor
+5122  d718 96            	ldw	x,sp
+5123  d719 5c            	incw	x
+5124  d71a cdf593        	call	c_lcmp
+5128  d71d 2303ccd689    	jrugt	LC019
+5129                     ; 1041     return buf - start;
+5131  d722 1e0f          	ldw	x,(OFST+5,sp)
+5132  d724 72f005        	subw	x,(OFST-5,sp)
+5134  d727 ccd68a        	jra	L223
+5214                     	switch	.const
+5215  9d58               L033:
+5216  9d58 00000080      	dc.l	128
+5217                     ; 1045 int16_t mqtt_pack_fixed_header(uint8_t *buf, uint16_t bufsz, const struct mqtt_fixed_header *fixed_header)
+5217                     ; 1046 {
+5218                     .text:	section	.text,new
+5219  d72a               _mqtt_pack_fixed_header:
+5221  d72a 89            	pushw	x
+5222  d72b 520c          	subw	sp,#12
+5223       0000000c      OFST:	set	12
+5226                     ; 1047     const uint8_t *start = buf;
+5228  d72d 1f05          	ldw	(OFST-7,sp),x
+5230                     ; 1052     if (fixed_header == NULL || buf == NULL) {
+5232  d72f 1e13          	ldw	x,(OFST+7,sp)
+5233  d731 2704          	jreq	L5332
+5235  d733 1e0d          	ldw	x,(OFST+1,sp)
+5236  d735 2605          	jrne	L3332
+5237  d737               L5332:
+5238                     ; 1053       return MQTT_ERROR_NULLPTR;
+5240  d737 ae8001        	ldw	x,#32769
+5242  d73a 2009          	jra	L233
+5243  d73c               L3332:
+5244                     ; 1057     errcode = mqtt_fixed_header_rule_violation(fixed_header);
+5246  d73c 1e13          	ldw	x,(OFST+7,sp)
+5247  d73e cdd637        	call	L3512_mqtt_fixed_header_rule_violation
+5249  d741 1f07          	ldw	(OFST-5,sp),x
+5251                     ; 1058     if (errcode) return errcode;
+5253  d743 2703          	jreq	L7332
+5257  d745               L233:
+5259  d745 5b0e          	addw	sp,#14
+5260  d747 81            	ret	
+5261  d748               L7332:
+5262                     ; 1061     if (bufsz == 0) return 0;
+5264  d748 1e11          	ldw	x,(OFST+5,sp)
+5265  d74a 2603          	jrne	L1432
+5268  d74c 5f            	clrw	x
+5270  d74d 20f6          	jra	L233
+5271  d74f               L1432:
+5272                     ; 1064     *buf =  (uint8_t)((fixed_header->control_type << 4) & 0xF0);
+5274  d74f 1e13          	ldw	x,(OFST+7,sp)
+5275  d751 f6            	ld	a,(x)
+5276  d752 97            	ld	xl,a
+5277  d753 a610          	ld	a,#16
+5278  d755 42            	mul	x,a
+5279  d756 9f            	ld	a,xl
+5280  d757 1e0d          	ldw	x,(OFST+1,sp)
+5281  d759 a4f0          	and	a,#240
+5282  d75b f7            	ld	(x),a
+5283                     ; 1065     *buf |= (uint8_t)(fixed_header->control_flags & 0x0F);
+5285  d75c 1613          	ldw	y,(OFST+7,sp)
+5286  d75e 90e604        	ld	a,(4,y)
+5287  d761 a40f          	and	a,#15
+5288  d763 fa            	or	a,(x)
+5289  d764 f7            	ld	(x),a
+5290                     ; 1067     remaining_length = fixed_header->remaining_length;
+5292  d765 93            	ldw	x,y
+5293  d766 ee07          	ldw	x,(7,x)
+5294  d768 1f0b          	ldw	(OFST-1,sp),x
+5295  d76a 93            	ldw	x,y
+5296  d76b ee05          	ldw	x,(5,x)
+5297  d76d 1f09          	ldw	(OFST-3,sp),x
+5299  d76f               L3432:
+5300                     ; 1075         --bufsz;
+5302  d76f 1e11          	ldw	x,(OFST+5,sp)
+5303  d771 5a            	decw	x
+5304  d772 1f11          	ldw	(OFST+5,sp),x
+5305                     ; 1076         ++buf;
+5307  d774 1e0d          	ldw	x,(OFST+1,sp)
+5308  d776 5c            	incw	x
+5309  d777 1f0d          	ldw	(OFST+1,sp),x
+5310                     ; 1077         if (bufsz == 0) return 0;
+5312  d779 1e11          	ldw	x,(OFST+5,sp)
+5313  d77b 2603          	jrne	L1532
+5316  d77d 5f            	clrw	x
+5318  d77e 20c5          	jra	L233
+5319  d780               L1532:
+5320                     ; 1080         *buf  = (uint8_t)(remaining_length & 0x7F);
+5322  d780 7b0c          	ld	a,(OFST+0,sp)
+5323  d782 1e0d          	ldw	x,(OFST+1,sp)
+5324  d784 a47f          	and	a,#127
+5325  d786 f7            	ld	(x),a
+5326                     ; 1081         if(remaining_length > 127) *buf |= 0x80;
+5328  d787 96            	ldw	x,sp
+5329  d788 1c0009        	addw	x,#OFST-3
+5330  d78b cdf5fe        	call	c_ltor
+5332  d78e ae9d58        	ldw	x,#L033
+5333  d791 cdf593        	call	c_lcmp
+5335  d794 2506          	jrult	L3532
+5338  d796 1e0d          	ldw	x,(OFST+1,sp)
+5339  d798 f6            	ld	a,(x)
+5340  d799 aa80          	or	a,#128
+5341  d79b f7            	ld	(x),a
+5342  d79c               L3532:
+5343                     ; 1082         remaining_length = remaining_length >> 7;
+5345  d79c 96            	ldw	x,sp
+5346  d79d 1c0009        	addw	x,#OFST-3
+5347  d7a0 a607          	ld	a,#7
+5348  d7a2 cdf5f0        	call	c_lgursh
+5351                     ; 1083     } while(*buf & 0x80);
+5353  d7a5 1e0d          	ldw	x,(OFST+1,sp)
+5354  d7a7 f6            	ld	a,(x)
+5355  d7a8 2bc5          	jrmi	L3432
+5356                     ; 1086     --bufsz;
+5358  d7aa 1e11          	ldw	x,(OFST+5,sp)
+5359  d7ac 5a            	decw	x
+5360  d7ad 1f11          	ldw	(OFST+5,sp),x
+5361                     ; 1087     ++buf;
+5363  d7af 1e0d          	ldw	x,(OFST+1,sp)
+5364  d7b1 5c            	incw	x
+5365  d7b2 1f0d          	ldw	(OFST+1,sp),x
+5366                     ; 1090     if (bufsz < fixed_header->remaining_length) return 0;
+5368  d7b4 1e11          	ldw	x,(OFST+5,sp)
+5369  d7b6 cdf7c5        	call	c_uitolx
+5371  d7b9 96            	ldw	x,sp
+5372  d7ba 5c            	incw	x
+5373  d7bb cdf764        	call	c_rtol
+5376  d7be 1e13          	ldw	x,(OFST+7,sp)
+5377  d7c0 1c0005        	addw	x,#5
+5378  d7c3 cdf5fe        	call	c_ltor
+5380  d7c6 96            	ldw	x,sp
+5381  d7c7 5c            	incw	x
+5382  d7c8 cdf593        	call	c_lcmp
+5384  d7cb 2304          	jrule	L5532
+5387  d7cd 5f            	clrw	x
+5389  d7ce ccd745        	jra	L233
+5390  d7d1               L5532:
+5391                     ; 1093     return buf - start;
+5393  d7d1 1e0d          	ldw	x,(OFST+1,sp)
+5394  d7d3 72f005        	subw	x,(OFST-7,sp)
+5396  d7d6 ccd745        	jra	L233
+5549                     ; 1098 int16_t mqtt_pack_connection_request(uint8_t* buf, uint16_t bufsz,
+5549                     ; 1099                                      const char* client_id,
+5549                     ; 1100                                      const char* will_topic,
+5549                     ; 1101                                      const void* will_message,
+5549                     ; 1102                                      uint16_t will_message_size,
+5549                     ; 1103                                      const char* user_name,
+5549                     ; 1104                                      const char* password,
+5549                     ; 1105                                      uint8_t connect_flags,
+5549                     ; 1106                                      uint16_t keep_alive)
+5549                     ; 1107 { 
+5550                     .text:	section	.text,new
+5551  d7d9               _mqtt_pack_connection_request:
+5553  d7d9 89            	pushw	x
+5554  d7da 520d          	subw	sp,#13
+5555       0000000d      OFST:	set	13
+5558                     ; 1110     const uint8_t *const start = buf;
+5560  d7dc 1f01          	ldw	(OFST-12,sp),x
+5562                     ; 1114     fixed_header.control_type = MQTT_CONTROL_CONNECT;
+5564  d7de a601          	ld	a,#1
+5565  d7e0 6b03          	ld	(OFST-10,sp),a
+5567                     ; 1115     fixed_header.control_flags = 0x00;
+5569  d7e2 7b07          	ld	a,(OFST-6,sp)
+5570  d7e4 a4f0          	and	a,#240
+5571  d7e6 6b07          	ld	(OFST-6,sp),a
+5573                     ; 1118     connect_flags = (uint8_t)(connect_flags & ~MQTT_CONNECT_RESERVED);
+5575  d7e8 7b20          	ld	a,(OFST+19,sp)
+5576  d7ea a4fe          	and	a,#254
+5577  d7ec 6b20          	ld	(OFST+19,sp),a
+5578                     ; 1121     remaining_length = 10; /* size of variable header */
+5580  d7ee ae000a        	ldw	x,#10
+5581  d7f1 1f0c          	ldw	(OFST-1,sp),x
+5583                     ; 1133     remaining_length += __mqtt_packed_cstrlen(client_id);
+5585  d7f3 1e14          	ldw	x,(OFST+7,sp)
+5586  d7f5 cdf371        	call	_strlen
+5588  d7f8 1c0002        	addw	x,#2
+5589  d7fb 72fb0c        	addw	x,(OFST-1,sp)
+5590  d7fe 1f0c          	ldw	(OFST-1,sp),x
+5592                     ; 1163     connect_flags |= MQTT_CONNECT_WILL_FLAG;
+5594  d800 7b20          	ld	a,(OFST+19,sp)
+5595                     ; 1164     connect_flags |= MQTT_CONNECT_WILL_RETAIN;
+5597  d802 aa24          	or	a,#36
+5598  d804 6b20          	ld	(OFST+19,sp),a
+5599                     ; 1165     remaining_length += __mqtt_packed_cstrlen(will_topic);
+5601  d806 1e16          	ldw	x,(OFST+9,sp)
+5602  d808 cdf371        	call	_strlen
+5604  d80b 1c0002        	addw	x,#2
+5605  d80e 72fb0c        	addw	x,(OFST-1,sp)
+5606  d811 1f0c          	ldw	(OFST-1,sp),x
+5608                     ; 1166     remaining_length += 2 + will_message_size; /* size of will_message */
+5610  d813 1e1a          	ldw	x,(OFST+13,sp)
+5611  d815 1c0002        	addw	x,#2
+5612  d818 72fb0c        	addw	x,(OFST-1,sp)
+5613  d81b 1f0c          	ldw	(OFST-1,sp),x
+5615                     ; 1168     if (user_name != NULL) {
+5617  d81d 1e1c          	ldw	x,(OFST+15,sp)
+5618  d81f 2713          	jreq	L5442
+5619                     ; 1170         connect_flags |= MQTT_CONNECT_USER_NAME;
+5621  d821 7b20          	ld	a,(OFST+19,sp)
+5622  d823 aa80          	or	a,#128
+5623  d825 6b20          	ld	(OFST+19,sp),a
+5624                     ; 1171         remaining_length += __mqtt_packed_cstrlen(user_name);
+5626  d827 cdf371        	call	_strlen
+5628  d82a 1c0002        	addw	x,#2
+5629  d82d 72fb0c        	addw	x,(OFST-1,sp)
+5630  d830 1f0c          	ldw	(OFST-1,sp),x
+5633  d832 2006          	jra	L7442
+5634  d834               L5442:
+5635                     ; 1173     else connect_flags &= (uint8_t)(~MQTT_CONNECT_USER_NAME);
+5637  d834 7b20          	ld	a,(OFST+19,sp)
+5638  d836 a47f          	and	a,#127
+5639  d838 6b20          	ld	(OFST+19,sp),a
+5640  d83a               L7442:
+5641                     ; 1175     if (password != NULL) {
+5643  d83a 1e1e          	ldw	x,(OFST+17,sp)
+5644  d83c 2713          	jreq	L1542
+5645                     ; 1177         connect_flags |= MQTT_CONNECT_PASSWORD;
+5647  d83e 7b20          	ld	a,(OFST+19,sp)
+5648  d840 aa40          	or	a,#64
+5649  d842 6b20          	ld	(OFST+19,sp),a
+5650                     ; 1178         remaining_length += __mqtt_packed_cstrlen(password);
+5652  d844 cdf371        	call	_strlen
+5654  d847 1c0002        	addw	x,#2
+5655  d84a 72fb0c        	addw	x,(OFST-1,sp)
+5656  d84d 1f0c          	ldw	(OFST-1,sp),x
+5659  d84f 2008          	jra	L3542
+5660  d851               L1542:
+5661                     ; 1180     else connect_flags &= (uint8_t)(~MQTT_CONNECT_PASSWORD);
+5663  d851 7b20          	ld	a,(OFST+19,sp)
+5664  d853 a4bf          	and	a,#191
+5665  d855 6b20          	ld	(OFST+19,sp),a
+5666  d857 1e0c          	ldw	x,(OFST-1,sp)
+5667  d859               L3542:
+5668                     ; 1183     fixed_header.remaining_length = remaining_length;
+5670  d859 cdf7c5        	call	c_uitolx
+5672  d85c 96            	ldw	x,sp
+5673  d85d 1c0008        	addw	x,#OFST-5
+5674  d860 cdf764        	call	c_rtol
+5677                     ; 1186     rv = mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
+5679  d863 96            	ldw	x,sp
+5680  d864 1c0003        	addw	x,#OFST-10
+5681  d867 89            	pushw	x
+5682  d868 1e14          	ldw	x,(OFST+7,sp)
+5683  d86a 89            	pushw	x
+5684  d86b 1e12          	ldw	x,(OFST+5,sp)
+5685  d86d cdd72a        	call	_mqtt_pack_fixed_header
+5687  d870 5b04          	addw	sp,#4
+5688  d872 1f0c          	ldw	(OFST-1,sp),x
+5690                     ; 1187     if (rv <= 0) {
+5692  d874 9c            	rvf	
+5693                     ; 1188       return rv; /* something went wrong */
+5696  d875 2d1b          	jrsle	L073
+5697                     ; 1191     buf += rv;
+5699  d877 1e0e          	ldw	x,(OFST+1,sp)
+5700  d879 72fb0c        	addw	x,(OFST-1,sp)
+5701  d87c 1f0e          	ldw	(OFST+1,sp),x
+5702                     ; 1192     bufsz -= rv;
+5704  d87e 1e12          	ldw	x,(OFST+5,sp)
+5705  d880 72f00c        	subw	x,(OFST-1,sp)
+5706  d883 1f12          	ldw	(OFST+5,sp),x
+5707                     ; 1195     if (bufsz < fixed_header.remaining_length) return 0;
+5709  d885 cdf7c5        	call	c_uitolx
+5711  d888 96            	ldw	x,sp
+5712  d889 1c0008        	addw	x,#OFST-5
+5713  d88c cdf593        	call	c_lcmp
+5715  d88f 2404          	jruge	L7542
+5718  d891 5f            	clrw	x
+5720  d892               L073:
+5722  d892 5b0f          	addw	sp,#15
+5723  d894 81            	ret	
+5724  d895               L7542:
+5725                     ; 1198     *buf++ = 0x00;
+5727  d895 1e0e          	ldw	x,(OFST+1,sp)
+5728  d897 7f            	clr	(x)
+5729  d898 5c            	incw	x
+5730                     ; 1199     *buf++ = 0x04;
+5732  d899 a604          	ld	a,#4
+5733  d89b f7            	ld	(x),a
+5734  d89c 5c            	incw	x
+5735                     ; 1200     *buf++ = (uint8_t) 'M';
+5737  d89d a64d          	ld	a,#77
+5738  d89f f7            	ld	(x),a
+5739  d8a0 5c            	incw	x
+5740                     ; 1201     *buf++ = (uint8_t) 'Q';
+5742  d8a1 a651          	ld	a,#81
+5743  d8a3 f7            	ld	(x),a
+5744  d8a4 5c            	incw	x
+5745                     ; 1202     *buf++ = (uint8_t) 'T';
+5747  d8a5 a654          	ld	a,#84
+5748  d8a7 f7            	ld	(x),a
+5749  d8a8 5c            	incw	x
+5750                     ; 1203     *buf++ = (uint8_t) 'T';
+5752  d8a9 f7            	ld	(x),a
+5753  d8aa 5c            	incw	x
+5754                     ; 1204     *buf++ = MQTT_PROTOCOL_LEVEL;
+5756  d8ab a604          	ld	a,#4
+5757  d8ad f7            	ld	(x),a
+5758  d8ae 5c            	incw	x
+5759                     ; 1205     *buf++ = connect_flags;
+5761  d8af 7b20          	ld	a,(OFST+19,sp)
+5762  d8b1 f7            	ld	(x),a
+5763  d8b2 5c            	incw	x
+5764  d8b3 1f0e          	ldw	(OFST+1,sp),x
+5765                     ; 1206     buf += __mqtt_pack_uint16(buf, keep_alive);
+5767  d8b5 1e21          	ldw	x,(OFST+20,sp)
+5768  d8b7 89            	pushw	x
+5769  d8b8 1e10          	ldw	x,(OFST+3,sp)
+5770  d8ba cde0ad        	call	___mqtt_pack_uint16
+5772  d8bd 5b02          	addw	sp,#2
+5773  d8bf 72fb0e        	addw	x,(OFST+1,sp)
+5774  d8c2 1f0e          	ldw	(OFST+1,sp),x
+5775                     ; 1209     buf += __mqtt_pack_str(buf, client_id);
+5777  d8c4 1e14          	ldw	x,(OFST+7,sp)
+5778  d8c6 89            	pushw	x
+5779  d8c7 1e10          	ldw	x,(OFST+3,sp)
+5780  d8c9 cde0ee        	call	___mqtt_pack_str
+5782  d8cc 5b02          	addw	sp,#2
+5783  d8ce 72fb0e        	addw	x,(OFST+1,sp)
+5784  d8d1 1f0e          	ldw	(OFST+1,sp),x
+5785                     ; 1210     if (connect_flags & MQTT_CONNECT_WILL_FLAG) {
+5787  d8d3 7b20          	ld	a,(OFST+19,sp)
+5788  d8d5 a504          	bcp	a,#4
+5789  d8d7 273c          	jreq	L1642
+5790                     ; 1211         buf += __mqtt_pack_str(buf, will_topic);
+5792  d8d9 1e16          	ldw	x,(OFST+9,sp)
+5793  d8db 89            	pushw	x
+5794  d8dc 1e10          	ldw	x,(OFST+3,sp)
+5795  d8de cde0ee        	call	___mqtt_pack_str
+5797  d8e1 5b02          	addw	sp,#2
+5798  d8e3 72fb0e        	addw	x,(OFST+1,sp)
+5799  d8e6 1f0e          	ldw	(OFST+1,sp),x
+5800                     ; 1212         buf += __mqtt_pack_uint16(buf, (uint16_t)will_message_size);
+5802  d8e8 1e1a          	ldw	x,(OFST+13,sp)
+5803  d8ea 89            	pushw	x
+5804  d8eb 1e10          	ldw	x,(OFST+3,sp)
+5805  d8ed cde0ad        	call	___mqtt_pack_uint16
+5807  d8f0 5b02          	addw	sp,#2
+5808  d8f2 72fb0e        	addw	x,(OFST+1,sp)
+5809  d8f5 1f0e          	ldw	(OFST+1,sp),x
+5810                     ; 1213         memcpy(buf, will_message, will_message_size);
+5812  d8f7 bf04          	ldw	c_x,x
+5813  d8f9 1618          	ldw	y,(OFST+11,sp)
+5814  d8fb 90bf07        	ldw	c_y,y
+5815  d8fe 1e1a          	ldw	x,(OFST+13,sp)
+5816  d900 270a          	jreq	L063
+5817  d902               L263:
+5818  d902 5a            	decw	x
+5819  d903 92d607        	ld	a,([c_y.w],x)
+5820  d906 92d704        	ld	([c_x.w],x),a
+5821  d909 5d            	tnzw	x
+5822  d90a 26f6          	jrne	L263
+5823  d90c               L063:
+5824                     ; 1214         buf += will_message_size;
+5826  d90c 1e0e          	ldw	x,(OFST+1,sp)
+5827  d90e 72fb1a        	addw	x,(OFST+13,sp)
+5828  d911 1f0e          	ldw	(OFST+1,sp),x
+5829  d913 7b20          	ld	a,(OFST+19,sp)
+5830  d915               L1642:
+5831                     ; 1217     if (connect_flags & MQTT_CONNECT_USER_NAME) buf += __mqtt_pack_str(buf, user_name);
+5833  d915 a580          	bcp	a,#128
+5834  d917 2711          	jreq	L3642
+5837  d919 1e1c          	ldw	x,(OFST+15,sp)
+5838  d91b 89            	pushw	x
+5839  d91c 1e10          	ldw	x,(OFST+3,sp)
+5840  d91e cde0ee        	call	___mqtt_pack_str
+5842  d921 5b02          	addw	sp,#2
+5843  d923 72fb0e        	addw	x,(OFST+1,sp)
+5844  d926 1f0e          	ldw	(OFST+1,sp),x
+5845  d928 7b20          	ld	a,(OFST+19,sp)
+5846  d92a               L3642:
+5847                     ; 1219     if (connect_flags & MQTT_CONNECT_PASSWORD) buf += __mqtt_pack_str(buf, password);
+5849  d92a a540          	bcp	a,#64
+5850  d92c 270f          	jreq	L5642
+5853  d92e 1e1e          	ldw	x,(OFST+17,sp)
+5854  d930 89            	pushw	x
+5855  d931 1e10          	ldw	x,(OFST+3,sp)
+5856  d933 cde0ee        	call	___mqtt_pack_str
+5858  d936 5b02          	addw	sp,#2
+5859  d938 72fb0e        	addw	x,(OFST+1,sp)
+5860  d93b 1f0e          	ldw	(OFST+1,sp),x
+5861  d93d               L5642:
+5862                     ; 1222     return buf - start;
+5864  d93d 72f001        	subw	x,(OFST-12,sp)
+5866  d940 ccd892        	jra	L073
+5936                     	switch	.const
+5937  9d5c               L473:
+5938  9d5c 00000002      	dc.l	2
+5939                     ; 1227 int16_t mqtt_unpack_connack_response(struct mqtt_response *mqtt_response, const uint8_t *buf)
+5939                     ; 1228 {
+5940                     .text:	section	.text,new
+5941  d943               _mqtt_unpack_connack_response:
+5943  d943 89            	pushw	x
+5944  d944 5204          	subw	sp,#4
+5945       00000004      OFST:	set	4
+5948                     ; 1229     const uint8_t *const start = buf;
+5950  d946 1e09          	ldw	x,(OFST+5,sp)
+5951  d948 1f01          	ldw	(OFST-3,sp),x
+5953                     ; 1233     if (mqtt_response->fixed_header.remaining_length != 2) {
+5955  d94a 1e05          	ldw	x,(OFST+1,sp)
+5956  d94c 1c0005        	addw	x,#5
+5957  d94f cdf5fe        	call	c_ltor
+5959  d952 ae9d5c        	ldw	x,#L473
+5960  d955 cdf593        	call	c_lcmp
+5962  d958 2705          	jreq	L5252
+5963                     ; 1234       return MQTT_ERROR_MALFORMED_RESPONSE;
+5965  d95a ae800c        	ldw	x,#32780
+5967  d95d 2011          	jra	L673
+5968  d95f               L5252:
+5969                     ; 1237     response = &(mqtt_response->decoded.connack);
+5971  d95f 1e05          	ldw	x,(OFST+1,sp)
+5972  d961 1c0009        	addw	x,#9
+5973  d964 1f03          	ldw	(OFST-1,sp),x
+5975                     ; 1239     if (*buf & 0xFE) {
+5977  d966 1e09          	ldw	x,(OFST+5,sp)
+5978  d968 f6            	ld	a,(x)
+5979  d969 a5fe          	bcp	a,#254
+5980  d96b 2706          	jreq	L7252
+5981                     ; 1240       return MQTT_ERROR_CONNACK_FORBIDDEN_FLAGS; /* only bit 1 can be set */
+5983  d96d ae8008        	ldw	x,#32776
+5985  d970               L673:
+5987  d970 5b06          	addw	sp,#6
+5988  d972 81            	ret	
+5989  d973               L7252:
+5990                     ; 1242     else response->session_present_flag = *buf++;
+5992  d973 5c            	incw	x
+5993  d974 1f09          	ldw	(OFST+5,sp),x
+5994  d976 1e03          	ldw	x,(OFST-1,sp)
+5995  d978 f7            	ld	(x),a
+5996                     ; 1244     if (*buf > 5u) {
+5998  d979 1e09          	ldw	x,(OFST+5,sp)
+5999  d97b f6            	ld	a,(x)
+6000  d97c a106          	cp	a,#6
+6001  d97e 2505          	jrult	L3352
+6002                     ; 1245       return MQTT_ERROR_CONNACK_FORBIDDEN_CODE; /* only bit 1 can be set */
+6004  d980 ae8009        	ldw	x,#32777
+6006  d983 20eb          	jra	L673
+6007  d985               L3352:
+6008                     ; 1247     else response->return_code = (enum MQTTConnackReturnCode) *buf++;
+6010  d985 5c            	incw	x
+6011  d986 1f09          	ldw	(OFST+5,sp),x
+6012  d988 1e03          	ldw	x,(OFST-1,sp)
+6013  d98a e701          	ld	(1,x),a
+6014                     ; 1249     return buf - start;
+6016  d98c 1e09          	ldw	x,(OFST+5,sp)
+6017  d98e 72f001        	subw	x,(OFST-3,sp)
+6019  d991 20dd          	jra	L673
+6073                     ; 1254 int16_t mqtt_pack_disconnect(uint8_t *buf, uint16_t bufsz)
+6073                     ; 1255 {
+6074                     .text:	section	.text,new
+6075  d993               _mqtt_pack_disconnect:
+6077  d993 89            	pushw	x
+6078  d994 5209          	subw	sp,#9
+6079       00000009      OFST:	set	9
+6082                     ; 1257     fixed_header.control_type = MQTT_CONTROL_DISCONNECT;
+6084  d996 a60e          	ld	a,#14
+6085  d998 6b01          	ld	(OFST-8,sp),a
+6087                     ; 1258     fixed_header.control_flags = 0;
+6089  d99a 7b05          	ld	a,(OFST-4,sp)
+6090  d99c a4f0          	and	a,#240
+6091  d99e 6b05          	ld	(OFST-4,sp),a
+6093                     ; 1259     fixed_header.remaining_length = 0;
+6095  d9a0 5f            	clrw	x
+6096  d9a1 1f08          	ldw	(OFST-1,sp),x
+6097  d9a3 1f06          	ldw	(OFST-3,sp),x
+6099                     ; 1260     return mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
+6101  d9a5 96            	ldw	x,sp
+6102  d9a6 5c            	incw	x
+6103  d9a7 89            	pushw	x
+6104  d9a8 1e10          	ldw	x,(OFST+7,sp)
+6105  d9aa 89            	pushw	x
+6106  d9ab 1e0e          	ldw	x,(OFST+5,sp)
+6107  d9ad cdd72a        	call	_mqtt_pack_fixed_header
+6109  d9b0 5b0f          	addw	sp,#15
+6112  d9b2 81            	ret	
+6166                     ; 1265 int16_t mqtt_pack_ping_request(uint8_t *buf, uint16_t bufsz)
+6166                     ; 1266 {
+6167                     .text:	section	.text,new
+6168  d9b3               _mqtt_pack_ping_request:
+6170  d9b3 89            	pushw	x
+6171  d9b4 5209          	subw	sp,#9
+6172       00000009      OFST:	set	9
+6175                     ; 1268     fixed_header.control_type = MQTT_CONTROL_PINGREQ;
+6177  d9b6 a60c          	ld	a,#12
+6178  d9b8 6b01          	ld	(OFST-8,sp),a
+6180                     ; 1269     fixed_header.control_flags = 0;
+6182  d9ba 7b05          	ld	a,(OFST-4,sp)
+6183  d9bc a4f0          	and	a,#240
+6184  d9be 6b05          	ld	(OFST-4,sp),a
+6186                     ; 1270     fixed_header.remaining_length = 0;
+6188  d9c0 5f            	clrw	x
+6189  d9c1 1f08          	ldw	(OFST-1,sp),x
+6190  d9c3 1f06          	ldw	(OFST-3,sp),x
+6192                     ; 1271     return mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
+6194  d9c5 96            	ldw	x,sp
+6195  d9c6 5c            	incw	x
+6196  d9c7 89            	pushw	x
+6197  d9c8 1e10          	ldw	x,(OFST+7,sp)
+6198  d9ca 89            	pushw	x
+6199  d9cb 1e0e          	ldw	x,(OFST+5,sp)
+6200  d9cd cdd72a        	call	_mqtt_pack_fixed_header
+6202  d9d0 5b0f          	addw	sp,#15
+6205  d9d2 81            	ret	
+6337                     ; 1276 int16_t mqtt_pack_publish_request(uint8_t *buf, uint16_t bufsz,
+6337                     ; 1277                                   const char* topic_name,
+6337                     ; 1278                                   uint16_t packet_id,
+6337                     ; 1279                                   const void* application_message,
+6337                     ; 1280                                   uint16_t application_message_size,
+6337                     ; 1281                                   uint8_t publish_flags)
+6337                     ; 1282 {
+6338                     .text:	section	.text,new
+6339  d9d3               _mqtt_pack_publish_request:
+6341  d9d3 89            	pushw	x
+6342  d9d4 5212          	subw	sp,#18
+6343       00000012      OFST:	set	18
+6346                     ; 1283     const uint8_t *const start = buf;
+6348  d9d6 1f01          	ldw	(OFST-17,sp),x
+6350                     ; 1290     if(buf == NULL || topic_name == NULL) {
+6352  d9d8 2704          	jreq	L5662
+6354  d9da 1e19          	ldw	x,(OFST+7,sp)
+6355  d9dc 2605          	jrne	L3662
+6356  d9de               L5662:
+6357                     ; 1291       return MQTT_ERROR_NULLPTR;
+6359  d9de ae8001        	ldw	x,#32769
+6361  d9e1 204f          	jra	L624
+6362  d9e3               L3662:
+6363                     ; 1295     inspected_qos = (uint8_t)((publish_flags & MQTT_PUBLISH_QOS_MASK) >> 1); /* mask */
+6365  d9e3 7b21          	ld	a,(OFST+15,sp)
+6366  d9e5 a406          	and	a,#6
+6367  d9e7 44            	srl	a
+6368  d9e8 6b12          	ld	(OFST+0,sp),a
+6370                     ; 1298     fixed_header.control_type = MQTT_CONTROL_PUBLISH;
+6372  d9ea a603          	ld	a,#3
+6373  d9ec 6b03          	ld	(OFST-15,sp),a
+6375                     ; 1301     remaining_length = (uint32_t)__mqtt_packed_cstrlen(topic_name);
+6377  d9ee cdf371        	call	_strlen
+6379  d9f1 1c0002        	addw	x,#2
+6380  d9f4 cdf7c5        	call	c_uitolx
+6382  d9f7 96            	ldw	x,sp
+6383  d9f8 1c000e        	addw	x,#OFST-4
+6384  d9fb cdf764        	call	c_rtol
+6387                     ; 1302     if (inspected_qos > 0) remaining_length += 2;
+6389  d9fe 7b12          	ld	a,(OFST+0,sp)
+6390  da00 2709          	jreq	L7662
+6393  da02 96            	ldw	x,sp
+6394  da03 1c000e        	addw	x,#OFST-4
+6395  da06 a602          	ld	a,#2
+6396  da08 cdf5b3        	call	c_lgadc
+6399  da0b               L7662:
+6400                     ; 1303     remaining_length += (uint32_t)application_message_size;
+6402  da0b 1e1f          	ldw	x,(OFST+13,sp)
+6403  da0d cdf7c5        	call	c_uitolx
+6405  da10 96            	ldw	x,sp
+6406  da11 1c000e        	addw	x,#OFST-4
+6407  da14 cdf5c3        	call	c_lgadd
+6410                     ; 1304     fixed_header.remaining_length = remaining_length;
+6412  da17 1e10          	ldw	x,(OFST-2,sp)
+6413  da19 1f0a          	ldw	(OFST-8,sp),x
+6414  da1b 1e0e          	ldw	x,(OFST-4,sp)
+6415  da1d 1f08          	ldw	(OFST-10,sp),x
+6417                     ; 1307     if (inspected_qos == 0) publish_flags &= (uint8_t)(~MQTT_PUBLISH_DUP);
+6419  da1f 7b12          	ld	a,(OFST+0,sp)
+6420  da21 2608          	jrne	L1762
+6423  da23 7b21          	ld	a,(OFST+15,sp)
+6424  da25 a4f7          	and	a,#247
+6425  da27 6b21          	ld	(OFST+15,sp),a
+6426  da29 7b12          	ld	a,(OFST+0,sp)
+6427  da2b               L1762:
+6428                     ; 1310     if (inspected_qos == 3) {
+6430  da2b a103          	cp	a,#3
+6431  da2d 2606          	jrne	L3762
+6432                     ; 1311       return MQTT_ERROR_PUBLISH_FORBIDDEN_QOS;
+6434  da2f ae800a        	ldw	x,#32778
+6436  da32               L624:
+6438  da32 5b14          	addw	sp,#20
+6439  da34 81            	ret	
+6440  da35               L3762:
+6441                     ; 1313     fixed_header.control_flags = publish_flags;
+6443  da35 7b21          	ld	a,(OFST+15,sp)
+6444  da37 1807          	xor	a,(OFST-11,sp)
+6445  da39 a40f          	and	a,#15
+6446  da3b 1807          	xor	a,(OFST-11,sp)
+6447  da3d 6b07          	ld	(OFST-11,sp),a
+6449                     ; 1316     rv = mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
+6451  da3f 96            	ldw	x,sp
+6452  da40 1c0003        	addw	x,#OFST-15
+6453  da43 89            	pushw	x
+6454  da44 1e19          	ldw	x,(OFST+7,sp)
+6455  da46 89            	pushw	x
+6456  da47 1e17          	ldw	x,(OFST+5,sp)
+6457  da49 cdd72a        	call	_mqtt_pack_fixed_header
+6459  da4c 5b04          	addw	sp,#4
+6460  da4e 1f0c          	ldw	(OFST-6,sp),x
+6462                     ; 1317     if (rv <= 0) return rv; /* something went wrong */
+6464  da50 9c            	rvf	
+6468  da51 2ddf          	jrsle	L624
+6469                     ; 1319     buf += rv;
+6471  da53 1e13          	ldw	x,(OFST+1,sp)
+6472  da55 72fb0c        	addw	x,(OFST-6,sp)
+6473  da58 1f13          	ldw	(OFST+1,sp),x
+6474                     ; 1320     bufsz -= rv;
+6476  da5a 1e17          	ldw	x,(OFST+5,sp)
+6477  da5c 72f00c        	subw	x,(OFST-6,sp)
+6478  da5f 1f17          	ldw	(OFST+5,sp),x
+6479                     ; 1323     if (bufsz < remaining_length) return 0;
+6481  da61 cdf7c5        	call	c_uitolx
+6483  da64 96            	ldw	x,sp
+6484  da65 1c000e        	addw	x,#OFST-4
+6485  da68 cdf593        	call	c_lcmp
+6487  da6b 2403          	jruge	L7762
+6490  da6d 5f            	clrw	x
+6492  da6e 20c2          	jra	L624
+6493  da70               L7762:
+6494                     ; 1326     buf += __mqtt_pack_str(buf, topic_name);
+6496  da70 1e19          	ldw	x,(OFST+7,sp)
+6497  da72 89            	pushw	x
+6498  da73 1e15          	ldw	x,(OFST+3,sp)
+6499  da75 cde0ee        	call	___mqtt_pack_str
+6501  da78 5b02          	addw	sp,#2
+6502  da7a 72fb13        	addw	x,(OFST+1,sp)
+6503  da7d 1f13          	ldw	(OFST+1,sp),x
+6504                     ; 1327     if (inspected_qos > 0) buf += __mqtt_pack_uint16(buf, packet_id);
+6506  da7f 7b12          	ld	a,(OFST+0,sp)
+6507  da81 270f          	jreq	L1072
+6510  da83 1e1b          	ldw	x,(OFST+9,sp)
+6511  da85 89            	pushw	x
+6512  da86 1e15          	ldw	x,(OFST+3,sp)
+6513  da88 cde0ad        	call	___mqtt_pack_uint16
+6515  da8b 5b02          	addw	sp,#2
+6516  da8d 72fb13        	addw	x,(OFST+1,sp)
+6517  da90 1f13          	ldw	(OFST+1,sp),x
+6518  da92               L1072:
+6519                     ; 1330     memcpy(buf, application_message, application_message_size);
+6521  da92 bf04          	ldw	c_x,x
+6522  da94 161d          	ldw	y,(OFST+11,sp)
+6523  da96 90bf07        	ldw	c_y,y
+6524  da99 1e1f          	ldw	x,(OFST+13,sp)
+6525  da9b 270a          	jreq	L224
+6526  da9d               L424:
+6527  da9d 5a            	decw	x
+6528  da9e 92d607        	ld	a,([c_y.w],x)
+6529  daa1 92d704        	ld	([c_x.w],x),a
+6530  daa4 5d            	tnzw	x
+6531  daa5 26f6          	jrne	L424
+6532  daa7               L224:
+6533                     ; 1331     buf += application_message_size;
+6535  daa7 1e13          	ldw	x,(OFST+1,sp)
+6536  daa9 72fb1f        	addw	x,(OFST+13,sp)
+6537  daac 1f13          	ldw	(OFST+1,sp),x
+6538                     ; 1333     return buf - start;
+6540  daae 72f001        	subw	x,(OFST-17,sp)
+6542  dab1 ccda32        	jra	L624
+6625                     	switch	.const
+6626  9d60               L234:
+6627  9d60 00000004      	dc.l	4
+6628                     ; 1337 int16_t mqtt_unpack_publish_response(struct mqtt_response *mqtt_response, const uint8_t *buf)
+6628                     ; 1338 {    
+6629                     .text:	section	.text,new
+6630  dab4               _mqtt_unpack_publish_response:
+6632  dab4 89            	pushw	x
+6633  dab5 5206          	subw	sp,#6
+6634       00000006      OFST:	set	6
+6637                     ; 1339     const uint8_t *const start = buf;
+6639  dab7 1e0b          	ldw	x,(OFST+5,sp)
+6640  dab9 1f01          	ldw	(OFST-5,sp),x
+6642                     ; 1343     fixed_header = &(mqtt_response->fixed_header);
+6644  dabb 1e07          	ldw	x,(OFST+1,sp)
+6645  dabd 1f03          	ldw	(OFST-3,sp),x
+6647                     ; 1344     response = &(mqtt_response->decoded.publish);
+6649  dabf 1c0009        	addw	x,#9
+6650  dac2 1f05          	ldw	(OFST-1,sp),x
+6652                     ; 1347     response->dup_flag = (uint8_t)((fixed_header->control_flags & MQTT_PUBLISH_DUP) >> 3);
+6654  dac4 1e03          	ldw	x,(OFST-3,sp)
+6655  dac6 e604          	ld	a,(4,x)
+6656  dac8 a40f          	and	a,#15
+6657  daca 44            	srl	a
+6658  dacb 44            	srl	a
+6659  dacc 1e05          	ldw	x,(OFST-1,sp)
+6660  dace 44            	srl	a
+6661  dacf f7            	ld	(x),a
+6662                     ; 1348     response->qos_level = (uint8_t)((fixed_header->control_flags & MQTT_PUBLISH_QOS_MASK) >> 1);
+6664  dad0 1e03          	ldw	x,(OFST-3,sp)
+6665  dad2 e604          	ld	a,(4,x)
+6666  dad4 a406          	and	a,#6
+6667  dad6 1e05          	ldw	x,(OFST-1,sp)
+6668  dad8 44            	srl	a
+6669  dad9 e701          	ld	(1,x),a
+6670                     ; 1349     response->retain_flag = (uint8_t)(fixed_header->control_flags & MQTT_PUBLISH_RETAIN);
+6672  dadb 1e03          	ldw	x,(OFST-3,sp)
+6673  dadd e604          	ld	a,(4,x)
+6674  dadf 1e05          	ldw	x,(OFST-1,sp)
+6675  dae1 a401          	and	a,#1
+6676  dae3 e702          	ld	(2,x),a
+6677                     ; 1352     if (mqtt_response->fixed_header.remaining_length < 4) {
+6679  dae5 1e07          	ldw	x,(OFST+1,sp)
+6680  dae7 1c0005        	addw	x,#5
+6681  daea cdf5fe        	call	c_ltor
+6683  daed ae9d60        	ldw	x,#L234
+6684  daf0 cdf593        	call	c_lcmp
+6686  daf3 2405          	jruge	L7472
+6687                     ; 1353         return MQTT_ERROR_MALFORMED_RESPONSE;
+6689  daf5 ae800c        	ldw	x,#32780
+6691  daf8 2072          	jra	L044
+6692  dafa               L7472:
+6693                     ; 1357     response->topic_name_size = __mqtt_unpack_uint16(buf);
+6695  dafa 1e0b          	ldw	x,(OFST+5,sp)
+6696  dafc cde0d1        	call	___mqtt_unpack_uint16
+6698  daff 1605          	ldw	y,(OFST-1,sp)
+6699  db01 90ef03        	ldw	(3,y),x
+6700                     ; 1358     buf += 2;
+6702  db04 1e0b          	ldw	x,(OFST+5,sp)
+6703  db06 1c0002        	addw	x,#2
+6704  db09 1f0b          	ldw	(OFST+5,sp),x
+6705                     ; 1359     response->topic_name = buf;
+6707  db0b 93            	ldw	x,y
+6708  db0c 160b          	ldw	y,(OFST+5,sp)
+6709  db0e ef05          	ldw	(5,x),y
+6710                     ; 1360     buf += response->topic_name_size;
+6712  db10 ee03          	ldw	x,(3,x)
+6713  db12 72fb0b        	addw	x,(OFST+5,sp)
+6714  db15 1f0b          	ldw	(OFST+5,sp),x
+6715                     ; 1362     if (response->qos_level > 0) {
+6717  db17 1e05          	ldw	x,(OFST-1,sp)
+6718  db19 6d01          	tnz	(1,x)
+6719  db1b 2712          	jreq	L1572
+6720                     ; 1363         response->packet_id = __mqtt_unpack_uint16(buf);
+6722  db1d 1e0b          	ldw	x,(OFST+5,sp)
+6723  db1f cde0d1        	call	___mqtt_unpack_uint16
+6725  db22 1605          	ldw	y,(OFST-1,sp)
+6726  db24 90ef07        	ldw	(7,y),x
+6727                     ; 1364         buf += 2;
+6729  db27 1e0b          	ldw	x,(OFST+5,sp)
+6730  db29 1c0002        	addw	x,#2
+6731  db2c 1f0b          	ldw	(OFST+5,sp),x
+6732  db2e 93            	ldw	x,y
+6733  db2f               L1572:
+6734                     ; 1368     response->application_message = buf;
+6736  db2f 160b          	ldw	y,(OFST+5,sp)
+6737  db31 ef09          	ldw	(9,x),y
+6738                     ; 1369     if (response->qos_level == 0) {
+6740  db33 6d01          	tnz	(1,x)
+6741  db35 2614          	jrne	L3572
+6742                     ; 1370         response->application_message_size = (uint16_t)(fixed_header->remaining_length - response->topic_name_size - 2);
+6744  db37 1e03          	ldw	x,(OFST-3,sp)
+6745  db39 1605          	ldw	y,(OFST-1,sp)
+6746  db3b ee07          	ldw	x,(7,x)
+6747  db3d 01            	rrwa	x,a
+6748  db3e 90e004        	sub	a,(4,y)
+6749  db41 01            	rrwa	x,a
+6750  db42 90e203        	sbc	a,(3,y)
+6751  db45 01            	rrwa	x,a
+6752  db46 1d0002        	subw	x,#2
+6754  db49 2012          	jra	L5572
+6755  db4b               L3572:
+6756                     ; 1373         response->application_message_size = (uint16_t)(fixed_header->remaining_length - response->topic_name_size - 4);
+6758  db4b 1e03          	ldw	x,(OFST-3,sp)
+6759  db4d 1605          	ldw	y,(OFST-1,sp)
+6760  db4f ee07          	ldw	x,(7,x)
+6761  db51 01            	rrwa	x,a
+6762  db52 90e004        	sub	a,(4,y)
+6763  db55 01            	rrwa	x,a
+6764  db56 90e203        	sbc	a,(3,y)
+6765  db59 01            	rrwa	x,a
+6766  db5a 1d0004        	subw	x,#4
+6767  db5d               L5572:
+6768  db5d 90ef0b        	ldw	(11,y),x
+6769                     ; 1375     buf += response->application_message_size;
+6771  db60 1e05          	ldw	x,(OFST-1,sp)
+6772  db62 ee0b          	ldw	x,(11,x)
+6773  db64 72fb0b        	addw	x,(OFST+5,sp)
+6774  db67 1f0b          	ldw	(OFST+5,sp),x
+6775                     ; 1378     return buf - start;
+6777  db69 72f001        	subw	x,(OFST-5,sp)
+6779  db6c               L044:
+6781  db6c 5b08          	addw	sp,#8
+6782  db6e 81            	ret	
+6871                     ; 1383 int16_t mqtt_pack_pubxxx_request(uint8_t *buf, uint16_t bufsz, 
+6871                     ; 1384                                  enum MQTTControlPacketType control_type,
+6871                     ; 1385                                  uint16_t packet_id) 
+6871                     ; 1386 {
+6872                     .text:	section	.text,new
+6873  db6f               _mqtt_pack_pubxxx_request:
+6875  db6f 89            	pushw	x
+6876  db70 520d          	subw	sp,#13
+6877       0000000d      OFST:	set	13
+6880                     ; 1387     const uint8_t *const start = buf;
+6882  db72 1f01          	ldw	(OFST-12,sp),x
+6884                     ; 1390     if (buf == NULL) {
+6886  db74 2605          	jrne	L7103
+6887                     ; 1391       return MQTT_ERROR_NULLPTR;
+6889  db76 ae8001        	ldw	x,#32769
+6891  db79 2032          	jra	L054
+6892  db7b               L7103:
+6893                     ; 1395     fixed_header.control_type = control_type;
+6895  db7b 7b14          	ld	a,(OFST+7,sp)
+6896  db7d 6b05          	ld	(OFST-8,sp),a
+6898                     ; 1396     if (control_type == MQTT_CONTROL_PUBREL) fixed_header.control_flags = 0x02;
+6900  db7f a106          	cp	a,#6
+6901  db81 2608          	jrne	L1203
+6904  db83 7b09          	ld	a,(OFST-4,sp)
+6905  db85 a4f0          	and	a,#240
+6906  db87 aa02          	or	a,#2
+6908  db89 2004          	jra	L3203
+6909  db8b               L1203:
+6910                     ; 1397     else fixed_header.control_flags = 0;
+6912  db8b 7b09          	ld	a,(OFST-4,sp)
+6913  db8d a4f0          	and	a,#240
+6914  db8f               L3203:
+6915  db8f 6b09          	ld	(OFST-4,sp),a
+6917                     ; 1399     fixed_header.remaining_length = 2;
+6919  db91 ae0002        	ldw	x,#2
+6920  db94 1f0c          	ldw	(OFST-1,sp),x
+6921  db96 5f            	clrw	x
+6922  db97 1f0a          	ldw	(OFST-3,sp),x
+6924                     ; 1400     rv = mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
+6926  db99 96            	ldw	x,sp
+6927  db9a 1c0005        	addw	x,#OFST-8
+6928  db9d 89            	pushw	x
+6929  db9e 1e14          	ldw	x,(OFST+7,sp)
+6930  dba0 89            	pushw	x
+6931  dba1 1e12          	ldw	x,(OFST+5,sp)
+6932  dba3 cdd72a        	call	_mqtt_pack_fixed_header
+6934  dba6 5b04          	addw	sp,#4
+6935  dba8 1f03          	ldw	(OFST-10,sp),x
+6937                     ; 1401     if (rv <= 0) return rv;
+6939  dbaa 9c            	rvf	
+6940  dbab 2c03          	jrsgt	L5203
+6944  dbad               L054:
+6946  dbad 5b0f          	addw	sp,#15
+6947  dbaf 81            	ret	
+6948  dbb0               L5203:
+6949                     ; 1402     buf += rv;
+6951  dbb0 1e0e          	ldw	x,(OFST+1,sp)
+6952  dbb2 72fb03        	addw	x,(OFST-10,sp)
+6953  dbb5 1f0e          	ldw	(OFST+1,sp),x
+6954                     ; 1403     bufsz -= rv;
+6956  dbb7 1e12          	ldw	x,(OFST+5,sp)
+6957  dbb9 72f003        	subw	x,(OFST-10,sp)
+6958  dbbc 1f12          	ldw	(OFST+5,sp),x
+6959                     ; 1405     if (bufsz < fixed_header.remaining_length) return 0;
+6961  dbbe cdf7c5        	call	c_uitolx
+6963  dbc1 96            	ldw	x,sp
+6964  dbc2 1c000a        	addw	x,#OFST-3
+6965  dbc5 cdf593        	call	c_lcmp
+6967  dbc8 2403          	jruge	L7203
+6970  dbca 5f            	clrw	x
+6972  dbcb 20e0          	jra	L054
+6973  dbcd               L7203:
+6974                     ; 1407     buf += __mqtt_pack_uint16(buf, packet_id);
+6976  dbcd 1e15          	ldw	x,(OFST+8,sp)
+6977  dbcf 89            	pushw	x
+6978  dbd0 1e10          	ldw	x,(OFST+3,sp)
+6979  dbd2 cde0ad        	call	___mqtt_pack_uint16
+6981  dbd5 5b02          	addw	sp,#2
+6982  dbd7 72fb0e        	addw	x,(OFST+1,sp)
+6983  dbda 1f0e          	ldw	(OFST+1,sp),x
+6984                     ; 1409     return buf - start;
+6986  dbdc 72f001        	subw	x,(OFST-12,sp)
+6988  dbdf 20cc          	jra	L054
+7054                     ; 1413 int16_t mqtt_unpack_pubxxx_response(struct mqtt_response *mqtt_response, const uint8_t *buf) 
+7054                     ; 1414 {
+7055                     .text:	section	.text,new
+7056  dbe1               _mqtt_unpack_pubxxx_response:
+7058  dbe1 89            	pushw	x
+7059  dbe2 5204          	subw	sp,#4
+7060       00000004      OFST:	set	4
+7063                     ; 1415     const uint8_t *const start = buf;
+7065  dbe4 1e09          	ldw	x,(OFST+5,sp)
+7066  dbe6 1f01          	ldw	(OFST-3,sp),x
+7068                     ; 1419     if (mqtt_response->fixed_header.remaining_length != 2) {
+7070  dbe8 1e05          	ldw	x,(OFST+1,sp)
+7071  dbea 1c0005        	addw	x,#5
+7072  dbed cdf5fe        	call	c_ltor
+7074  dbf0 ae9d5c        	ldw	x,#L473
+7075  dbf3 cdf593        	call	c_lcmp
+7077  dbf6 2705          	jreq	L3603
+7078                     ; 1420         return MQTT_ERROR_MALFORMED_RESPONSE;
+7080  dbf8 ae800c        	ldw	x,#32780
+7082  dbfb 2019          	jra	L654
+7083  dbfd               L3603:
+7084                     ; 1424     packet_id = __mqtt_unpack_uint16(buf);
+7086  dbfd 1e09          	ldw	x,(OFST+5,sp)
+7087  dbff cde0d1        	call	___mqtt_unpack_uint16
+7089  dc02 1f03          	ldw	(OFST-1,sp),x
+7091                     ; 1425     buf += 2;
+7093  dc04 1e09          	ldw	x,(OFST+5,sp)
+7094  dc06 1c0002        	addw	x,#2
+7095  dc09 1f09          	ldw	(OFST+5,sp),x
+7096                     ; 1427     if (mqtt_response->fixed_header.control_type == MQTT_CONTROL_PUBACK) {
+7098                     ; 1428         mqtt_response->decoded.puback.packet_id = packet_id;
+7100                     ; 1430     else if (mqtt_response->fixed_header.control_type == MQTT_CONTROL_PUBREC) {
+7102                     ; 1431         mqtt_response->decoded.pubrec.packet_id = packet_id;
+7104                     ; 1433     else if (mqtt_response->fixed_header.control_type == MQTT_CONTROL_PUBREL) {
+7106                     ; 1434         mqtt_response->decoded.pubrel.packet_id = packet_id;
+7108                     ; 1437         mqtt_response->decoded.pubcomp.packet_id = packet_id;
+7113  dc0b 1e05          	ldw	x,(OFST+1,sp)
+7114  dc0d 1603          	ldw	y,(OFST-1,sp)
+7115  dc0f ef09          	ldw	(9,x),y
+7116                     ; 1440     return buf - start;
+7118  dc11 1e09          	ldw	x,(OFST+5,sp)
+7119  dc13 72f001        	subw	x,(OFST-3,sp)
+7121  dc16               L654:
+7123  dc16 5b06          	addw	sp,#6
+7124  dc18 81            	ret	
+7190                     	switch	.const
+7191  9d64               L264:
+7192  9d64 00000003      	dc.l	3
+7193                     ; 1445 int16_t mqtt_unpack_suback_response (struct mqtt_response *mqtt_response, const uint8_t *buf)
+7193                     ; 1446 {
+7194                     .text:	section	.text,new
+7195  dc19               _mqtt_unpack_suback_response:
+7197  dc19 89            	pushw	x
+7198  dc1a 5208          	subw	sp,#8
+7199       00000008      OFST:	set	8
+7202                     ; 1447     const uint8_t *const start = buf;
+7204  dc1c 1e0d          	ldw	x,(OFST+5,sp)
+7205  dc1e 1f03          	ldw	(OFST-5,sp),x
+7207                     ; 1448     uint32_t remaining_length = mqtt_response->fixed_header.remaining_length;
+7209  dc20 1e09          	ldw	x,(OFST+1,sp)
+7210  dc22 9093          	ldw	y,x
+7211  dc24 ee07          	ldw	x,(7,x)
+7212  dc26 1f07          	ldw	(OFST-1,sp),x
+7213  dc28 93            	ldw	x,y
+7214  dc29 ee05          	ldw	x,(5,x)
+7215  dc2b 1f05          	ldw	(OFST-3,sp),x
+7217                     ; 1451     if (remaining_length < 3) {
+7219  dc2d 96            	ldw	x,sp
+7220  dc2e 1c0005        	addw	x,#OFST-3
+7221  dc31 cdf5fe        	call	c_ltor
+7223  dc34 ae9d64        	ldw	x,#L264
+7224  dc37 cdf593        	call	c_lcmp
+7226  dc3a 2405          	jruge	L3313
+7227                     ; 1452       return MQTT_ERROR_MALFORMED_RESPONSE;
+7229  dc3c ae800c        	ldw	x,#32780
+7231  dc3f 2037          	jra	L664
+7232  dc41               L3313:
+7233                     ; 1456     mqtt_response->decoded.suback.packet_id = __mqtt_unpack_uint16(buf);
+7235  dc41 1e0d          	ldw	x,(OFST+5,sp)
+7236  dc43 cde0d1        	call	___mqtt_unpack_uint16
+7238  dc46 1609          	ldw	y,(OFST+1,sp)
+7239  dc48 90ef09        	ldw	(9,y),x
+7240                     ; 1457     buf += 2;
+7242  dc4b 1e0d          	ldw	x,(OFST+5,sp)
+7243  dc4d 1c0002        	addw	x,#2
+7244  dc50 1f0d          	ldw	(OFST+5,sp),x
+7245                     ; 1458     remaining_length -= 2;
+7247  dc52 96            	ldw	x,sp
+7248  dc53 1c0005        	addw	x,#OFST-3
+7249  dc56 a602          	ld	a,#2
+7250  dc58 cdf5da        	call	c_lgsbc
+7253                     ; 1461     mqtt_response->decoded.suback.num_return_codes = (uint16_t) remaining_length;
+7255  dc5b 1e09          	ldw	x,(OFST+1,sp)
+7256  dc5d 1607          	ldw	y,(OFST-1,sp)
+7257  dc5f ef0d          	ldw	(13,x),y
+7258                     ; 1462     mqtt_response->decoded.suback.return_codes = buf;
+7260  dc61 160d          	ldw	y,(OFST+5,sp)
+7261  dc63 ef0b          	ldw	(11,x),y
+7262                     ; 1463     buf += remaining_length;
+7264  dc65 96            	ldw	x,sp
+7265  dc66 1c0005        	addw	x,#OFST-3
+7266  dc69 cdf5fe        	call	c_ltor
+7268  dc6c be02          	ldw	x,c_lreg+2
+7269  dc6e 1f01          	ldw	(OFST-7,sp),x
+7271  dc70 72fb0d        	addw	x,(OFST+5,sp)
+7272  dc73 1f0d          	ldw	(OFST+5,sp),x
+7273                     ; 1465     return buf - start;
+7275  dc75 72f003        	subw	x,(OFST-5,sp)
+7277  dc78               L664:
+7279  dc78 5b0a          	addw	sp,#10
+7280  dc7a 81            	ret	
+7406                     ; 1470 int16_t mqtt_pack_subscribe_request(uint8_t *buf, uint16_t bufsz, uint16_t packet_id, ...)
+7406                     ; 1471 {
+7407                     .text:	section	.text,new
+7408  dc7b               _mqtt_pack_subscribe_request:
+7410  dc7b 89            	pushw	x
+7411  dc7c 5229          	subw	sp,#41
+7412       00000029      OFST:	set	41
+7415                     ; 1473     const uint8_t *const start = buf;
+7417  dc7e 1f03          	ldw	(OFST-38,sp),x
+7419                     ; 1476     uint16_t num_subs = 0;
+7421  dc80 5f            	clrw	x
+7422  dc81 1f26          	ldw	(OFST-3,sp),x
+7424                     ; 1482     va_start(args, packet_id);
+7426  dc83 96            	ldw	x,sp
+7427  dc84 1c0032        	addw	x,#OFST+9
+7428  dc87 1f28          	ldw	(OFST-1,sp),x
+7430  dc89               L1123:
+7431                     ; 1484         topic[num_subs] = va_arg(args, const char*);
+7433  dc89 1e28          	ldw	x,(OFST-1,sp)
+7434  dc8b 1c0002        	addw	x,#2
+7435  dc8e 1f28          	ldw	(OFST-1,sp),x
+7437  dc90 1d0002        	subw	x,#2
+7438  dc93 9096          	ldw	y,sp
+7439  dc95 72a90016      	addw	y,#OFST-19
+7440  dc99 1701          	ldw	(OFST-40,sp),y
+7442  dc9b 1626          	ldw	y,(OFST-3,sp)
+7443  dc9d 9058          	sllw	y
+7444  dc9f 72f901        	addw	y,(OFST-40,sp)
+7445  dca2 fe            	ldw	x,(x)
+7446  dca3 90ff          	ldw	(y),x
+7447                     ; 1485         if (topic[num_subs] == NULL) {
+7449  dca5 96            	ldw	x,sp
+7450  dca6 1c0016        	addw	x,#OFST-19
+7451  dca9 1f01          	ldw	(OFST-40,sp),x
+7453  dcab 1e26          	ldw	x,(OFST-3,sp)
+7454  dcad 58            	sllw	x
+7455  dcae 72fb01        	addw	x,(OFST-40,sp)
+7456  dcb1 e601          	ld	a,(1,x)
+7457  dcb3 fa            	or	a,(x)
+7458  dcb4 2616          	jrne	L5123
+7459                     ; 1487             break;
+7460                     ; 1497     va_end(args);
+7462                     ; 1500     fixed_header.control_type = MQTT_CONTROL_SUBSCRIBE;
+7464  dcb6 a608          	ld	a,#8
+7465  dcb8 6b0d          	ld	(OFST-28,sp),a
+7467                     ; 1501     fixed_header.control_flags = 2u;
+7469  dcba 7b11          	ld	a,(OFST-24,sp)
+7470  dcbc a4f0          	and	a,#240
+7471  dcbe aa02          	or	a,#2
+7472  dcc0 6b11          	ld	(OFST-24,sp),a
+7474                     ; 1502     fixed_header.remaining_length = 2u; /* size of variable header */
+7476  dcc2 ae0002        	ldw	x,#2
+7477  dcc5 1f14          	ldw	(OFST-21,sp),x
+7478  dcc7 5f            	clrw	x
+7479  dcc8 1f12          	ldw	(OFST-23,sp),x
+7481                     ; 1503     for(i = 0; i < num_subs; ++i) {
+7483  dcca 203f          	jra	L5223
+7484  dccc               L5123:
+7485                     ; 1490         max_qos[num_subs] = (uint8_t) va_arg(args, uint16_t);
+7487  dccc 1e28          	ldw	x,(OFST-1,sp)
+7489  dcce e601          	ld	a,(1,x)
+7490  dcd0 1c0002        	addw	x,#2
+7491  dcd3 1f28          	ldw	(OFST-1,sp),x
+7492  dcd5 96            	ldw	x,sp
+7493  dcd6 1c0005        	addw	x,#OFST-36
+7494  dcd9 72fb26        	addw	x,(OFST-3,sp)
+7495  dcdc f7            	ld	(x),a
+7496                     ; 1492         ++num_subs;
+7498  dcdd 1e26          	ldw	x,(OFST-3,sp)
+7499  dcdf 5c            	incw	x
+7500  dce0 1f26          	ldw	(OFST-3,sp),x
+7502                     ; 1493         if (num_subs >= MQTT_SUBSCRIBE_REQUEST_MAX_NUM_TOPICS) {
+7504  dce2 a30008        	cpw	x,#8
+7505  dce5 25a2          	jrult	L1123
+7506                     ; 1494             return MQTT_ERROR_SUBSCRIBE_TOO_MANY_TOPICS;
+7508  dce7 ae800b        	ldw	x,#32779
+7510  dcea 2039          	jra	L205
+7511  dcec               L1223:
+7512                     ; 1505         fixed_header.remaining_length += __mqtt_packed_cstrlen(topic[i]) + 1;
+7514  dcec 1c0016        	addw	x,#OFST-19
+7515  dcef 1f01          	ldw	(OFST-40,sp),x
+7517  dcf1 1e28          	ldw	x,(OFST-1,sp)
+7518  dcf3 58            	sllw	x
+7519  dcf4 72fb01        	addw	x,(OFST-40,sp)
+7520  dcf7 fe            	ldw	x,(x)
+7521  dcf8 cdf371        	call	_strlen
+7523  dcfb 1c0003        	addw	x,#3
+7524  dcfe cdf7c5        	call	c_uitolx
+7526  dd01 96            	ldw	x,sp
+7527  dd02 1c0012        	addw	x,#OFST-23
+7528  dd05 cdf5c3        	call	c_lgadd
+7531                     ; 1503     for(i = 0; i < num_subs; ++i) {
+7533  dd08 1e28          	ldw	x,(OFST-1,sp)
+7534  dd0a 5c            	incw	x
+7535  dd0b               L5223:
+7537  dd0b 1f28          	ldw	(OFST-1,sp),x
+7541  dd0d 1326          	cpw	x,(OFST-3,sp)
+7542  dd0f 96            	ldw	x,sp
+7543  dd10 25da          	jrult	L1223
+7544                     ; 1509     rv = mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
+7546  dd12 1c000d        	addw	x,#OFST-28
+7547  dd15 89            	pushw	x
+7548  dd16 1e30          	ldw	x,(OFST+7,sp)
+7549  dd18 89            	pushw	x
+7550  dd19 1e2e          	ldw	x,(OFST+5,sp)
+7551  dd1b cdd72a        	call	_mqtt_pack_fixed_header
+7553  dd1e 5b04          	addw	sp,#4
+7554  dd20 1f28          	ldw	(OFST-1,sp),x
+7556                     ; 1510     if (rv <= 0) return rv;
+7558  dd22 9c            	rvf	
+7559  dd23 2c03          	jrsgt	L1323
+7563  dd25               L205:
+7565  dd25 5b2b          	addw	sp,#43
+7566  dd27 81            	ret	
+7567  dd28               L1323:
+7568                     ; 1511     buf += rv;
+7570  dd28 1e2a          	ldw	x,(OFST+1,sp)
+7571  dd2a 72fb28        	addw	x,(OFST-1,sp)
+7572  dd2d 1f2a          	ldw	(OFST+1,sp),x
+7573                     ; 1512     bufsz -= rv;
+7575  dd2f 1e2e          	ldw	x,(OFST+5,sp)
+7576  dd31 72f028        	subw	x,(OFST-1,sp)
+7577  dd34 1f2e          	ldw	(OFST+5,sp),x
+7578                     ; 1515     if (bufsz < fixed_header.remaining_length) return 0;
+7580  dd36 cdf7c5        	call	c_uitolx
+7582  dd39 96            	ldw	x,sp
+7583  dd3a 1c0012        	addw	x,#OFST-23
+7584  dd3d cdf593        	call	c_lcmp
+7586  dd40 2403          	jruge	L3323
+7589  dd42 5f            	clrw	x
+7591  dd43 20e0          	jra	L205
+7592  dd45               L3323:
+7593                     ; 1518     buf += __mqtt_pack_uint16(buf, packet_id);
+7595  dd45 1e30          	ldw	x,(OFST+7,sp)
+7596  dd47 89            	pushw	x
+7597  dd48 1e2c          	ldw	x,(OFST+3,sp)
+7598  dd4a cde0ad        	call	___mqtt_pack_uint16
+7600  dd4d 5b02          	addw	sp,#2
+7601  dd4f 72fb2a        	addw	x,(OFST+1,sp)
+7602  dd52 1f2a          	ldw	(OFST+1,sp),x
+7603                     ; 1521     for(i = 0; i < num_subs; ++i) {
+7605  dd54 5f            	clrw	x
+7607  dd55 202b          	jra	L1423
+7608  dd57               L5323:
+7609                     ; 1522         buf += __mqtt_pack_str(buf, topic[i]);
+7611  dd57 96            	ldw	x,sp
+7612  dd58 1c0016        	addw	x,#OFST-19
+7613  dd5b 1f01          	ldw	(OFST-40,sp),x
+7615  dd5d 1e28          	ldw	x,(OFST-1,sp)
+7616  dd5f 58            	sllw	x
+7617  dd60 72fb01        	addw	x,(OFST-40,sp)
+7618  dd63 fe            	ldw	x,(x)
+7619  dd64 89            	pushw	x
+7620  dd65 1e2c          	ldw	x,(OFST+3,sp)
+7621  dd67 cde0ee        	call	___mqtt_pack_str
+7623  dd6a 5b02          	addw	sp,#2
+7624  dd6c 72fb2a        	addw	x,(OFST+1,sp)
+7625  dd6f 1f2a          	ldw	(OFST+1,sp),x
+7626                     ; 1523         *buf++ = max_qos[i];
+7628  dd71 96            	ldw	x,sp
+7629  dd72 1c0005        	addw	x,#OFST-36
+7630  dd75 72fb28        	addw	x,(OFST-1,sp)
+7631  dd78 f6            	ld	a,(x)
+7632  dd79 1e2a          	ldw	x,(OFST+1,sp)
+7633  dd7b f7            	ld	(x),a
+7634  dd7c 5c            	incw	x
+7635  dd7d 1f2a          	ldw	(OFST+1,sp),x
+7636                     ; 1521     for(i = 0; i < num_subs; ++i) {
+7638  dd7f 1e28          	ldw	x,(OFST-1,sp)
+7639  dd81 5c            	incw	x
+7640  dd82               L1423:
+7641  dd82 1f28          	ldw	(OFST-1,sp),x
+7645  dd84 1326          	cpw	x,(OFST-3,sp)
+7646  dd86 25cf          	jrult	L5323
+7647                     ; 1526     return buf - start;
+7649  dd88 1e2a          	ldw	x,(OFST+1,sp)
+7650  dd8a 72f003        	subw	x,(OFST-38,sp)
+7652  dd8d 2096          	jra	L205
+7711                     ; 1531 int16_t mqtt_unpack_unsuback_response(struct mqtt_response *mqtt_response, const uint8_t *buf) 
+7711                     ; 1532 {
+7712                     .text:	section	.text,new
+7713  dd8f               _mqtt_unpack_unsuback_response:
+7715  dd8f 89            	pushw	x
+7716  dd90 89            	pushw	x
+7717       00000002      OFST:	set	2
+7720                     ; 1533     const uint8_t *const start = buf;
+7722  dd91 1e07          	ldw	x,(OFST+5,sp)
+7723  dd93 1f01          	ldw	(OFST-1,sp),x
+7725                     ; 1535     if (mqtt_response->fixed_header.remaining_length != 2) {
+7727  dd95 1e03          	ldw	x,(OFST+1,sp)
+7728  dd97 1c0005        	addw	x,#5
+7729  dd9a cdf5fe        	call	c_ltor
+7731  dd9d ae9d5c        	ldw	x,#L473
+7732  dda0 cdf593        	call	c_lcmp
+7734  dda3 2705          	jreq	L5723
+7735                     ; 1536         return MQTT_ERROR_MALFORMED_RESPONSE;
+7737  dda5 ae800c        	ldw	x,#32780
+7739  dda8 2014          	jra	L015
+7740  ddaa               L5723:
+7741                     ; 1540     mqtt_response->decoded.unsuback.packet_id = __mqtt_unpack_uint16(buf);
+7743  ddaa 1e07          	ldw	x,(OFST+5,sp)
+7744  ddac cde0d1        	call	___mqtt_unpack_uint16
+7746  ddaf 1603          	ldw	y,(OFST+1,sp)
+7747  ddb1 90ef09        	ldw	(9,y),x
+7748                     ; 1541     buf += 2;
+7750  ddb4 1e07          	ldw	x,(OFST+5,sp)
+7751  ddb6 1c0002        	addw	x,#2
+7752  ddb9 1f07          	ldw	(OFST+5,sp),x
+7753                     ; 1543     return buf - start;
+7755  ddbb 72f001        	subw	x,(OFST-1,sp)
+7757  ddbe               L015:
+7759  ddbe 5b04          	addw	sp,#4
+7760  ddc0 81            	ret	
+7876                     ; 1548 int16_t mqtt_pack_unsubscribe_request(uint8_t *buf, uint16_t bufsz, uint16_t packet_id, ...)
+7876                     ; 1549 {
+7877                     .text:	section	.text,new
+7878                     _mqtt_pack_unsubscribe_request:
+7880                     	pushw	x
+7881                     	subw	sp,#33
+7882       00000021      OFST:	set	33
+7885                     ; 1551     const uint8_t *const start = buf;
+7887                     	ldw	(OFST-30,sp),x
+7889                     ; 1554     uint16_t num_subs = 0;
+7891                     	clrw	x
+7892                     	ldw	(OFST-3,sp),x
+7894                     ; 1559     va_start(args, packet_id);
+7896                     	ldw	x,sp
+7897                     	addw	x,#OFST+9
+7898                     	ldw	(OFST-1,sp),x
+7900                     L7433:
+7901                     ; 1561         topic[num_subs] = va_arg(args, const char*);
+7903                     	ldw	x,(OFST-1,sp)
+7904                     	addw	x,#2
+7905                     	ldw	(OFST-1,sp),x
+7907                     	subw	x,#2
+7908                     	ldw	y,sp
+7909                     	addw	y,#OFST-19
+7910                     	ldw	(OFST-32,sp),y
+7912                     	ldw	y,(OFST-3,sp)
+7913                     	sllw	y
+7914                     	addw	y,(OFST-32,sp)
+7915                     	ldw	x,(x)
+7916                     	ldw	(y),x
+7917                     ; 1562         if (topic[num_subs] == NULL) {
+7919                     	ldw	x,sp
+7920                     	addw	x,#OFST-19
+7921                     	ldw	(OFST-32,sp),x
+7923                     	ldw	x,(OFST-3,sp)
+7924                     	sllw	x
+7925                     	addw	x,(OFST-32,sp)
+7926                     	ld	a,(1,x)
+7927                     	or	a,(x)
+7928                     	jrne	L3533
+7929                     ; 1564             break;
+7930                     ; 1572     va_end(args);
+7932                     ; 1575     fixed_header.control_type = MQTT_CONTROL_UNSUBSCRIBE;
+7934                     	ld	a,#10
+7935                     	ld	(OFST-28,sp),a
+7937                     ; 1576     fixed_header.control_flags = 2u;
+7939                     	ld	a,(OFST-24,sp)
+7940                     	and	a,#240
+7941                     	or	a,#2
+7942                     	ld	(OFST-24,sp),a
+7944                     ; 1577     fixed_header.remaining_length = 2u; // size of variable header
+7946                     	ldw	x,#2
+7947                     	ldw	(OFST-21,sp),x
+7948                     	clrw	x
+7949                     	ldw	(OFST-23,sp),x
+7951                     ; 1578     for(i = 0; i < num_subs; ++i) {
+7953                     	jra	L3633
+7954                     L3533:
+7955                     ; 1567         ++num_subs;
+7957                     	ldw	x,(OFST-3,sp)
+7958                     	incw	x
+7959                     	ldw	(OFST-3,sp),x
+7961                     ; 1568         if (num_subs >= MQTT_UNSUBSCRIBE_REQUEST_MAX_NUM_TOPICS) {
+7963                     	cpw	x,#8
+7964                     	jrult	L7433
+7965                     ; 1569             return MQTT_ERROR_UNSUBSCRIBE_TOO_MANY_TOPICS;
+7967                     	ldw	x,#32781
+7969                     	jra	L425
+7970                     L7533:
+7971                     ; 1580         fixed_header.remaining_length += __mqtt_packed_cstrlen(topic[i]);
+7973                     	addw	x,#OFST-19
+7974                     	ldw	(OFST-32,sp),x
+7976                     	ldw	x,(OFST-1,sp)
+7977                     	sllw	x
+7978                     	addw	x,(OFST-32,sp)
+7979                     	ldw	x,(x)
+7980                     	call	_strlen
+7982                     	addw	x,#2
+7983                     	call	c_uitolx
+7985                     	ldw	x,sp
+7986                     	addw	x,#OFST-23
+7987                     	call	c_lgadd
+7990                     ; 1578     for(i = 0; i < num_subs; ++i) {
+7992                     	ldw	x,(OFST-1,sp)
+7993                     	incw	x
+7994                     L3633:
+7996                     	ldw	(OFST-1,sp),x
+8000                     	cpw	x,(OFST-3,sp)
+8001                     	ldw	x,sp
+8002                     	jrult	L7533
+8003                     ; 1584     rv = mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
+8005                     	addw	x,#OFST-28
+8006                     	pushw	x
+8007                     	ldw	x,(OFST+7,sp)
+8008                     	pushw	x
+8009                     	ldw	x,(OFST+5,sp)
+8010                     	call	_mqtt_pack_fixed_header
+8012                     	addw	sp,#4
+8013                     	ldw	(OFST-1,sp),x
+8015                     ; 1585     if (rv <= 0) return rv;
+8017                     	rvf	
+8018                     	jrsgt	L7633
+8022                     L425:
+8024                     	addw	sp,#35
+8025                     	ret	
+8026                     L7633:
+8027                     ; 1586     buf += rv;
+8029                     	ldw	x,(OFST+1,sp)
+8030                     	addw	x,(OFST-1,sp)
+8031                     	ldw	(OFST+1,sp),x
+8032                     ; 1587     bufsz -= rv;
+8034                     	ldw	x,(OFST+5,sp)
+8035                     	subw	x,(OFST-1,sp)
+8036                     	ldw	(OFST+5,sp),x
+8037                     ; 1590     if (bufsz < fixed_header.remaining_length) return 0;
+8039                     	call	c_uitolx
+8041                     	ldw	x,sp
+8042                     	addw	x,#OFST-23
+8043                     	call	c_lcmp
+8045                     	jruge	L1733
+8048                     	clrw	x
+8050                     	jra	L425
+8051                     L1733:
+8052                     ; 1593     buf += __mqtt_pack_uint16(buf, packet_id);
+8054                     	ldw	x,(OFST+7,sp)
+8055                     	pushw	x
+8056                     	ldw	x,(OFST+3,sp)
+8057                     	call	___mqtt_pack_uint16
+8059                     	addw	sp,#2
+8060                     	addw	x,(OFST+1,sp)
+8061                     	ldw	(OFST+1,sp),x
+8062                     ; 1596     for(i = 0; i < num_subs; ++i) buf += __mqtt_pack_str(buf, topic[i]);
+8064                     	clrw	x
+8066                     	jra	L7733
+8067                     L3733:
+8070                     	ldw	x,sp
+8071                     	addw	x,#OFST-19
+8072                     	ldw	(OFST-32,sp),x
+8074                     	ldw	x,(OFST-1,sp)
+8075                     	sllw	x
+8076                     	addw	x,(OFST-32,sp)
+8077                     	ldw	x,(x)
+8078                     	pushw	x
+8079                     	ldw	x,(OFST+3,sp)
+8080                     	call	___mqtt_pack_str
+8082                     	addw	sp,#2
+8083                     	addw	x,(OFST+1,sp)
+8084                     	ldw	(OFST+1,sp),x
+8087                     	ldw	x,(OFST-1,sp)
+8088                     	incw	x
+8089                     L7733:
+8090                     	ldw	(OFST-1,sp),x
+8094                     	cpw	x,(OFST-3,sp)
+8095                     	jrult	L3733
+8096                     ; 1598     return buf - start;
+8098                     	ldw	x,(OFST+1,sp)
+8099                     	subw	x,(OFST-30,sp)
+8101                     	jra	L425
+8155                     ; 1603 void mqtt_mq_init(struct mqtt_message_queue *mq, void *buf, uint16_t bufsz) 
+8155                     ; 1604 {  
+8156                     .text:	section	.text,new
+8157  ddc1               _mqtt_mq_init:
+8159  ddc1 89            	pushw	x
+8160       00000000      OFST:	set	0
+8163                     ; 1605     if(buf != NULL)
+8165  ddc2 1e05          	ldw	x,(OFST+5,sp)
+8166  ddc4 2748          	jreq	L1343
+8167                     ; 1607         mq->mem_start = buf;
+8169  ddc6 1e01          	ldw	x,(OFST+1,sp)
+8170  ddc8 1605          	ldw	y,(OFST+5,sp)
+8171  ddca ff            	ldw	(x),y
+8172                     ; 1608         mq->mem_end = (unsigned char*)buf + bufsz;
+8174  ddcb 93            	ldw	x,y
+8175  ddcc 1601          	ldw	y,(OFST+1,sp)
+8176  ddce 72fb07        	addw	x,(OFST+7,sp)
+8177  ddd1 90ef02        	ldw	(2,y),x
+8178                     ; 1609         mq->curr = buf;
+8180  ddd4 93            	ldw	x,y
+8181  ddd5 1605          	ldw	y,(OFST+5,sp)
+8182  ddd7 ef04          	ldw	(4,x),y
+8183                     ; 1610         mq->queue_tail = mq->mem_end;
+8185  ddd9 9093          	ldw	y,x
+8186  dddb 90ee02        	ldw	y,(2,y)
+8187  ddde ef08          	ldw	(8,x),y
+8188                     ; 1611         mq->curr_sz = mqtt_mq_currsz(mq);
+8190  dde0 1601          	ldw	y,(OFST+1,sp)
+8191  dde2 90ee08        	ldw	y,(8,y)
+8192  dde5 72a2000c      	subw	y,#12
+8193  dde9 90bf07        	ldw	c_y,y
+8194  ddec 9093          	ldw	y,x
+8195  ddee 90ee04        	ldw	y,(4,y)
+8196  ddf1 90b307        	cpw	y,c_y
+8197  ddf4 2505          	jrult	L035
+8198  ddf6 5f            	clrw	x
+8199  ddf7 1601          	ldw	y,(OFST+1,sp)
+8200  ddf9 2010          	jra	L235
+8201  ddfb               L035:
+8202  ddfb ee08          	ldw	x,(8,x)
+8203  ddfd 1d000c        	subw	x,#12
+8204  de00 1601          	ldw	y,(OFST+1,sp)
+8205  de02 01            	rrwa	x,a
+8206  de03 90e005        	sub	a,(5,y)
+8207  de06 01            	rrwa	x,a
+8208  de07 90e204        	sbc	a,(4,y)
+8209  de0a 01            	rrwa	x,a
+8210  de0b               L235:
+8211  de0b 90ef06        	ldw	(6,y),x
+8212  de0e               L1343:
+8213                     ; 1613 }
+8216  de0e 85            	popw	x
+8217  de0f 81            	ret	
+8264                     ; 1616 struct mqtt_queued_message* mqtt_mq_register(struct mqtt_message_queue *mq, uint16_t nbytes)
+8264                     ; 1617 {
+8265                     .text:	section	.text,new
+8266  de10               _mqtt_mq_register:
+8268  de10 89            	pushw	x
+8269       00000000      OFST:	set	0
+8272                     ; 1619     --(mq->queue_tail);
+8274  de11 9093          	ldw	y,x
+8275  de13 ee08          	ldw	x,(8,x)
+8276  de15 1d000c        	subw	x,#12
+8277  de18 90ef08        	ldw	(8,y),x
+8278                     ; 1620     mq->queue_tail->start = mq->curr;
+8280  de1b 1e01          	ldw	x,(OFST+1,sp)
+8281  de1d 9093          	ldw	y,x
+8282  de1f 90ee08        	ldw	y,(8,y)
+8283  de22 ee04          	ldw	x,(4,x)
+8284  de24 90ff          	ldw	(y),x
+8285                     ; 1621     mq->queue_tail->size = nbytes;
+8287  de26 1e01          	ldw	x,(OFST+1,sp)
+8288  de28 ee08          	ldw	x,(8,x)
+8289  de2a 1605          	ldw	y,(OFST+5,sp)
+8290  de2c ef02          	ldw	(2,x),y
+8291                     ; 1622     mq->queue_tail->state = MQTT_QUEUED_UNSENT;
+8293  de2e 1e01          	ldw	x,(OFST+1,sp)
+8294  de30 ee08          	ldw	x,(8,x)
+8295  de32 6f04          	clr	(4,x)
+8296                     ; 1625     mq->curr += nbytes;
+8298  de34 1e01          	ldw	x,(OFST+1,sp)
+8299  de36 9093          	ldw	y,x
+8300  de38 ee04          	ldw	x,(4,x)
+8301  de3a 72fb05        	addw	x,(OFST+5,sp)
+8302  de3d 90ef04        	ldw	(4,y),x
+8303                     ; 1626     mq->curr_sz = mqtt_mq_currsz(mq);
+8305  de40 1e01          	ldw	x,(OFST+1,sp)
+8306  de42 9093          	ldw	y,x
+8307  de44 90ee08        	ldw	y,(8,y)
+8308  de47 72a2000c      	subw	y,#12
+8309  de4b 90bf07        	ldw	c_y,y
+8310  de4e 9093          	ldw	y,x
+8311  de50 90ee04        	ldw	y,(4,y)
+8312  de53 90b307        	cpw	y,c_y
+8313  de56 2505          	jrult	L635
+8314  de58 5f            	clrw	x
+8315  de59 1601          	ldw	y,(OFST+1,sp)
+8316  de5b 2010          	jra	L045
+8317  de5d               L635:
+8318  de5d ee08          	ldw	x,(8,x)
+8319  de5f 1d000c        	subw	x,#12
+8320  de62 1601          	ldw	y,(OFST+1,sp)
+8321  de64 01            	rrwa	x,a
+8322  de65 90e005        	sub	a,(5,y)
+8323  de68 01            	rrwa	x,a
+8324  de69 90e204        	sbc	a,(4,y)
+8325  de6c 01            	rrwa	x,a
+8326  de6d               L045:
+8327  de6d 90ef06        	ldw	(6,y),x
+8328                     ; 1628     return mq->queue_tail;
+8330  de70 1e01          	ldw	x,(OFST+1,sp)
+8331  de72 ee08          	ldw	x,(8,x)
+8334  de74 5b02          	addw	sp,#2
+8335  de76 81            	ret	
+8413                     ; 1632 void mqtt_mq_clean(struct mqtt_message_queue *mq) {
+8414                     .text:	section	.text,new
+8415  de77               _mqtt_mq_clean:
+8417  de77 89            	pushw	x
+8418  de78 5208          	subw	sp,#8
+8419       00000008      OFST:	set	8
+8422                     ; 1635     for(new_head = mqtt_mq_get(mq, 0); new_head >= mq->queue_tail; --new_head) {
+8424  de7a ee02          	ldw	x,(2,x)
+8426  de7c 2047          	jra	L5253
+8427  de7e               L5153:
+8428                     ; 1636         if (new_head->state != MQTT_QUEUED_COMPLETE) break;
+8430  de7e 1e07          	ldw	x,(OFST-1,sp)
+8431  de80 e604          	ld	a,(4,x)
+8432  de82 a102          	cp	a,#2
+8433  de84 273f          	jreq	L5253
+8435  de86               L3253:
+8436                     ; 1640     if (new_head < mq->queue_tail) {
+8438  de86 1e09          	ldw	x,(OFST+1,sp)
+8439  de88 ee08          	ldw	x,(8,x)
+8440  de8a 1307          	cpw	x,(OFST-1,sp)
+8441  de8c 2346          	jrule	L7253
+8442                     ; 1641         mq->curr = mq->mem_start;
+8444  de8e 1e09          	ldw	x,(OFST+1,sp)
+8445  de90 9093          	ldw	y,x
+8446  de92 90fe          	ldw	y,(y)
+8447  de94 ef04          	ldw	(4,x),y
+8448                     ; 1642         mq->queue_tail = mq->mem_end;
+8450  de96 9093          	ldw	y,x
+8451  de98 90ee02        	ldw	y,(2,y)
+8452  de9b ef08          	ldw	(8,x),y
+8453                     ; 1643         mq->curr_sz = mqtt_mq_currsz(mq);
+8455  de9d 72a2000c      	subw	y,#12
+8456  dea1 90bf07        	ldw	c_y,y
+8457  dea4 9093          	ldw	y,x
+8458  dea6 90ee04        	ldw	y,(4,y)
+8459  dea9 90b307        	cpw	y,c_y
+8460  deac 2504          	jrult	L445
+8461  deae               LC022:
+8462  deae 5f            	clrw	x
+8463  deaf ccdfbd        	jp	L655
+8464  deb2               L445:
+8465  deb2 ee08          	ldw	x,(8,x)
+8466  deb4 1d000c        	subw	x,#12
+8467  deb7 1609          	ldw	y,(OFST+1,sp)
+8468  deb9 01            	rrwa	x,a
+8469  deba 90e005        	sub	a,(5,y)
+8470  debd 01            	rrwa	x,a
+8471  debe 90e204        	sbc	a,(4,y)
+8472  dec1 01            	rrwa	x,a
+8473                     ; 1644         return;
+8475  dec2 ccdfbf        	jp	LC020
+8476  dec5               L5253:
+8477                     ; 1635     for(new_head = mqtt_mq_get(mq, 0); new_head >= mq->queue_tail; --new_head) {
+8479  dec5 1d000c        	subw	x,#12
+8480  dec8 1f07          	ldw	(OFST-1,sp),x
+8484  deca 1e09          	ldw	x,(OFST+1,sp)
+8485  decc ee08          	ldw	x,(8,x)
+8486  dece 1307          	cpw	x,(OFST-1,sp)
+8487  ded0 23ac          	jrule	L5153
+8488  ded2 20b2          	jra	L3253
+8489  ded4               L7253:
+8490                     ; 1646     else if (new_head == mqtt_mq_get(mq, 0)) {
+8492  ded4 1e09          	ldw	x,(OFST+1,sp)
+8493  ded6 ee02          	ldw	x,(2,x)
+8494  ded8 1d000c        	subw	x,#12
+8495  dedb 1307          	cpw	x,(OFST-1,sp)
+8496  dedd 2603          	jrne	L1353
+8497                     ; 1648         return;
+8498  dedf               L065:
+8501  dedf 5b0a          	addw	sp,#10
+8502  dee1 81            	ret	
+8503  dee2               L1353:
+8504                     ; 1653         uint16_t n = mq->curr - new_head->start;
+8506  dee2 1e09          	ldw	x,(OFST+1,sp)
+8507  dee4 1607          	ldw	y,(OFST-1,sp)
+8508  dee6 ee04          	ldw	x,(4,x)
+8509  dee8 01            	rrwa	x,a
+8510  dee9 90e001        	sub	a,(1,y)
+8511  deec 01            	rrwa	x,a
+8512  deed 90f2          	sbc	a,(y)
+8513  deef 01            	rrwa	x,a
+8514  def0 1f05          	ldw	(OFST-3,sp),x
+8516                     ; 1654         uint16_t removing = new_head->start - (uint8_t*) mq->mem_start;
+8518  def2 93            	ldw	x,y
+8519  def3 1609          	ldw	y,(OFST+1,sp)
+8520  def5 fe            	ldw	x,(x)
+8521  def6 01            	rrwa	x,a
+8522  def7 90e001        	sub	a,(1,y)
+8523  defa 01            	rrwa	x,a
+8524  defb 90f2          	sbc	a,(y)
+8525  defd 01            	rrwa	x,a
+8526  defe 1f03          	ldw	(OFST-5,sp),x
+8528                     ; 1655         memmove(mq->mem_start, new_head->start, n);
+8530  df00 1e05          	ldw	x,(OFST-3,sp)
+8531  df02 89            	pushw	x
+8532  df03 1e09          	ldw	x,(OFST+1,sp)
+8533  df05 fe            	ldw	x,(x)
+8534  df06 89            	pushw	x
+8535  df07 1e0d          	ldw	x,(OFST+5,sp)
+8536  df09 fe            	ldw	x,(x)
+8537  df0a cdf30c        	call	_memmove
+8539  df0d 5b04          	addw	sp,#4
+8540                     ; 1656         mq->curr = (unsigned char*)mq->mem_start + n;
+8542  df0f 1e09          	ldw	x,(OFST+1,sp)
+8543  df11 fe            	ldw	x,(x)
+8544  df12 1609          	ldw	y,(OFST+1,sp)
+8545  df14 72fb05        	addw	x,(OFST-3,sp)
+8546  df17 90ef04        	ldw	(4,y),x
+8547                     ; 1660             int16_t new_tail_idx = new_head - mq->queue_tail;
+8549  df1a 1e07          	ldw	x,(OFST-1,sp)
+8550  df1c 01            	rrwa	x,a
+8551  df1d 90e009        	sub	a,(9,y)
+8552  df20 01            	rrwa	x,a
+8553  df21 90e208        	sbc	a,(8,y)
+8554  df24 01            	rrwa	x,a
+8555  df25 a60c          	ld	a,#12
+8556  df27 cdf77c        	call	c_sdivx
+8558  df2a 1f05          	ldw	(OFST-3,sp),x
+8560                     ; 1661             memmove(mqtt_mq_get(mq, new_tail_idx), mq->queue_tail, sizeof(struct mqtt_queued_message) * (new_tail_idx + 1));
+8562  df2c 5c            	incw	x
+8563  df2d a60c          	ld	a,#12
+8564  df2f cdf37d        	call	c_bmulx
+8566  df32 89            	pushw	x
+8567  df33 1e0b          	ldw	x,(OFST+3,sp)
+8568  df35 ee08          	ldw	x,(8,x)
+8569  df37 89            	pushw	x
+8570  df38 1e09          	ldw	x,(OFST+1,sp)
+8571  df3a a60c          	ld	a,#12
+8572  df3c cdf37d        	call	c_bmulx
+8574  df3f 1f05          	ldw	(OFST-3,sp),x
+8576  df41 1e0d          	ldw	x,(OFST+5,sp)
+8577  df43 ee02          	ldw	x,(2,x)
+8578  df45 1d000c        	subw	x,#12
+8579  df48 72f005        	subw	x,(OFST-3,sp)
+8580  df4b cdf30c        	call	_memmove
+8582  df4e 5b04          	addw	sp,#4
+8583                     ; 1662             mq->queue_tail = mqtt_mq_get(mq, new_tail_idx);
+8585  df50 1e05          	ldw	x,(OFST-3,sp)
+8586  df52 a60c          	ld	a,#12
+8587  df54 cdf37d        	call	c_bmulx
+8589  df57 1f01          	ldw	(OFST-7,sp),x
+8591  df59 1e09          	ldw	x,(OFST+1,sp)
+8592  df5b ee02          	ldw	x,(2,x)
+8593  df5d 1d000c        	subw	x,#12
+8594  df60 1609          	ldw	y,(OFST+1,sp)
+8595  df62 72f001        	subw	x,(OFST-7,sp)
+8596  df65 90ef08        	ldw	(8,y),x
+8597                     ; 1666                 int16_t i = 0;
+8599  df68 5f            	clrw	x
+8601  df69 201e          	jra	L1453
+8602  df6b               L5353:
+8603                     ; 1667                 for(; i < new_tail_idx + 1; ++i) mqtt_mq_get(mq, i)->start -= removing;
+8605  df6b 1e07          	ldw	x,(OFST-1,sp)
+8606  df6d a60c          	ld	a,#12
+8607  df6f cdf37d        	call	c_bmulx
+8609  df72 1f01          	ldw	(OFST-7,sp),x
+8611  df74 1e09          	ldw	x,(OFST+1,sp)
+8612  df76 ee02          	ldw	x,(2,x)
+8613  df78 1d000c        	subw	x,#12
+8614  df7b 72f001        	subw	x,(OFST-7,sp)
+8615  df7e 9093          	ldw	y,x
+8616  df80 fe            	ldw	x,(x)
+8617  df81 72f003        	subw	x,(OFST-5,sp)
+8618  df84 90ff          	ldw	(y),x
+8621  df86 1e07          	ldw	x,(OFST-1,sp)
+8622  df88 5c            	incw	x
+8623  df89               L1453:
+8624  df89 1f07          	ldw	(OFST-1,sp),x
+8628  df8b 1e05          	ldw	x,(OFST-3,sp)
+8629  df8d 5c            	incw	x
+8630  df8e 1307          	cpw	x,(OFST-1,sp)
+8631  df90 2cd9          	jrsgt	L5353
+8632                     ; 1673     mq->curr_sz = mqtt_mq_currsz(mq);
+8634  df92 1e09          	ldw	x,(OFST+1,sp)
+8635  df94 9093          	ldw	y,x
+8636  df96 90ee08        	ldw	y,(8,y)
+8637  df99 72a2000c      	subw	y,#12
+8638  df9d 90bf07        	ldw	c_y,y
+8639  dfa0 9093          	ldw	y,x
+8640  dfa2 90ee04        	ldw	y,(4,y)
+8641  dfa5 90b307        	cpw	y,c_y
+8642  dfa8 2503ccdeae    	jruge	LC022
+8643  dfad ee08          	ldw	x,(8,x)
+8644  dfaf 1d000c        	subw	x,#12
+8645  dfb2 1609          	ldw	y,(OFST+1,sp)
+8646  dfb4 01            	rrwa	x,a
+8647  dfb5 90e005        	sub	a,(5,y)
+8648  dfb8 01            	rrwa	x,a
+8649  dfb9 90e204        	sbc	a,(4,y)
+8650  dfbc 01            	rrwa	x,a
+8651  dfbd               L655:
+8652  dfbd 1609          	ldw	y,(OFST+1,sp)
+8653  dfbf               LC020:
+8654  dfbf 90ef06        	ldw	(6,y),x
+8655                     ; 1674 }
+8657  dfc2 ccdedf        	jra	L065
+8729                     ; 1677 struct mqtt_queued_message* mqtt_mq_find(struct mqtt_message_queue *mq, enum MQTTControlPacketType control_type, uint16_t *packet_id)
+8729                     ; 1678 {
+8730                     .text:	section	.text,new
+8731  dfc5               _mqtt_mq_find:
+8733  dfc5 89            	pushw	x
+8734  dfc6 89            	pushw	x
+8735       00000002      OFST:	set	2
+8738                     ; 1680     for(curr = mqtt_mq_get(mq, 0); curr >= mq->queue_tail; --curr) {
+8740  dfc7 ee02          	ldw	x,(2,x)
+8742  dfc9 2025          	jra	L1163
+8743  dfcb               L5063:
+8744                     ; 1681         if (curr->control_type == control_type) {
+8746  dfcb 1e01          	ldw	x,(OFST-1,sp)
+8747  dfcd e609          	ld	a,(9,x)
+8748  dfcf 1107          	cp	a,(OFST+5,sp)
+8749  dfd1 261b          	jrne	L5163
+8750                     ; 1682             if ((packet_id == NULL && curr->state != MQTT_QUEUED_COMPLETE) ||
+8750                     ; 1683                 (packet_id != NULL && *packet_id == curr->packet_id)) {
+8752  dfd3 1e08          	ldw	x,(OFST+6,sp)
+8753  dfd5 2608          	jrne	L3263
+8755  dfd7 1e01          	ldw	x,(OFST-1,sp)
+8756  dfd9 e604          	ld	a,(4,x)
+8757  dfdb a102          	cp	a,#2
+8758  dfdd 261f          	jrne	L465
+8759  dfdf               L3263:
+8761  dfdf 1e08          	ldw	x,(OFST+6,sp)
+8762  dfe1 270b          	jreq	L5163
+8764  dfe3 1601          	ldw	y,(OFST-1,sp)
+8765  dfe5 fe            	ldw	x,(x)
+8766  dfe6 90e30a        	cpw	x,(10,y)
+8767  dfe9 2603          	jrne	L5163
+8768  dfeb 93            	ldw	x,y
+8769                     ; 1684                 return curr;
+8772  dfec 2010          	jra	L465
+8773  dfee               L5163:
+8774                     ; 1680     for(curr = mqtt_mq_get(mq, 0); curr >= mq->queue_tail; --curr) {
+8776  dfee 1e01          	ldw	x,(OFST-1,sp)
+8777  dff0               L1163:
+8778  dff0 1d000c        	subw	x,#12
+8779  dff3 1f01          	ldw	(OFST-1,sp),x
+8783  dff5 1e03          	ldw	x,(OFST+1,sp)
+8784  dff7 ee08          	ldw	x,(8,x)
+8785  dff9 1301          	cpw	x,(OFST-1,sp)
+8786  dffb 23ce          	jrule	L5063
+8787                     ; 1688     return NULL;
+8789  dffd 5f            	clrw	x
+8791  dffe               L465:
+8793  dffe 5b04          	addw	sp,#4
+8794  e000 81            	ret	
+8872                     ; 1693 int16_t mqtt_unpack_response(struct mqtt_response* response, const uint8_t *buf, uint16_t bufsz)
+8872                     ; 1694 {
+8873                     .text:	section	.text,new
+8874  e001               _mqtt_unpack_response:
+8876  e001 89            	pushw	x
+8877  e002 5204          	subw	sp,#4
+8878       00000004      OFST:	set	4
+8881                     ; 1695     const uint8_t *const start = buf;
+8883  e004 1e09          	ldw	x,(OFST+5,sp)
+8884  e006 1f01          	ldw	(OFST-3,sp),x
+8886                     ; 1696     int16_t rv = mqtt_unpack_fixed_header(response, buf, bufsz);
+8888  e008 1e0b          	ldw	x,(OFST+7,sp)
+8889  e00a 89            	pushw	x
+8890  e00b 1e0b          	ldw	x,(OFST+7,sp)
+8891  e00d 89            	pushw	x
+8892  e00e 1e09          	ldw	x,(OFST+5,sp)
+8893  e010 cdd66d        	call	_mqtt_unpack_fixed_header
+8895  e013 5b04          	addw	sp,#4
+8896  e015 1f03          	ldw	(OFST-1,sp),x
+8898                     ; 1698     if (rv <= 0) return rv;
+8900  e017 9c            	rvf	
+8904  e018 2d2c          	jrsle	L216
+8905                     ; 1699     else buf += rv;
+8907  e01a 1e09          	ldw	x,(OFST+5,sp)
+8908  e01c 72fb03        	addw	x,(OFST-1,sp)
+8909  e01f 1f09          	ldw	(OFST+5,sp),x
+8910                     ; 1701     switch(response->fixed_header.control_type) {
+8912  e021 1e05          	ldw	x,(OFST+1,sp)
+8913  e023 f6            	ld	a,(x)
+8915                     ; 1728         default:
+8915                     ; 1729             return MQTT_ERROR_RESPONSE_INVALID_CONTROL_TYPE;
+8916  e024 a002          	sub	a,#2
+8917  e026 2721          	jreq	L5263
+8918  e028 4a            	dec	a
+8919  e029 2728          	jreq	L7263
+8920  e02b 4a            	dec	a
+8921  e02c 272f          	jreq	L1363
+8922  e02e 4a            	dec	a
+8923  e02f 2736          	jreq	L3363
+8924  e031 4a            	dec	a
+8925  e032 273d          	jreq	L5363
+8926  e034 4a            	dec	a
+8927  e035 2744          	jreq	L7363
+8928  e037 a002          	sub	a,#2
+8929  e039 274a          	jreq	L1463
+8930  e03b a002          	sub	a,#2
+8931  e03d 2750          	jreq	L3463
+8932  e03f a002          	sub	a,#2
+8933  e041 2756          	jreq	L5463
+8936  e043 ae800e        	ldw	x,#32782
+8938  e046               L216:
+8940  e046 5b06          	addw	sp,#6
+8941  e048 81            	ret	
+8942  e049               L5263:
+8943                     ; 1702         case MQTT_CONTROL_CONNACK:
+8943                     ; 1703             rv = mqtt_unpack_connack_response(response, buf);
+8945  e049 1e09          	ldw	x,(OFST+5,sp)
+8946  e04b 89            	pushw	x
+8947  e04c 1e07          	ldw	x,(OFST+3,sp)
+8948  e04e cdd943        	call	_mqtt_unpack_connack_response
+8950                     ; 1704             break;
+8952  e051 204a          	jra	L3173
+8953  e053               L7263:
+8954                     ; 1705         case MQTT_CONTROL_PUBLISH:
+8954                     ; 1706             rv = mqtt_unpack_publish_response(response, buf);
+8956  e053 1e09          	ldw	x,(OFST+5,sp)
+8957  e055 89            	pushw	x
+8958  e056 1e07          	ldw	x,(OFST+3,sp)
+8959  e058 cddab4        	call	_mqtt_unpack_publish_response
+8961                     ; 1707             break;
+8963  e05b 2040          	jra	L3173
+8964  e05d               L1363:
+8965                     ; 1708         case MQTT_CONTROL_PUBACK:
+8965                     ; 1709             rv = mqtt_unpack_pubxxx_response(response, buf);
+8967  e05d 1e09          	ldw	x,(OFST+5,sp)
+8968  e05f 89            	pushw	x
+8969  e060 1e07          	ldw	x,(OFST+3,sp)
+8970  e062 cddbe1        	call	_mqtt_unpack_pubxxx_response
+8972                     ; 1710             break;
+8974  e065 2036          	jra	L3173
+8975  e067               L3363:
+8976                     ; 1711         case MQTT_CONTROL_PUBREC:
+8976                     ; 1712             rv = mqtt_unpack_pubxxx_response(response, buf);
+8978  e067 1e09          	ldw	x,(OFST+5,sp)
+8979  e069 89            	pushw	x
+8980  e06a 1e07          	ldw	x,(OFST+3,sp)
+8981  e06c cddbe1        	call	_mqtt_unpack_pubxxx_response
+8983                     ; 1713             break;
+8985  e06f 202c          	jra	L3173
+8986  e071               L5363:
+8987                     ; 1714         case MQTT_CONTROL_PUBREL:
+8987                     ; 1715             rv = mqtt_unpack_pubxxx_response(response, buf);
+8989  e071 1e09          	ldw	x,(OFST+5,sp)
+8990  e073 89            	pushw	x
+8991  e074 1e07          	ldw	x,(OFST+3,sp)
+8992  e076 cddbe1        	call	_mqtt_unpack_pubxxx_response
+8994                     ; 1716             break;
+8996  e079 2022          	jra	L3173
+8997  e07b               L7363:
+8998                     ; 1717         case MQTT_CONTROL_PUBCOMP:
+8998                     ; 1718             rv = mqtt_unpack_pubxxx_response(response, buf);
+9000  e07b 1e09          	ldw	x,(OFST+5,sp)
+9001  e07d 89            	pushw	x
+9002  e07e 1e07          	ldw	x,(OFST+3,sp)
+9003  e080 cddbe1        	call	_mqtt_unpack_pubxxx_response
+9005                     ; 1719             break;
+9007  e083 2018          	jra	L3173
+9008  e085               L1463:
+9009                     ; 1720         case MQTT_CONTROL_SUBACK:
+9009                     ; 1721             rv = mqtt_unpack_suback_response(response, buf);
+9011  e085 1e09          	ldw	x,(OFST+5,sp)
+9012  e087 89            	pushw	x
+9013  e088 1e07          	ldw	x,(OFST+3,sp)
+9014  e08a cddc19        	call	_mqtt_unpack_suback_response
+9016                     ; 1722             break;
+9018  e08d 200e          	jra	L3173
+9019  e08f               L3463:
+9020                     ; 1723         case MQTT_CONTROL_UNSUBACK:
+9020                     ; 1724             rv = mqtt_unpack_unsuback_response(response, buf);
+9022  e08f 1e09          	ldw	x,(OFST+5,sp)
+9023  e091 89            	pushw	x
+9024  e092 1e07          	ldw	x,(OFST+3,sp)
+9025  e094 cddd8f        	call	_mqtt_unpack_unsuback_response
+9027                     ; 1725             break;
+9029  e097 2004          	jra	L3173
+9030  e099               L5463:
+9031                     ; 1726         case MQTT_CONTROL_PINGRESP:
+9031                     ; 1727             return rv;
+9033  e099 1e03          	ldw	x,(OFST-1,sp)
+9035  e09b 20a9          	jra	L216
+9036  e09d               L3173:
+9037  e09d 5b02          	addw	sp,#2
+9038  e09f 1f03          	ldw	(OFST-1,sp),x
+9040                     ; 1732     if (rv < 0) return rv;
+9045  e0a1 2ba3          	jrmi	L216
+9046                     ; 1733     buf += rv;
+9048  e0a3 72fb09        	addw	x,(OFST+5,sp)
+9049  e0a6 1f09          	ldw	(OFST+5,sp),x
+9050                     ; 1734     return buf - start;
+9052  e0a8 72f001        	subw	x,(OFST-3,sp)
+9054  e0ab 2099          	jra	L216
+9104                     ; 1751 int16_t __mqtt_pack_uint16(uint8_t *buf, uint16_t integer)
+9104                     ; 1752 {
+9105                     .text:	section	.text,new
+9106  e0ad               ___mqtt_pack_uint16:
+9108  e0ad 89            	pushw	x
+9109  e0ae 89            	pushw	x
+9110       00000002      OFST:	set	2
+9113                     ; 1753   uint16_t integer_htons = HTONS(integer);
+9115  e0af 1e07          	ldw	x,(OFST+5,sp)
+9116  e0b1 1f01          	ldw	(OFST-1,sp),x
+9118                     ; 1754   memcpy(buf, &integer_htons, 2);
+9120  e0b3 1e03          	ldw	x,(OFST+1,sp)
+9121  e0b5 bf04          	ldw	c_x,x
+9122  e0b7 9096          	ldw	y,sp
+9123  e0b9 905c          	incw	y
+9124  e0bb 90bf07        	ldw	c_y,y
+9125  e0be ae0002        	ldw	x,#2
+9126  e0c1               L616:
+9127  e0c1 5a            	decw	x
+9128  e0c2 92d607        	ld	a,([c_y.w],x)
+9129  e0c5 92d704        	ld	([c_x.w],x),a
+9130  e0c8 5d            	tnzw	x
+9131  e0c9 26f6          	jrne	L616
+9132                     ; 1755   return 2;
+9134  e0cb ae0002        	ldw	x,#2
+9137  e0ce 5b04          	addw	sp,#4
+9138  e0d0 81            	ret	
+9182                     ; 1759 uint16_t __mqtt_unpack_uint16(const uint8_t *buf)
+9182                     ; 1760 {
+9183                     .text:	section	.text,new
+9184  e0d1               ___mqtt_unpack_uint16:
+9186  e0d1 89            	pushw	x
+9187  e0d2 89            	pushw	x
+9188       00000002      OFST:	set	2
+9191                     ; 1762   memcpy(&integer_htons, buf, 2);
+9193  e0d3 96            	ldw	x,sp
+9194  e0d4 5c            	incw	x
+9195  e0d5 bf04          	ldw	c_x,x
+9196  e0d7 1603          	ldw	y,(OFST+1,sp)
+9197  e0d9 90bf07        	ldw	c_y,y
+9198  e0dc ae0002        	ldw	x,#2
+9199  e0df               L226:
+9200  e0df 5a            	decw	x
+9201  e0e0 92d607        	ld	a,([c_y.w],x)
+9202  e0e3 92d704        	ld	([c_x.w],x),a
+9203  e0e6 5d            	tnzw	x
+9204  e0e7 26f6          	jrne	L226
+9205                     ; 1763   return HTONS(integer_htons);
+9207  e0e9 1e01          	ldw	x,(OFST-1,sp)
+9210  e0eb 5b04          	addw	sp,#4
+9211  e0ed 81            	ret	
+9272                     ; 1767 int16_t __mqtt_pack_str(uint8_t *buf, const char* str)
+9272                     ; 1768 {
+9273                     .text:	section	.text,new
+9274  e0ee               ___mqtt_pack_str:
+9276  e0ee 89            	pushw	x
+9277  e0ef 5204          	subw	sp,#4
+9278       00000004      OFST:	set	4
+9281                     ; 1769     uint16_t length = (uint16_t)strlen(str);
+9283  e0f1 1e09          	ldw	x,(OFST+5,sp)
+9284  e0f3 cdf371        	call	_strlen
+9286  e0f6 1f01          	ldw	(OFST-3,sp),x
+9288                     ; 1770     int16_t i = 0;
+9290  e0f8 5f            	clrw	x
+9291  e0f9 1f03          	ldw	(OFST-1,sp),x
+9293                     ; 1772     buf += __mqtt_pack_uint16(buf, length);
+9295  e0fb 1e01          	ldw	x,(OFST-3,sp)
+9296  e0fd 89            	pushw	x
+9297  e0fe 1e07          	ldw	x,(OFST+3,sp)
+9298  e100 cde0ad        	call	___mqtt_pack_uint16
+9300  e103 5b02          	addw	sp,#2
+9301  e105 72fb05        	addw	x,(OFST+1,sp)
+9302  e108 1f05          	ldw	(OFST+1,sp),x
+9304  e10a 1e03          	ldw	x,(OFST-1,sp)
+9305  e10c 200f          	jra	L3104
+9306  e10e               L7004:
+9307                     ; 1775     for(; i < length; ++i) *(buf++) = str[i];
+9309  e10e 72fb09        	addw	x,(OFST+5,sp)
+9310  e111 f6            	ld	a,(x)
+9311  e112 1e05          	ldw	x,(OFST+1,sp)
+9312  e114 f7            	ld	(x),a
+9313  e115 5c            	incw	x
+9314  e116 1f05          	ldw	(OFST+1,sp),x
+9317  e118 1e03          	ldw	x,(OFST-1,sp)
+9318  e11a 5c            	incw	x
+9319  e11b 1f03          	ldw	(OFST-1,sp),x
+9321  e11d               L3104:
+9324  e11d 1301          	cpw	x,(OFST-3,sp)
+9325  e11f 25ed          	jrult	L7004
+9326                     ; 1778     return length + 2;
+9328  e121 1e01          	ldw	x,(OFST-3,sp)
+9329  e123 1c0002        	addw	x,#2
+9332  e126 5b06          	addw	sp,#6
+9333  e128 81            	ret	
+9397                     	switch	.bss
+9398  0163               _mqtt_sendbuf:
+9399  0163 000000000000  	ds.b	300
+9400                     	xdef	_mqtt_sendbuf
+9401  028f               _MQTT_error_status:
+9402  028f 00            	ds.b	1
+9403                     	xdef	_MQTT_error_status
+9404                     	xref	_second_counter
+9405                     	xref	_uip_flags
+9406                     	xref	_uip_len
+9407                     	xdef	_mqtt_disconnect
+9408                     	xdef	___mqtt_ping
+9409                     	xdef	_mqtt_ping
+9410                     	xdef	_mqtt_unsubscribe
+9411                     	xdef	_mqtt_subscribe
+9412                     	xdef	___mqtt_pubcomp
+9413                     	xdef	___mqtt_pubrel
+9414                     	xdef	___mqtt_pubrec
+9415                     	xdef	___mqtt_puback
+9416                     	xdef	_mqtt_publish
+9417                     	xdef	_mqtt_connect
+9418                     	xdef	_mqtt_init
+9419                     	xdef	_mqtt_sync
+9420                     	xdef	___mqtt_recv
+9421                     	xdef	___mqtt_send
+9422                     	xdef	___mqtt_next_pid
+9423                     	xdef	_mqtt_mq_find
+9424                     	xdef	_mqtt_mq_register
+9425                     	xdef	_mqtt_mq_clean
+9426                     	xdef	_mqtt_mq_init
+9427                     	xdef	_mqtt_pack_disconnect
+9428                     	xdef	_mqtt_pack_ping_request
+9429                     	xdef	_mqtt_pack_unsubscribe_request
+9430                     	xdef	_mqtt_pack_subscribe_request
+9431                     	xdef	_mqtt_pack_pubxxx_request
+9432                     	xdef	_mqtt_pack_publish_request
+9433                     	xdef	_mqtt_pack_connection_request
+9434                     	xdef	_mqtt_pack_fixed_header
+9435                     	xdef	_mqtt_unpack_response
+9436                     	xdef	_mqtt_unpack_unsuback_response
+9437                     	xdef	_mqtt_unpack_suback_response
+9438                     	xdef	_mqtt_unpack_pubxxx_response
+9439                     	xdef	_mqtt_unpack_publish_response
+9440                     	xdef	_mqtt_unpack_connack_response
+9441                     	xdef	_mqtt_unpack_fixed_header
+9442                     	xdef	___mqtt_pack_str
+9443                     	xdef	___mqtt_unpack_uint16
+9444                     	xdef	___mqtt_pack_uint16
+9445                     	xref	_mqtt_pal_recvall
+9446                     	xref	_mqtt_pal_sendall
+9447                     	xref	_memmove
+9448                     	xref	_strlen
+9449                     	switch	.const
+9450  9d68               L5051:
+9451  9d68 3f400000      	dc.w	16192,0
+9452                     	xref.b	c_lreg
+9453                     	xref.b	c_x
+9454                     	xref.b	c_y
+9474                     	xref	c_lgsbc
+9475                     	xref	c_lgadc
+9476                     	xref	c_lgursh
+9477                     	xref	c_uitolx
+9478                     	xref	c_lgadd
+9479                     	xref	c_itoly
+9480                     	xref	c_ltor
+9481                     	xref	c_rtol
+9482                     	xref	c_ftol
+9483                     	xref	c_fmul
+9484                     	xref	c_uitof
+9485                     	xref	c_lcmp
+9486                     	xref	c_ladd
+9487                     	xref	c_itolx
+9488                     	xref	c_bmulx
+9489                     	xref	c_bmuly
+9490                     	xref	c_sdivx
+9491                     	end

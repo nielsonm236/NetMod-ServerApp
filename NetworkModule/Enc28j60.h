@@ -77,18 +77,7 @@
 #define ENC28J60_LEDB		12
 
 // Maximum frame length in bytes to prevent possible buffer overflows
-// Note for future reference: In the Network Module application user
-// inputs on the web pages are reported back to the application via
-// POST submittal. The application is fairly naive in processing that
-// data in that it expects the entire POST to be available for
-// processing at one time. A problem noted during development is that
-// some browsers (Firefox in particular) may have larger headers,
-// causing the POST to be larger than MAXFRAME. For that reason
-// MAXFRAME was increased below to allow the entire POST and
-// header to be received in the buffer. This may need to be looked at
-// more closely in the future as the code shouldn't be dependent on
-// having a large MAXFRAME.
-#define ENC28J60_MAXFRAME	900
+#define ENC28J60_MAXFRAME	500
 
 // Use this for function inlining within the ENC28J60 module
 #define ENC28J60_INLINE		static inline __attribute__ ((always_inline))
@@ -100,11 +89,11 @@ void Enc28j60Init(void);
 // This function will never receive more than ENC28J60_MAXFRAME bytes
 uint16_t Enc28j60Receive(uint8_t* pBuffer);
 
-// Copies a packet into ENC28J60's buffer
-void Enc28j60CopyPacket(uint8_t* pBuffer, uint16_t nBytes);
+// Copies a packet into ENC28J60's buffer and sends the ethernet frame
+void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes);
 
-// Sends a previously copied ethernet frame
-void Enc28j60Send(void);
+// Reads the Transmit Status Vector
+void read_TSV(void);
 
 // Use this function to control onchip clock-prescaling
 // provided by the ENC28J60 for using as the host processor's main clock

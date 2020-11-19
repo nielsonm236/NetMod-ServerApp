@@ -56,6 +56,7 @@ struct tHttpD
   uint16_t nDataLeft;
   uint8_t nNewlines;
   uint8_t nParseLeft;
+  uint8_t nParseLeftAddl;
   uint8_t ParseCmd;
   uint8_t ParseNum;
   uint8_t ParseState;
@@ -63,18 +64,19 @@ struct tHttpD
 };
 
 
+uint16_t adjust_template_size(void);
+
 static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString);
-static uint16_t CopyValue(uint8_t** ppBuffer, uint32_t nValue);
-static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint32_t nDataLen);
+static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen);
 static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pDataLeft, uint16_t nMaxBytes);
 
-uint8_t three_alpha_to_uint(uint8_t alpha1, uint8_t alpha2, uint8_t alpha3);
-uint8_t two_alpha_to_uint(uint8_t alpha1, uint8_t alpha2);
-char* emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad);
-void reverse(char str[], uint8_t length);
+void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad);
 
 void HttpDInit(void);
-void HttpDCall(	uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);
+void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);
+void parse_POST_string(uint8_t curr_ParseCmd, uint8_t num_chars);
+void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
+void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
 
 int8_t intercept_code(void);
 int8_t extract_octets(void);
@@ -83,8 +85,9 @@ int8_t extract_mac_digits(void);
 uint8_t GpioGetPin(uint8_t nGpio);
 void GpioSetPin(uint8_t nGpio, uint8_t nState);
 
-void SetAddresses(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2, uint8_t alpha3);
-void SetPort(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2, uint8_t alpha3, uint8_t alpha4, uint8_t alpha5);
+void clear_saved_postpartial_all(void);
+void clear_saved_postpartial_data(void);
+void clear_saved_postpartial_previous(void);
 void SetMAC(uint8_t nGpio, uint8_t nState1, uint8_t nState2);
 
 #endif /*HTTPD_H_*/

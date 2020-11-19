@@ -14,19 +14,49 @@ number (a REAL port number), and MAC Address. I also added the ability for the d
 all these settings through a power cycle. Any Relay settings you make are also saved through
 a power cycle.
 
-Three configurations of the firmware are available. They allow the Network Module to have a) 16
-outputs (to drive 16 relays), or b) 8 outputs / 8 inputs, or c) 16 inputs. All three are
-included in the file set in binary form for immediate programming into your device. If you
-want to manipulate the source code the selection of the configuration is available in the
-uipopt.h file.
+I've retired the previous release last updated August 6, 2020. It remains available in a zip file
+named "20200806_retired_release.zip".
+
+The new release series starting November 16, 2020 has all the same functionality as the previous
+release, but numerous code changes were made to condense the Flash code size to make room for the
+addition of MQTT functionality. You can now download four different code builds:
+1) NetworkModule-16out (same functions as the prior release).
+2) NetworkModule-8out (same functions as the prior release).
+3) NetworkModule-16in (same functions as the prior release).
+4) NetworkModule-8outMQTT (same as the -8out build but also adds MQTT functionality).
+
+Current users that upgrade to the new release SHOULD find that all their settings remain intact.
+You will also see the following differences in the web browser interface:
+a) The "Address Settings" page is now called "Configuration".
+b) The Device Name still appears on the IO Control page, but the field to edit the Name is now
+   on the Configuration page.
+c) The Invert Output setting moved to the Configuration page.
+d) The Configuration page has a "Config" field for providing Invert Ouput, Invert Input,
+   Retain/Set/Clear outputs on power cycle, and Full/Half Duplex mode on the Ethernet connection.
+
+The new release includes numerous bug fixes to fix browser corner cases, so even if you won't be
+using MQTT it should be beneficial. A user let me know that the old release did not work on
+Safari. I don't have access to a Mac or Safari at this time, but I tried Safari on my iPhone with
+the new release and it seemed to work fine. So hopefully users will find that Safari now works.
+Let me know!
+
+The MQTT functionality is described in detail in the "Network Module Reprogram Doc" so won't cover
+that here. But current users will find that the "Help" and "Network Statistics" browser pages are
+removed from the MQTT build. This was necessary to make Flash space available.
+
+Videos: I have not updated the YouTube videos yet. The "Network Module Reprogram Doc" illustrates
+all the differences and the programming steps are the same, so the videos will be updated over
+the next few weeks.
+
+Many thanks to Carlos Ladeira for his help with user interface ideas, many hours of testing, and
+his patience during development of the MQTT version of this code. His collaboration was extremely
+helpful.
 
 Tested with:
-- Firefox 77.0.1 64bit
-- Chrome 83.0.4103.106 64bit
-- Edge 83.0.478.50 64bit
-- Edge 83.0.478.54 64bit
-- Internet Explorer 11.329.19041.0
-- Internet Explorer 11.900.18362.0
+- Firefox 82.0.3 64bit
+- Chrome 87.0.4280.66 64bit
+- Edge 86.0.622.69 64bit
+- Internet Explorer 11.630.19041.0
 
 IMPORTANT NOTE: The software provided in this project only works with the “Web_Relays_Con V2.0
 HW-584” which is based on the STM8S-005 processor and ENC28J60 ethernet controller. I haven't 

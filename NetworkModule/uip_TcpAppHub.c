@@ -51,12 +51,53 @@
 
 #include "uip_TcpAppHub.h"
 #include "uip.h"
+#include "main.h"
+
+#if MQTT_SUPPORT == 1
+#include "mqtt.h"
+#endif // MQTT_SUPPORT == 1
 
 extern uint16_t Port_Httpd;
 
+#if MQTT_SUPPORT == 1
+extern uint16_t Port_Mqttd;
+extern struct mqtt_client mqttclient; // Pointer to MQTT client declared in main.c
+extern uint8_t mqtt_start;
+extern uint8_t mqtt_close_tcp;
+#endif // MQTT_SUPPORT == 1
+
 void uip_TcpAppHubCall(void)
+// We get here via UIP_APPCALL in the uip.c code
 {
   if(uip_conn->lport == htons(Port_Httpd)) {
+    // This code is called if incoming traffic is HTTP. HttpDCall will read
+    // the incoming data from the uip_buf, then create any needed output
+    // data and put it in the uip_buf.
+    // This code is also called if the UIP functions are just checking to
+    // see if there is anything pending to send even is there was no
+    // incoming data to trigger a send. This situation shouldn't happen in
+    // this application.
     HttpDCall(uip_appdata, uip_datalen(), &uip_conn->appstate.HttpDSocket);
   }
+
+#if MQTT_SUPPORT == 1
+  else if(uip_conn->lport == htons(Port_Mqttd)) {
+    // This code is called if incoming traffic is MQTT. mqtt_sync will read
+    // the incoming data (if any) from the uip_buf, then create any needed
+    // ouptut data and put it in the uip_buf.
+    // This code is also called if the UIP functions are just checking to
+    // see if there is anything pending to send. This can happen frequently
+    // with MQTT.
+    if (mqtt_start > MQTT_START_QUEUE_CONNECT) {
+      // Only call mqtt_sync if we know the client has been initialized
+      mqtt_sync(&mqttclient);
+      // If mqtt_close_tcp == 1 we are forcing a TCP connection close on return
+      // to the UIP code. Note that the uip_TcpAppHubCall() function can only
+      // be called if in the ESTABLISHED state - so a uip_close() is a valid
+      // reply.
+      if (mqtt_close_tcp == 1) uip_close();
+    }
+  }
+#endif // MQTT_SUPPORT == 1
+
 }

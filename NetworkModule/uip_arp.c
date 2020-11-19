@@ -1,12 +1,11 @@
 /**
  * \defgroup uiparp uIP Address Resolution Protocol
  *
- * The Address Resolution Protocol ARP is used for mapping between IP
- * addresses and link level addresses such as the Ethernet MAC
- * addresses. ARP uses broadcast queries to ask for the link level
- * address of a known IP address and the host which is configured with
- * the IP address for which the query was meant, will respond with its
- * link level address.
+ * The Address Resolution Protocol ARP is used for mapping between IP addresses and
+ * link level addresses such as the Ethernet MAC addresses. ARP uses broadcast
+ * queries to ask for the link level address of a known IP address and the host
+ * which is configured with the IP address for which the query was meant, will
+ * respond with its link level address.
  *
  * This ARP implementation only supports Ethernet.
  */
@@ -144,6 +143,8 @@ static uint8_t tmpage;
 void
 uip_arp_init(void)
 {
+  // Initializes the ARP table by filling the ipaddr of each entry in the table with
+  // zero to indicate an emtpy entry.
   for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
     memset(arp_table[i].ipaddr, 0, 4);
   }
@@ -154,9 +155,10 @@ uip_arp_init(void)
 /**
  * Periodic ARP processing function.
  *
- * This function performs periodic timer processing in the ARP module
- * and should be called at regular intervals. The recommended interval
- * is 10 seconds between the calls.
+ * This function performs periodic timer processing in the ARP module and should be
+ * called at regular intervals. The recommended interval is 10 seconds between the
+ * calls. Any entry that has exceeded the UIP_ARP_MAXAGE without being accessed is
+ * cleared. UIP_ARP_MAXAGE is typically 20 minutes.
  *
  */
 /*-----------------------------------------------------------------------------------*/
@@ -173,7 +175,6 @@ uip_arp_timer(void)
       memset(tabptr->ipaddr, 0, 4);
     }
   }
-
 }
 
 
@@ -276,8 +277,7 @@ uip_arp_arpin(void)
   
   switch(BUF->opcode) {
   case HTONS(ARP_REQUEST):
-    /* ARP request. If it asked for our address, we send out a
-       reply. */
+    /* ARP request. If it asked for our address, we send out a reply. */
     if(uip_ipaddr_cmp(BUF->dipaddr, uip_hostaddr)) {
       /* First, we register the one who made the request in our ARP
 	 table, since it is likely that we will do more communication
@@ -316,30 +316,26 @@ uip_arp_arpin(void)
 
 /*-----------------------------------------------------------------------------------*/
 /**
- * Prepend Ethernet header to an outbound IP packet and see if we need
- * to send out an ARP request.
+ * Prepend Ethernet header to an outbound IP packet and see if we need to send out an
+ * ARP request.
  *
- * This function should be called before sending out an IP packet. The
- * function checks the destination IP address of the IP packet to see
- * what Ethernet MAC address that should be used as a destination MAC
- * address on the Ethernet.
+ * This function should be called before sending out an IP packet. The function
+ * checks the destination IP address of the IP packet to see what Ethernet MAC
+ * address should be used as a destination MAC address on the Ethernet.
  *
- * If the destination IP address is in the local network (determined
- * by logical ANDing of netmask and our IP address), the function
- * checks the ARP cache to see if an entry for the destination IP
- * address is found. If so, an Ethernet header is prepended and the
- * function returns. If no ARP cache entry is found for the
- * destination IP address, the packet in the uip_buf[] is replaced by
- * an ARP request packet for the IP address. The IP packet is dropped
- * and it is assumed that they higher level protocols (e.g., TCP)
- * eventually will retransmit the dropped packet.
+ * If the destination IP address is in the local network (determined by logical
+ * ANDing of netmask and our IP address), the function checks the ARP cache to see
+ * if an entry for the destination IP address is found. If so, an Ethernet header is
+ * prepended and the function returns. If no ARP cache entry is found for the
+ * destination IP address, the packet in the uip_buf[] is replaced by an ARP request
+ * packet for the IP address. The IP packet is dropped and it is assumed that the
+ * higher level protocols (e.g., TCP) eventually will retransmit the dropped packet.
  *
- * If the destination IP address is not on the local network, the IP
- * address of the default router is used instead.
+ * If the destination IP address is not on the local network, the IP address of the
+ * default router is used instead.
  *
- * When the function returns, a packet is present in the uip_buf[]
- * buffer, and the length of the packet is in the global variable
- * uip_len.
+ * When the function returns, a packet is present in the uip_buf[] buffer, and the
+ * length of the packet is in the global variable uip_len.
  */
 /*-----------------------------------------------------------------------------------*/
 void
@@ -347,41 +343,43 @@ uip_arp_out(void)
 {
   struct arp_entry *tabptr;
   
-  /* Find the destination IP address in the ARP table and construct
-     the Ethernet header. If the destination IP addres isn't on the
-     local network, we use the default router's IP address instead.
+  // Find the destination IP address in the ARP table and construct the Ethernet
+  // header. If the destination IP address isn't on the local network, we use the
+  // default router's IP address instead.
+  //
+  // If no ARP table entry is found, we overwrite the original IP packet with an
+  // ARP request for the IP address.
 
-     If no ARP table entry is found, we overwrite the original IP
-     packet with an ARP request for the IP address. */
-
-  /* First check if destination is a local broadcast. */
+  // First check if destination is a local broadcast.
   if(uip_ipaddr_cmp(IPBUF->destipaddr, broadcast_ipaddr)) {
     memcpy(IPBUF->ethhdr.dest.addr, broadcast_ethaddr.addr, 6);
   }
   else {
-    /* Check if the destination address is on the local network. */
+    // Check if the destination address is on the local network.
     if(!uip_ipaddr_maskcmp(IPBUF->destipaddr, uip_hostaddr, uip_netmask)) {
-      /* Destination address was not on the local network, so we need to
-	 use the default router's IP address instead of the destination
-	 address when determining the MAC address. */
+      // Destination address was not on the local network, so we need to use the
+      // default router's IP address instead of the destination address when
+      // determining the MAC address.
       uip_ipaddr_copy(ipaddr, uip_draddr);
     }
     else {
-      /* Else, we use the destination IP address. */
+      // Else, we use the destination IP address.
       uip_ipaddr_copy(ipaddr, IPBUF->destipaddr);
     }
       
     for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+      // See if the IP address is in the ARP table
       tabptr = &arp_table[i];
       if(uip_ipaddr_cmp(ipaddr, tabptr->ipaddr)) {
+        // Found the IP address in the ARP table
 	break;
       }
     }
 
     if(i == UIP_ARPTAB_SIZE) {
-      /* The destination address was not in our ARP table, so we
-	 overwrite the IP packet with an ARP request. */
-
+      // The destination address was not in our ARP table, so we overwrite the
+      // IP packet with an ARP request.
+      
       memset(BUF->ethhdr.dest.addr, 0xff, 6);
       memset(BUF->dhwaddr.addr, 0x00, 6);
       memcpy(BUF->ethhdr.src.addr, uip_ethaddr.addr, 6);
@@ -411,3 +409,103 @@ uip_arp_out(void)
 
   uip_len += sizeof(struct uip_eth_hdr);
 }
+
+
+#if MQTT_SUPPORT == 1
+/*
+void
+uip_get_mqtt_server_mac(uip_ipaddr_t uip_mqttserveraddr)
+{
+  struct arp_entry *tabptr;
+  
+  // Send an ARP Request for a specific MQTT Server IP address
+  // Steps:
+  // - If the IP address is already in the ARP Table delete it
+  // - Construct the Ethernet header
+  // - If the destination IP address isn't on the local network use the
+  //   default router's IP address instead.
+
+  // Check if the MQTT Server IP address is on the local network
+  if(!uip_ipaddr_maskcmp(uip_mqttserveraddr, uip_hostaddr, uip_netmask)) {
+    // MQTT Server IP address was not on the local network, so we need to
+    // use the default router's IP address instead of the destination
+    // address when determining the MAC address.
+    uip_ipaddr_copy(ipaddr, uip_draddr);
+  }
+  else {
+    // Else, we use the MQTT Server IP address.
+    uip_ipaddr_copy(ipaddr, uip_mqttserveraddr);
+  }
+      
+  for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+    // See if the IP address is in the ARP table - it wont be
+    // there if we just powered up or came out of reboot
+    tabptr = &arp_table[i];
+    if(uip_ipaddr_cmp(ipaddr, tabptr->ipaddr)) {
+      // Found the IP address in the ARP table - delete it so we
+      // can be sure to get a new IP/MAC association
+      memset(arp_table[i].ipaddr, 0, 4);
+      break;
+    }
+  }
+
+  // Generate an ARP Request for the MQTT Server IP Address
+      
+  memset(BUF->ethhdr.dest.addr, 0xff, 6);
+  memset(BUF->dhwaddr.addr, 0x00, 6);
+  memcpy(BUF->ethhdr.src.addr, uip_ethaddr.addr, 6);
+  memcpy(BUF->shwaddr.addr, uip_ethaddr.addr, 6);
+    
+  uip_ipaddr_copy(BUF->dipaddr, ipaddr);
+  uip_ipaddr_copy(BUF->sipaddr, uip_hostaddr);
+  BUF->opcode = HTONS(ARP_REQUEST); // ARP request.
+  BUF->hwtype = HTONS(ARP_HWTYPE_ETH);
+  BUF->protocol = HTONS(UIP_ETHTYPE_IP);
+  BUF->hwlen = 6;
+  BUF->protolen = 4;
+  BUF->ethhdr.type = HTONS(UIP_ETHTYPE_ARP);
+
+  uip_appdata = &uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN];
+   
+  uip_len = sizeof(struct arp_hdr);
+}
+*/
+
+
+int check_mqtt_server_arp_entry(void)
+{
+  struct arp_entry *tabptr;
+  // Function to check the ARP Table to see if a MQTT Server entry is present
+  
+  // Check if the MQTT Server IP address is on the local network
+  if(!uip_ipaddr_maskcmp(uip_mqttserveraddr, uip_hostaddr, uip_netmask)) {
+    // MQTT Server IP address was not on the local network, so we need to use
+    // the default router's IP address instead of the destination address when
+    // determining the MAC address.
+    uip_ipaddr_copy(ipaddr, uip_draddr);
+  }
+  else {
+    // Else, we use the MQTT Server IP address.
+    uip_ipaddr_copy(ipaddr, uip_mqttserveraddr);
+  }
+      
+  for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
+    // See if the IP address is in the ARP table
+    tabptr = &arp_table[i];
+    if(uip_ipaddr_cmp(ipaddr, tabptr->ipaddr)) {
+      // Found the IP address in the ARP table
+      return (uint8_t)1;
+      break;
+    }
+  }
+  return (uint8_t)0;
+}
+#endif // MQTT_SUPPORT == 1
+
+
+
+
+
+
+
+

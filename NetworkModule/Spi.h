@@ -55,5 +55,6 @@ void SpiWriteByte(uint8_t nByte);
 void SpiWriteChunk(const uint8_t* pChunk, uint16_t nBytes);
 uint8_t SpiReadByte(void);
 void SpiReadChunk(uint8_t* pChunk, uint16_t nBytes);
+// uint16_t SpiReadChunk(uint8_t* pChunk, uint16_t nBytes);
 
 #endif /*SPI_H_*/

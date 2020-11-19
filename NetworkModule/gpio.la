@@ -2,62 +2,62 @@
    2                     ; Parser V4.11.14 - 18 Nov 2019
    3                     ; Generator (Limited) V4.4.11 - 19 Nov 2019
    4                     ; Optimizer V4.4.11 - 19 Nov 2019
-2562                     ; 315 void gpio_init(void)
-2562                     ; 316 {
-2564                     	switch	.text
-2565  b013               _gpio_init:
-2569                     ; 341   PA_DDR = (uint8_t)0x04; // 0b00000100
-2571  b013 35045002      	mov	_PA_DDR,#4
-2572                     ; 343   PA_CR1 = (uint8_t)0xff; // 0b11111111
-2574  b017 35ff5003      	mov	_PA_CR1,#255
-2575                     ; 346   PA_CR2 = (uint8_t)0x00; // 0b00000000
-2577  b01b 725f5004      	clr	_PA_CR2
-2578                     ; 361   PB_DDR = (uint8_t)0x00; // 0b00000000
-2580  b01f 725f5007      	clr	_PB_DDR
-2581                     ; 363   PB_CR1 = (uint8_t)0xff; // 0b11111111
-2583  b023 35ff5008      	mov	_PB_CR1,#255
-2584                     ; 365   PB_CR2 = (uint8_t)0x00; // 0b00000000
-2586  b027 725f5009      	clr	_PB_CR2
-2587                     ; 379   PC_DDR = (uint8_t)0x0e; // 0b00001110
-2589  b02b 350e500c      	mov	_PC_DDR,#14
-2590                     ; 381   PC_CR1 = (uint8_t)0xff; // 0b11111111
-2592  b02f 35ff500d      	mov	_PC_CR1,#255
-2593                     ; 384   PC_CR2 = (uint8_t)0x0e; // 0b00001110
-2595  b033 350e500e      	mov	_PC_CR2,#14
-2596                     ; 399   PD_DDR = (uint8_t)0x00; // 0b00000000
-2598  b037 725f5011      	clr	_PD_DDR
-2599                     ; 402   PD_CR1 = (uint8_t)0xff; // 0b11111111
-2601  b03b 35ff5012      	mov	_PD_CR1,#255
-2602                     ; 404   PD_CR2 = (uint8_t)0x00; // 0b00000000
-2604  b03f 725f5013      	clr	_PD_CR2
-2605                     ; 418   PE_DDR = (uint8_t)0x20; // 0b00100000
-2607  b043 35205016      	mov	_PE_DDR,#32
-2608                     ; 420   PE_CR1 = (uint8_t)0xff; // 0b11111111
-2610  b047 35ff5017      	mov	_PE_CR1,#255
-2611                     ; 423   PE_CR2 = (uint8_t)0x20; // 0b00100000
-2613  b04b 35205018      	mov	_PE_CR2,#32
-2614                     ; 440   PG_DDR = (uint8_t)0x00; // 0b00000000
-2616  b04f 725f5020      	clr	_PG_DDR
-2617                     ; 442   PG_CR1 = (uint8_t)0xff; // 0b11111111
-2619  b053 35ff5021      	mov	_PG_CR1,#255
-2620                     ; 444   PG_CR2 = (uint8_t)0x00; // 0b00000000
-2622  b057 725f5022      	clr	_PG_CR2
-2623                     ; 446 }
-2626  b05b 81            	ret	
-2659                     ; 450 void LEDcontrol(uint8_t state)
-2659                     ; 451 {
-2660                     	switch	.text
-2661  b05c               _LEDcontrol:
-2665                     ; 453   if (state == 1) PA_ODR |= (uint8_t)0x04;
-2667  b05c 4a            	dec	a
-2668  b05d 2605          	jrne	L1661
-2671  b05f 72145000      	bset	_PA_ODR,#2
-2674  b063 81            	ret	
-2675  b064               L1661:
-2676                     ; 455   else PA_ODR &= (uint8_t)(~0x04);
-2678  b064 72155000      	bres	_PA_ODR,#2
-2679                     ; 456 }
-2682  b068 81            	ret	
-2695                     	xdef	_LEDcontrol
-2696                     	xdef	_gpio_init
-2715                     	end
+2563                     ; 172 void gpio_init(void)
+2563                     ; 173 {
+2565                     .text:	section	.text,new
+2566  a227               _gpio_init:
+2570                     ; 200   PA_DDR = (uint8_t)0x2c; // 0b00000100
+2572  a227 352c5002      	mov	_PA_DDR,#44
+2573                     ; 202   PA_CR1 = (uint8_t)0xff; // 0b11111111
+2575  a22b 35ff5003      	mov	_PA_CR1,#255
+2576                     ; 205   PA_CR2 = (uint8_t)0x00; // 0b00000000
+2578  a22f 725f5004      	clr	_PA_CR2
+2579                     ; 220   PB_DDR = (uint8_t)0x00; // 0b00000000
+2581  a233 725f5007      	clr	_PB_DDR
+2582                     ; 222   PB_CR1 = (uint8_t)0xff; // 0b11111111
+2584  a237 35ff5008      	mov	_PB_CR1,#255
+2585                     ; 224   PB_CR2 = (uint8_t)0x00; // 0b00000000
+2587  a23b 725f5009      	clr	_PB_CR2
+2588                     ; 238   PC_DDR = (uint8_t)0x8e; // 0b10001110
+2590  a23f 358e500c      	mov	_PC_DDR,#142
+2591                     ; 240   PC_CR1 = (uint8_t)0xff; // 0b11111111
+2593  a243 35ff500d      	mov	_PC_CR1,#255
+2594                     ; 243   PC_CR2 = (uint8_t)0x0e; // 0b00001110
+2596  a247 350e500e      	mov	_PC_CR2,#14
+2597                     ; 259   PD_DDR = (uint8_t)0x54; // 0b01010100
+2599  a24b 35545011      	mov	_PD_DDR,#84
+2600                     ; 262   PD_CR1 = (uint8_t)0xff; // 0b11111111
+2602  a24f 35ff5012      	mov	_PD_CR1,#255
+2603                     ; 265   PD_CR2 = (uint8_t)0x00; // 0b00000000
+2605  a253 725f5013      	clr	_PD_CR2
+2606                     ; 280   PE_DDR = (uint8_t)0x21; // 0b00100001
+2608  a257 35215016      	mov	_PE_DDR,#33
+2609                     ; 282   PE_CR1 = (uint8_t)0xff; // 0b11111111
+2611  a25b 35ff5017      	mov	_PE_CR1,#255
+2612                     ; 285   PE_CR2 = (uint8_t)0x20; // 0b00100000
+2614  a25f 35205018      	mov	_PE_CR2,#32
+2615                     ; 303   PG_DDR = (uint8_t)0x02; // 0b00000010
+2617  a263 35025020      	mov	_PG_DDR,#2
+2618                     ; 305   PG_CR1 = (uint8_t)0xff; // 0b11111111
+2620  a267 35ff5021      	mov	_PG_CR1,#255
+2621                     ; 307   PG_CR2 = (uint8_t)0x00; // 0b00000000
+2623  a26b 725f5022      	clr	_PG_CR2
+2624                     ; 310 }
+2627  a26f 81            	ret	
+2660                     ; 450 void LEDcontrol(uint8_t state)
+2660                     ; 451 {
+2661                     .text:	section	.text,new
+2662  a270               _LEDcontrol:
+2666                     ; 453   if (state == 1) PA_ODR |= (uint8_t)0x04;
+2668  a270 4a            	dec	a
+2669  a271 2605          	jrne	L7561
+2672  a273 72145000      	bset	_PA_ODR,#2
+2675  a277 81            	ret	
+2676  a278               L7561:
+2677                     ; 455   else PA_ODR &= (uint8_t)(~0x04);
+2679  a278 72155000      	bres	_PA_ODR,#2
+2680                     ; 456 }
+2683  a27c 81            	ret	
+2696                     	xdef	_LEDcontrol
+2697                     	xdef	_gpio_init
+2716                     	end

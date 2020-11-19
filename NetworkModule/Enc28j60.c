@@ -46,8 +46,17 @@
 #include "Enc28j60.h"
 #include "iostm8s005.h"
 #include "stm8s-005.h"
+#include "uipopt.h"
 #include "timer.h"
 #include "main.h"
+
+#if DEBUG_SUPPORT != 0
+// Variables used to store debug information
+extern uint8_t debug[NUM_DEBUG_BYTES];
+#endif // DEBUG_SUPPORT != 0
+
+extern uint8_t stored_config_settings[6]; // Config settings stored in EEPROM
+
 
 // SPI Opcodes
 #define OPCODE_RCR			0x00	// Read Control Register
@@ -65,7 +74,7 @@
 #define BANK3				3
 
 // Register Adresses
-// Bits 0-4 are the register adress (REGISTER_MASK)
+// Bits 0-4 are the register address (REGISTER_MASK)
 // Bit 7 identifies whether the register is a MAC/MII register or
 // an ETH register because MAC and MII registers need a dummy byte
 // while reading them (REGISTER_NEEDDUMMY)
@@ -75,6 +84,8 @@
 // Registers in BankX: (means: available in each bank)
 #define BANKX_EIE			0x1B
 #define BANKX_EIR			0x1C
+#define BANKX_EIR_TXERIF		1
+#define BANKX_EIR_TXIF			3
 #define BANKX_ESTAT			0x1D
 #define BANKX_ESTAT_CLKRDY		0
 #define BANKX_ESTAT_TXABRT		1
@@ -240,13 +251,11 @@
 // #define SELECT()		do { PC_ODR &= (uint8_t)(~0x02); nop(); } while(0) // -CS low
 // #define DESELECT()		do { PC_ODR |= (uint8_t)0x02; nop(); } while(0) // -CS high
 
-// MAC address is defined in UIP modules
-extern uint8_t uip_ethaddr1;  // MAC MSB
-extern uint8_t uip_ethaddr2;  //
-extern uint8_t uip_ethaddr3;  //
-extern uint8_t uip_ethaddr4;  //
-extern uint8_t uip_ethaddr5;  //
-extern uint8_t uip_ethaddr6;  // MAC LSB
+// MAC address ordered as defined in UIP modules ([0] is LSB, [5] is MSB)
+extern uint8_t stored_uip_ethaddr_oct[6];
+
+// Transmit Status Vector storage
+uint8_t tsv_byte[7];
 
 
 void select(void)
@@ -391,17 +400,34 @@ void Enc28j60Init(void)
   select();
   SpiWriteByte(OPCODE_SRC); // Reset command
   deselect();
+  
+  // Errata: After sending an SPI Reset command, the PHY clock is stopped
+  // but the ESTAT.CLKRDY bit is not cleared. Therefore, polling the CLKRDY
+  // bit will not work to detect if the PHY is ready. Additionally, the
+  // hardware start-up time of 300us may expire before the device is ready
+  // to operate. Work around: After issuing the Reset command, wait at
+  // least 1 ms in firmware for the device to be ready.
   wait_timer((uint16_t)10000); // delay 10 ms
 
   // Reset ENC28J60 PHY
   Enc28j60WritePhy(PHY_PHCON1, (uint16_t)(1<<PHY_PHCON1_PRST)); // Reset command
   // Wait for PHY reset completion
   while (Enc28j60ReadPhy(PHY_PHCON1) & (uint16_t)(1<<PHY_PHCON1_PRST)) nop();
-
+  
+  /*---------------------------------------------------------------------------*/
+  // Do PHY initializations
+  if (stored_config_settings[3] == '1') {
+    // Full duplex
+    // Set the PHCON1.PDPXMD bit to 1 to over-ride any LED driven configuration.
+    Enc28j60WritePhy(PHY_PHCON1, (uint16_t)(1<<PHY_PHCON1_PDPXMD));
+  }  
+    
+  /*---------------------------------------------------------------------------*/
   // Do bank 0 initializations
   Enc28j60SwitchBank(BANK0);
 
   // Initialize Receive Buffer
+  // Errata: See .h file for errata applied
   Enc28j60WriteReg(BANK0_ERXSTL, (uint8_t) (ENC28J60_RXSTART >> 0));
   Enc28j60WriteReg(BANK0_ERXSTH, (uint8_t) (ENC28J60_RXSTART >> 8));
   Enc28j60WriteReg(BANK0_ERXNDL, (uint8_t) (ENC28J60_RXEND >> 0));
@@ -417,6 +443,8 @@ void Enc28j60Init(void)
   Enc28j60WriteReg(BANK0_ETXSTL, (uint8_t) (ENC28J60_TXSTART >> 0));
   Enc28j60WriteReg(BANK0_ETXSTH, (uint8_t) (ENC28J60_TXSTART >> 8));
 
+
+  /*---------------------------------------------------------------------------*/
   // Bank 1 initializations
   Enc28j60SwitchBank(BANK1);
 
@@ -481,11 +509,20 @@ void Enc28j60Init(void)
 						     // CRC check OFF
 						     // FF-FF Packets rejected
 
+
+  /*---------------------------------------------------------------------------*/
   // Bank 2 initializations
   Enc28j60SwitchBank(BANK2);
 
   // MAC RX Enable
   Enc28j60WriteReg(BANK2_MACON1, (1<<BANK2_MACON1_MARXEN));
+  
+  // if (stored_config_settings[3] == '1') {
+  //   Full duplex: Set MACON1.TXPAUS and MACON1.RXPAUS to allow flow control.
+  //   Note: This does not appear to be needed, at least with Cisco switches. More
+  //   code would be needed to handle receive over-runs.
+  //   Enc28j60WriteReg(BANK2_MACON1, (1<<BANK2_MACON1_TXPAUS) | (1<<BANK2_MACON1_RXPAUS));
+  // }
 
   // Append CRC, Padding bytes and check length-consistency of frames
   // From the spec:
@@ -501,7 +538,15 @@ void Enc28j60Init(void)
   // HFRMEN = 0 = Frames bigger than MAMXFL will be aborted when transmitted or
   //   received
   // FULDPX = 0 = MAC will operate in half-duplex. PHCON1.PDPXMD must also be clear.
-  Enc28j60SetMaskReg(BANK2_MACON3, (1<<BANK2_MACON3_TXCRCEN)|(1<<BANK2_MACON3_PADCFG0)|(1<<BANK2_MACON3_FRMLNEN));
+  if (stored_config_settings[3] == '0') {
+    // Half duplex
+    Enc28j60SetMaskReg(BANK2_MACON3, (1<<BANK2_MACON3_TXCRCEN)|(1<<BANK2_MACON3_PADCFG0)|(1<<BANK2_MACON3_FRMLNEN));
+  }
+  if (stored_config_settings[3] == '1') {
+    // Full duplex
+    // Set BANK2 MACON3.PADCFG, MACON3.TXCRCEN, MACON3.FRMLNEN and MACON3.FULDPX
+    Enc28j60SetMaskReg(BANK2_MACON3, (1<<BANK2_MACON3_TXCRCEN) | (1<<BANK2_MACON3_PADCFG0) | (1<<BANK2_MACON3_FRMLNEN) | (1<<BANK2_MACON3_FULDPX));
+  }
 
   // "For IEEE802.3 compliance"
   Enc28j60SetMaskReg(BANK2_MACON4, (1<<BANK2_MACON4_DEFER));
@@ -514,23 +559,36 @@ void Enc28j60Init(void)
   // Non-back to back-Inter-Packet-Delay-Gap. (datasheet recommendation)
   Enc28j60WriteReg(BANK2_MAIPGL, 0x12);
 
-  // Datasheet recommendation
-  Enc28j60WriteReg(BANK2_MAIPGH, 0x0C);
+  if (stored_config_settings[3] == '0') {
+    // Datasheet recommendation for half-duplex
+    Enc28j60WriteReg(BANK2_MAIPGH, 0x0C);
+    // Spec says: If half-duplex program the BANK2 MAIPGH with 0Ch. What about
+    // full duplex? The spec doesn't say, so I assume it should be left in the
+    // reset state.
+  }
 
   // Back to back-Inter-Packet-Delay-Gap. (datasheet recommendation)
-  Enc28j60WriteReg(BANK2_MABBIPG, 0x12);
+  if (stored_config_settings[3] == '0') {
+    // Half duplex: Program the BANK2 MABBIPG with 12h
+    Enc28j60WriteReg(BANK2_MABBIPG, 0x12);
+  }
+  if (stored_config_settings[3] == '1') {
+    // Full duplex: Program the BANK2 MABBIPG with 15h
+    Enc28j60WriteReg(BANK2_MABBIPG, 0x15);
+  }
 
+  /*---------------------------------------------------------------------------*/
   // Bank 3 initializations
   Enc28j60SwitchBank(BANK3);
 
   // Initialize MAC-adress
-  Enc28j60WriteReg(BANK3_MAADR5, uip_ethaddr1);  // MAC MSB
-  Enc28j60WriteReg(BANK3_MAADR4, uip_ethaddr2);
-  Enc28j60WriteReg(BANK3_MAADR3, uip_ethaddr3);
-  Enc28j60WriteReg(BANK3_MAADR2, uip_ethaddr4);
-  Enc28j60WriteReg(BANK3_MAADR1, uip_ethaddr5);
-  Enc28j60WriteReg(BANK3_MAADR0, uip_ethaddr6);  // MAC LSB
-
+  Enc28j60WriteReg(BANK3_MAADR5, stored_uip_ethaddr_oct[5]);  // MAC MSB
+  Enc28j60WriteReg(BANK3_MAADR4, stored_uip_ethaddr_oct[4]);
+  Enc28j60WriteReg(BANK3_MAADR3, stored_uip_ethaddr_oct[3]);
+  Enc28j60WriteReg(BANK3_MAADR2, stored_uip_ethaddr_oct[2]);
+  Enc28j60WriteReg(BANK3_MAADR1, stored_uip_ethaddr_oct[1]);
+  Enc28j60WriteReg(BANK3_MAADR0, stored_uip_ethaddr_oct[0]);  // MAC LSB
+  
   // local loopback disable
   Enc28j60WritePhy(PHY_PHCON2, (1<<PHY_PHCON2_HDLDIS));
 
@@ -541,9 +599,13 @@ void Enc28j60Init(void)
     (ENC28J60_LEDA<<PHY_PHLCON_LACFG0)|
     (1<<PHY_PHLCON_STRCH)|0x3000);
 
-  // Errata Workaround: Because the LED-Polarity detection circuit does not function properly,
-  // we clear the FullDuplex Bit ourself. MACON3.FULDPX is cleared anyway.
-  Enc28j60WritePhy(PHY_PHCON1, 0x0000);
+  if (stored_config_settings[3] == '0') {
+    // Half duplex
+    // Errata Workaround: Because the LED-Polarity detection circuit does not
+    // function properly we clear the FullDuplex Bit ourself. MACON3.FULDPX is
+    // cleared anyway.
+    Enc28j60WritePhy(PHY_PHCON1, 0x0000);
+  }
 
   // Enable Packet Reception
   Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_RXEN));
@@ -561,7 +623,7 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
 
   select();
 
-  SpiWriteByte(OPCODE_RBM);
+  SpiWriteByte(OPCODE_RBM);	 // Set ENC28J60 to send receive data on SPI
 
   // Read Next Packet Pointer
   nNextPacket = ((uint16_t) SpiReadByte() << 0);
@@ -577,25 +639,9 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   SpiReadByte();
 
   // Frame-Data
-  //   Comment: This seems broken to me ... maybe I'm missing something. But if we
-  //   receive a packet larger than MAXFRAME we don't read it???  I found this
-  //   problem when this appeared to be happening, and "fixed" it by increasing the
-  //   size of MAXFRAME. I had MAXFRAME set to 600, which should be big enough for
-  //   any IPV4 frame, but I was getting failures (in particular, when POST data was
-  //   received from a Firefox browser this appears to have cut off the reception).
-  //   Increasing MAXFRAME to 700 seemed to fix it, and I subsequently increased
-  //   MAXFRAME to 900 just to be sure. But this seems like a hack patch. Need to
-  //   look at this more closely. A thought is that the uip code might not be
-  //   telling the client the proper MSS value - which would tell the client to keep
-  //   transfers to an IPV4 limit.
-  //
-  //   A suggested investigation: Collect the nBytes value at the end of this routine
-  //   and determine what the maximum nBytes value is. Does it ever approach or
-  //   exceed MAXFRAME? Particularly when receiving POST data for this application?
-  //   But keep in mind that when connected to an actual network the device might
-  //   receive (and disgard) lots of traffic not intended for the device. Might have
-  //   to run the test on a direct PC to device connection to eliminate extraneous
-  //   traffic.
+  //   Comment: MAXFRAME is set larger than the MSS value we communicate to any
+  //   host or client we connect to. For this reason we know we can throw away
+  //   any packet that exceeds MAXFRAME.
   //
   if (nBytes <= ENC28J60_MAXFRAME) SpiReadChunk(pBuffer, nBytes);
 
@@ -625,21 +671,25 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
 }
 
 
-void Enc28j60CopyPacket(uint8_t* pBuffer, uint16_t nBytes)
+void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
 {
   uint16_t TxEnd = ENC28J60_TXSTART + nBytes;
   uint8_t i = 200;
+  uint8_t txerif_temp;
+
+  txerif_temp = 0;
 
   // Wait for a previously buffered frame to be sent out completely
-  // Errata Workaround: TXRTS could remain set indefinitely.
+  // 
   // This workaround will wait for TXRTS to be cleared within a maximum of 100ms
+  // The errata may cause it to never be cleared even though the data finished
+  // transmission - so we'll timeout if that is the case.
   while (i--) {
     if (!(Enc28j60ReadReg(BANKX_ECON1) & (1<<BANKX_ECON1_TXRTS))) break;
     wait_timer(500);  // Wait 500 uS
   }
 
   Enc28j60SwitchBank(BANK0);
-
   Enc28j60WriteReg(BANK0_EWRPTL, (uint8_t) (ENC28J60_TXSTART >> 0));
   Enc28j60WriteReg(BANK0_EWRPTH, (uint8_t) (ENC28J60_TXSTART >> 8));
   Enc28j60WriteReg(BANK0_ETXNDL, (uint8_t) (TxEnd >> 0));
@@ -647,7 +697,7 @@ void Enc28j60CopyPacket(uint8_t* pBuffer, uint16_t nBytes)
 
   select();
 
-  SpiWriteByte(OPCODE_WBM);	 // Set ENC28J60 to receive transmit data
+  SpiWriteByte(OPCODE_WBM);	 // Set ENC28J60 to receive transmit data on SPI
 
   SpiWriteByte(0);		 // Per-packet-control-byte
     // For info search for "per packet control byte" in the ENC28J60 data sheet
@@ -664,80 +714,187 @@ void Enc28j60CopyPacket(uint8_t* pBuffer, uint16_t nBytes)
   SpiWriteChunk(pBuffer, nBytes); // Copy data to the ENC28J60 transmit buffer
 
   deselect();
-}
 
-
-void Enc28j60Send(void)
-{
-  // Errata Workaround: Reset TX Logic
-  Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
-  Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
-
-  // Start transmission
-  Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
-}
-
-
-/*
-void Enc28j60SetClockPrescaler(uint8_t nPrescaler)
-{
-  // Note: This routine doesn't appear to get called
+  // Errata: In Half-Duplex mode, a hardware transmission abort caused by
+  // excessive collisions, a late collision or excessive deferrals, may stall
+  // the internal transmit logic. The next packet transmit initiated by the
+  // host controller may never succeed (ECON1.TXRTS will remain set
+  // indefinitely).
+  // Work around: Before attempting to transmit a packet (setting ECON1.TXRTS),
+  // reset the internal transmit logic by setting ECON1.TXRST and then
+  // clearing ECON1.TXRST. The host controller may wish to issue this Reset
+  // before any packet is transmitted (for simplicity), or it may wish to
+  // conditionally reset the internal transmit logic based on the Transmit
+  // Error Interrupt Flag (EIR.TXERIF), which will become set whenever a
+  // transmit abort occurs. Clearing ECON1.TXRST may cause a new transmit
+  // error interrupt event (EIR.TXERIF will become set). Therefore, the
+  // interrupt flag should be cleared after the Reset is completed.
   //
-  // Note: After Power-On Reset the ECOCON register defaults to
-  // 0x04 {6.125MHz output on CLKOUT).
+  // Errata: When transmitting in Half-Duplex mode with some link partners, the
+  // PHY will sometimes incorrectly interpret a received link pulse as a
+  // collision event.
+  //   If less than, or equal to, MACLCON2 bytes have been transmitted when the
+  //   false collision occurs, the MAC will abort the current transmission,
+  //   wait a random back-off delay and then automatically attempt to retransmit
+  //   the packet from the beginning – as it would for a genuine collision.
+  //   HOWEVER if greater than MACLCON2 bytes have been transmitted when the
+  //   false collision occurs, the event will be considered a late collision by
+  //   the MAC and the packet will be aborted without retrying. This causes the
+  //   packet to not be delivered to the remote node. In some cases the abort
+  //   will fail to reset the transmit state machine.
+  // Work around: Implement a software retransmit mechanism whenever a late
+  // collision occurs.
+  //   When a late collision occurs, the associated bit in the transmit status
+  //   vector will be set. Also, the EIR.TXERIF bit will become set, and if
+  //   enabled, the transmit error interrupt will occur. If the transmit state
+  //   machine does not get reset, the ECON1.TXRTS bit will remain set and no
+  //   transmit interrupt will occur (the EIR.TXIF bit will remain clear).
+  // As a result, software should detect the completion of a transmit attempt
+  // by checking both TXIF and TXERIF. If the Transmit Interrupt (TXIF) did not
+  // occur, software must clear the ECON1.TXRTS bit to force the transmit state
+  // machine into the correct state.
   //
-  // Note: If the CLKOUT is not used this code could be reduced to
-  // just setting ECOCON to 0x00 to reduce power
+  // The above errata are handled together in this code. There will be
+  // 16 attempts to work around collisions
+  {
+    uint8_t late_collision;
+    
+    // Before starting transmision check for a pre-existing transmit error
+    // condition - TXERIF of EIR register.
+    //   From the spec:
+    //   The Transmit Error Interrupt Flag (TXERIF) is used to indicate that a
+    //   transmit abort has occurred. An abort can occur because of any of the
+    //   following:
+    //     1. Excessive collisions occurred as defined by the Retransmission
+    //        Maximum (RETMAX) bits in the MACLCON1 register.
+    //     2. A late collision occurred as defined by the Collision Window
+    //        (COLWIN) bits in the MACLCON2 register.
+    //     3. A collision after transmitting 64 bytes occurred (ESTAT.LATECOL
+    //        set).
+    //     4. The transmission was unable to gain an opportunity to transmit
+    //        the packet because the medium was constantly occupied for too
+    //        long. The deferral limit (2.4287 ms) was reached and the
+    //        MACON4.DEFER bit was clear.
+    //     5. An attempt to transmit a packet larger than the maximum frame
+    //        length defined by the MAMXFL registers was made without setting
+    //        the MACON3.HFRMEN bit or per packet POVERRIDE and PHUGEEN bits.
+    //
+    // If there is a TXERIF error already present reset the transmit logic.
+    // This should never happen as any error should have been handled the last
+    // time a transmit occurred. If no error just start the transmission.
+    if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) {
+      // Set TXRST
+      Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+      // Clear TXRST
+      Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+      // Clear TXERIF
+      Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXERIF));
+      // Clear TXIF
+      Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXIF));
+    }
+    
+    // Start transmission
+    Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
 
-  Enc28j60SwitchBank(BANK3);
+    // Wait for transmission complete ... or collision error
+    // while(TXIF == 0 and TXERIF == 0) NOP
+    while (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))
+        && !(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF))) nop();
+	
+    // Save the TXERIF state just in case clearing TXRTS interferes with it
+    if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) txerif_temp = 1;
+    
+    // If TXIF is zero Clear TXRTS
+    if (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))) {
+      Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
+    }
+    
+    // If a TXERIF error is present we need to enter a loop to retry
+    if (txerif_temp) {
 
-  if (nPrescaler == 0) Enc28j60WriteReg(BANK3_ECOCON, 0x00);      // Disable CLKOUT
-  else if (nPrescaler == 1) Enc28j60WriteReg(BANK3_ECOCON, 0x01); // CLKOUT = 25 MHz
-  else if (nPrescaler == 2) Enc28j60WriteReg(BANK3_ECOCON, 0x02); // CLKOUT = 12.5 MHz
-  else if (nPrescaler == 3) Enc28j60WriteReg(BANK3_ECOCON, 0x03); // CLKOUT = 8.333333 MHz
-  else if (nPrescaler == 4) Enc28j60WriteReg(BANK3_ECOCON, 0x04); // CLKOUT = 6.25 MHz
-  else if (nPrescaler == 8) Enc28j60WriteReg(BANK3_ECOCON, 0x05); // CLKOUT = 3.125 MHz
+      for (i = 0; i < 16; i++) {
+        // Read Transmit Status Vector (TSV)
+	read_TSV();
+ 
+        // Bit 29 of the TSV is the Late Collision bit
+        // This corresponds to bit 5 of tsv_byte[3]
+        late_collision = 0;
+        if (tsv_byte[3] & 0x20) late_collision = 1;
+	else break; // If no error leave the for loop
+	
+	// If error was a late collision retry the transmission
+        if (txerif_temp && (late_collision)) {
+	  txerif_temp = 0;
+
+          // Set TXRST
+          Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+          // Clear TXRST
+          Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+          // Clear TXERIF
+          Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXERIF));
+          // Clear TXIF
+          Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXIF));
+          // Start transmission
+          Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
+          // Wait for transmission complete ... or collision error
+          // while(TXIF == 0 and TXERIF == 0) NOP
+          while (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))
+              && !(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF))) nop();
+            // Save the TXERIF state just in case clearing TXRTS interferes with it
+            if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) txerif_temp = 1;
+          // If TXIF is zero Clear TXRTS
+          if (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))) {
+	    Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
+	  }
+          // Go back to the start of the while loop to check TSV status.
+        }
+      }
+    }
+  }
 }
 
 
-uint16_t Enc28j60ChecksumTx(uint16_t Offset, uint16_t Length)
+void read_TSV(void)
 {
-  // Note: This routine doesn't appear to get called
+  uint8_t saved_ERDPTL;
+  uint8_t saved_ERDPTH;
+  uint16_t tsv_start;
 
-  // +1 to skip Per-packet-control-byte
-  uint16_t Start = ENC28J60_TXSTART + Offset + 1;
-  uint16_t End = Start + Length - 1;
-
-  Enc28j60SwitchBank(BANK0);
-  Enc28j60WriteReg(BANK0_EDMASTL, (uint8_t) (Start >> 0));
-  Enc28j60WriteReg(BANK0_EDMASTH, (uint8_t) (Start >> 8));
-  Enc28j60WriteReg(BANK0_EDMANDL, (uint8_t) (End >> 0));
-  Enc28j60WriteReg(BANK0_EDMANDH, (uint8_t) (End >> 8));
-  Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_CSUMEN) | (1<<BANKX_ECON1_DMAST));
-
-  while(Enc28j60ReadReg(BANKX_ECON1) & (1<<BANKX_ECON1_DMAST)) nop();
-
-  return ((uint16_t) Enc28j60ReadReg(BANK0_EDMACSH) << 8) | ((uint16_t) Enc28j60ReadReg(BANK0_EDMACSL) << 0);
-}
-
-
-void Enc28j60CopyChecksum(uint16_t Offset, uint16_t Checksum)
-{
-  // Note: This routine doesn't appear to get called
-
-  // +1 to skip Per-packet-control-byte
-  uint16_t WrPtr = ENC28J60_TXSTART + Offset + 1;
-
-  Enc28j60SwitchBank(BANK0);
-
-  Enc28j60WriteReg(BANK0_EWRPTL, (uint8_t) (WrPtr >> 0));
-  Enc28j60WriteReg(BANK0_EWRPTH, (uint8_t) (WrPtr >> 8));
-
+  // Wait 10us
+  // I don't find this in the spec, but from experimentation it seems a
+  // few microseconds are needed for the TSV values to be stable
+  wait_timer((uint16_t)10);
+  
+  // Read the Transmit Status Vector
+  // Save the current read pointer for restoration later
+  saved_ERDPTL = Enc28j60ReadReg(BANK0_ERDPTL);
+  saved_ERDPTH = Enc28j60ReadReg(BANK0_ERDPTH);
+  
+  // Get the location of the transmit status vector
+  tsv_start = ((Enc28j60ReadReg(BANK0_ETXNDH)) << 8);
+  tsv_start += Enc28j60ReadReg(BANK0_ETXNDL);
+  tsv_start++;
+  
+  // Read the transmit status vector
+  Enc28j60WriteReg(BANK0_ERDPTL, (uint8_t)(tsv_start & 0x00ff));
+  Enc28j60WriteReg(BANK0_ERDPTH, (uint8_t)(tsv_start >> 8));
+  
+  // Set ENC28J60 to read buffer memory mode
   select();
-
-  SpiWriteByte(OPCODE_WBM);
-  SpiWriteChunk((uint8_t*) &Checksum, sizeof(Checksum));
-
+  SpiWriteByte(OPCODE_RBM);
+  
+  // Read 7 bytes of TSV
+  {
+    uint8_t i;
+    for (i=0; i<7; i++) {
+      tsv_byte[i] = SpiReadByte(); // Bits 7-0
+    }
+  }
+        
   deselect();
+
+  // Restore the current read pointer
+  Enc28j60WriteReg(BANK0_ERDPTL, saved_ERDPTL);
+  Enc28j60WriteReg(BANK0_ERDPTH, saved_ERDPTH);
 }
-*/
+

@@ -210,6 +210,10 @@ extern char Pending_mqtt_password[11];    // Temp storage for new MQTT Password
 
 extern uint8_t mqtt_start_status;         // Contains error status from the MQTT start process
 extern uint8_t MQTT_error_status;         // For MQTT error status display in GUI
+
+extern uint32_t TXERIF_counter;           // Counts TXERIF errors
+extern uint32_t RXERIF_counter;           // Counts RXERIF errors
+extern uint32_t second_counter;           // Counts seconds since boot
 #endif // MQTT_SUPPORT == 1
 
 
@@ -639,7 +643,7 @@ static const char g_HtmlPageConfiguration[] =
   "If you change the highest octet of the MAC you MUST use an even number to<br>"
   "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
   "multicast and will not work.<br>"
-  "Code Revision 20201116 0256</p>"
+  "Code Revision 20201121 0453</p>"
   "%y03/91%y02Reboot</button></form>"
   "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -822,14 +826,17 @@ static const char g_HtmlPageConfiguration[] =
   "</form>"
   "<p>"
   "See Documentation for help<br>"
-  "Code Revision 20201116 0256</p>"
+  "Code Revision 20201121 0453</p>"
   "%y03/91%y02Reboot</button></form>"
   "<br><br>"
   "%y03/61%y02Refresh</button></form>"
   "%y03/60%y02IO Control</button></form>"
-#if UIP_STATISTICS == 1 || UIP_STATISTICS == 2
+#if UIP_STATISTICS == 1
   "%y03/66%y02Network Statistics</button></form>"
-#endif // UIP_STATISTICS == 1 || UIP_STATISTICS == 2
+#endif // UIP_STATISTICS == 1
+#if UIP_STATISTICS == 2
+  "%y03/66%y02Error Statistics</button></form>"
+#endif // UIP_STATISTICS == 2
 #if HELP_SUPPORT == 1
   "%y03/63%y02Help</button></form>"
 #endif // HELP_SUPPORT == 1
@@ -1085,23 +1092,15 @@ static const char g_HtmlPageStats[] =
   "</head>"
   "<body>"
   "<table>"
-  "<tr><td>01 %e01</td></tr>"
-  "<tr><td>13 %e13</td></tr>"
-  "<tr><td>16 %e16</td></tr>"
-  "<tr><td>17 %e17</td></tr>"
-  "<tr><td>18 %e18</td></tr>"
-  "<tr><td>22 %e22</td></tr>"
-  "<tr><td>23 %e23</td></tr>"
-  "<tr><td>24 %e24</td></tr>"
-  "<tr><td>25 %e25</td></tr>"
+  "<tr><td>Seconds since boot %e26</td></tr>"
+  "<tr><td>RXERIF count %e27</td></tr>"
+  "<tr><td>TXERIF count %e28</td></tr>"
   "</table>"
   "%y03/61' method='GET'><button>Configuration</button></form>"
-  "%y03/67' method='GET'><button>Clear</button></form>"
   "%y03/66' method='GET'><button>Refresh</button></form>"
   "</body>"
   "</html>";
 #endif // UIP_STATISTICS == 2
-
 
 
 // Shortened IO state page Template
@@ -1534,14 +1533,18 @@ uint16_t adjust_template_size()
     // size = size + (22 x (6));
     size = size + 132;
 
-    // Account for IP Address insertion - IO Control Button
+    // Account for IP Address insertion - Configuration Button
+    // size = size + (strlen(page_string03) - marker_field_size);
+    // size = size + (strlen(page_string03) - 4);
+    // AND
+    // Account for IP Address insertion - Refresh Button
     // size = size + (strlen(page_string03) - marker_field_size);
     // size = size + (strlen(page_string03) - 4);
     // AND
     // Account for IP Address insertion - Clear Statistics Button
     // size = size + (strlen(page_string03) - marker_field_size);
     // size = size + (strlen(page_string03) - 4);
-    size = size + (2 * page_string03_len_less4);
+    size = size + (3 * page_string03_len_less4);
   }
 #endif // UIP_STATISTICS == 1
 
@@ -1553,18 +1556,18 @@ uint16_t adjust_template_size()
   else if (current_webpage == WEBPAGE_STATS) {
     size = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
 
-    // Account for Statistics fields %e00 to %e21
-    // There are 22 instances of these fields
+    // Account for Statistics fields %e26 to %e28
+    // There are 3 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (22 x (10 - 4));
-    // size = size + (22 x (6));
-    size = size + 132;
+    // size = size + (3 x (10 - 4));
+    // size = size + (3 x (6));
+    size = size + 18;
 
-    // Account for IP Address insertion - IO Control Button
+    // Account for IP Address insertion - Configuration Button
     // size = size + (strlen(page_string03) - marker_field_size);
     // size = size + (strlen(page_string03) - 4);
     // AND
-    // Account for IP Address insertion - Clear Statistics Button
+    // Account for IP Address insertion - Refresh Button
     // size = size + (strlen(page_string03) - marker_field_size);
     // size = size + (strlen(page_string03) - 4);
     size = size + (2 * page_string03_len_less4);
@@ -1708,6 +1711,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   uint8_t nParsedMode;
   uint8_t temp;
   uint8_t i;
+  uint8_t j;
   uint8_t no_err;
   unsigned char temp_octet[3];
 
@@ -2133,86 +2137,13 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 #if UIP_STATISTICS == 2
         else if (nParsedMode == 'e') {
-          temp_octet[2]='\0';
           switch (nParsedNum)
 	  {
-	    // Output the statistics. First convert to 10 digit Decimal.
-//	    case 0:  emb_itoa(uip_stat.ip.drop,      OctetArray, 10, 10); break;
-	    case 1:  emb_itoa(uip_stat.ip.recv,      OctetArray, 10, 10); break;
-//	    case 2:  emb_itoa(uip_stat.ip.sent,      OctetArray, 10, 10); break;
-//	    case 3:  emb_itoa(uip_stat.ip.vhlerr,    OctetArray, 10, 10); break;
-//	    case 4:  emb_itoa(uip_stat.ip.hblenerr,  OctetArray, 10, 10); break;
-//	    case 5:  emb_itoa(uip_stat.ip.lblenerr,  OctetArray, 10, 10); break;
-//	    case 6:  emb_itoa(uip_stat.ip.fragerr,   OctetArray, 10, 10); break;
-//	    case 7:  emb_itoa(uip_stat.ip.chkerr,    OctetArray, 10, 10); break;
-//	    case 8:  emb_itoa(uip_stat.ip.protoerr,  OctetArray, 10, 10); break;
-//	    case 9:  emb_itoa(uip_stat.icmp.drop,    OctetArray, 10, 10); break;
-//	    case 10: emb_itoa(uip_stat.icmp.recv,    OctetArray, 10, 10); break;
-//	    case 11: emb_itoa(uip_stat.icmp.sent,    OctetArray, 10, 10); break;
-//	    case 12: emb_itoa(uip_stat.icmp.typeerr, OctetArray, 10, 10); break;
-	    case 13: emb_itoa(uip_stat.tcp.drop,     OctetArray, 10, 10); break;
-//	    case 14: emb_itoa(uip_stat.tcp.recv,     OctetArray, 10, 10); break;
-//	    case 15: emb_itoa(uip_stat.tcp.sent,     OctetArray, 10, 10); break;
-	    case 16: emb_itoa(uip_stat.tcp.chkerr,   OctetArray, 10, 10); break;
-	    case 17: emb_itoa(uip_stat.tcp.ackerr,   OctetArray, 10, 10); break;
-	    case 18: emb_itoa(uip_stat.tcp.rst,      OctetArray, 10, 10); break;
-//	    case 19: emb_itoa(uip_stat.tcp.rexmit,   OctetArray, 10, 10); break;
-//	    case 20: emb_itoa(uip_stat.tcp.syndrop,  OctetArray, 10, 10); break;
-//	    case 21: emb_itoa(uip_stat.tcp.synrst,   OctetArray, 10, 10); break;
-#if DEBUG_SUPPORT !=0
-	    case 22:
-	      // Display "additional" debug bytes as 5 hex pairs
-	      {
-              uint8_t i;
-              uint8_t j;
-	      i = 0;
-	      for (j=36; j<41; j++) {
- 	        emb_itoa(stored_debug[j], temp_octet, 16, 2);
- 	        OctetArray[i++] = temp_octet[0]; 
-	        OctetArray[i++] = temp_octet[1];
-	      }
-              }
-	      break;
-	    case 23:
-	      // Display "reset" debug bytes as 5 hex pairs
-	      {
-              uint8_t i;
-              uint8_t j;
-	      i = 0;
-	      for (j=41; j<46; j++) {
- 	        emb_itoa(stored_debug[j], temp_octet, 16, 2);
- 	        OctetArray[i++] = temp_octet[0]; 
-	        OctetArray[i++] = temp_octet[1];
-	      }
-	      }
-	      break;
-	    case 24:
-	      // Display "TSV" debug bytes as 5 hex pairs
-	      {
-              uint8_t i;
-              uint8_t j;
-	      i = 0;
-	      for (j=26; j<31; j++) {
- 	        emb_itoa(stored_debug[j], temp_octet, 16, 2);
- 	        OctetArray[i++] = temp_octet[0]; 
-	        OctetArray[i++] = temp_octet[1];
-	      }
-	      }
-	      break;
-	    case 25:
-	      // Display "TSV" debug bytes as 5 hex pairs
-	      {
-              uint8_t i;
-              uint8_t j;
-	      i = 0;
-	      for (j=31; j<36; j++) {
- 	        emb_itoa(stored_debug[j], temp_octet, 16, 2);
- 	        OctetArray[i++] = temp_octet[0]; 
-	        OctetArray[i++] = temp_octet[1];
-	      }
-	      }
-	      break;
-#endif // DEBUG_SUPPORT !=0
+	    // Output the second counter and error counters. First convert to 10
+	    // digit Decimal.
+	    case 26:  emb_itoa(second_counter, OctetArray, 10, 10); break;
+	    case 27:  emb_itoa(RXERIF_counter, OctetArray, 10, 10); break;
+	    case 28:  emb_itoa(TXERIF_counter, OctetArray, 10, 10); break;
 	  }
 	  for (i=0; i<10; i++) {
             *pBuffer = OctetArray[i];
@@ -2223,16 +2154,57 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 #endif // UIP_STATISTICS == 2
 
         else if (nParsedMode == 'f') {
-	  // Outputs the pin state information in the format used by the "99" command
+	  // Output the pin state information in the format used by the "99" command
 	  // of the original Network Module.
+	  // For output pins display what is returned by GpioGetPin()
+	  // For input pins if invert_input != 0 the GPIO pin state needs to be
+	  // inverted before displaying.
+#if GPIO_SUPPORT == 1
+          // Display Output Pin state
 	  for(i=0; i<16; i++) {
 	    *pBuffer = (uint8_t)(GpioGetPin(i) + '0');
             pBuffer++;
           }
 	  nBytes += 16;
+#endif // GPIO_SUPPORT == 1
+#if GPIO_SUPPORT == 2
+	  for(i=0; i<16; i++) {
+            if (i > 7) {
+              // Display Input Pin state
+              j = GpioGetPin(i);
+              if (invert_input == 0x00) *pBuffer = (uint8_t)(j + '0');
+              else {
+                if (j == 0) *pBuffer = (uint8_t)('1'); 
+                else *pBuffer = (uint8_t)('0');
+              }
+              pBuffer++;
+            }
+            else {
+              // Display Output Pin State
+              *pBuffer = (uint8_t)(GpioGetPin(i) + '0');
+              pBuffer++;
+            }
+          }
+	  nBytes += 16;
+#endif // GPIO_SUPPORT == 2
+#if GPIO_SUPPORT == 3
+          for(i=0; i<16; i++) {
+            // Display Input Pin State
+            j = GpioGetPin(i);
+            if (invert_input == 0x00) {
+              *pBuffer = (uint8_t)(j + '0');
+            }
+            else {
+              if (j == 0) *pBuffer = (uint8_t)('1');
+              else *pBuffer = (uint8_t)('0');
+            }
+            pBuffer++;
+          }
+	  nBytes += 16;
+#endif // GPIO_SUPPORT == 3
 	}
-	
-        else if (nParsedMode == 'g') {
+
+else if (nParsedMode == 'g') {
 	  // This is the Config string, currently defined as follows:
 	  // 6 characters
 	  // Character 1: Output Invert, can be 0 or 1

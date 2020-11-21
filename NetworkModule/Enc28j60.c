@@ -55,6 +55,12 @@
 extern uint8_t debug[NUM_DEBUG_BYTES];
 #endif // DEBUG_SUPPORT != 0
 
+#if MQTT_SUPPORT == 1
+extern uint32_t TXERIF_counter;       // Counts TXERIF errors
+extern uint32_t RXERIF_counter;       // Counts RXERIF errors
+#endif // MQTT_SUPPORT == 1
+
+
 extern uint8_t stored_config_settings[6]; // Config settings stored in EEPROM
 
 
@@ -617,6 +623,14 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   uint16_t nBytes;
   uint16_t nNextPacket;
 
+#if MQTT_SUPPORT == 1
+  // Check for buffer overflow - RXERIF (bit 0) of EIR register
+  // If overflow increment the error counter
+  if (Enc28j60ReadReg(BANKX_EIR) & 0x01) {
+    RXERIF_counter++;
+  }
+#endif // MQTT_SUPPORT == 1
+
   // Check for at least 1 waiting packet in the buffer
   Enc28j60SwitchBank(BANK1);
   if (Enc28j60ReadReg(BANK1_EPKTCNT) == 0) return 0;
@@ -783,6 +797,8 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
     // This should never happen as any error should have been handled the last
     // time a transmit occurred. If no error just start the transmission.
     if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) {
+      // Count TXERIF error
+      TXERIF_counter++;
       // Set TXRST
       Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
       // Clear TXRST
@@ -811,6 +827,8 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
     
     // If a TXERIF error is present we need to enter a loop to retry
     if (txerif_temp) {
+      // Count TXERIF error
+      TXERIF_counter++;
 
       for (i = 0; i < 16; i++) {
         // Read Transmit Status Vector (TSV)

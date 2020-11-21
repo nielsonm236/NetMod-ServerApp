@@ -208,9 +208,9 @@
 // and need more program space eliminating the statistics pages and processes will
 // free up considerable space.
 // 0 = disabled
-// 1 = full statistics page
-// 2 = reduced statistics page DEVELOPMENT USE ONLY
-#define UIP_STATISTICS  0
+// 1 = full statistics page for non-MQTT builds
+// 2 = error statistics page for MQTT builds
+#define UIP_STATISTICS  2
 
 
 // Determines if help support should be compiled in. If you are modifying the
@@ -233,9 +233,9 @@
 // Determines if MQTT support is compiled in.
 // IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
 //   MQTT requires a lot of code space. For this reason if MQTT is enabled:
-//     HELP_SUPPORT *MUST* be turned OFF (set to 0)
-//     UIP_STATISTICS *MUST* be turned OFF (set to 0)
-//     GPIO_SUPPORT *MUST* be set to 8out/8in (set to 2)
+//     HELP_SUPPORT *MUST* be set to 0 (OFF)
+//     UIP_STATISTICS *MUST* be set to 2 (error statistics only)
+//     GPIO_SUPPORT *MUST* be set to 2 (8out/8in)
 // 
 // 0 = disable
 // 1 = enable

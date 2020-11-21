@@ -283,6 +283,10 @@ static const unsigned char devicetype[] = "NetworkModule/"; // Used in
 unsigned char topic_base[44];         // Used for building connect, subscribe,
                                       // and publish topic strings.
 uint8_t topic_base_len;               // Length of the topic_base
+uint32_t TXERIF_counter;              // Counts TXERIF errors detected by the
+                                      // ENC28J60
+uint32_t RXERIF_counter;              // Counts RXERIF errors detected by the
+                                      // ENC28J60
 
 #endif // MQTT_SUPPORT == 1
 
@@ -330,6 +334,8 @@ int main(void)
 					 // subscribe, and publish messages.
   state_request = STATE_REQUEST_IDLE;    // Set the state request received to
                                          // idle
+  TXERIF_counter = 0;                    // Initialize the TXERIF error counter
+  RXERIF_counter = 0;                    // Initialize the RXERIF error counter
   
 #endif // MQTT_SUPPORT == 1
 

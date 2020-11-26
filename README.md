@@ -40,9 +40,9 @@ Safari. I don't have access to a Mac or Safari at this time, but I tried Safari 
 the new release and it seemed to work fine. So hopefully users will find that Safari now works.
 Let me know!
 
-The MQTT functionality is described in detail in the "Network Module Reprogram Doc" so won't cover
-that here. But current users will find that the "Help" and "Network Statistics" browser pages are
-removed from the MQTT build. This was necessary to make Flash space available.
+The MQTT functionality is described in detail in the "Network Module Reprogram Doc" so I won't
+cover that here. But current users will find that the "Help" and "Network Statistics" browser
+pages are removed from the MQTT build. This was necessary to make Flash space available.
 
 Videos: I have not updated the YouTube videos yet. The "Network Module Reprogram Doc" illustrates
 all the differences and the programming steps are the same, so the videos will be updated over
@@ -59,6 +59,9 @@ Tested with:
 - Chrome 87.0.4280.66 64bit
 - Edge 86.0.622.69 64bit
 - Internet Explorer 11.630.19041.0
+- Mosquitto
+- Node-Red
+- Chrome MQTTLens
 
 IMPORTANT NOTE: The software provided in this project only works with the “Web_Relays_Con V2.0
 HW-584” which is based on the STM8S-005 processor and ENC28J60 ethernet controller. I haven't 

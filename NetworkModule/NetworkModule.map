@@ -1,5 +1,5 @@
 
-Map of NetworkModule.sm8 from link file networkmodule.lkf - Fri Nov 20 21:54:48 2020
+Map of NetworkModule.sm8 from link file networkmodule.lkf - Thu Nov 26 09:10:50 2020
 
 
                                --------
@@ -7,16 +7,16 @@ Map of NetworkModule.sm8 from link file networkmodule.lkf - Fri Nov 20 21:54:48 
                                --------
 
 start 00008000 end 00008080 length   128 segment .vector
-start 00008080 end 00009ef2 length  7794 segment .const
-start 00009ef2 end 0000fa4a length 23384 segment .text
+start 00008080 end 00009f17 length  7831 segment .const
+start 00009f17 end 0000fabb length 23460 segment .text
 start 00004000 end 00004052 length    82 segment .eeprom
 start 00000000 end 00000000 length     0 segment .bsct
 start 00000000 end 0000000a length    10 segment .ubsct
 start 0000000a end 0000000a length     0 segment .bit
 start 0000000a end 00000010 length     6 segment .data
-start 00000010 end 00000599 length  1417 segment .bss
+start 00000010 end 0000059d length  1421 segment .bss
 start 000005fe end 00000600 length     2 segment .iconst
-start 00000000 end 00010a1b length 68123 segment .debug
+start 00000000 end 00010a3d length 68157 segment .debug
 start 00000000 end 00000c4c length  3148 segment .info.
 
 
@@ -30,257 +30,257 @@ start 00000000 end 0000008a length   138 section .info.
 start 00008000 end 00008080 length   128 section .vector
 
 C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8:
-start 00009ef2 end 00009efb length     9 section .text
+start 00009f17 end 00009f20 length     9 section .text
 start 0000008a end 000000bd length    51 section .info.
 
 enc28j60.o:
 start 00000010 end 00000017 length     7 section .bss
 start 000000b5 end 00002230 length  8571 section .debug
 start 000000bd end 0000013b length   126 section .info.
-start 00009efb end 00009f01 length     6 section .text
-start 00009f01 end 00009f07 length     6 section .text
-start 00009f07 end 00009f27 length    32 section .text
-start 00009f27 end 00009f3e length    23 section .text
-start 00009f3e end 00009f55 length    23 section .text
-start 00009f55 end 00009f6c length    23 section .text
-start 00009f6c end 00009f7e length    18 section .text
-start 00009f7e end 00009fcb length    77 section .text
-start 00009fcb end 00009fff length    52 section .text
-start 00009fff end 0000a15f length   352 section .text
-start 0000a15f end 0000a20c length   173 section .text
-start 0000a20c end 0000a350 length   324 section .text
-start 0000a350 end 0000a3c4 length   116 section .text
+start 00009f20 end 00009f26 length     6 section .text
+start 00009f26 end 00009f2c length     6 section .text
+start 00009f2c end 00009f4c length    32 section .text
+start 00009f4c end 00009f63 length    23 section .text
+start 00009f63 end 00009f7a length    23 section .text
+start 00009f7a end 00009f91 length    23 section .text
+start 00009f91 end 00009fa3 length    18 section .text
+start 00009fa3 end 00009ff0 length    77 section .text
+start 00009ff0 end 0000a024 length    52 section .text
+start 0000a024 end 0000a184 length   352 section .text
+start 0000a184 end 0000a231 length   173 section .text
+start 0000a231 end 0000a3a1 length   368 section .text
+start 0000a3a1 end 0000a41b length   122 section .text
 
 gpio.o:
 start 00002230 end 00003e22 length  7154 section .debug
 start 0000013b end 000001b5 length   122 section .info.
-start 0000a3c4 end 0000a40d length    73 section .text
-start 0000a40d end 0000a41a length    13 section .text
+start 0000a41b end 0000a464 length    73 section .text
+start 0000a464 end 0000a471 length    13 section .text
 
 httpd.o:
 start 00000017 end 00000067 length    80 section .bss
 start 00003e22 end 000050ce length  4780 section .debug
 start 000001b5 end 00000230 length   123 section .info.
-start 00008080 end 00009e43 length  7619 section .const
-start 0000a41a end 0000a47f length   101 section .text
-start 0000a47f end 0000a551 length   210 section .text
-start 0000a551 end 0000a579 length    40 section .text
-start 0000a579 end 0000a645 length   204 section .text
-start 0000a645 end 0000ac1e length  1497 section .text
-start 0000ac1e end 0000ac46 length    40 section .text
-start 0000ac46 end 0000b6f6 length  2736 section .text
-start 0000b6f6 end 0000b70a length    20 section .text
-start 0000b70a end 0000b71f length    21 section .text
+start 00008080 end 00009e68 length  7656 section .const
+start 0000a471 end 0000a4d6 length   101 section .text
+start 0000a4d6 end 0000a5a8 length   210 section .text
+start 0000a5a8 end 0000a5d0 length    40 section .text
+start 0000a5d0 end 0000a69c length   204 section .text
+start 0000a69c end 0000ac89 length  1517 section .text
+start 0000ac89 end 0000acb1 length    40 section .text
+start 0000acb1 end 0000b761 length  2736 section .text
+start 0000b761 end 0000b775 length    20 section .text
+start 0000b775 end 0000b78a length    21 section .text
 start ******** end ******** length     0 section .text *** removed ***
-start 0000b71f end 0000b8a0 length   385 section .text
-start 0000b8a0 end 0000b9f8 length   344 section .text
-start 0000b9f8 end 0000bb1d length   293 section .text
-start 0000bb1d end 0000bbad length   144 section .text
-start 0000bbad end 0000bc02 length    85 section .text
-start 0000bc02 end 0000bc9c length   154 section .text
+start 0000b78a end 0000b90b length   385 section .text
+start 0000b90b end 0000ba63 length   344 section .text
+start 0000ba63 end 0000bb88 length   293 section .text
+start 0000bb88 end 0000bc18 length   144 section .text
+start 0000bc18 end 0000bc6d length    85 section .text
+start 0000bc6d end 0000bd07 length   154 section .text
 
 main.o:
-start 00000067 end 0000016b length   260 section .bss
-start 000050ce end 000087e3 length 14101 section .debug
+start 00000067 end 0000016f length   264 section .bss
+start 000050ce end 00008805 length 14135 section .debug
 start 00000230 end 000002aa length   122 section .info.
 start 000005fe end 00000600 length     2 section .iconst
-start 00009e43 end 00009ea4 length    97 section .const
-start 0000bc9c end 0000be0b length   367 section .text
-start 0000be0b end 0000c031 length   550 section .text
-start 0000c031 end 0000c0e8 length   183 section .text
-start 0000c0e8 end 0000c195 length   173 section .text
-start 0000c195 end 0000c29c length   263 section .text
-start 0000c29c end 0000c334 length   152 section .text
-start 0000c334 end 0000c380 length    76 section .text
-start 0000c380 end 0000c390 length    16 section .text
-start 0000c390 end 0000c84b length  1211 section .text
-start 0000c84b end 0000c89a length    79 section .text
-start 0000c89a end 0000cba3 length   777 section .text
-start 0000cba3 end 0000cc78 length   213 section .text
-start 0000cc78 end 0000ccf8 length   128 section .text
-start 0000ccf8 end 0000cd1d length    37 section .text
-start 0000cd1d end 0000cdb5 length   152 section .text
-start 0000cdb5 end 0000ce34 length   127 section .text
-start 0000ce34 end 0000ce99 length   101 section .text
-start 0000ce99 end 0000cec5 length    44 section .text
-start 0000cec5 end 0000cee7 length    34 section .text
+start 00009e68 end 00009ec9 length    97 section .const
+start 0000bd07 end 0000be7c length   373 section .text
+start 0000be7c end 0000c0a2 length   550 section .text
+start 0000c0a2 end 0000c159 length   183 section .text
+start 0000c159 end 0000c206 length   173 section .text
+start 0000c206 end 0000c30d length   263 section .text
+start 0000c30d end 0000c3a5 length   152 section .text
+start 0000c3a5 end 0000c3f1 length    76 section .text
+start 0000c3f1 end 0000c401 length    16 section .text
+start 0000c401 end 0000c8bc length  1211 section .text
+start 0000c8bc end 0000c90b length    79 section .text
+start 0000c90b end 0000cc14 length   777 section .text
+start 0000cc14 end 0000cce9 length   213 section .text
+start 0000cce9 end 0000cd69 length   128 section .text
+start 0000cd69 end 0000cd8e length    37 section .text
+start 0000cd8e end 0000ce26 length   152 section .text
+start 0000ce26 end 0000cea5 length   127 section .text
+start 0000cea5 end 0000cf0a length   101 section .text
+start 0000cf0a end 0000cf36 length    44 section .text
+start 0000cf36 end 0000cf58 length    34 section .text
 start ******** end ******** length     0 section .text *** removed ***
 start 00004000 end 00004052 length    82 section .eeprom
 
 mqtt.o:
-start 0000016b end 00000298 length   301 section .bss
-start 000087e3 end 0000bb6c length 13193 section .debug
+start 0000016f end 0000029c length   301 section .bss
+start 00008805 end 0000bb8e length 13193 section .debug
 start 000002aa end 00000324 length   122 section .info.
-start 0000cee7 end 0000cf1d length    54 section .text
-start 0000cf1d end 0000cf77 length    90 section .text
-start 0000cf77 end 0000cfcf length    88 section .text
-start 0000cfcf end 0000d079 length   170 section .text
-start 0000d079 end 0000d10a length   145 section .text
-start 0000d10a end 0000d17f length   117 section .text
-start 0000d17f end 0000d1f4 length   117 section .text
-start 0000d1f4 end 0000d269 length   117 section .text
-start 0000d269 end 0000d2de length   117 section .text
-start 0000d2de end 0000d367 length   137 section .text
+start 0000cf58 end 0000cf8e length    54 section .text
+start 0000cf8e end 0000cfe8 length    90 section .text
+start 0000cfe8 end 0000d040 length    88 section .text
+start 0000d040 end 0000d0ea length   170 section .text
+start 0000d0ea end 0000d17b length   145 section .text
+start 0000d17b end 0000d1f0 length   117 section .text
+start 0000d1f0 end 0000d265 length   117 section .text
+start 0000d265 end 0000d2da length   117 section .text
+start 0000d2da end 0000d34f length   117 section .text
+start 0000d34f end 0000d3d8 length   137 section .text
 start ******** end ******** length     0 section .text *** removed ***
 start ******** end ******** length     0 section .text *** removed ***
-start 0000d367 end 0000d3ca length    99 section .text
-start 0000d3ca end 0000d42d length    99 section .text
-start 0000d42d end 0000d60d length   480 section .text
-start 0000d60d end 0000d8b4 length   679 section .text
-start 00009ea4 end 00009ee8 length    68 section .const
-start 0000d8b4 end 0000d8ea length    54 section .text
-start 0000d8ea end 0000d9a7 length   189 section .text
-start 0000d9a7 end 0000da56 length   175 section .text
-start 0000da56 end 0000dbc0 length   362 section .text
-start 0000dbc0 end 0000dc10 length    80 section .text
-start 0000dc10 end 0000dc30 length    32 section .text
-start 0000dc30 end 0000dc50 length    32 section .text
-start 0000dc50 end 0000dd31 length   225 section .text
-start 0000dd31 end 0000ddec length   187 section .text
-start 0000ddec end 0000de5e length   114 section .text
-start 0000de5e end 0000de96 length    56 section .text
-start 0000de96 end 0000def8 length    98 section .text
-start 0000def8 end 0000e00c length   276 section .text
-start 0000e00c end 0000e03e length    50 section .text
+start 0000d3d8 end 0000d43b length    99 section .text
+start 0000d43b end 0000d49e length    99 section .text
+start 0000d49e end 0000d67e length   480 section .text
+start 0000d67e end 0000d925 length   679 section .text
+start 00009ec9 end 00009f0d length    68 section .const
+start 0000d925 end 0000d95b length    54 section .text
+start 0000d95b end 0000da18 length   189 section .text
+start 0000da18 end 0000dac7 length   175 section .text
+start 0000dac7 end 0000dc31 length   362 section .text
+start 0000dc31 end 0000dc81 length    80 section .text
+start 0000dc81 end 0000dca1 length    32 section .text
+start 0000dca1 end 0000dcc1 length    32 section .text
+start 0000dcc1 end 0000dda2 length   225 section .text
+start 0000dda2 end 0000de5d length   187 section .text
+start 0000de5d end 0000decf length   114 section .text
+start 0000decf end 0000df07 length    56 section .text
+start 0000df07 end 0000df69 length    98 section .text
+start 0000df69 end 0000e07d length   276 section .text
+start 0000e07d end 0000e0af length    50 section .text
 start ******** end ******** length     0 section .text *** removed ***
-start 0000e03e end 0000e08d length    79 section .text
-start 0000e08d end 0000e0f4 length   103 section .text
-start 0000e0f4 end 0000e242 length   334 section .text
-start 0000e242 end 0000e27e length    60 section .text
-start 0000e27e end 0000e32a length   172 section .text
-start 0000e32a end 0000e34e length    36 section .text
-start 0000e34e end 0000e36b length    29 section .text
-start 0000e36b end 0000e3a6 length    59 section .text
+start 0000e0af end 0000e0fe length    79 section .text
+start 0000e0fe end 0000e165 length   103 section .text
+start 0000e165 end 0000e2b3 length   334 section .text
+start 0000e2b3 end 0000e2ef length    60 section .text
+start 0000e2ef end 0000e39b length   172 section .text
+start 0000e39b end 0000e3bf length    36 section .text
+start 0000e3bf end 0000e3dc length    29 section .text
+start 0000e3dc end 0000e417 length    59 section .text
 
 mqtt_pal.o:
-start 0000bb6c end 0000bcd7 length   363 section .debug
+start 0000bb8e end 0000bcf9 length   363 section .debug
 start 00000324 end 000003a2 length   126 section .info.
-start 0000e3a6 end 0000e3bd length    23 section .text
-start 0000e3bd end 0000e3cf length    18 section .text
+start 0000e417 end 0000e42e length    23 section .text
+start 0000e42e end 0000e440 length    18 section .text
 
 spi.o:
-start 0000bcd7 end 0000dabf length  7656 section .debug
+start 0000bcf9 end 0000dae1 length  7656 section .debug
 start 000003a2 end 0000041b length   121 section .info.
-start 0000e3cf end 0000e3f4 length    37 section .text
-start 0000e3f4 end 0000e41e length    42 section .text
-start 0000e41e end 0000e45d length    63 section .text
-start 0000e45d end 0000e487 length    42 section .text
-start 0000e487 end 0000e4c7 length    64 section .text
+start 0000e440 end 0000e465 length    37 section .text
+start 0000e465 end 0000e48f length    42 section .text
+start 0000e48f end 0000e4ce length    63 section .text
+start 0000e4ce end 0000e4f8 length    42 section .text
+start 0000e4f8 end 0000e538 length    64 section .text
 
 timer.o:
-start 00000298 end 0000029e length     6 section .bss
-start 0000dabf end 0000f7b4 length  7413 section .debug
+start 0000029c end 000002a2 length     6 section .bss
+start 0000dae1 end 0000f7d6 length  7413 section .debug
 start 0000041b end 00000496 length   123 section .info.
-start 0000e4c7 end 0000e559 length   146 section .text
-start 0000e559 end 0000e592 length    57 section .text
-start 0000e592 end 0000e5a2 length    16 section .text
-start 0000e5a2 end 0000e5c5 length    35 section .text
+start 0000e538 end 0000e5ca length   146 section .text
+start 0000e5ca end 0000e603 length    57 section .text
+start 0000e603 end 0000e613 length    16 section .text
+start 0000e613 end 0000e636 length    35 section .text
 
 uip.o:
 start 0000000a end 00000010 length     6 section .data
-start 0000029e end 00000565 length   711 section .bss
-start 0000f7b4 end 000104d4 length  3360 section .debug
+start 000002a2 end 00000569 length   711 section .bss
+start 0000f7d6 end 000104f6 length  3360 section .debug
 start 00000496 end 0000050f length   121 section .info.
 start ******** end ******** length     0 section .text *** removed ***
-start 0000e5c5 end 0000e61c length    87 section .text
-start 0000e61c end 0000e66a length    78 section .text
+start 0000e636 end 0000e68d length    87 section .text
+start 0000e68d end 0000e6db length    78 section .text
 start ******** end ******** length     0 section .text *** removed ***
-start 0000e66a end 0000e686 length    28 section .text
-start 0000e686 end 0000e6d0 length    74 section .text
-start 0000e6d0 end 0000e6d5 length     5 section .text
-start 0000e6d5 end 0000e704 length    47 section .text
-start 0000e704 end 0000e79d length   153 section .text
-start 0000e79d end 0000e79e length     1 section .text
+start 0000e6db end 0000e6f7 length    28 section .text
+start 0000e6f7 end 0000e741 length    74 section .text
+start 0000e741 end 0000e746 length     5 section .text
+start 0000e746 end 0000e775 length    47 section .text
+start 0000e775 end 0000e80e length   153 section .text
+start 0000e80e end 0000e80f length     1 section .text
 start ******** end ******** length     0 section .text *** removed ***
-start 0000e79e end 0000e7c2 length    36 section .text
-start 0000e7c2 end 0000e7e5 length    35 section .text
-start 0000e7e5 end 0000f113 length  2350 section .text
-start 0000f113 end 0000f114 length     1 section .text
-start 0000f114 end 0000f138 length    36 section .text
+start 0000e80f end 0000e833 length    36 section .text
+start 0000e833 end 0000e856 length    35 section .text
+start 0000e856 end 0000f184 length  2350 section .text
+start 0000f184 end 0000f185 length     1 section .text
+start 0000f185 end 0000f1a9 length    36 section .text
 
 uip_arp.o:
-start 00000565 end 00000599 length    52 section .bss
-start 000104d4 end 00010957 length  1155 section .debug
+start 00000569 end 0000059d length    52 section .bss
+start 000104f6 end 00010979 length  1155 section .debug
 start 0000050f end 0000058c length   125 section .info.
-start 00009ee8 end 00009ef2 length    10 section .const
-start 0000f138 end 0000f15b length    35 section .text
-start 0000f15b end 0000f1a7 length    76 section .text
-start 0000f1a7 end 0000f2b2 length   267 section .text
-start 0000f2b2 end 0000f361 length   175 section .text
-start 0000f361 end 0000f4ac length   331 section .text
-start 0000f4ac end 0000f53a length   142 section .text
+start 00009f0d end 00009f17 length    10 section .const
+start 0000f1a9 end 0000f1cc length    35 section .text
+start 0000f1cc end 0000f218 length    76 section .text
+start 0000f218 end 0000f323 length   267 section .text
+start 0000f323 end 0000f3d2 length   175 section .text
+start 0000f3d2 end 0000f51d length   331 section .text
+start 0000f51d end 0000f5ab length   142 section .text
 
 uip_tcpapphub.o:
-start 00010957 end 00010a1b length   196 section .debug
+start 00010979 end 00010a3d length   196 section .debug
 start 0000058c end 0000060f length   131 section .info.
-start 0000f53a end 0000f58a length    80 section .text
+start 0000f5ab end 0000f5fb length    80 section .text
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)memmov.o:
-start 0000f58a end 0000f5db length    81 section .text
+start 0000f5fb end 0000f64c length    81 section .text
 start 0000060f end 00000685 length   118 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)strcat0.o:
-start 0000f5db end 0000f5ef length    20 section .text
+start 0000f64c end 0000f660 length    20 section .text
 start 00000685 end 000006b4 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)strlen0.o:
-start 0000f5ef end 0000f5fb length    12 section .text
+start 0000f660 end 0000f66c length    12 section .text
 start 000006b4 end 000006e3 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)bmulx.o:
-start 0000f5fb end 0000f609 length    14 section .text
+start 0000f66c end 0000f67a length    14 section .text
 start 000006e3 end 00000713 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o:
-start 0000f609 end 0000f66f length   102 section .text
+start 0000f67a end 0000f6e0 length   102 section .text
 start 00000713 end 00000744 length    49 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)fmul.o:
-start 0000f66f end 0000f744 length   213 section .text
+start 0000f6e0 end 0000f7b5 length   213 section .text
 start 00000744 end 00000773 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ftol.o:
-start 0000f744 end 0000f7a6 length    98 section .text
+start 0000f7b5 end 0000f817 length    98 section .text
 start 00000773 end 000007a2 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)imul.o:
-start 0000f7a6 end 0000f7c7 length    33 section .text
+start 0000f817 end 0000f838 length    33 section .text
 start 000007a2 end 000007d1 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)itolx.o:
-start 0000f7c7 end 0000f7d5 length    14 section .text
+start 0000f838 end 0000f846 length    14 section .text
 start 000007d1 end 00000801 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)itoly.o:
-start 0000f7d5 end 0000f7e8 length    19 section .text
+start 0000f846 end 0000f859 length    19 section .text
 start 00000801 end 00000831 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ladc.o:
-start 0000f7e8 end 0000f7f9 length    17 section .text
+start 0000f859 end 0000f86a length    17 section .text
 start 00000831 end 00000860 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ladd.o:
-start 0000f7f9 end 0000f811 length    24 section .text
+start 0000f86a end 0000f882 length    24 section .text
 start 00000860 end 0000088f length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lcmp.o:
-start 0000f811 end 0000f831 length    32 section .text
+start 0000f882 end 0000f8a2 length    32 section .text
 start 0000088f end 000008be length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadc.o:
-start 0000f831 end 0000f841 length    16 section .text
+start 0000f8a2 end 0000f8b2 length    16 section .text
 start 000008be end 000008ee length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadd.o:
-start 0000f841 end 0000f858 length    23 section .text
+start 0000f8b2 end 0000f8c9 length    23 section .text
 start 000008ee end 0000091e length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgsbc.o:
-start 0000f858 end 0000f86e length    22 section .text
+start 0000f8c9 end 0000f8df length    22 section .text
 start 0000091e end 0000094e length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgursh.o:
-start 0000f86e end 0000f87c length    14 section .text
+start 0000f8df end 0000f8ed length    14 section .text
 start 0000094e end 0000097f length    49 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lreg.o:
@@ -288,47 +288,47 @@ start 00000000 end 00000004 length     4 section .ubsct
 start 0000097f end 000009ae length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ltor.o:
-start 0000f87c end 0000f88e length    18 section .text
+start 0000f8ed end 0000f8ff length    18 section .text
 start 000009ae end 000009dd length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o:
-start 0000f88e end 0000f8a2 length    20 section .text
+start 0000f8ff end 0000f913 length    20 section .text
 start 000009dd end 00000a0d length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o:
-start 0000f8a2 end 0000f98d length   235 section .text
+start 0000f913 end 0000f9fe length   235 section .text
 start 00000a0d end 00000a3c length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgneg.o:
-start 0000f98d end 0000f9a0 length    19 section .text
+start 0000f9fe end 0000fa11 length    19 section .text
 start 00000a3c end 00000a6c length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lneg.o:
-start 0000f9a0 end 0000f9b5 length    21 section .text
+start 0000fa11 end 0000fa26 length    21 section .text
 start 00000a6c end 00000a9b length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o:
-start 0000f9b5 end 0000f9cf length    26 section .text
+start 0000fa26 end 0000fa40 length    26 section .text
 start 00000a9b end 00000acb length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lzmp.o:
-start 0000f9cf end 0000f9e2 length    19 section .text
+start 0000fa40 end 0000fa53 length    19 section .text
 start 00000acb end 00000afa length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o:
-start 0000f9e2 end 0000f9f4 length    18 section .text
+start 0000fa53 end 0000fa65 length    18 section .text
 start 00000afa end 00000b29 length    47 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)sdivx.o:
-start 0000f9f4 end 0000fa1f length    43 section .text
+start 0000fa65 end 0000fa90 length    43 section .text
 start 00000b29 end 00000b59 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)uitof.o:
-start 0000fa1f end 0000fa43 length    36 section .text
+start 0000fa90 end 0000fab4 length    36 section .text
 start 00000b59 end 00000b89 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o:
-start 0000fa43 end 0000fa4a length     7 section .text
+start 0000fab4 end 0000fabb length     7 section .text
 start 00000b89 end 00000bb9 length    48 section .info.
 
 (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)xreg.o:
@@ -1110,124 +1110,126 @@ _saved_parsestate                   0000005a   defined in httpd.o section .bss
 _saved_nstate                       0000005b   defined in httpd.o section .bss
 _OctetArray                         0000005c   defined in httpd.o section .bss
                                                used in main.o
-_RXERIF_counter                     00000067   defined in main.o section .bss
+_TRANSMIT_counter                   00000067   defined in main.o section .bss
                                                used in enc28j60.o httpd.o
 _TXERIF_counter                     0000006b   defined in main.o section .bss
                                                used in enc28j60.o httpd.o
-_topic_base_len                     0000006f   defined in main.o section .bss
-_topic_base                         00000070   defined in main.o section .bss
-_mqtt_restart_step                  0000009c   defined in main.o section .bss
-_mqtt_conn                          0000009d   defined in main.o section .bss
-_mqtt_start_retry                   0000009f   defined in main.o section .bss
-_mqtt_sanity_ctr                    000000a0   defined in main.o section .bss
-_mqtt_start_ctr2                    000000a1   defined in main.o section .bss
-_mqtt_start_ctr1                    000000a2   defined in main.o section .bss
-_mqtt_start_status                  000000a3   defined in main.o section .bss
+_RXERIF_counter                     0000006f   defined in main.o section .bss
+                                               used in enc28j60.o httpd.o
+_topic_base_len                     00000073   defined in main.o section .bss
+_topic_base                         00000074   defined in main.o section .bss
+_mqtt_restart_step                  000000a0   defined in main.o section .bss
+_mqtt_conn                          000000a1   defined in main.o section .bss
+_mqtt_start_retry                   000000a3   defined in main.o section .bss
+_mqtt_sanity_ctr                    000000a4   defined in main.o section .bss
+_mqtt_start_ctr2                    000000a5   defined in main.o section .bss
+_mqtt_start_ctr1                    000000a6   defined in main.o section .bss
+_mqtt_start_status                  000000a7   defined in main.o section .bss
                                                used in httpd.o
-_mqtt_start                         000000a4   defined in main.o section .bss
+_mqtt_start                         000000a8   defined in main.o section .bss
                                                used in uip_tcpapphub.o
-_client_id_text                     000000a5   defined in main.o section .bss
-_client_id                          000000bf   defined in main.o section .bss
-_mqttclient                         000000c1   defined in main.o section .bss
+_client_id_text                     000000a9   defined in main.o section .bss
+_client_id                          000000c3   defined in main.o section .bss
+_mqttclient                         000000c5   defined in main.o section .bss
                                                used in uip_tcpapphub.o
-_mqtt_keep_alive                    000000ed   defined in main.o section .bss
-_application_message                000000ef   defined in main.o section .bss
-_Port_Mqttd                         000000f2   defined in main.o section .bss
+_mqtt_keep_alive                    000000f1   defined in main.o section .bss
+_application_message                000000f3   defined in main.o section .bss
+_Port_Mqttd                         000000f6   defined in main.o section .bss
                                                used in uip_tcpapphub.o
-_mqttport                           000000f4   defined in main.o section .bss
-_connect_flags                      000000f6   defined in main.o section .bss
-_time_mark2                         000000f7   defined in main.o section .bss
-_IpAddr                             000000fb   defined in main.o section .bss
-_Port_Httpd                         000000ff   defined in main.o section .bss
+_mqttport                           000000f8   defined in main.o section .bss
+_connect_flags                      000000fa   defined in main.o section .bss
+_time_mark2                         000000fb   defined in main.o section .bss
+_IpAddr                             000000ff   defined in main.o section .bss
+_Port_Httpd                         00000103   defined in main.o section .bss
                                                used in httpd.o uip_tcpapphub.o
-_mqtt_parse_complete                00000101   defined in main.o section .bss
-_parse_complete                     00000102   defined in main.o section .bss
+_mqtt_parse_complete                00000105   defined in main.o section .bss
+_parse_complete                     00000106   defined in main.o section .bss
                                                used in httpd.o
-_mqtt_close_tcp                     00000103   defined in main.o section .bss
+_mqtt_close_tcp                     00000107   defined in main.o section .bss
                                                used in uip_tcpapphub.o
-_restart_reboot_step                00000104   defined in main.o section .bss
-_restart_request                    00000105   defined in main.o section .bss
-_user_reboot_request                00000106   defined in main.o section .bss
+_restart_reboot_step                00000108   defined in main.o section .bss
+_restart_request                    00000109   defined in main.o section .bss
+_user_reboot_request                0000010a   defined in main.o section .bss
                                                used in httpd.o
-_reboot_request                     00000107   defined in main.o section .bss
-_mac_string                         00000108   defined in main.o section .bss
+_reboot_request                     0000010b   defined in main.o section .bss
+_mac_string                         0000010c   defined in main.o section .bss
                                                used in httpd.o
-_Pending_uip_ethaddr_oct            00000115   defined in main.o section .bss
+_Pending_uip_ethaddr_oct            00000119   defined in main.o section .bss
                                                used in httpd.o
-_Pending_config_settings            0000011b   defined in main.o section .bss
+_Pending_config_settings            0000011f   defined in main.o section .bss
                                                used in httpd.o
-_Pending_devicename                 00000121   defined in main.o section .bss
+_Pending_devicename                 00000125   defined in main.o section .bss
                                                used in httpd.o
-_Pending_port                       00000135   defined in main.o section .bss
+_Pending_port                       00000139   defined in main.o section .bss
                                                used in httpd.o
-_Pending_netmask                    00000137   defined in main.o section .bss
+_Pending_netmask                    0000013b   defined in main.o section .bss
                                                used in httpd.o
-_Pending_draddr                     0000013b   defined in main.o section .bss
+_Pending_draddr                     0000013f   defined in main.o section .bss
                                                used in httpd.o
-_Pending_hostaddr                   0000013f   defined in main.o section .bss
+_Pending_hostaddr                   00000143   defined in main.o section .bss
                                                used in httpd.o
-_Pending_mqtt_password              00000143   defined in main.o section .bss
+_Pending_mqtt_password              00000147   defined in main.o section .bss
                                                used in httpd.o
-_Pending_mqtt_username              0000014e   defined in main.o section .bss
+_Pending_mqtt_username              00000152   defined in main.o section .bss
                                                used in httpd.o
-_Pending_mqttport                   00000159   defined in main.o section .bss
+_Pending_mqttport                   0000015d   defined in main.o section .bss
                                                used in httpd.o
-_Pending_mqttserveraddr             0000015b   defined in main.o section .bss
+_Pending_mqttserveraddr             0000015f   defined in main.o section .bss
                                                used in httpd.o
-_stack_error                        0000015f   defined in main.o section .bss
-_state_request                      00000160   defined in main.o section .bss
-_invert_input                       00000161   defined in main.o section .bss
+_stack_error                        00000163   defined in main.o section .bss
+_state_request                      00000164   defined in main.o section .bss
+_invert_input                       00000165   defined in main.o section .bss
                                                used in httpd.o
-_invert_output                      00000162   defined in main.o section .bss
-_IO_8to1_sent                       00000163   defined in main.o section .bss
-_IO_16to9_sent                      00000164   defined in main.o section .bss
-_IO_8to1_new2                       00000165   defined in main.o section .bss
-_IO_16to9_new2                      00000166   defined in main.o section .bss
-_IO_8to1_new1                       00000167   defined in main.o section .bss
-_IO_16to9_new1                      00000168   defined in main.o section .bss
-_IO_8to1                            00000169   defined in main.o section .bss
+_invert_output                      00000166   defined in main.o section .bss
+_IO_8to1_sent                       00000167   defined in main.o section .bss
+_IO_16to9_sent                      00000168   defined in main.o section .bss
+_IO_8to1_new2                       00000169   defined in main.o section .bss
+_IO_16to9_new2                      0000016a   defined in main.o section .bss
+_IO_8to1_new1                       0000016b   defined in main.o section .bss
+_IO_16to9_new1                      0000016c   defined in main.o section .bss
+_IO_8to1                            0000016d   defined in main.o section .bss
                                                used in httpd.o
-_IO_16to9                           0000016a   defined in main.o section .bss
+_IO_16to9                           0000016e   defined in main.o section .bss
                                                used in httpd.o
-_mqtt_sendbuf                       0000016b   defined in mqtt.o section .bss
+_mqtt_sendbuf                       0000016f   defined in mqtt.o section .bss
                                                used in main.o
-_MQTT_error_status                  00000297   defined in mqtt.o section .bss
+_MQTT_error_status                  0000029b   defined in mqtt.o section .bss
                                                used in httpd.o main.o
-_second_counter                     00000298   defined in timer.o section .bss
+_second_counter                     0000029c   defined in timer.o section .bss
                                                used in httpd.o main.o mqtt.o
-_second_toggle                      0000029c   defined in timer.o section .bss
-_arp_timer                          0000029d   defined in timer.o section .bss
-_uip_listenports                    000002a8   defined in uip.o section .bss
-_uip_slen                           000002ac   defined in uip.o section .bss
+_second_toggle                      000002a0   defined in timer.o section .bss
+_arp_timer                          000002a1   defined in timer.o section .bss
+_uip_listenports                    000002ac   defined in uip.o section .bss
+_uip_slen                           000002b0   defined in uip.o section .bss
                                                used in mqtt_pal.o
-_uip_sappdata                       000002ae   defined in uip.o section .bss
-_uip_mqttserveraddr                 000002b0   defined in uip.o section .bss
+_uip_sappdata                       000002b2   defined in uip.o section .bss
+_uip_mqttserveraddr                 000002b4   defined in uip.o section .bss
                                                used in main.o uip_arp.o
-_uip_draddr                         000002b4   defined in uip.o section .bss
+_uip_draddr                         000002b8   defined in uip.o section .bss
                                                used in main.o uip_arp.o
-_uip_netmask                        000002b8   defined in uip.o section .bss
+_uip_netmask                        000002bc   defined in uip.o section .bss
                                                used in main.o uip_arp.o
-_uip_hostaddr                       000002bc   defined in uip.o section .bss
+_uip_hostaddr                       000002c0   defined in uip.o section .bss
                                                used in main.o uip_arp.o
-_uip_flags                          000002c0   defined in uip.o section .bss
+_uip_flags                          000002c4   defined in uip.o section .bss
                                                used in httpd.o mqtt.o
                                                        uip_tcpapphub.o
-_uip_acc32                          000002c1   defined in uip.o section .bss
-_uip_conns                          000002c5   defined in uip.o section .bss
+_uip_acc32                          000002c5   defined in uip.o section .bss
+_uip_conns                          000002c9   defined in uip.o section .bss
                                                used in main.o
-_uip_conn                           00000369   defined in uip.o section .bss
+_uip_conn                           0000036d   defined in uip.o section .bss
                                                used in httpd.o main.o
                                                        uip_tcpapphub.o
-_uip_len                            0000036b   defined in uip.o section .bss
+_uip_len                            0000036f   defined in uip.o section .bss
                                                used in httpd.o main.o mqtt.o
                                                        mqtt_pal.o uip_arp.o
                                                        uip_tcpapphub.o
-_uip_appdata                        0000036d   defined in uip.o section .bss
+_uip_appdata                        00000371   defined in uip.o section .bss
                                                used in httpd.o main.o mqtt_pal.o
                                                        uip_arp.o uip_tcpapphub.o
-_uip_buf                            0000036f   defined in uip.o section .bss
+_uip_buf                            00000373   defined in uip.o section .bss
                                                used in main.o uip_arp.o
-__memory                            00000599   defined in command file section .bss
+__memory                            0000059d   defined in command file section .bss
                                                *** not used ***
 _stack_limit2                       000005fe   defined in main.o section .iconst
 _stack_limit1                       000005ff   defined in main.o section .iconst
@@ -1492,233 +1494,233 @@ _DM_CSR1                            00007f98   defined in enc28j60.o
 _DM_CSR2                            00007f99   defined in enc28j60.o
 _DM_ENFCTR                          00007f9a   defined in enc28j60.o
 __vectab                            00008000   defined in NetworkModule_vector.o section .vector
-__stext                             00009ef2   defined in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8 section .text
+__stext                             00009f17   defined in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8 section .text
                                                used in NetworkModule_vector.o
-_exit                               00009ef9   defined in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8 section .text
-_select                             00009efb   defined in enc28j60.o section .text
-_deselect                           00009f01   defined in enc28j60.o section .text
-_Enc28j60ReadReg                    00009f07   defined in enc28j60.o section .text
-_Enc28j60WriteReg                   00009f27   defined in enc28j60.o section .text
-_Enc28j60SetMaskReg                 00009f3e   defined in enc28j60.o section .text
-_Enc28j60ClearMaskReg               00009f55   defined in enc28j60.o section .text
-_Enc28j60SwitchBank                 00009f6c   defined in enc28j60.o section .text
-_Enc28j60ReadPhy                    00009f7e   defined in enc28j60.o section .text
-_Enc28j60WritePhy                   00009fcb   defined in enc28j60.o section .text
-_Enc28j60Init                       00009fff   defined in enc28j60.o section .text
+_exit                               00009f1e   defined in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8 section .text
+_select                             00009f20   defined in enc28j60.o section .text
+_deselect                           00009f26   defined in enc28j60.o section .text
+_Enc28j60ReadReg                    00009f2c   defined in enc28j60.o section .text
+_Enc28j60WriteReg                   00009f4c   defined in enc28j60.o section .text
+_Enc28j60SetMaskReg                 00009f63   defined in enc28j60.o section .text
+_Enc28j60ClearMaskReg               00009f7a   defined in enc28j60.o section .text
+_Enc28j60SwitchBank                 00009f91   defined in enc28j60.o section .text
+_Enc28j60ReadPhy                    00009fa3   defined in enc28j60.o section .text
+_Enc28j60WritePhy                   00009ff0   defined in enc28j60.o section .text
+_Enc28j60Init                       0000a024   defined in enc28j60.o section .text
                                                used in main.o
-_Enc28j60Receive                    0000a15f   defined in enc28j60.o section .text
+_Enc28j60Receive                    0000a184   defined in enc28j60.o section .text
                                                used in main.o
-_Enc28j60Send                       0000a20c   defined in enc28j60.o section .text
+_Enc28j60Send                       0000a231   defined in enc28j60.o section .text
                                                used in main.o
-_read_TSV                           0000a350   defined in enc28j60.o section .text
-_gpio_init                          0000a3c4   defined in gpio.o section .text
+_read_TSV                           0000a3a1   defined in enc28j60.o section .text
+_gpio_init                          0000a41b   defined in gpio.o section .text
                                                used in main.o
-_LEDcontrol                         0000a40d   defined in gpio.o section .text
+_LEDcontrol                         0000a464   defined in gpio.o section .text
                                                used in main.o
-_adjust_template_size               0000a41a   defined in httpd.o section .text
-_emb_itoa                           0000a47f   defined in httpd.o section .text
+_adjust_template_size               0000a471   defined in httpd.o section .text
+_emb_itoa                           0000a4d6   defined in httpd.o section .text
                                                used in main.o
-_HttpDInit                          0000ac1e   defined in httpd.o section .text
+_HttpDInit                          0000ac89   defined in httpd.o section .text
                                                used in main.o
-_HttpDCall                          0000ac46   defined in httpd.o section .text
+_HttpDCall                          0000acb1   defined in httpd.o section .text
                                                used in uip_tcpapphub.o
-_clear_saved_postpartial_all        0000b6f6   defined in httpd.o section .text
-_clear_saved_postpartial_data       0000b70a   defined in httpd.o section .text
-_parse_POST_string                  0000b71f   defined in httpd.o section .text
+_clear_saved_postpartial_all        0000b761   defined in httpd.o section .text
+_clear_saved_postpartial_data       0000b775   defined in httpd.o section .text
+_parse_POST_string                  0000b78a   defined in httpd.o section .text
 _clear_saved_postpartial_previous   ********   *** removed from httpd.o ***
-_parse_POST_address                 0000b8a0   defined in httpd.o section .text
-_parse_POST_port                    0000b9f8   defined in httpd.o section .text
-_GpioGetPin                         0000bb1d   defined in httpd.o section .text
-_GpioSetPin                         0000bbad   defined in httpd.o section .text
+_parse_POST_address                 0000b90b   defined in httpd.o section .text
+_parse_POST_port                    0000ba63   defined in httpd.o section .text
+_GpioGetPin                         0000bb88   defined in httpd.o section .text
+_GpioSetPin                         0000bc18   defined in httpd.o section .text
                                                used in main.o
-_SetMAC                             0000bc02   defined in httpd.o section .text
-_main                               0000bc9c   defined in main.o section .text
+_SetMAC                             0000bc6d   defined in httpd.o section .text
+_main                               0000bd07   defined in main.o section .text
                                                used in C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8
-_mqtt_startup                       0000be0b   defined in main.o section .text
-_mqtt_sanity_check                  0000c031   defined in main.o section .text
-_publish_callback                   0000c0e8   defined in main.o section .text
-_publish_outbound                   0000c195   defined in main.o section .text
-_publish_pinstate                   0000c29c   defined in main.o section .text
-_publish_pinstate_all               0000c334   defined in main.o section .text
-_unlock_eeprom                      0000c380   defined in main.o section .text
-_check_eeprom_settings              0000c390   defined in main.o section .text
-_update_mac_string                  0000c84b   defined in main.o section .text
-_check_runtime_changes              0000c89a   defined in main.o section .text
-_check_restart_reboot               0000cba3   defined in main.o section .text
-_restart                            0000cc78   defined in main.o section .text
-_reboot                             0000ccf8   defined in main.o section .text
-_read_input_registers               0000cd1d   defined in main.o section .text
-_write_output_registers             0000cdb5   defined in main.o section .text
-_check_reset_button                 0000ce34   defined in main.o section .text
-_debugflash                         0000ce99   defined in main.o section .text
+_mqtt_startup                       0000be7c   defined in main.o section .text
+_mqtt_sanity_check                  0000c0a2   defined in main.o section .text
+_publish_callback                   0000c159   defined in main.o section .text
+_publish_outbound                   0000c206   defined in main.o section .text
+_publish_pinstate                   0000c30d   defined in main.o section .text
+_publish_pinstate_all               0000c3a5   defined in main.o section .text
+_unlock_eeprom                      0000c3f1   defined in main.o section .text
+_check_eeprom_settings              0000c401   defined in main.o section .text
+_update_mac_string                  0000c8bc   defined in main.o section .text
+_check_runtime_changes              0000c90b   defined in main.o section .text
+_check_restart_reboot               0000cc14   defined in main.o section .text
+_restart                            0000cce9   defined in main.o section .text
+_reboot                             0000cd69   defined in main.o section .text
+_read_input_registers               0000cd8e   defined in main.o section .text
+_write_output_registers             0000ce26   defined in main.o section .text
+_check_reset_button                 0000cea5   defined in main.o section .text
+_debugflash                         0000cf0a   defined in main.o section .text
                                                used in httpd.o
-_fastflash                          0000cec5   defined in main.o section .text
-_mqtt_sync                          0000cee7   defined in mqtt.o section .text
+_fastflash                          0000cf36   defined in main.o section .text
+_mqtt_sync                          0000cf58   defined in mqtt.o section .text
                                                used in uip_tcpapphub.o
 _oneflash                           ********   *** removed from main.o ***
-___mqtt_next_pid                    0000cf1d   defined in mqtt.o section .text
-_mqtt_init                          0000cf77   defined in mqtt.o section .text
+___mqtt_next_pid                    0000cf8e   defined in mqtt.o section .text
+_mqtt_init                          0000cfe8   defined in mqtt.o section .text
                                                used in main.o
-_mqtt_connect                       0000cfcf   defined in mqtt.o section .text
+_mqtt_connect                       0000d040   defined in mqtt.o section .text
                                                used in main.o
-_mqtt_publish                       0000d079   defined in mqtt.o section .text
+_mqtt_publish                       0000d0ea   defined in mqtt.o section .text
                                                used in main.o
-___mqtt_puback                      0000d10a   defined in mqtt.o section .text
-___mqtt_pubrec                      0000d17f   defined in mqtt.o section .text
-___mqtt_pubrel                      0000d1f4   defined in mqtt.o section .text
-___mqtt_pubcomp                     0000d269   defined in mqtt.o section .text
-_mqtt_subscribe                     0000d2de   defined in mqtt.o section .text
+___mqtt_puback                      0000d17b   defined in mqtt.o section .text
+___mqtt_pubrec                      0000d1f0   defined in mqtt.o section .text
+___mqtt_pubrel                      0000d265   defined in mqtt.o section .text
+___mqtt_pubcomp                     0000d2da   defined in mqtt.o section .text
+_mqtt_subscribe                     0000d34f   defined in mqtt.o section .text
                                                used in main.o
 _mqtt_unsubscribe                   ********   *** removed from mqtt.o ***
 _mqtt_ping                          ********   *** removed from mqtt.o ***
-___mqtt_ping                        0000d367   defined in mqtt.o section .text
-_mqtt_disconnect                    0000d3ca   defined in mqtt.o section .text
+___mqtt_ping                        0000d3d8   defined in mqtt.o section .text
+_mqtt_disconnect                    0000d43b   defined in mqtt.o section .text
                                                used in main.o
-___mqtt_send                        0000d42d   defined in mqtt.o section .text
-___mqtt_recv                        0000d60d   defined in mqtt.o section .text
-_mqtt_unpack_fixed_header           0000d8ea   defined in mqtt.o section .text
-_mqtt_pack_fixed_header             0000d9a7   defined in mqtt.o section .text
-_mqtt_pack_connection_request       0000da56   defined in mqtt.o section .text
-_mqtt_unpack_connack_response       0000dbc0   defined in mqtt.o section .text
-_mqtt_pack_disconnect               0000dc10   defined in mqtt.o section .text
-_mqtt_pack_ping_request             0000dc30   defined in mqtt.o section .text
-_mqtt_pack_publish_request          0000dc50   defined in mqtt.o section .text
-_mqtt_unpack_publish_response       0000dd31   defined in mqtt.o section .text
-_mqtt_pack_pubxxx_request           0000ddec   defined in mqtt.o section .text
-_mqtt_unpack_pubxxx_response        0000de5e   defined in mqtt.o section .text
-_mqtt_unpack_suback_response        0000de96   defined in mqtt.o section .text
-_mqtt_pack_subscribe_request        0000def8   defined in mqtt.o section .text
-_mqtt_unpack_unsuback_response      0000e00c   defined in mqtt.o section .text
-_mqtt_mq_init                       0000e03e   defined in mqtt.o section .text
+___mqtt_send                        0000d49e   defined in mqtt.o section .text
+___mqtt_recv                        0000d67e   defined in mqtt.o section .text
+_mqtt_unpack_fixed_header           0000d95b   defined in mqtt.o section .text
+_mqtt_pack_fixed_header             0000da18   defined in mqtt.o section .text
+_mqtt_pack_connection_request       0000dac7   defined in mqtt.o section .text
+_mqtt_unpack_connack_response       0000dc31   defined in mqtt.o section .text
+_mqtt_pack_disconnect               0000dc81   defined in mqtt.o section .text
+_mqtt_pack_ping_request             0000dca1   defined in mqtt.o section .text
+_mqtt_pack_publish_request          0000dcc1   defined in mqtt.o section .text
+_mqtt_unpack_publish_response       0000dda2   defined in mqtt.o section .text
+_mqtt_pack_pubxxx_request           0000de5d   defined in mqtt.o section .text
+_mqtt_unpack_pubxxx_response        0000decf   defined in mqtt.o section .text
+_mqtt_unpack_suback_response        0000df07   defined in mqtt.o section .text
+_mqtt_pack_subscribe_request        0000df69   defined in mqtt.o section .text
+_mqtt_unpack_unsuback_response      0000e07d   defined in mqtt.o section .text
+_mqtt_mq_init                       0000e0af   defined in mqtt.o section .text
 _mqtt_pack_unsubscribe_request      ********   *** removed from mqtt.o ***
-_mqtt_mq_register                   0000e08d   defined in mqtt.o section .text
-_mqtt_mq_clean                      0000e0f4   defined in mqtt.o section .text
-_mqtt_mq_find                       0000e242   defined in mqtt.o section .text
-_mqtt_unpack_response               0000e27e   defined in mqtt.o section .text
-___mqtt_pack_uint16                 0000e32a   defined in mqtt.o section .text
-___mqtt_unpack_uint16               0000e34e   defined in mqtt.o section .text
-___mqtt_pack_str                    0000e36b   defined in mqtt.o section .text
-_mqtt_pal_sendall                   0000e3a6   defined in mqtt_pal.o section .text
+_mqtt_mq_register                   0000e0fe   defined in mqtt.o section .text
+_mqtt_mq_clean                      0000e165   defined in mqtt.o section .text
+_mqtt_mq_find                       0000e2b3   defined in mqtt.o section .text
+_mqtt_unpack_response               0000e2ef   defined in mqtt.o section .text
+___mqtt_pack_uint16                 0000e39b   defined in mqtt.o section .text
+___mqtt_unpack_uint16               0000e3bf   defined in mqtt.o section .text
+___mqtt_pack_str                    0000e3dc   defined in mqtt.o section .text
+_mqtt_pal_sendall                   0000e417   defined in mqtt_pal.o section .text
                                                used in mqtt.o
-_mqtt_pal_recvall                   0000e3bd   defined in mqtt_pal.o section .text
+_mqtt_pal_recvall                   0000e42e   defined in mqtt_pal.o section .text
                                                used in mqtt.o
-_spi_init                           0000e3cf   defined in spi.o section .text
+_spi_init                           0000e440   defined in spi.o section .text
                                                used in main.o
-_SpiWriteByte                       0000e3f4   defined in spi.o section .text
+_SpiWriteByte                       0000e465   defined in spi.o section .text
                                                used in enc28j60.o
-_SpiWriteChunk                      0000e41e   defined in spi.o section .text
+_SpiWriteChunk                      0000e48f   defined in spi.o section .text
                                                used in enc28j60.o
-_SpiReadByte                        0000e45d   defined in spi.o section .text
+_SpiReadByte                        0000e4ce   defined in spi.o section .text
                                                used in enc28j60.o
-_SpiReadChunk                       0000e487   defined in spi.o section .text
+_SpiReadChunk                       0000e4f8   defined in spi.o section .text
                                                used in enc28j60.o
-_clock_init                         0000e4c7   defined in timer.o section .text
+_clock_init                         0000e538   defined in timer.o section .text
                                                used in main.o
-_periodic_timer_expired             0000e559   defined in timer.o section .text
+_periodic_timer_expired             0000e5ca   defined in timer.o section .text
                                                used in main.o
-_arp_timer_expired                  0000e592   defined in timer.o section .text
+_arp_timer_expired                  0000e603   defined in timer.o section .text
                                                used in main.o
-_wait_timer                         0000e5a2   defined in timer.o section .text
+_wait_timer                         0000e613   defined in timer.o section .text
                                                used in enc28j60.o main.o spi.o
 _uip_setipid                        ********   *** removed from uip.o ***
-_uip_add32                          0000e5c5   defined in uip.o section .text
+_uip_add32                          0000e636   defined in uip.o section .text
 _uip_chksum                         ********   *** removed from uip.o ***
-_uip_ipchksum                       0000e66a   defined in uip.o section .text
-_uip_tcpchksum                      0000e6d0   defined in uip.o section .text
-_uip_init                           0000e6d5   defined in uip.o section .text
+_uip_ipchksum                       0000e6db   defined in uip.o section .text
+_uip_tcpchksum                      0000e741   defined in uip.o section .text
+_uip_init                           0000e746   defined in uip.o section .text
                                                used in main.o
-_uip_connect                        0000e704   defined in uip.o section .text
+_uip_connect                        0000e775   defined in uip.o section .text
                                                used in main.o
-_uip_init_stats                     0000e79d   defined in uip.o section .text
+_uip_init_stats                     0000e80e   defined in uip.o section .text
                                                used in httpd.o
-_uip_listen                         0000e79e   defined in uip.o section .text
+_uip_listen                         0000e80f   defined in uip.o section .text
                                                used in httpd.o
 _uip_unlisten                       ********   *** removed from uip.o ***
-_uip_process                        0000e7e5   defined in uip.o section .text
+_uip_process                        0000e856   defined in uip.o section .text
                                                used in main.o
-_htons                              0000f113   defined in uip.o section .text
+_htons                              0000f184   defined in uip.o section .text
                                                used in httpd.o main.o
                                                        uip_tcpapphub.o
-_uip_send                           0000f114   defined in uip.o section .text
+_uip_send                           0000f185   defined in uip.o section .text
                                                used in httpd.o
-_uip_arp_init                       0000f138   defined in uip_arp.o section .text
+_uip_arp_init                       0000f1a9   defined in uip_arp.o section .text
                                                used in main.o
-_uip_arp_timer                      0000f15b   defined in uip_arp.o section .text
+_uip_arp_timer                      0000f1cc   defined in uip_arp.o section .text
                                                used in main.o
-_uip_arp_arpin                      0000f2b2   defined in uip_arp.o section .text
+_uip_arp_arpin                      0000f323   defined in uip_arp.o section .text
                                                used in main.o
-_uip_arp_out                        0000f361   defined in uip_arp.o section .text
+_uip_arp_out                        0000f3d2   defined in uip_arp.o section .text
                                                used in main.o
-_check_mqtt_server_arp_entry        0000f4ac   defined in uip_arp.o section .text
+_check_mqtt_server_arp_entry        0000f51d   defined in uip_arp.o section .text
                                                used in main.o
-_uip_TcpAppHubCall                  0000f53a   defined in uip_tcpapphub.o section .text
+_uip_TcpAppHubCall                  0000f5ab   defined in uip_tcpapphub.o section .text
                                                used in uip.o
-_memmove                            0000f58a   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)memmov.o section .text
+_memmove                            0000f5fb   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)memmov.o section .text
                                                used in mqtt.o
-_strcat                             0000f5db   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)strcat0.o section .text
+_strcat                             0000f64c   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)strcat0.o section .text
                                                used in main.o
-_strlen                             0000f5ef   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)strlen0.o section .text
+_strlen                             0000f660   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libisl0.sm8)strlen0.o section .text
                                                used in httpd.o main.o mqtt.o
-c_bmulx                             0000f5fb   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)bmulx.o section .text
+c_bmulx                             0000f66c   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)bmulx.o section .text
                                                used in mqtt.o
-c_eewrw                             0000f609   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
+c_eewrw                             0000f67a   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
                                                used in main.o
-c_eewrc                             0000f61f   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
+c_eewrc                             0000f690   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
                                                used in main.o
-c_eewrd                             0000f652   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
+c_eewrd                             0000f6c3   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)eeprom.o section .text
                                                *** not used ***
-c_fmul                              0000f66f   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)fmul.o section .text
+c_fmul                              0000f6e0   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)fmul.o section .text
                                                used in mqtt.o
-c_okmul                             0000f67d   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)fmul.o section .text
+c_okmul                             0000f6ee   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)fmul.o section .text
                                                *** not used ***
-c_ftoi                              0000f744   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ftol.o section .text
+c_ftoi                              0000f7b5   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ftol.o section .text
                                                *** not used ***
-c_ftol                              0000f74a   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ftol.o section .text
+c_ftol                              0000f7bb   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ftol.o section .text
                                                used in mqtt.o
-c_imul                              0000f7a6   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)imul.o section .text
+c_imul                              0000f817   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)imul.o section .text
                                                used in httpd.o
-c_itolx                             0000f7c7   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)itolx.o section .text
+c_itolx                             0000f838   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)itolx.o section .text
                                                used in mqtt.o
-c_itoly                             0000f7d5   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)itoly.o section .text
+c_itoly                             0000f846   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)itoly.o section .text
                                                used in mqtt.o
-c_ladc                              0000f7e8   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ladc.o section .text
+c_ladc                              0000f859   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ladc.o section .text
                                                used in main.o
-c_ladd                              0000f7f9   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ladd.o section .text
+c_ladd                              0000f86a   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ladd.o section .text
                                                used in mqtt.o
-c_lcmp                              0000f811   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lcmp.o section .text
+c_lcmp                              0000f882   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lcmp.o section .text
                                                used in main.o mqtt.o
-c_lgadc                             0000f831   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadc.o section .text
+c_lgadc                             0000f8a2   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadc.o section .text
                                                used in enc28j60.o mqtt.o timer.o
-c_lgadd                             0000f841   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadd.o section .text
+c_lgadd                             0000f8b2   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgadd.o section .text
                                                used in mqtt.o
-c_lgsbc                             0000f858   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgsbc.o section .text
+c_lgsbc                             0000f8c9   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgsbc.o section .text
                                                used in mqtt.o
-c_lgursh                            0000f86e   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgursh.o section .text
+c_lgursh                            0000f8df   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgursh.o section .text
                                                used in mqtt.o
-c_ltor                              0000f87c   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ltor.o section .text
+c_ltor                              0000f8ed   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ltor.o section .text
                                                used in httpd.o main.o mqtt.o
-c_ludv                              0000f88e   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o section .text
+c_ludv                              0000f8ff   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o section .text
                                                used in httpd.o
-c_divsl                             0000f8a2   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
+c_divsl                             0000f913   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
                                                *** not used ***
-c_divul                             0000f8b9   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
+c_divul                             0000f92a   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o section .text
                                                used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ludiv.o
                                                        (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o
-c_lgneg                             0000f98d   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgneg.o section .text
+c_lgneg                             0000f9fe   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lgneg.o section .text
                                                used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o
-c_lneg                              0000f9a0   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lneg.o section .text
+c_lneg                              0000fa11   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lneg.o section .text
                                                used in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)ldiv.o
-c_lumd                              0000f9b5   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o section .text
+c_lumd                              0000fa26   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lumod.o section .text
                                                used in httpd.o
-c_lzmp                              0000f9cf   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lzmp.o section .text
+c_lzmp                              0000fa40   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)lzmp.o section .text
                                                used in httpd.o
-c_rtol                              0000f9e2   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o section .text
+c_rtol                              0000fa53   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)rtol.o section .text
                                                used in httpd.o mqtt.o
-c_smodx                             0000f9f4   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)sdivx.o section .text
+c_smodx                             0000fa65   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)sdivx.o section .text
                                                *** not used ***
-c_sdivx                             0000f9fa   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)sdivx.o section .text
+c_sdivx                             0000fa6b   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)sdivx.o section .text
                                                used in mqtt.o
-c_uitof                             0000fa1f   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)uitof.o section .text
+c_uitof                             0000fa90   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)uitof.o section .text
                                                used in mqtt.o
-c_uitolx                            0000fa43   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o section .text
+c_uitolx                            0000fab4   defined in (C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\libm0.sm8)utolx.o section .text
                                                used in httpd.o mqtt.o

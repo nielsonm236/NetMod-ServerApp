@@ -6,51 +6,51 @@
   58                     ; 70 // We get here via UIP_APPCALL in the uip.c code
   58                     ; 71 {
   60                     .text:	section	.text,new
-  61  f53a               _uip_TcpAppHubCall:
+  61  f5ab               _uip_TcpAppHubCall:
   65                     ; 72   if(uip_conn->lport == htons(Port_Httpd)) {
-  67  f53a ce00ff        	ldw	x,_Port_Httpd
-  68  f53d cdf113        	call	_htons
-  70  f540 90ce0369      	ldw	y,_uip_conn
-  71  f544 bf04          	ldw	c_x,x
-  72  f546 93            	ldw	x,y
-  73  f547 ee04          	ldw	x,(4,x)
-  74  f549 b304          	cpw	x,c_x
-  75  f54b 2612          	jrne	L72
+  67  f5ab ce0103        	ldw	x,_Port_Httpd
+  68  f5ae cdf184        	call	_htons
+  70  f5b1 90ce036d      	ldw	y,_uip_conn
+  71  f5b5 bf04          	ldw	c_x,x
+  72  f5b7 93            	ldw	x,y
+  73  f5b8 ee04          	ldw	x,(4,x)
+  74  f5ba b304          	cpw	x,c_x
+  75  f5bc 2612          	jrne	L72
   76                     ; 80     HttpDCall(uip_appdata, uip_datalen(), &uip_conn->appstate.HttpDSocket);
-  78  f54d 93            	ldw	x,y
-  79  f54e 1c001c        	addw	x,#28
-  80  f551 89            	pushw	x
-  81  f552 ce036b        	ldw	x,_uip_len
-  82  f555 89            	pushw	x
-  83  f556 ce036d        	ldw	x,_uip_appdata
-  84  f559 cdac46        	call	_HttpDCall
-  86  f55c 5b04          	addw	sp,#4
-  89  f55e 81            	ret	
-  90  f55f               L72:
+  78  f5be 93            	ldw	x,y
+  79  f5bf 1c001c        	addw	x,#28
+  80  f5c2 89            	pushw	x
+  81  f5c3 ce036f        	ldw	x,_uip_len
+  82  f5c6 89            	pushw	x
+  83  f5c7 ce0371        	ldw	x,_uip_appdata
+  84  f5ca cdacb1        	call	_HttpDCall
+  86  f5cd 5b04          	addw	sp,#4
+  89  f5cf 81            	ret	
+  90  f5d0               L72:
   91                     ; 84   else if(uip_conn->lport == htons(Port_Mqttd)) {
-  93  f55f ce00f2        	ldw	x,_Port_Mqttd
-  94  f562 cdf113        	call	_htons
-  96  f565 90ce0369      	ldw	y,_uip_conn
-  97  f569 bf04          	ldw	c_x,x
-  98  f56b 93            	ldw	x,y
-  99  f56c ee04          	ldw	x,(4,x)
- 100  f56e b304          	cpw	x,c_x
- 101  f570 2617          	jrne	L13
+  93  f5d0 ce00f6        	ldw	x,_Port_Mqttd
+  94  f5d3 cdf184        	call	_htons
+  96  f5d6 90ce036d      	ldw	y,_uip_conn
+  97  f5da bf04          	ldw	c_x,x
+  98  f5dc 93            	ldw	x,y
+  99  f5dd ee04          	ldw	x,(4,x)
+ 100  f5df b304          	cpw	x,c_x
+ 101  f5e1 2617          	jrne	L13
  102                     ; 91     if (mqtt_start > MQTT_START_QUEUE_CONNECT) {
- 104  f572 c600a4        	ld	a,_mqtt_start
- 105  f575 a105          	cp	a,#5
- 106  f577 2510          	jrult	L13
+ 104  f5e3 c600a8        	ld	a,_mqtt_start
+ 105  f5e6 a105          	cp	a,#5
+ 106  f5e8 2510          	jrult	L13
  107                     ; 93       mqtt_sync(&mqttclient);
- 109  f579 ae00c1        	ldw	x,#_mqttclient
- 110  f57c cdcee7        	call	_mqtt_sync
+ 109  f5ea ae00c5        	ldw	x,#_mqttclient
+ 110  f5ed cdcf58        	call	_mqtt_sync
  112                     ; 98       if (mqtt_close_tcp == 1) uip_close();
- 114  f57f c60103        	ld	a,_mqtt_close_tcp
- 115  f582 4a            	dec	a
- 116  f583 2604          	jrne	L13
- 119  f585 351002c0      	mov	_uip_flags,#16
- 120  f589               L13:
+ 114  f5f0 c60107        	ld	a,_mqtt_close_tcp
+ 115  f5f3 4a            	dec	a
+ 116  f5f4 2604          	jrne	L13
+ 119  f5f6 351002c4      	mov	_uip_flags,#16
+ 120  f5fa               L13:
  121                     ; 103 }
- 124  f589 81            	ret	
+ 124  f5fa 81            	ret	
  137                     	xref	_mqtt_close_tcp
  138                     	xref	_mqtt_start
  139                     	xref	_mqttclient

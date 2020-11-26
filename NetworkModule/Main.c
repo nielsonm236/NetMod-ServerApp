@@ -283,10 +283,11 @@ static const unsigned char devicetype[] = "NetworkModule/"; // Used in
 unsigned char topic_base[44];         // Used for building connect, subscribe,
                                       // and publish topic strings.
 uint8_t topic_base_len;               // Length of the topic_base
-uint32_t TXERIF_counter;              // Counts TXERIF errors detected by the
-                                      // ENC28J60
 uint32_t RXERIF_counter;              // Counts RXERIF errors detected by the
                                       // ENC28J60
+uint32_t TXERIF_counter;              // Counts TXERIF errors detected by the
+                                      // ENC28J60
+uint32_t TRANSMIT_counter;            // Counts any transmit by the ENC28J60
 
 #endif // MQTT_SUPPORT == 1
 
@@ -336,6 +337,7 @@ int main(void)
                                          // idle
   TXERIF_counter = 0;                    // Initialize the TXERIF error counter
   RXERIF_counter = 0;                    // Initialize the RXERIF error counter
+  TRANSMIT_counter = 0;
   
 #endif // MQTT_SUPPORT == 1
 
@@ -365,35 +367,12 @@ int main(void)
   HttpDInit();             // Initialize listening ports
 
 
-/*
-  // The following implements a guardband check between the stack and the
-  // allocated memory. The theory is that the uip_buf is allocated last
-  // due to it being the largest chunk of memory allocated. The uip_buf is
-  // also larger than it needs to be by about 50 bytes. So this routine
-  // fills the last 20 bytes with a pattern that will be checked periodically
-  // to make sure the pattern is not overwritten by stack activity.
-  {
-    uint8_t i;
-    guard_pointer = &uip_buf[UIP_BUFSIZE - 22];
-    for (i = 0; i < 20; i++) {
-      // Fill 20 bytes starting at 22 bytes before the end of the UIP_BUF
-      *guard_pointer = i;
-      guard_pointer++;
-    }
-  }
-*/
   // The following initializes the stack over-run guardband variables.
   // These variables are monitored periodically and should never change
   // unless there is a stack overflow (wherein the stack will over write
   // the preset content).
   stack_limit1 = 0xaa;
   stack_limit2 = 0x55;
-
-
-
-
-
-
 
 
 #if MQTT_SUPPORT == 1
@@ -520,11 +499,6 @@ int main(void)
     uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
 
     if (uip_len > 0) {
-// if (uip_len > 0 && parse_complete == 0 && mqtt_parse_complete == 0) {
-// A thought was that when two or more TCP fragments are required to complete
-// a browser post that intervening traffic was confusing the reassembly
-// process. An experiment to stop incoming traffic if parse complete was not
-// 0 did not fix the issue.
       // This code executed if incoming traffic is HTTP or MQTT (not ARP).
       // uip_len includes the headers, so it will be > 0 even if no TCP
       // payload.
@@ -1723,10 +1697,9 @@ void check_runtime_changes(void)
         stored_IO_16to9 = IO_16to9;
         stored_IO_8to1 = IO_8to1;
       }
-    
-      // Update the relay control registers
-      write_output_registers();
     }
+    // Update the relay control registers
+    write_output_registers();
 #endif // GPIO_SUPPORT == 1
 
 #if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
@@ -1738,10 +1711,9 @@ void check_runtime_changes(void)
       if (stored_config_settings[2] == '2') {
         stored_IO_8to1 = IO_8to1;
       }
-    
-      // Update the relay control registers
-      write_output_registers();
     }
+    // Update the relay control registers
+    write_output_registers();
 #endif // GPIO_SUPPORT == 2
 
 #if GPIO_SUPPORT == 3 // Build control for 16 inputs

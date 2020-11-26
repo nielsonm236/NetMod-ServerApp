@@ -211,8 +211,9 @@ extern char Pending_mqtt_password[11];    // Temp storage for new MQTT Password
 extern uint8_t mqtt_start_status;         // Contains error status from the MQTT start process
 extern uint8_t MQTT_error_status;         // For MQTT error status display in GUI
 
-extern uint32_t TXERIF_counter;           // Counts TXERIF errors
 extern uint32_t RXERIF_counter;           // Counts RXERIF errors
+extern uint32_t TXERIF_counter;           // Counts TXERIF errors
+extern uint32_t TRANSMIT_counter;         // Counts any transmit
 extern uint32_t second_counter;           // Counts seconds since boot
 #endif // MQTT_SUPPORT == 1
 
@@ -643,7 +644,7 @@ static const char g_HtmlPageConfiguration[] =
   "If you change the highest octet of the MAC you MUST use an even number to<br>"
   "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
   "multicast and will not work.<br>"
-  "Code Revision 20201121 0453</p>"
+  "Code Revision 20201126 1527</p>"
   "%y03/91%y02Reboot</button></form>"
   "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -826,7 +827,7 @@ static const char g_HtmlPageConfiguration[] =
   "</form>"
   "<p>"
   "See Documentation for help<br>"
-  "Code Revision 20201121 0453</p>"
+  "Code Revision 20201126 1527</p>"
   "%y03/91%y02Reboot</button></form>"
   "<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -1095,6 +1096,7 @@ static const char g_HtmlPageStats[] =
   "<tr><td>Seconds since boot %e26</td></tr>"
   "<tr><td>RXERIF count %e27</td></tr>"
   "<tr><td>TXERIF count %e28</td></tr>"
+  "<tr><td>TRANSMIT count %e29</td></tr>"
   "</table>"
   "%y03/61' method='GET'><button>Configuration</button></form>"
   "%y03/66' method='GET'><button>Refresh</button></form>"
@@ -1556,12 +1558,12 @@ uint16_t adjust_template_size()
   else if (current_webpage == WEBPAGE_STATS) {
     size = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
 
-    // Account for Statistics fields %e26 to %e28
-    // There are 3 instances of these fields
+    // Account for Statistics fields %e26 to %e29
+    // There are 4 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (3 x (10 - 4));
-    // size = size + (3 x (6));
-    size = size + 18;
+    // size = size + (4 x (10 - 4));
+    // size = size + (4 x (6));
+    size = size + 24;
 
     // Account for IP Address insertion - Configuration Button
     // size = size + (strlen(page_string03) - marker_field_size);
@@ -2144,6 +2146,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    case 26:  emb_itoa(second_counter, OctetArray, 10, 10); break;
 	    case 27:  emb_itoa(RXERIF_counter, OctetArray, 10, 10); break;
 	    case 28:  emb_itoa(TXERIF_counter, OctetArray, 10, 10); break;
+	    case 29:  emb_itoa(TRANSMIT_counter, OctetArray, 10, 10); break;
 	  }
 	  for (i=0; i<10; i++) {
             *pBuffer = OctetArray[i];

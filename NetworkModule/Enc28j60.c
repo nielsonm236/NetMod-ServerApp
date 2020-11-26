@@ -56,8 +56,9 @@ extern uint8_t debug[NUM_DEBUG_BYTES];
 #endif // DEBUG_SUPPORT != 0
 
 #if MQTT_SUPPORT == 1
-extern uint32_t TXERIF_counter;       // Counts TXERIF errors
 extern uint32_t RXERIF_counter;       // Counts RXERIF errors
+extern uint32_t TXERIF_counter;       // Counts TXERIF errors
+extern uint32_t TRANSMIT_counter;     // Counts any transmit
 #endif // MQTT_SUPPORT == 1
 
 
@@ -728,7 +729,7 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
   SpiWriteChunk(pBuffer, nBytes); // Copy data to the ENC28J60 transmit buffer
 
   deselect();
-
+  
   // Errata: In Half-Duplex mode, a hardware transmission abort caused by
   // excessive collisions, a late collision or excessive deferrals, may stall
   // the internal transmit logic. The next packet transmit initiated by the
@@ -797,8 +798,13 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
     // This should never happen as any error should have been handled the last
     // time a transmit occurred. If no error just start the transmission.
     if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) {
+#if UIP_STATISTICS == 2
       // Count TXERIF error
       TXERIF_counter++;
+#endif // UIP_STATISTICS == 2
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+wait_timer(10);  // Wait 10 uS
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       // Set TXRST
       Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
       // Clear TXRST
@@ -808,6 +814,13 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
       // Clear TXIF
       Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXIF));
     }
+
+#if UIP_STATISTICS == 2
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// Count any transmit
+TRANSMIT_counter++;
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#endif // UIP_STATISTICS == 2
     
     // Start transmission
     Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
@@ -827,12 +840,20 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
     
     // If a TXERIF error is present we need to enter a loop to retry
     if (txerif_temp) {
+#if UIP_STATISTICS == 2
       // Count TXERIF error
       TXERIF_counter++;
-
+#endif // UIP_STATISTICS == 2
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+wait_timer(10);  // Wait 10 uS
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      
       for (i = 0; i < 16; i++) {
         // Read Transmit Status Vector (TSV)
 	read_TSV();
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+wait_timer(10);  // Wait 10 uS
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
  
         // Bit 29 of the TSV is the Late Collision bit
         // This corresponds to bit 5 of tsv_byte[3]
@@ -844,6 +865,14 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
         if (txerif_temp && (late_collision)) {
 	  txerif_temp = 0;
 
+#if UIP_STATISTICS == 2
+          // Count TXERIF error
+          TXERIF_counter++;
+#endif // UIP_STATISTICS == 2
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+wait_timer(10);  // Wait 10 uS
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      
           // Set TXRST
           Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
           // Clear TXRST
@@ -858,13 +887,13 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
           // while(TXIF == 0 and TXERIF == 0) NOP
           while (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))
               && !(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF))) nop();
-            // Save the TXERIF state just in case clearing TXRTS interferes with it
-            if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) txerif_temp = 1;
+          // Save the TXERIF state just in case clearing TXRTS interferes with it
+          if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) txerif_temp = 1;
           // If TXIF is zero Clear TXRTS
           if (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))) {
 	    Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
 	  }
-          // Go back to the start of the while loop to check TSV status.
+          // Go back to the start of the for() loop to check TSV status.
         }
       }
     }
@@ -911,6 +940,10 @@ void read_TSV(void)
         
   deselect();
 
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+wait_timer(10);  // Wait 10 uS
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      
   // Restore the current read pointer
   Enc28j60WriteReg(BANK0_ERDPTL, saved_ERDPTL);
   Enc28j60WriteReg(BANK0_ERDPTH, saved_ERDPTH);

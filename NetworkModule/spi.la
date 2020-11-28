@@ -5,218 +5,218 @@
 2557                     ; 56 void spi_init(void)
 2557                     ; 57 {
 2559                     .text:	section	.text,new
-2560  e440               _spi_init:
-2562  e440 88            	push	a
+2560  e488               _spi_init:
+2562  e488 88            	push	a
 2563       00000001      OFST:	set	1
 2566                     ; 76   PC_ODR |= (uint8_t)0x02;    // 0b00000010 SI=0, SCK=0, -CS=1
-2568  e441 7212500a      	bset	_PC_ODR,#1
+2568  e489 7212500a      	bset	_PC_ODR,#1
 2569                     ; 77   PE_ODR &= (uint8_t)(~0x20); // 0b00100000 -RESET=0
-2571  e445 721b5014      	bres	_PE_ODR,#5
+2571  e48d 721b5014      	bres	_PE_ODR,#5
 2572                     ; 80   for(i=0; i<5; i++) wait_timer((uint16_t)50000); // wait 250ms
-2574  e449 0f01          	clr	(OFST+0,sp)
-2576  e44b               L7461:
-2579  e44b aec350        	ldw	x,#50000
-2580  e44e cde613        	call	_wait_timer
-2584  e451 0c01          	inc	(OFST+0,sp)
-2588  e453 7b01          	ld	a,(OFST+0,sp)
-2589  e455 a105          	cp	a,#5
-2590  e457 25f2          	jrult	L7461
+2574  e491 0f01          	clr	(OFST+0,sp)
+2576  e493               L7461:
+2579  e493 aec350        	ldw	x,#50000
+2580  e496 cde65b        	call	_wait_timer
+2584  e499 0c01          	inc	(OFST+0,sp)
+2588  e49b 7b01          	ld	a,(OFST+0,sp)
+2589  e49d a105          	cp	a,#5
+2590  e49f 25f2          	jrult	L7461
 2591                     ; 83   PE_ODR |= (uint8_t)0x20; // 0b00100000 -RESET=1
-2593  e459 721a5014      	bset	_PE_ODR,#5
+2593  e4a1 721a5014      	bset	_PE_ODR,#5
 2594                     ; 86   wait_timer((uint16_t)50000); // Wait 50ms
-2596  e45d aec350        	ldw	x,#50000
-2597  e460 cde613        	call	_wait_timer
+2596  e4a5 aec350        	ldw	x,#50000
+2597  e4a8 cde65b        	call	_wait_timer
 2599                     ; 101 }
-2602  e463 84            	pop	a
-2603  e464 81            	ret	
+2602  e4ab 84            	pop	a
+2603  e4ac 81            	ret	
 2645                     ; 104 void SpiWriteByte(uint8_t nByte)
 2645                     ; 105 {
 2646                     .text:	section	.text,new
-2647  e465               _SpiWriteByte:
-2649  e465 88            	push	a
-2650  e466 88            	push	a
+2647  e4ad               _SpiWriteByte:
+2649  e4ad 88            	push	a
+2650  e4ae 88            	push	a
 2651       00000001      OFST:	set	1
 2654                     ; 108   uint8_t bitnum = (uint8_t)0x80;                // Point at MSB
-2656  e467 a680          	ld	a,#128
-2657  e469 6b01          	ld	(OFST+0,sp),a
-2659  e46b               L3761:
+2656  e4af a680          	ld	a,#128
+2657  e4b1 6b01          	ld	(OFST+0,sp),a
+2659  e4b3               L3761:
 2660                     ; 110     if (nByte & bitnum) PC_ODR |= (uint8_t)0x08; // If bit is 1 then 
-2662  e46b 7b02          	ld	a,(OFST+1,sp)
-2663  e46d 1501          	bcp	a,(OFST+0,sp)
-2664  e46f 2706          	jreq	L1071
-2667  e471 7216500a      	bset	_PC_ODR,#3
-2669  e475 2004          	jra	L3071
-2670  e477               L1071:
+2662  e4b3 7b02          	ld	a,(OFST+1,sp)
+2663  e4b5 1501          	bcp	a,(OFST+0,sp)
+2664  e4b7 2706          	jreq	L1071
+2667  e4b9 7216500a      	bset	_PC_ODR,#3
+2669  e4bd 2004          	jra	L3071
+2670  e4bf               L1071:
 2671                     ; 112     else PC_ODR &= (uint8_t)(~0x08);             // else SPI SO low
-2673  e477 7217500a      	bres	_PC_ODR,#3
-2674  e47b               L3071:
+2673  e4bf 7217500a      	bres	_PC_ODR,#3
+2674  e4c3               L3071:
 2675                     ; 114     nop();
-2678  e47b 9d            	nop	
+2678  e4c3 9d            	nop	
 2680                     ; 115     PC_ODR |= (uint8_t)0x04;                     // SCK high
-2683  e47c 7214500a      	bset	_PC_ODR,#2
+2683  e4c4 7214500a      	bset	_PC_ODR,#2
 2684                     ; 116     nop();
-2687  e480 9d            	nop	
+2687  e4c8 9d            	nop	
 2689                     ; 117     PC_ODR &= (uint8_t)(~0x04);                  // SCK low
-2692  e481 7215500a      	bres	_PC_ODR,#2
+2692  e4c9 7215500a      	bres	_PC_ODR,#2
 2693                     ; 119     bitnum = (uint8_t)(bitnum >> 1);             // Shift bitnum right one place
-2695  e485 0401          	srl	(OFST+0,sp)
+2695  e4cd 0401          	srl	(OFST+0,sp)
 2697                     ; 109   while(bitnum != 0) {
-2699  e487 26e2          	jrne	L3761
+2699  e4cf 26e2          	jrne	L3761
 2700                     ; 123   PC_ODR &= (uint8_t)(~0x08);                    // SPI SO low on exit
-2702  e489 7217500a      	bres	_PC_ODR,#3
+2702  e4d1 7217500a      	bres	_PC_ODR,#3
 2703                     ; 124 }
-2706  e48d 85            	popw	x
-2707  e48e 81            	ret	
+2706  e4d5 85            	popw	x
+2707  e4d6 81            	ret	
 2766                     ; 127 void SpiWriteChunk(const uint8_t* pChunk, uint16_t nBytes)
 2766                     ; 128 {
 2767                     .text:	section	.text,new
-2768  e48f               _SpiWriteChunk:
-2770  e48f 89            	pushw	x
-2771  e490 89            	pushw	x
+2768  e4d7               _SpiWriteChunk:
+2770  e4d7 89            	pushw	x
+2771  e4d8 89            	pushw	x
 2772       00000002      OFST:	set	2
-2775  e491 202c          	jra	L3371
-2776  e493               L1371:
+2775  e4d9 202c          	jra	L3371
+2776  e4db               L1371:
 2777                     ; 133     bitnum = (uint8_t)0x80;                          // Point at MSB
-2779  e493 a680          	ld	a,#128
-2780  e495 6b02          	ld	(OFST+0,sp),a
+2779  e4db a680          	ld	a,#128
+2780  e4dd 6b02          	ld	(OFST+0,sp),a
 2782                     ; 134     OutByte = *pChunk++;
-2784  e497 1e03          	ldw	x,(OFST+1,sp)
-2785  e499 f6            	ld	a,(x)
-2786  e49a 5c            	incw	x
-2787  e49b 1f03          	ldw	(OFST+1,sp),x
-2788  e49d 6b01          	ld	(OFST-1,sp),a
-2791  e49f 201a          	jra	L3471
-2792  e4a1               L7371:
+2784  e4df 1e03          	ldw	x,(OFST+1,sp)
+2785  e4e1 f6            	ld	a,(x)
+2786  e4e2 5c            	incw	x
+2787  e4e3 1f03          	ldw	(OFST+1,sp),x
+2788  e4e5 6b01          	ld	(OFST-1,sp),a
+2791  e4e7 201a          	jra	L3471
+2792  e4e9               L7371:
 2793                     ; 137       if (OutByte & bitnum) PC_ODR |= (uint8_t)0x08; // If bit is 1 then
-2795  e4a1 1502          	bcp	a,(OFST+0,sp)
-2796  e4a3 2706          	jreq	L7471
-2799  e4a5 7216500a      	bset	_PC_ODR,#3
-2801  e4a9 2004          	jra	L1571
-2802  e4ab               L7471:
+2795  e4e9 1502          	bcp	a,(OFST+0,sp)
+2796  e4eb 2706          	jreq	L7471
+2799  e4ed 7216500a      	bset	_PC_ODR,#3
+2801  e4f1 2004          	jra	L1571
+2802  e4f3               L7471:
 2803                     ; 139       else PC_ODR &= (uint8_t)(~0x08);               // else SPI SO low
-2805  e4ab 7217500a      	bres	_PC_ODR,#3
-2806  e4af               L1571:
+2805  e4f3 7217500a      	bres	_PC_ODR,#3
+2806  e4f7               L1571:
 2807                     ; 141       nop();
-2810  e4af 9d            	nop	
+2810  e4f7 9d            	nop	
 2812                     ; 142       PC_ODR |= (uint8_t)0x04;                       // SCK high
-2815  e4b0 7214500a      	bset	_PC_ODR,#2
+2815  e4f8 7214500a      	bset	_PC_ODR,#2
 2816                     ; 143       nop();
-2819  e4b4 9d            	nop	
+2819  e4fc 9d            	nop	
 2821                     ; 144       PC_ODR &= (uint8_t)(~0x04);                    // SCK low
-2824  e4b5 7215500a      	bres	_PC_ODR,#2
+2824  e4fd 7215500a      	bres	_PC_ODR,#2
 2825                     ; 146       bitnum = (uint8_t)(bitnum >> 1);               // Shift bitnum right one place
-2827  e4b9 0402          	srl	(OFST+0,sp)
-2829  e4bb               L3471:
+2827  e501 0402          	srl	(OFST+0,sp)
+2829  e503               L3471:
 2830                     ; 136     while(bitnum != 0) {
-2832  e4bb 0d02          	tnz	(OFST+0,sp)
-2833  e4bd 26e2          	jrne	L7371
-2834  e4bf               L3371:
+2832  e503 0d02          	tnz	(OFST+0,sp)
+2833  e505 26e2          	jrne	L7371
+2834  e507               L3371:
 2835                     ; 132   while (nBytes--) {
-2837  e4bf 1e07          	ldw	x,(OFST+5,sp)
-2838  e4c1 5a            	decw	x
-2839  e4c2 1f07          	ldw	(OFST+5,sp),x
-2840  e4c4 5c            	incw	x
-2841  e4c5 26cc          	jrne	L1371
+2837  e507 1e07          	ldw	x,(OFST+5,sp)
+2838  e509 5a            	decw	x
+2839  e50a 1f07          	ldw	(OFST+5,sp),x
+2840  e50c 5c            	incw	x
+2841  e50d 26cc          	jrne	L1371
 2842                     ; 151   PC_ODR &= (uint8_t)(~0x08);                        // SPI SO low on exit
-2844  e4c7 7217500a      	bres	_PC_ODR,#3
+2844  e50f 7217500a      	bres	_PC_ODR,#3
 2845                     ; 152 }
-2848  e4cb 5b04          	addw	sp,#4
-2849  e4cd 81            	ret	
+2848  e513 5b04          	addw	sp,#4
+2849  e515 81            	ret	
 2891                     ; 155 uint8_t SpiReadByte(void)
 2891                     ; 156 {
 2892                     .text:	section	.text,new
-2893  e4ce               _SpiReadByte:
-2895  e4ce 89            	pushw	x
+2893  e516               _SpiReadByte:
+2895  e516 89            	pushw	x
 2896       00000002      OFST:	set	2
 2899                     ; 161   uint8_t bitnum = (uint8_t)0x80;                 // Point at MSB
-2901  e4cf a680          	ld	a,#128
-2902  e4d1 6b02          	ld	(OFST+0,sp),a
+2901  e517 a680          	ld	a,#128
+2902  e519 6b02          	ld	(OFST+0,sp),a
 2904                     ; 162   uint8_t InByte = 0;
-2906  e4d3 0f01          	clr	(OFST-1,sp)
-2909  e4d5 2019          	jra	L5771
-2910  e4d7               L1771:
+2906  e51b 0f01          	clr	(OFST-1,sp)
+2909  e51d 2019          	jra	L5771
+2910  e51f               L1771:
 2911                     ; 166     if (PC_IDR & (uint8_t)0x10) InByte |= bitnum; // SPI incoming bit = 1
-2913  e4d7 7209500b04    	btjf	_PC_IDR,#4,L1002
-2916  e4dc 1a01          	or	a,(OFST-1,sp)
-2918  e4de 2003          	jra	L3002
-2919  e4e0               L1002:
+2913  e51f 7209500b04    	btjf	_PC_IDR,#4,L1002
+2916  e524 1a01          	or	a,(OFST-1,sp)
+2918  e526 2003          	jra	L3002
+2919  e528               L1002:
 2920                     ; 167     else InByte &= (uint8_t)(~bitnum);            // SPI incoming bit = 0
-2922  e4e0 43            	cpl	a
-2923  e4e1 1401          	and	a,(OFST-1,sp)
-2924  e4e3               L3002:
-2925  e4e3 6b01          	ld	(OFST-1,sp),a
+2922  e528 43            	cpl	a
+2923  e529 1401          	and	a,(OFST-1,sp)
+2924  e52b               L3002:
+2925  e52b 6b01          	ld	(OFST-1,sp),a
 2927                     ; 169     PC_ODR |= (uint8_t)0x04;                      // SCK high
-2929  e4e5 7214500a      	bset	_PC_ODR,#2
+2929  e52d 7214500a      	bset	_PC_ODR,#2
 2930                     ; 170     nop();
-2933  e4e9 9d            	nop	
+2933  e531 9d            	nop	
 2935                     ; 171     PC_ODR &= (uint8_t)(~0x04);                   // SCK low
-2938  e4ea 7215500a      	bres	_PC_ODR,#2
+2938  e532 7215500a      	bres	_PC_ODR,#2
 2939                     ; 173     bitnum = (uint8_t)(bitnum >> 1);              // Shift bitnum right one place
-2941  e4ee 0402          	srl	(OFST+0,sp)
-2943  e4f0               L5771:
+2941  e536 0402          	srl	(OFST+0,sp)
+2943  e538               L5771:
 2944                     ; 163   while(bitnum != 0) {
-2946  e4f0 7b02          	ld	a,(OFST+0,sp)
-2947  e4f2 26e3          	jrne	L1771
+2946  e538 7b02          	ld	a,(OFST+0,sp)
+2947  e53a 26e3          	jrne	L1771
 2948                     ; 177   return InByte;
-2950  e4f4 7b01          	ld	a,(OFST-1,sp)
-2953  e4f6 85            	popw	x
-2954  e4f7 81            	ret	
+2950  e53c 7b01          	ld	a,(OFST-1,sp)
+2953  e53e 85            	popw	x
+2954  e53f 81            	ret	
 3013                     ; 181 void SpiReadChunk(uint8_t* pChunk, uint16_t nBytes)
 3013                     ; 182 {
 3014                     .text:	section	.text,new
-3015  e4f8               _SpiReadChunk:
-3017  e4f8 89            	pushw	x
-3018  e4f9 89            	pushw	x
+3015  e540               _SpiReadChunk:
+3017  e540 89            	pushw	x
+3018  e541 89            	pushw	x
 3019       00000002      OFST:	set	2
 3022                     ; 190   PC_ODR &= (uint8_t)(~0x08);                        // SO low
-3024  e4fa 7217500a      	bres	_PC_ODR,#3
-3026  e4fe 202d          	jra	L3302
-3027  e500               L1302:
+3024  e542 7217500a      	bres	_PC_ODR,#3
+3026  e546 202d          	jra	L3302
+3027  e548               L1302:
 3028                     ; 193     bitnum = (uint8_t)0x80;                          // Point at MSBif
-3030  e500 a680          	ld	a,#128
-3031  e502 6b02          	ld	(OFST+0,sp),a
+3030  e548 a680          	ld	a,#128
+3031  e54a 6b02          	ld	(OFST+0,sp),a
 3033                     ; 194     InByte = 0;
-3035  e504 0f01          	clr	(OFST-1,sp)
-3038  e506 2019          	jra	L3402
-3039  e508               L7302:
+3035  e54c 0f01          	clr	(OFST-1,sp)
+3038  e54e 2019          	jra	L3402
+3039  e550               L7302:
 3040                     ; 199       if (PC_IDR & (uint8_t)0x10) InByte |= bitnum;  // SPI incoming bit = 1
-3042  e508 7209500b04    	btjf	_PC_IDR,#4,L7402
-3045  e50d 1a01          	or	a,(OFST-1,sp)
-3047  e50f 2003          	jra	L1502
-3048  e511               L7402:
+3042  e550 7209500b04    	btjf	_PC_IDR,#4,L7402
+3045  e555 1a01          	or	a,(OFST-1,sp)
+3047  e557 2003          	jra	L1502
+3048  e559               L7402:
 3049                     ; 200       else InByte &= (uint8_t)(~bitnum);             // SPI incoming bit = 0
-3051  e511 43            	cpl	a
-3052  e512 1401          	and	a,(OFST-1,sp)
-3053  e514               L1502:
-3054  e514 6b01          	ld	(OFST-1,sp),a
+3051  e559 43            	cpl	a
+3052  e55a 1401          	and	a,(OFST-1,sp)
+3053  e55c               L1502:
+3054  e55c 6b01          	ld	(OFST-1,sp),a
 3056                     ; 202       PC_ODR |= (uint8_t)0x04;                       // SCK high
-3058  e516 7214500a      	bset	_PC_ODR,#2
+3058  e55e 7214500a      	bset	_PC_ODR,#2
 3059                     ; 203       nop();
-3062  e51a 9d            	nop	
+3062  e562 9d            	nop	
 3064                     ; 204       PC_ODR &= (uint8_t)(~0x04);                    // SCK low
-3067  e51b 7215500a      	bres	_PC_ODR,#2
+3067  e563 7215500a      	bres	_PC_ODR,#2
 3068                     ; 206       bitnum = (uint8_t)(bitnum >> 1);               // Shift bitnum right one place
-3070  e51f 0402          	srl	(OFST+0,sp)
-3072  e521               L3402:
+3070  e567 0402          	srl	(OFST+0,sp)
+3072  e569               L3402:
 3073                     ; 195     while(bitnum != 0) {
-3075  e521 7b02          	ld	a,(OFST+0,sp)
-3076  e523 26e3          	jrne	L7302
+3075  e569 7b02          	ld	a,(OFST+0,sp)
+3076  e56b 26e3          	jrne	L7302
 3077                     ; 210   *pChunk++ = InByte;                                // Save byte in the buffer
-3079  e525 1e03          	ldw	x,(OFST+1,sp)
-3080  e527 7b01          	ld	a,(OFST-1,sp)
-3081  e529 f7            	ld	(x),a
-3082  e52a 5c            	incw	x
-3083  e52b 1f03          	ldw	(OFST+1,sp),x
-3084  e52d               L3302:
+3079  e56d 1e03          	ldw	x,(OFST+1,sp)
+3080  e56f 7b01          	ld	a,(OFST-1,sp)
+3081  e571 f7            	ld	(x),a
+3082  e572 5c            	incw	x
+3083  e573 1f03          	ldw	(OFST+1,sp),x
+3084  e575               L3302:
 3085                     ; 192   while (nBytes--) {
-3087  e52d 1e07          	ldw	x,(OFST+5,sp)
-3088  e52f 5a            	decw	x
-3089  e530 1f07          	ldw	(OFST+5,sp),x
-3090  e532 5c            	incw	x
-3091  e533 26cb          	jrne	L1302
+3087  e575 1e07          	ldw	x,(OFST+5,sp)
+3088  e577 5a            	decw	x
+3089  e578 1f07          	ldw	(OFST+5,sp),x
+3090  e57a 5c            	incw	x
+3091  e57b 26cb          	jrne	L1302
 3092                     ; 212 }
-3095  e535 5b04          	addw	sp,#4
-3096  e537 81            	ret	
+3095  e57d 5b04          	addw	sp,#4
+3096  e57f 81            	ret	
 3109                     	xref	_wait_timer
 3110                     	xdef	_SpiReadChunk
 3111                     	xdef	_SpiReadByte

@@ -644,7 +644,7 @@ static const char g_HtmlPageConfiguration[] =
   "If you change the highest octet of the MAC you MUST use an even number to<br>"
   "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
   "multicast and will not work.<br>"
-  "Code Revision 20201126 1527</p>"
+  "Code Revision 20201128 1733</p>"
   "%y03/91%y02Reboot</button></form>"
   "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -827,7 +827,7 @@ static const char g_HtmlPageConfiguration[] =
   "</form>"
   "<p>"
   "See Documentation for help<br>"
-  "Code Revision 20201126 1527</p>"
+  "Code Revision 20201128 1733</p>"
   "%y03/91%y02Reboot</button></form>"
   "<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -3526,74 +3526,78 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
           switch(pSocket->ParseNum)
 	  {
 #if GPIO_SUPPORT == 1 // Build control for 16 outputs
-	    case 0:  IO_8to1 &= (uint8_t)(~0x01);  break; // Relay-01 OFF
-	    case 1:  IO_8to1 |= (uint8_t)0x01;     break; // Relay-01 ON
-	    case 2:  IO_8to1 &= (uint8_t)(~0x02);  break; // Relay-02 OFF
-	    case 3:  IO_8to1 |= (uint8_t)0x02;     break; // Relay-02 ON
-	    case 4:  IO_8to1 &= (uint8_t)(~0x04);  break; // Relay-03 OFF
-	    case 5:  IO_8to1 |= (uint8_t)0x04;     break; // Relay-03 ON
-	    case 6:  IO_8to1 &= (uint8_t)(~0x08);  break; // Relay-04 OFF
-	    case 7:  IO_8to1 |= (uint8_t)0x08;     break; // Relay-04 ON
-	    case 8:  IO_8to1 &= (uint8_t)(~0x10);  break; // Relay-05 OFF
-	    case 9:  IO_8to1 |= (uint8_t)0x10;     break; // Relay-05 ON
-	    case 10: IO_8to1 &= (uint8_t)(~0x20);  break; // Relay-06 OFF
-	    case 11: IO_8to1 |= (uint8_t)0x20;     break; // Relay-06 ON
-	    case 12: IO_8to1 &= (uint8_t)(~0x40);  break; // Relay-07 OFF
-	    case 13: IO_8to1 |= (uint8_t)0x40;     break; // Relay-07 ON
-	    case 14: IO_8to1 &= (uint8_t)(~0x80);  break; // Relay-08 OFF
-	    case 15: IO_8to1 |= (uint8_t)0x80;     break; // Relay-08 ON
-	    case 16: IO_16to9 &= (uint8_t)(~0x01); break; // Relay-09 OFF
-	    case 17: IO_16to9 |= (uint8_t)0x01;    break; // Relay-09 ON
-	    case 18: IO_16to9 &= (uint8_t)(~0x02); break; // Relay-10 OFF
-	    case 19: IO_16to9 |= (uint8_t)0x02;    break; // Relay-10 ON
-	    case 20: IO_16to9 &= (uint8_t)(~0x04); break; // Relay-11 OFF
-	    case 21: IO_16to9 |= (uint8_t)0x04;    break; // Relay-11 ON
-	    case 22: IO_16to9 &= (uint8_t)(~0x08); break; // Relay-12 OFF
-	    case 23: IO_16to9 |= (uint8_t)0x08;    break; // Relay-12 ON
-	    case 24: IO_16to9 &= (uint8_t)(~0x10); break; // Relay-13 OFF
-	    case 25: IO_16to9 |= (uint8_t)0x10;    break; // Relay-13 ON
-	    case 26: IO_16to9 &= (uint8_t)(~0x20); break; // Relay-14 OFF
-	    case 27: IO_16to9 |= (uint8_t)0x20;    break; // Relay-14 ON
-	    case 28: IO_16to9 &= (uint8_t)(~0x40); break; // Relay-15 OFF
-	    case 29: IO_16to9 |= (uint8_t)0x40;    break; // Relay-15 ON
-	    case 30: IO_16to9 &= (uint8_t)(~0x80); break; // Relay-16 OFF
-	    case 31: IO_16to9 |= (uint8_t)0x80;    break; // Relay-16 ON
+	    case 0:  IO_8to1 &= (uint8_t)(~0x01);  parse_complete = 1; break; // Relay-01 OFF
+	    case 1:  IO_8to1 |= (uint8_t)0x01;     parse_complete = 1; break; // Relay-01 ON
+	    case 2:  IO_8to1 &= (uint8_t)(~0x02);  parse_complete = 1; break; // Relay-02 OFF
+	    case 3:  IO_8to1 |= (uint8_t)0x02;     parse_complete = 1; break; // Relay-02 ON
+	    case 4:  IO_8to1 &= (uint8_t)(~0x04);  parse_complete = 1; break; // Relay-03 OFF
+	    case 5:  IO_8to1 |= (uint8_t)0x04;     parse_complete = 1; break; // Relay-03 ON
+	    case 6:  IO_8to1 &= (uint8_t)(~0x08);  parse_complete = 1; break; // Relay-04 OFF
+	    case 7:  IO_8to1 |= (uint8_t)0x08;     parse_complete = 1; break; // Relay-04 ON
+	    case 8:  IO_8to1 &= (uint8_t)(~0x10);  parse_complete = 1; break; // Relay-05 OFF
+	    case 9:  IO_8to1 |= (uint8_t)0x10;     parse_complete = 1; break; // Relay-05 ON
+	    case 10: IO_8to1 &= (uint8_t)(~0x20);  parse_complete = 1; break; // Relay-06 OFF
+	    case 11: IO_8to1 |= (uint8_t)0x20;     parse_complete = 1; break; // Relay-06 ON
+	    case 12: IO_8to1 &= (uint8_t)(~0x40);  parse_complete = 1; break; // Relay-07 OFF
+	    case 13: IO_8to1 |= (uint8_t)0x40;     parse_complete = 1; break; // Relay-07 ON
+	    case 14: IO_8to1 &= (uint8_t)(~0x80);  parse_complete = 1; break; // Relay-08 OFF
+	    case 15: IO_8to1 |= (uint8_t)0x80;     parse_complete = 1; break; // Relay-08 ON
+	    case 16: IO_16to9 &= (uint8_t)(~0x01); parse_complete = 1; break; // Relay-09 OFF
+	    case 17: IO_16to9 |= (uint8_t)0x01;    parse_complete = 1; break; // Relay-09 ON
+	    case 18: IO_16to9 &= (uint8_t)(~0x02); parse_complete = 1; break; // Relay-10 OFF
+	    case 19: IO_16to9 |= (uint8_t)0x02;    parse_complete = 1; break; // Relay-10 ON
+	    case 20: IO_16to9 &= (uint8_t)(~0x04); parse_complete = 1; break; // Relay-11 OFF
+	    case 21: IO_16to9 |= (uint8_t)0x04;    parse_complete = 1; break; // Relay-11 ON
+	    case 22: IO_16to9 &= (uint8_t)(~0x08); parse_complete = 1; break; // Relay-12 OFF
+	    case 23: IO_16to9 |= (uint8_t)0x08;    parse_complete = 1; break; // Relay-12 ON
+	    case 24: IO_16to9 &= (uint8_t)(~0x10); parse_complete = 1; break; // Relay-13 OFF
+	    case 25: IO_16to9 |= (uint8_t)0x10;    parse_complete = 1; break; // Relay-13 ON
+	    case 26: IO_16to9 &= (uint8_t)(~0x20); parse_complete = 1; break; // Relay-14 OFF
+	    case 27: IO_16to9 |= (uint8_t)0x20;    parse_complete = 1; break; // Relay-14 ON
+	    case 28: IO_16to9 &= (uint8_t)(~0x40); parse_complete = 1; break; // Relay-15 OFF
+	    case 29: IO_16to9 |= (uint8_t)0x40;    parse_complete = 1; break; // Relay-15 ON
+	    case 30: IO_16to9 &= (uint8_t)(~0x80); parse_complete = 1; break; // Relay-16 OFF
+	    case 31: IO_16to9 |= (uint8_t)0x80;    parse_complete = 1; break; // Relay-16 ON
 	    
 	    case 55:
   	      IO_8to1 = (uint8_t)0xff;  // Relays 1-8 ON
   	      IO_16to9 = (uint8_t)0xff; // Relays 9-16 ON
+	      parse_complete = 1; 
 	      break;
 	      
 	    case 56:
               IO_8to1 = (uint8_t)0x00;  // Relays 1-8 OFF
               IO_16to9 = (uint8_t)0x00; // Relays 9-16 OFF
+	      parse_complete = 1; 
 	      break;
 #endif // GPIO_SUPPORT == 1
 
 #if GPIO_SUPPORT == 2 // Build control for 8 outputs / 8 inputs
-	    case 0:  IO_8to1 &= (uint8_t)(~0x01);  break; // Relay-01 OFF
-	    case 1:  IO_8to1 |= (uint8_t)0x01;     break; // Relay-01 ON
-	    case 2:  IO_8to1 &= (uint8_t)(~0x02);  break; // Relay-02 OFF
-	    case 3:  IO_8to1 |= (uint8_t)0x02;     break; // Relay-02 ON
-	    case 4:  IO_8to1 &= (uint8_t)(~0x04);  break; // Relay-03 OFF
-	    case 5:  IO_8to1 |= (uint8_t)0x04;     break; // Relay-03 ON
-	    case 6:  IO_8to1 &= (uint8_t)(~0x08);  break; // Relay-04 OFF
-	    case 7:  IO_8to1 |= (uint8_t)0x08;     break; // Relay-04 ON
-	    case 8:  IO_8to1 &= (uint8_t)(~0x10);  break; // Relay-05 OFF
-	    case 9:  IO_8to1 |= (uint8_t)0x10;     break; // Relay-05 ON
-	    case 10: IO_8to1 &= (uint8_t)(~0x20);  break; // Relay-06 OFF
-	    case 11: IO_8to1 |= (uint8_t)0x20;     break; // Relay-06 ON
-	    case 12: IO_8to1 &= (uint8_t)(~0x40);  break; // Relay-07 OFF
-	    case 13: IO_8to1 |= (uint8_t)0x40;     break; // Relay-07 ON
-	    case 14: IO_8to1 &= (uint8_t)(~0x80);  break; // Relay-08 OFF
-	    case 15: IO_8to1 |= (uint8_t)0x80;     break; // Relay-08 ON
+	    case 0:  IO_8to1 &= (uint8_t)(~0x01);  parse_complete = 1; break; // Relay-01 OFF
+	    case 1:  IO_8to1 |= (uint8_t)0x01;     parse_complete = 1; break; // Relay-01 ON
+	    case 2:  IO_8to1 &= (uint8_t)(~0x02);  parse_complete = 1; break; // Relay-02 OFF
+	    case 3:  IO_8to1 |= (uint8_t)0x02;     parse_complete = 1; break; // Relay-02 ON
+	    case 4:  IO_8to1 &= (uint8_t)(~0x04);  parse_complete = 1; break; // Relay-03 OFF
+	    case 5:  IO_8to1 |= (uint8_t)0x04;     parse_complete = 1; break; // Relay-03 ON
+	    case 6:  IO_8to1 &= (uint8_t)(~0x08);  parse_complete = 1; break; // Relay-04 OFF
+	    case 7:  IO_8to1 |= (uint8_t)0x08;     parse_complete = 1; break; // Relay-04 ON
+	    case 8:  IO_8to1 &= (uint8_t)(~0x10);  parse_complete = 1; break; // Relay-05 OFF
+	    case 9:  IO_8to1 |= (uint8_t)0x10;     parse_complete = 1; break; // Relay-05 ON
+	    case 10: IO_8to1 &= (uint8_t)(~0x20);  parse_complete = 1; break; // Relay-06 OFF
+	    case 11: IO_8to1 |= (uint8_t)0x20;     parse_complete = 1; break; // Relay-06 ON
+	    case 12: IO_8to1 &= (uint8_t)(~0x40);  parse_complete = 1; break; // Relay-07 OFF
+	    case 13: IO_8to1 |= (uint8_t)0x40;     parse_complete = 1; break; // Relay-07 ON
+	    case 14: IO_8to1 &= (uint8_t)(~0x80);  parse_complete = 1; break; // Relay-08 OFF
+	    case 15: IO_8to1 |= (uint8_t)0x80;     parse_complete = 1; break; // Relay-08 ON
 	    
 	    case 55:
   	      IO_8to1 = (uint8_t)0xff; // Relays 1-8 ON
+	      parse_complete = 1; 
 	      break;
 	      
 	    case 56:
               IO_8to1 = (uint8_t)0x00; // Relays 1-8 OFF
+	      parse_complete = 1; 
 	      break;
 #endif // GPIO_SUPPORT == 2
 

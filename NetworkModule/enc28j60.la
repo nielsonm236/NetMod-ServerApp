@@ -34,15 +34,15 @@
 2665                     ; 292   SpiWriteByte((uint8_t)(OPCODE_RCR | (nRegister & REGISTER_MASK)));
 2667  9f31 7b02          	ld	a,(OFST+1,sp)
 2668  9f33 a41f          	and	a,#31
-2669  9f35 cde465        	call	_SpiWriteByte
+2669  9f35 cde4ad        	call	_SpiWriteByte
 2671                     ; 293   if (nRegister & REGISTER_NEEDDUMMY) SpiWriteByte(0);
 2673  9f38 7b02          	ld	a,(OFST+1,sp)
 2674  9f3a 2a04          	jrpl	L1761
 2677  9f3c 4f            	clr	a
-2678  9f3d cde465        	call	_SpiWriteByte
+2678  9f3d cde4ad        	call	_SpiWriteByte
 2680  9f40               L1761:
 2681                     ; 294   nByte = SpiReadByte();
-2683  9f40 cde4ce        	call	_SpiReadByte
+2683  9f40 cde516        	call	_SpiReadByte
 2685  9f43 6b01          	ld	(OFST+0,sp),a
 2687                     ; 296   deselect();
 2689  9f45 cd9f26        	call	_deselect
@@ -62,10 +62,10 @@
 2753  9f50 7b01          	ld	a,(OFST+1,sp)
 2754  9f52 a41f          	and	a,#31
 2755  9f54 aa40          	or	a,#64
-2756  9f56 cde465        	call	_SpiWriteByte
+2756  9f56 cde4ad        	call	_SpiWriteByte
 2758                     ; 309   SpiWriteByte(nData);
 2760  9f59 7b02          	ld	a,(OFST+2,sp)
-2761  9f5b cde465        	call	_SpiWriteByte
+2761  9f5b cde4ad        	call	_SpiWriteByte
 2763                     ; 311   deselect();
 2765  9f5e cd9f26        	call	_deselect
 2767                     ; 312 }
@@ -83,10 +83,10 @@
 2827  9f67 7b01          	ld	a,(OFST+1,sp)
 2828  9f69 a41f          	and	a,#31
 2829  9f6b aa80          	or	a,#128
-2830  9f6d cde465        	call	_SpiWriteByte
+2830  9f6d cde4ad        	call	_SpiWriteByte
 2832                     ; 322   SpiWriteByte(nMask);
 2834  9f70 7b02          	ld	a,(OFST+2,sp)
-2835  9f72 cde465        	call	_SpiWriteByte
+2835  9f72 cde4ad        	call	_SpiWriteByte
 2837                     ; 324   deselect();
 2839  9f75 cd9f26        	call	_deselect
 2841                     ; 325 }
@@ -104,10 +104,10 @@
 2902  9f7e 7b01          	ld	a,(OFST+1,sp)
 2903  9f80 a41f          	and	a,#31
 2904  9f82 aaa0          	or	a,#160
-2905  9f84 cde465        	call	_SpiWriteByte
+2905  9f84 cde4ad        	call	_SpiWriteByte
 2907                     ; 335   SpiWriteByte(nMask);
 2909  9f87 7b02          	ld	a,(OFST+2,sp)
-2910  9f89 cde465        	call	_SpiWriteByte
+2910  9f89 cde4ad        	call	_SpiWriteByte
 2912                     ; 337   deselect();
 2914  9f8c cd9f26        	call	_deselect
 2916                     ; 338 }
@@ -243,12 +243,12 @@
 3266  a033 cd9f20        	call	_select
 3268                     ; 408   SpiWriteByte(OPCODE_SRC); // Reset command
 3270  a036 a6ff          	ld	a,#255
-3271  a038 cde465        	call	_SpiWriteByte
+3271  a038 cde4ad        	call	_SpiWriteByte
 3273                     ; 409   deselect();
 3275  a03b cd9f26        	call	_deselect
 3277                     ; 417   wait_timer((uint16_t)10000); // delay 10 ms
 3279  a03e ae2710        	ldw	x,#10000
-3280  a041 cde613        	call	_wait_timer
+3280  a041 cde65b        	call	_wait_timer
 3282                     ; 420   Enc28j60WritePhy(PHY_PHCON1, (uint16_t)(1<<PHY_PHCON1_PRST)); // Reset command
 3284  a044 ae8000        	ldw	x,#32768
 3285  a047 89            	pushw	x
@@ -456,7 +456,7 @@
 3636                     ; 631     RXERIF_counter++;
 3638  a190 ae006f        	ldw	x,#_RXERIF_counter
 3639  a193 a601          	ld	a,#1
-3640  a195 cdf8a2        	call	c_lgadc
+3640  a195 cdf8ea        	call	c_lgadc
 3642  a198               L3112:
 3643                     ; 636   Enc28j60SwitchBank(BANK1);
 3645  a198 a601          	ld	a,#1
@@ -473,14 +473,14 @@
 3663  a1a9 cd9f20        	call	_select
 3665                     ; 641   SpiWriteByte(OPCODE_RBM);	 // Set ENC28J60 to send receive data on SPI
 3667  a1ac a63a          	ld	a,#58
-3668  a1ae cde465        	call	_SpiWriteByte
+3668  a1ae cde4ad        	call	_SpiWriteByte
 3670                     ; 644   nNextPacket = ((uint16_t) SpiReadByte() << 0);
-3672  a1b1 cde4ce        	call	_SpiReadByte
+3672  a1b1 cde516        	call	_SpiReadByte
 3674  a1b4 5f            	clrw	x
 3675  a1b5 97            	ld	xl,a
 3676  a1b6 1f03          	ldw	(OFST-1,sp),x
 3678                     ; 645   nNextPacket |= ((uint16_t) SpiReadByte() << 8);
-3680  a1b8 cde4ce        	call	_SpiReadByte
+3680  a1b8 cde516        	call	_SpiReadByte
 3682  a1bb 5f            	clrw	x
 3683  a1bc 97            	ld	xl,a
 3684  a1bd 7b04          	ld	a,(OFST+0,sp)
@@ -489,12 +489,12 @@
 3687  a1c2 01            	rrwa	x,a
 3688  a1c3 1f03          	ldw	(OFST-1,sp),x
 3690                     ; 648   nBytes = ((uint16_t) SpiReadByte() << 0);
-3692  a1c5 cde4ce        	call	_SpiReadByte
+3692  a1c5 cde516        	call	_SpiReadByte
 3694  a1c8 5f            	clrw	x
 3695  a1c9 97            	ld	xl,a
 3696  a1ca 1f01          	ldw	(OFST-3,sp),x
 3698                     ; 649   nBytes |= ((uint16_t) SpiReadByte() << 8);
-3700  a1cc cde4ce        	call	_SpiReadByte
+3700  a1cc cde516        	call	_SpiReadByte
 3702  a1cf 5f            	clrw	x
 3703  a1d0 97            	ld	xl,a
 3704  a1d1 7b02          	ld	a,(OFST-2,sp)
@@ -505,16 +505,16 @@
 3711  a1d7 1d0004        	subw	x,#4
 3712  a1da 1f01          	ldw	(OFST-3,sp),x
 3714                     ; 653   SpiReadByte();
-3716  a1dc cde4ce        	call	_SpiReadByte
+3716  a1dc cde516        	call	_SpiReadByte
 3718                     ; 654   SpiReadByte();
-3720  a1df cde4ce        	call	_SpiReadByte
+3720  a1df cde516        	call	_SpiReadByte
 3722                     ; 661   if (nBytes <= ENC28J60_MAXFRAME) SpiReadChunk(pBuffer, nBytes);
 3724  a1e2 1e01          	ldw	x,(OFST-3,sp)
 3725  a1e4 a301f5        	cpw	x,#501
 3726  a1e7 2407          	jruge	L7112
 3729  a1e9 89            	pushw	x
 3730  a1ea 1e07          	ldw	x,(OFST+3,sp)
-3731  a1ec cde4f8        	call	_SpiReadChunk
+3731  a1ec cde540        	call	_SpiReadChunk
 3733  a1ef 85            	popw	x
 3734  a1f0               L7112:
 3735                     ; 663   deselect();
@@ -607,15 +607,15 @@
 3952  a26e cd9f20        	call	_select
 3954                     ; 715   SpiWriteByte(OPCODE_WBM);	 // Set ENC28J60 to receive transmit data on SPI
 3956  a271 a67a          	ld	a,#122
-3957  a273 cde465        	call	_SpiWriteByte
+3957  a273 cde4ad        	call	_SpiWriteByte
 3959                     ; 717   SpiWriteByte(0);		 // Per-packet-control-byte
 3961  a276 4f            	clr	a
-3962  a277 cde465        	call	_SpiWriteByte
+3962  a277 cde4ad        	call	_SpiWriteByte
 3964                     ; 729   SpiWriteChunk(pBuffer, nBytes); // Copy data to the ENC28J60 transmit buffer
 3966  a27a 1e0a          	ldw	x,(OFST+5,sp)
 3967  a27c 89            	pushw	x
 3968  a27d 1e08          	ldw	x,(OFST+3,sp)
-3969  a27f cde48f        	call	_SpiWriteChunk
+3969  a27f cde4d7        	call	_SpiWriteChunk
 3971  a282 85            	popw	x
 3972                     ; 731   deselect();
 3974  a283 cd9f26        	call	_deselect
@@ -627,10 +627,10 @@
 3983                     ; 803       TXERIF_counter++;
 3985  a28f ae006b        	ldw	x,#_TXERIF_counter
 3986  a292 a601          	ld	a,#1
-3987  a294 cdf8a2        	call	c_lgadc
+3987  a294 cdf8ea        	call	c_lgadc
 3989                     ; 806 wait_timer(10);  // Wait 10 uS
 3991  a297 ae000a        	ldw	x,#10
-3992  a29a cde613        	call	_wait_timer
+3992  a29a cde65b        	call	_wait_timer
 3994                     ; 809       Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
 3996  a29d ae1f80        	ldw	x,#8064
 3997  a2a0 cd9f63        	call	_Enc28j60SetMaskReg
@@ -647,7 +647,7 @@
 4015  a2b7               L3612:
 4016                     ; 704     wait_timer(500);  // Wait 500 uS
 4018  a2b7 ae01f4        	ldw	x,#500
-4019  a2ba cde613        	call	_wait_timer
+4019  a2ba cde65b        	call	_wait_timer
 4021  a2bd               L7512:
 4022                     ; 702   while (i--) {
 4024  a2bd 7b04          	ld	a,(OFST-1,sp)
@@ -659,7 +659,7 @@
 4031                     ; 821 TRANSMIT_counter++;
 4033  a2c9 ae0067        	ldw	x,#_TRANSMIT_counter
 4034  a2cc a601          	ld	a,#1
-4035  a2ce cdf8a2        	call	c_lgadc
+4035  a2ce cdf8ea        	call	c_lgadc
 4037                     ; 826     Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
 4039  a2d1 ae1f08        	ldw	x,#7944
 4040  a2d4 cd9f63        	call	_Enc28j60SetMaskReg
@@ -702,10 +702,10 @@
 4096                     ; 845       TXERIF_counter++;
 4098  a30f ae006b        	ldw	x,#_TXERIF_counter
 4099  a312 a601          	ld	a,#1
-4100  a314 cdf8a2        	call	c_lgadc
+4100  a314 cdf8ea        	call	c_lgadc
 4102                     ; 848 wait_timer(10);  // Wait 10 uS
 4104  a317 ae000a        	ldw	x,#10
-4105  a31a cde613        	call	_wait_timer
+4105  a31a cde65b        	call	_wait_timer
 4107                     ; 851       for (i = 0; i < 16; i++) {
 4109  a31d 0f04          	clr	(OFST-1,sp)
 4111  a31f               L5022:
@@ -713,7 +713,7 @@
 4114  a31f cda3a1        	call	_read_TSV
 4116                     ; 855 wait_timer(10);  // Wait 10 uS
 4118  a322 ae000a        	ldw	x,#10
-4119  a325 cde613        	call	_wait_timer
+4119  a325 cde65b        	call	_wait_timer
 4121                     ; 860         late_collision = 0;
 4123                     ; 861         if (tsv_byte[3] & 0x20) late_collision = 1;
 4125  a328 720b001371    	btjf	_tsv_byte+3,#5,L3022
@@ -728,10 +728,10 @@
 4141  a339 0f05          	clr	(OFST+0,sp)
 4143                     ; 870           TXERIF_counter++;
 4145  a33b ae006b        	ldw	x,#_TXERIF_counter
-4146  a33e cdf8a2        	call	c_lgadc
+4146  a33e cdf8ea        	call	c_lgadc
 4148                     ; 873 wait_timer(10);  // Wait 10 uS
 4150  a341 ae000a        	ldw	x,#10
-4151  a344 cde613        	call	_wait_timer
+4151  a344 cde65b        	call	_wait_timer
 4153                     ; 877           Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
 4155  a347 ae1f80        	ldw	x,#8064
 4156  a34a cd9f63        	call	_Enc28j60SetMaskReg
@@ -797,7 +797,7 @@
 4308       00000005      OFST:	set	5
 4311                     ; 913   wait_timer((uint16_t)10);
 4313  a3a3 ae000a        	ldw	x,#10
-4314  a3a6 cde613        	call	_wait_timer
+4314  a3a6 cde65b        	call	_wait_timer
 4316                     ; 917   saved_ERDPTL = Enc28j60ReadReg(BANK0_ERDPTL);
 4318  a3a9 4f            	clr	a
 4319  a3aa cd9f2c        	call	_Enc28j60ReadReg
@@ -839,7 +839,7 @@
 4373  a3e2 cd9f20        	call	_select
 4375                     ; 931   SpiWriteByte(OPCODE_RBM);
 4377  a3e5 a63a          	ld	a,#58
-4378  a3e7 cde465        	call	_SpiWriteByte
+4378  a3e7 cde4ad        	call	_SpiWriteByte
 4380                     ; 936     for (i=0; i<7; i++) {
 4382  a3ea 4f            	clr	a
 4383  a3eb 6b01          	ld	(OFST-4,sp),a
@@ -848,7 +848,7 @@
 4388  a3ed 5f            	clrw	x
 4389  a3ee 97            	ld	xl,a
 4390  a3ef 89            	pushw	x
-4391  a3f0 cde4ce        	call	_SpiReadByte
+4391  a3f0 cde516        	call	_SpiReadByte
 4393  a3f3 85            	popw	x
 4394  a3f4 d70010        	ld	(_tsv_byte,x),a
 4395                     ; 936     for (i=0; i<7; i++) {
@@ -860,7 +860,7 @@
 4406  a3ff cd9f26        	call	_deselect
 4408                     ; 944 wait_timer(10);  // Wait 10 uS
 4410  a402 ae000a        	ldw	x,#10
-4411  a405 cde613        	call	_wait_timer
+4411  a405 cde65b        	call	_wait_timer
 4413                     ; 948   Enc28j60WriteReg(BANK0_ERDPTL, saved_ERDPTL);
 4415  a408 7b02          	ld	a,(OFST-3,sp)
 4416  a40a 5f            	clrw	x

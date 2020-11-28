@@ -1180,6 +1180,30 @@ void publish_outbound(void)
   // Input) and PUBLISHes state messages to the Broker if a pin state changed.
   // The function also checks for a state_request and sends the 2 byte "all
   // pin states" message as a response.
+  //
+  // I don't understand this. Queueing multiple PUBLISH messages just doesn't
+  // work. I have to get any Queued PUBLISH message completely transmitted
+  // before I can queue another. On the other hand we are so constrained by
+  // lack of RAM that we couldn't queue more than 3 or 4 publish messages
+  // anyway, so an alternative is necessary.
+  //
+  // The workaround implemented is to queue one message, return to the main
+  // loop to let it transmit, then come back here and queue the next message.
+  // But this means we need to track the input pin changes differently. For
+  // instance, if more than one pin changes at a time, but we can only send
+  // the message for one pin at a time, we need to track what was sent.
+  //
+  // The way the implementation tracks the pin changes that were sent (or not
+  // yet sent) is to xor the IO_16to9 value with what was previously sent.
+  // This provides a pin by pin indication of what has changed since the last
+  // publish.
+  //
+  // Note that if the high order bits were to keep changing very quickly the
+  // code might not get to the low order bits as often. This is a flaw but
+  // may not matter much in this application. The code only checks and sends
+  // a message at the periodic_timer_expired(), thus it takes 16 expirations
+  // to get all bits sent, thus frequent changes in higher order bits will
+  // supersede the processing of lower order bits.
   
   uint8_t xor_tmp;
 
@@ -1217,32 +1241,6 @@ void publish_outbound(void)
     state_request = STATE_REQUEST_IDLE;
     publish_pinstate_all();
   }
-  
-  // I don't understand this. Queueing multiple PUBLISH messages just doesn't
-  // work. I have to get any Queued PUBLISH message completely transmitted
-  // before I can queue another.
-  //
-  // On the other hand we are so constrained by lack of RAM that we couldn't
-  // queue more than 3 or 4 publish messages anyway, so an alternative is
-  // necessary.
-  //
-  // The workaround implemented is to queue one message, return to the main
-  // loop to let it transmit, then come back here and queue the next message.
-  // But this means we need to track the input pin changes differently. For
-  // instance, if more than one pin changes at a time, but we can only send
-  // the message for one pin at a time, we need to track what was sent.
-  //
-  // The way the implementation tracks the pin changes that were sent (or not
-  // yet sent) is to xor the IO_16to9 value with what was previously sent.
-  // This provides a pin by pin indication of what has changed since the last
-  // publish.
-  //
-  // Note that if the high order bits were to keep changing very quickly the
-  // code might not get to the low order bits as often. This is a flaw but
-  // may not matter much in this application. The code only checks and sends
-  // a message at the periodic_timer_expired(), thus it takes 16 expirations
-  // to get all bits sent, thus frequent changes in higher order bits will
-  // supersede the processing of lower order bits.
 }
 
 
@@ -1682,8 +1680,9 @@ void check_runtime_changes(void)
   read_input_registers();
 
   if (parse_complete == 1 || mqtt_parse_complete == 1) {
-    // Check for changes from the user via the GUI or MQTT. If parse_complete
-    // == 1 all TCP Fragments have been received during HTML POST processing.
+    // Check for changes from the user via the GUI, MQTT, or REST commands.
+    // If parse_complete == 1 all TCP Fragments have been received during HTML
+    // POST processing, OR a REST command was processed.
     // If mqtt_parse_complete == 1 an MQTT relay state change has been received.
     
 #if GPIO_SUPPORT == 1 // Build control for 16 outputs

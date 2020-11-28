@@ -363,7 +363,7 @@
  376  1782 3c703e536565  	dc.b	"<p>See Documentati"
  377  1794 6f6e20666f72  	dc.b	"on for help<br>Cod"
  378  17a6 652052657669  	dc.b	"e Revision 2020112"
- 379  17b8 362031353237  	dc.b	"6 1527</p>%y03/91%"
+ 379  17b8 382031373333  	dc.b	"8 1733</p>%y03/91%"
  380  17ca 793032526562  	dc.b	"y02Reboot</button>"
  381  17dc 3c2f666f726d  	dc.b	"</form><br><br>%y0"
  382  17ee 332f36312579  	dc.b	"3/61%y02Refresh</b"
@@ -1970,21 +1970,21 @@
 3189                     	switch	.const
 3190  1d05               L622:
 3191  1d05 08ac          	dc.w	L1701
-3192  1d07 08b3          	dc.w	L3701
-3193  1d09 08ba          	dc.w	L5701
-3194  1d0b 08c1          	dc.w	L7701
-3195  1d0d 08c8          	dc.w	L1011
-3196  1d0f 08cf          	dc.w	L3011
-3197  1d11 08d6          	dc.w	L5011
-3198  1d13 08dd          	dc.w	L7011
-3199  1d15 08e4          	dc.w	L1111
-3200  1d17 08eb          	dc.w	L3111
-3201  1d19 08f2          	dc.w	L5111
-3202  1d1b 08f9          	dc.w	L7111
-3203  1d1d 0900          	dc.w	L1211
-3204  1d1f 0907          	dc.w	L3211
-3205  1d21 090e          	dc.w	L5211
-3206  1d23 0915          	dc.w	L7211
+3192  1d07 08b7          	dc.w	L3701
+3193  1d09 08c2          	dc.w	L5701
+3194  1d0b 08cd          	dc.w	L7701
+3195  1d0d 08d8          	dc.w	L1011
+3196  1d0f 08e3          	dc.w	L3011
+3197  1d11 08ee          	dc.w	L5011
+3198  1d13 08f9          	dc.w	L7011
+3199  1d15 0904          	dc.w	L1111
+3200  1d17 090f          	dc.w	L3111
+3201  1d19 091a          	dc.w	L5111
+3202  1d1b 0925          	dc.w	L7111
+3203  1d1d 0930          	dc.w	L1211
+3204  1d1f 093b          	dc.w	L3211
+3205  1d21 0946          	dc.w	L5211
+3206  1d23 0951          	dc.w	L7211
 3207                     ; 2434 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 3207                     ; 2435 {
 3208                     .text:	section	.text,new
@@ -3319,8 +3319,8 @@
 4990  078d 1e0b          	ldw	x,(OFST+7,sp)
 4991  078f f6            	ld	a,(x)
 4992  0790 a10d          	cp	a,#13
-4993  0792 2703cc09c4    	jrne	L5771
-4995  0797 cc09bd        	jra	L1002
+4993  0792 2703cc0a0c    	jrne	L5771
+4995  0797 cc0a05        	jra	L1002
 4996  079a               L7771:
 4997                     ; 3388         if (pSocket->ParseState == PARSE_SLASH1) {
 4999  079a 1e0b          	ldw	x,(OFST+7,sp)
@@ -3366,7 +3366,7 @@
 5051                     ; 3406             pSocket->nPrevBytes = 0xFFFF;
 5053  07d5 90aeffff      	ldw	y,#65535
 5054  07d9 ef0b          	ldw	(11,x),y
-5055  07db cc09ac        	jra	L3102
+5055  07db cc09f4        	jra	L3102
 5056  07de               L5002:
 5057                     ; 3410         else if (pSocket->ParseState == PARSE_NUM10) {
 5059  07de a101          	cp	a,#1
@@ -3392,7 +3392,7 @@
 5085                     ; 3422             pSocket->nPrevBytes = 0xFFFF;
 5087  07fe 90aeffff      	ldw	y,#65535
 5088  0802 ef0b          	ldw	(11,x),y
-5090  0804 cc09ac        	jra	L3102
+5090  0804 cc09f4        	jra	L3102
 5091  0807               L7102:
 5092                     ; 3426 	  else if (*pBuffer >= '0' && *pBuffer <= '9') { // Check for user entry error
 5094  0807 a130          	cp	a,#48
@@ -3450,7 +3450,7 @@
 5161  084a 1e09          	ldw	x,(OFST+5,sp)
 5162  084c 5a            	decw	x
 5163  084d 1f09          	ldw	(OFST+5,sp),x
-5165  084f cc09ac        	jra	L3102
+5165  084f cc09f4        	jra	L3102
 5166  0852               L3302:
 5167                     ; 3455             pSocket->nParseLeft = 0;
 5169                     ; 3456             pSocket->ParseState = PARSE_FAIL;
@@ -3459,14 +3459,14 @@
 5175  0856 6f06          	clr	(6,x)
 5176  0858               LC022:
 5177  0858 e70a          	ld	(10,x),a
-5178  085a cc09ac        	jra	L3102
+5178  085a cc09f4        	jra	L3102
 5179  085d               L1302:
 5180                     ; 3460         else if (pSocket->ParseState == PARSE_VAL) {
 5182  085d a104          	cp	a,#4
 5183  085f 26f9          	jrne	L3102
 5184                     ; 3526           switch(pSocket->ParseNum)
 5186  0861 e609          	ld	a,(9,x)
-5188                     ; 3701 	      break;
+5188                     ; 3705 	      break;
 5189  0863 a110          	cp	a,#16
 5190  0865 2407          	jruge	L422
 5191  0867 5f            	clrw	x
@@ -3476,1617 +3476,1637 @@
 5195  086d fc            	jp	(x)
 5196  086e               L422:
 5197  086e a037          	sub	a,#55
-5198  0870 2603cc091c    	jreq	L1311
+5198  0870 2603cc095c    	jreq	L1311
 5199  0875 4a            	dec	a
-5200  0876 2603cc0923    	jreq	L3311
+5200  0876 2603cc0967    	jreq	L3311
 5201  087b a004          	sub	a,#4
-5202  087d 2603cc0929    	jreq	L5311
+5202  087d 2603cc0971    	jreq	L5311
 5203  0882 4a            	dec	a
-5204  0883 2603cc0938    	jreq	L7311
+5204  0883 2603cc0980    	jreq	L7311
 5205  0888 a004          	sub	a,#4
-5206  088a 2603cc0948    	jreq	L1411
+5206  088a 2603cc0990    	jreq	L1411
 5207  088f 4a            	dec	a
-5208  0890 2603cc0953    	jreq	L3411
+5208  0890 2603cc099b    	jreq	L3411
 5209  0895 4a            	dec	a
-5210  0896 2603cc0966    	jreq	L5411
+5210  0896 2603cc09ae    	jreq	L5411
 5211  089b a018          	sub	a,#24
-5212  089d 2603cc097b    	jreq	L7411
+5212  089d 2603cc09c3    	jreq	L7411
 5213  08a2 a008          	sub	a,#8
-5214  08a4 2603cc0981    	jreq	L1511
-5215  08a9 cc0991        	jra	L3511
+5214  08a4 2603cc09c9    	jreq	L1511
+5215  08a9 cc09d9        	jra	L3511
 5216  08ac               L1701:
-5217                     ; 3574 	    case 0:  IO_8to1 &= (uint8_t)(~0x01);  break; // Relay-01 OFF
+5217                     ; 3576 	    case 0:  IO_8to1 &= (uint8_t)(~0x01);  parse_complete = 1; break; // Relay-01 OFF
 5219  08ac 72110000      	bres	_IO_8to1,#0
-5222  08b0 cc09a8        	jra	L5402
-5223  08b3               L3701:
-5224                     ; 3575 	    case 1:  IO_8to1 |= (uint8_t)0x01;     break; // Relay-01 ON
-5226  08b3 72100000      	bset	_IO_8to1,#0
-5229  08b7 cc09a8        	jra	L5402
-5230  08ba               L5701:
-5231                     ; 3576 	    case 2:  IO_8to1 &= (uint8_t)(~0x02);  break; // Relay-02 OFF
-5233  08ba 72130000      	bres	_IO_8to1,#1
-5236  08be cc09a8        	jra	L5402
-5237  08c1               L7701:
-5238                     ; 3577 	    case 3:  IO_8to1 |= (uint8_t)0x02;     break; // Relay-02 ON
-5240  08c1 72120000      	bset	_IO_8to1,#1
-5243  08c5 cc09a8        	jra	L5402
-5244  08c8               L1011:
-5245                     ; 3578 	    case 4:  IO_8to1 &= (uint8_t)(~0x04);  break; // Relay-03 OFF
-5247  08c8 72150000      	bres	_IO_8to1,#2
-5250  08cc cc09a8        	jra	L5402
-5251  08cf               L3011:
-5252                     ; 3579 	    case 5:  IO_8to1 |= (uint8_t)0x04;     break; // Relay-03 ON
-5254  08cf 72140000      	bset	_IO_8to1,#2
-5257  08d3 cc09a8        	jra	L5402
-5258  08d6               L5011:
-5259                     ; 3580 	    case 6:  IO_8to1 &= (uint8_t)(~0x08);  break; // Relay-04 OFF
-5261  08d6 72170000      	bres	_IO_8to1,#3
-5264  08da cc09a8        	jra	L5402
-5265  08dd               L7011:
-5266                     ; 3581 	    case 7:  IO_8to1 |= (uint8_t)0x08;     break; // Relay-04 ON
-5268  08dd 72160000      	bset	_IO_8to1,#3
-5271  08e1 cc09a8        	jra	L5402
-5272  08e4               L1111:
-5273                     ; 3582 	    case 8:  IO_8to1 &= (uint8_t)(~0x10);  break; // Relay-05 OFF
-5275  08e4 72190000      	bres	_IO_8to1,#4
-5278  08e8 cc09a8        	jra	L5402
-5279  08eb               L3111:
-5280                     ; 3583 	    case 9:  IO_8to1 |= (uint8_t)0x10;     break; // Relay-05 ON
-5282  08eb 72180000      	bset	_IO_8to1,#4
-5285  08ef cc09a8        	jra	L5402
-5286  08f2               L5111:
-5287                     ; 3584 	    case 10: IO_8to1 &= (uint8_t)(~0x20);  break; // Relay-06 OFF
-5289  08f2 721b0000      	bres	_IO_8to1,#5
-5292  08f6 cc09a8        	jra	L5402
-5293  08f9               L7111:
-5294                     ; 3585 	    case 11: IO_8to1 |= (uint8_t)0x20;     break; // Relay-06 ON
-5296  08f9 721a0000      	bset	_IO_8to1,#5
-5299  08fd cc09a8        	jra	L5402
-5300  0900               L1211:
-5301                     ; 3586 	    case 12: IO_8to1 &= (uint8_t)(~0x40);  break; // Relay-07 OFF
-5303  0900 721d0000      	bres	_IO_8to1,#6
-5306  0904 cc09a8        	jra	L5402
-5307  0907               L3211:
-5308                     ; 3587 	    case 13: IO_8to1 |= (uint8_t)0x40;     break; // Relay-07 ON
-5310  0907 721c0000      	bset	_IO_8to1,#6
-5313  090b cc09a8        	jra	L5402
-5314  090e               L5211:
-5315                     ; 3588 	    case 14: IO_8to1 &= (uint8_t)(~0x80);  break; // Relay-08 OFF
-5317  090e 721f0000      	bres	_IO_8to1,#7
-5320  0912 cc09a8        	jra	L5402
-5321  0915               L7211:
-5322                     ; 3589 	    case 15: IO_8to1 |= (uint8_t)0x80;     break; // Relay-08 ON
-5324  0915 721e0000      	bset	_IO_8to1,#7
-5327  0919 cc09a8        	jra	L5402
-5328  091c               L1311:
-5329                     ; 3591 	    case 55:
-5329                     ; 3592   	      IO_8to1 = (uint8_t)0xff; // Relays 1-8 ON
-5331  091c 35ff0000      	mov	_IO_8to1,#255
-5332                     ; 3593 	      break;
-5334  0920 cc09a8        	jra	L5402
-5335  0923               L3311:
-5336                     ; 3595 	    case 56:
-5336                     ; 3596               IO_8to1 = (uint8_t)0x00; // Relays 1-8 OFF
-5338  0923 c70000        	ld	_IO_8to1,a
-5339                     ; 3597 	      break;
-5341  0926 cc09a8        	jra	L5402
-5342  0929               L5311:
-5343                     ; 3604 	    case 60: // Show IO Control page
-5343                     ; 3605 	      current_webpage = WEBPAGE_IOCONTROL;
-5345  0929 c70003        	ld	_current_webpage,a
-5346                     ; 3606               pSocket->pData = g_HtmlPageIOControl;
-5348  092c 90ae0008      	ldw	y,#L31_g_HtmlPageIOControl
-5349  0930 ef01          	ldw	(1,x),y
-5350                     ; 3607               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
-5352  0932 90ae0c06      	ldw	y,#3078
-5353                     ; 3608               pSocket->nState = STATE_CONNECTED;
-5354                     ; 3609               pSocket->nPrevBytes = 0xFFFF;
-5355                     ; 3610 	      break;
-5357  0936 2029          	jp	LC021
-5358  0938               L7311:
-5359                     ; 3612 	    case 61: // Show Configuration page
-5359                     ; 3613 	      current_webpage = WEBPAGE_CONFIGURATION;
-5361  0938 35010003      	mov	_current_webpage,#1
-5362                     ; 3614               pSocket->pData = g_HtmlPageConfiguration;
-5364  093c 90ae0c0f      	ldw	y,#L51_g_HtmlPageConfiguration
-5365  0940 ef01          	ldw	(1,x),y
-5366                     ; 3615               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
-5368  0942 90ae0c5c      	ldw	y,#3164
-5369                     ; 3616               pSocket->nState = STATE_CONNECTED;
-5370                     ; 3617               pSocket->nPrevBytes = 0xFFFF;
-5371                     ; 3618 	      break;
-5373  0946 2019          	jp	LC021
-5374  0948               L1411:
-5375                     ; 3638 	    case 65: // Flash LED for diagnostics
-5375                     ; 3639 	      // XXXXXXXXXXXXXXXXXXXXXX
-5375                     ; 3640 	      // XXXXXXXXXXXXXXXXXXXXXX
-5375                     ; 3641 	      // XXXXXXXXXXXXXXXXXXXXXX
-5375                     ; 3642 	      debugflash();
-5377  0948 cd0000        	call	_debugflash
-5379                     ; 3643 	      debugflash();
-5381  094b cd0000        	call	_debugflash
-5383                     ; 3644 	      debugflash();
-5385  094e cd0000        	call	_debugflash
-5387                     ; 3648 	      break;
-5389  0951 2055          	jra	L5402
-5390  0953               L3411:
-5391                     ; 3651             case 66: // Show statistics page
-5391                     ; 3652 	      current_webpage = WEBPAGE_STATS;
-5393  0953 35050003      	mov	_current_webpage,#5
-5394                     ; 3653               pSocket->pData = g_HtmlPageStats;
-5396  0957 90ae186c      	ldw	y,#L71_g_HtmlPageStats
-5397  095b ef01          	ldw	(1,x),y
-5398                     ; 3654               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
-5400  095d 90ae0175      	ldw	y,#373
-5401                     ; 3655               pSocket->nState = STATE_CONNECTED;
-5403  0961               LC021:
-5404  0961 ef03          	ldw	(3,x),y
-5408  0963 f7            	ld	(x),a
-5409                     ; 3656               pSocket->nPrevBytes = 0xFFFF;
-5410                     ; 3657 	      break;
-5412  0964 203c          	jp	LC019
-5413  0966               L5411:
-5414                     ; 3659             case 67: // Clear statistics
-5414                     ; 3660 	      uip_init_stats();
-5416  0966 cd0000        	call	_uip_init_stats
-5418                     ; 3675 	      current_webpage = WEBPAGE_STATS;
-5420  0969 35050003      	mov	_current_webpage,#5
-5421                     ; 3676               pSocket->pData = g_HtmlPageStats;
-5423  096d 1e0b          	ldw	x,(OFST+7,sp)
-5424  096f 90ae186c      	ldw	y,#L71_g_HtmlPageStats
-5425  0973 ef01          	ldw	(1,x),y
-5426                     ; 3677               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
-5428  0975 90ae0175      	ldw	y,#373
-5429                     ; 3678               pSocket->nState = STATE_CONNECTED;
-5430                     ; 3679               pSocket->nPrevBytes = 0xFFFF;
-5431                     ; 3680 	      break;
-5433  0979 2024          	jp	LC020
-5434  097b               L7411:
-5435                     ; 3683 	    case 91: // Reboot
-5435                     ; 3684 	      user_reboot_request = 1;
-5437  097b 35010000      	mov	_user_reboot_request,#1
-5438                     ; 3685 	      break;
-5440  097f 2027          	jra	L5402
-5441  0981               L1511:
-5442                     ; 3687             case 99: // Show simplified IO state page
-5442                     ; 3688 	      current_webpage = WEBPAGE_RSTATE;
-5444  0981 35060003      	mov	_current_webpage,#6
-5445                     ; 3689               pSocket->pData = g_HtmlPageRstate;
-5447  0985 90ae19e2      	ldw	y,#L12_g_HtmlPageRstate
-5448  0989 ef01          	ldw	(1,x),y
-5449                     ; 3690               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRstate) - 1);
-5451  098b 90ae0087      	ldw	y,#135
-5452                     ; 3691               pSocket->nState = STATE_CONNECTED;
-5453                     ; 3692               pSocket->nPrevBytes = 0xFFFF;
-5454                     ; 3693 	      break;
-5456  098f 20d0          	jp	LC021
-5457  0991               L3511:
-5458                     ; 3695 	    default: // Show IO Control page
-5458                     ; 3696 	      current_webpage = WEBPAGE_IOCONTROL;
-5460  0991 725f0003      	clr	_current_webpage
-5461                     ; 3697               pSocket->pData = g_HtmlPageIOControl;
-5463  0995 90ae0008      	ldw	y,#L31_g_HtmlPageIOControl
-5464  0999 ef01          	ldw	(1,x),y
-5465                     ; 3698               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
-5467  099b 90ae0c06      	ldw	y,#3078
-5468                     ; 3699               pSocket->nState = STATE_CONNECTED;
-5470  099f               LC020:
-5471  099f ef03          	ldw	(3,x),y
-5473  09a1 7f            	clr	(x)
-5474                     ; 3700               pSocket->nPrevBytes = 0xFFFF;
-5476  09a2               LC019:
-5482  09a2 90aeffff      	ldw	y,#65535
-5483  09a6 ef0b          	ldw	(11,x),y
-5484                     ; 3701 	      break;
-5486  09a8               L5402:
-5487                     ; 3703           pSocket->nParseLeft = 0;
-5489  09a8 1e0b          	ldw	x,(OFST+7,sp)
-5490  09aa 6f06          	clr	(6,x)
-5491  09ac               L3102:
-5492                     ; 3706         if (pSocket->ParseState == PARSE_FAIL) {
-5494  09ac 1e0b          	ldw	x,(OFST+7,sp)
-5495  09ae e60a          	ld	a,(10,x)
-5496  09b0 a107          	cp	a,#7
-5497                     ; 3711           pSocket->nState = STATE_SENDHEADER;
-5498                     ; 3712 	  break;
-5500  09b2 2704          	jreq	LC025
-5501                     ; 3715         if (pSocket->nParseLeft == 0) {
-5503  09b4 e606          	ld	a,(6,x)
-5504  09b6 2605          	jrne	L1002
-5505                     ; 3718           pSocket->nState = STATE_SENDHEADER;
-5507  09b8               LC025:
-5509  09b8 a60b          	ld	a,#11
-5510  09ba f7            	ld	(x),a
-5511                     ; 3719           break;
-5513  09bb 2007          	jra	L5771
-5514  09bd               L1002:
-5515                     ; 3387       while (nBytes != 0) {
-5517  09bd 1e09          	ldw	x,(OFST+5,sp)
-5518  09bf 2703cc079a    	jrne	L7771
-5519  09c4               L5771:
-5520                     ; 3724     if (pSocket->nState == STATE_SENDHEADER) {
-5522  09c4 1e0b          	ldw	x,(OFST+7,sp)
-5523  09c6 f6            	ld	a,(x)
-5524  09c7 a10b          	cp	a,#11
-5525  09c9 261c          	jrne	L5511
-5526                     ; 3730       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
-5528  09cb cd0000        	call	_adjust_template_size
-5530  09ce 89            	pushw	x
-5531  09cf ce0000        	ldw	x,_uip_appdata
-5532  09d2 cd0000        	call	L5_CopyHttpHeader
-5534  09d5 5b02          	addw	sp,#2
-5535  09d7 89            	pushw	x
-5536  09d8 ce0000        	ldw	x,_uip_appdata
-5537  09db cd0000        	call	_uip_send
-5539  09de 85            	popw	x
-5540                     ; 3731       pSocket->nState = STATE_SENDDATA;
-5542  09df 1e0b          	ldw	x,(OFST+7,sp)
-5543  09e1 a60c          	ld	a,#12
-5544  09e3 f7            	ld	(x),a
-5545                     ; 3732       return;
-5547  09e4 cc012f        	jra	L452
-5548  09e7               L5511:
-5549                     ; 3735     senddata:
-5549                     ; 3736     if (pSocket->nState == STATE_SENDDATA) {
-5551  09e7 1e0b          	ldw	x,(OFST+7,sp)
-5552  09e9 f6            	ld	a,(x)
-5553  09ea a10c          	cp	a,#12
-5554  09ec 26f6          	jrne	L452
-5555                     ; 3743       if (pSocket->nDataLeft == 0) {
-5557  09ee e604          	ld	a,(4,x)
-5558  09f0 ea03          	or	a,(3,x)
-5559  09f2 2605          	jrne	L7502
-5560                     ; 3745         nBufSize = 0;
-5562  09f4 5f            	clrw	x
-5563  09f5 1f02          	ldw	(OFST-2,sp),x
-5566  09f7 202f          	jra	L1602
-5567  09f9               L7502:
-5568                     ; 3748         pSocket->nPrevBytes = pSocket->nDataLeft;
-5570  09f9 9093          	ldw	y,x
-5571  09fb 90ee03        	ldw	y,(3,y)
-5572  09fe ef0b          	ldw	(11,x),y
-5573                     ; 3749         nBufSize = CopyHttpData(uip_appdata, &pSocket->pData, &pSocket->nDataLeft, uip_mss());
-5575  0a00 ce0000        	ldw	x,_uip_conn
-5576  0a03 ee12          	ldw	x,(18,x)
-5577  0a05 89            	pushw	x
-5578  0a06 1e0d          	ldw	x,(OFST+9,sp)
-5579  0a08 1c0003        	addw	x,#3
-5580  0a0b 89            	pushw	x
-5581  0a0c 1e0f          	ldw	x,(OFST+11,sp)
-5582  0a0e 5c            	incw	x
-5583  0a0f 89            	pushw	x
-5584  0a10 ce0000        	ldw	x,_uip_appdata
-5585  0a13 cd0000        	call	L7_CopyHttpData
-5587  0a16 5b06          	addw	sp,#6
-5588  0a18 1f02          	ldw	(OFST-2,sp),x
-5590                     ; 3750         pSocket->nPrevBytes -= pSocket->nDataLeft;
-5592  0a1a 1e0b          	ldw	x,(OFST+7,sp)
-5593  0a1c e60c          	ld	a,(12,x)
-5594  0a1e e004          	sub	a,(4,x)
-5595  0a20 e70c          	ld	(12,x),a
-5596  0a22 e60b          	ld	a,(11,x)
-5597  0a24 e203          	sbc	a,(3,x)
-5598  0a26 e70b          	ld	(11,x),a
-5599  0a28               L1602:
-5600                     ; 3753       if (nBufSize == 0) {
-5602  0a28 1e02          	ldw	x,(OFST-2,sp)
-5603  0a2a 2621          	jrne	LC016
-5604                     ; 3755         uip_close();
-5606  0a2c               LC017:
-5608  0a2c 35100000      	mov	_uip_flags,#16
-5610  0a30 cc012f        	jra	L452
-5611                     ; 3759         uip_send(uip_appdata, nBufSize);
-5613                     ; 3761       return;
-5615  0a33               L7621:
-5616                     ; 3765   else if (uip_rexmit()) {
-5618  0a33 7205000075    	btjf	_uip_flags,#2,L5621
-5619                     ; 3766     if (pSocket->nPrevBytes == 0xFFFF) {
-5621  0a38 160b          	ldw	y,(OFST+7,sp)
-5622  0a3a 90ee0b        	ldw	y,(11,y)
-5623  0a3d 905c          	incw	y
-5624  0a3f 2617          	jrne	L3702
-5625                     ; 3768       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
-5627  0a41 cd0000        	call	_adjust_template_size
-5629  0a44 89            	pushw	x
-5630  0a45 ce0000        	ldw	x,_uip_appdata
-5631  0a48 cd0000        	call	L5_CopyHttpHeader
-5633  0a4b 5b02          	addw	sp,#2
-5635  0a4d               LC016:
-5637  0a4d 89            	pushw	x
-5638  0a4e ce0000        	ldw	x,_uip_appdata
-5639  0a51 cd0000        	call	_uip_send
-5640  0a54 85            	popw	x
-5642  0a55 cc012f        	jra	L452
-5643  0a58               L3702:
-5644                     ; 3771       pSocket->pData -= pSocket->nPrevBytes;
-5646  0a58 1e0b          	ldw	x,(OFST+7,sp)
-5647  0a5a e602          	ld	a,(2,x)
-5648  0a5c e00c          	sub	a,(12,x)
-5649  0a5e e702          	ld	(2,x),a
-5650  0a60 e601          	ld	a,(1,x)
-5651  0a62 e20b          	sbc	a,(11,x)
-5652  0a64 e701          	ld	(1,x),a
-5653                     ; 3772       pSocket->nDataLeft += pSocket->nPrevBytes;
-5655  0a66 e604          	ld	a,(4,x)
-5656  0a68 eb0c          	add	a,(12,x)
-5657  0a6a e704          	ld	(4,x),a
-5658  0a6c e603          	ld	a,(3,x)
-5659  0a6e e90b          	adc	a,(11,x)
-5660                     ; 3773       pSocket->nPrevBytes = pSocket->nDataLeft;
-5662  0a70 9093          	ldw	y,x
-5663  0a72 e703          	ld	(3,x),a
-5664  0a74 90ee03        	ldw	y,(3,y)
-5665  0a77 ef0b          	ldw	(11,x),y
-5666                     ; 3774       nBufSize = CopyHttpData(uip_appdata, &pSocket->pData, &pSocket->nDataLeft, uip_mss());
-5668  0a79 ce0000        	ldw	x,_uip_conn
-5669  0a7c ee12          	ldw	x,(18,x)
-5670  0a7e 89            	pushw	x
-5671  0a7f 1e0d          	ldw	x,(OFST+9,sp)
-5672  0a81 1c0003        	addw	x,#3
-5673  0a84 89            	pushw	x
-5674  0a85 1e0f          	ldw	x,(OFST+11,sp)
-5675  0a87 5c            	incw	x
-5676  0a88 89            	pushw	x
-5677  0a89 ce0000        	ldw	x,_uip_appdata
-5678  0a8c cd0000        	call	L7_CopyHttpData
-5680  0a8f 5b06          	addw	sp,#6
-5681  0a91 1f02          	ldw	(OFST-2,sp),x
-5683                     ; 3775       pSocket->nPrevBytes -= pSocket->nDataLeft;
-5685  0a93 1e0b          	ldw	x,(OFST+7,sp)
-5686  0a95 e60c          	ld	a,(12,x)
-5687  0a97 e004          	sub	a,(4,x)
-5688  0a99 e70c          	ld	(12,x),a
-5689  0a9b e60b          	ld	a,(11,x)
-5690  0a9d e203          	sbc	a,(3,x)
-5691  0a9f e70b          	ld	(11,x),a
-5692                     ; 3776       if (nBufSize == 0) {
-5694  0aa1 1e02          	ldw	x,(OFST-2,sp)
-5695                     ; 3778         uip_close();
-5697  0aa3 2787          	jreq	LC017
-5698                     ; 3782         uip_send(uip_appdata, nBufSize);
-5700  0aa5 89            	pushw	x
-5701  0aa6 ce0000        	ldw	x,_uip_appdata
-5702  0aa9 cd0000        	call	_uip_send
-5704  0aac 85            	popw	x
-5705                     ; 3785     return;
-5707  0aad               L5621:
-5708                     ; 3787 }
-5710  0aad cc012f        	jra	L452
-5744                     ; 3790 void clear_saved_postpartial_all(void)
-5744                     ; 3791 {
-5745                     .text:	section	.text,new
-5746  0000               _clear_saved_postpartial_all:
-5748  0000 88            	push	a
-5749       00000001      OFST:	set	1
-5752                     ; 3793   for (i=0; i<24; i++) saved_postpartial[i] = '\0';
-5754  0001 4f            	clr	a
-5755  0002 6b01          	ld	(OFST+0,sp),a
-5757  0004               L7112:
-5760  0004 5f            	clrw	x
-5761  0005 97            	ld	xl,a
-5762  0006 724f002a      	clr	(_saved_postpartial,x)
-5765  000a 0c01          	inc	(OFST+0,sp)
-5769  000c 7b01          	ld	a,(OFST+0,sp)
-5770  000e a118          	cp	a,#24
-5771  0010 25f2          	jrult	L7112
-5772                     ; 3794 }
-5775  0012 84            	pop	a
-5776  0013 81            	ret	
-5810                     ; 3797 void clear_saved_postpartial_data(void)
-5810                     ; 3798 {
-5811                     .text:	section	.text,new
-5812  0000               _clear_saved_postpartial_data:
-5814  0000 88            	push	a
-5815       00000001      OFST:	set	1
-5818                     ; 3800   for (i=4; i<24; i++) saved_postpartial[i] = '\0';
-5820  0001 a604          	ld	a,#4
-5821  0003 6b01          	ld	(OFST+0,sp),a
-5823  0005               L1412:
-5826  0005 5f            	clrw	x
-5827  0006 97            	ld	xl,a
-5828  0007 724f002a      	clr	(_saved_postpartial,x)
-5831  000b 0c01          	inc	(OFST+0,sp)
-5835  000d 7b01          	ld	a,(OFST+0,sp)
-5836  000f a118          	cp	a,#24
-5837  0011 25f2          	jrult	L1412
-5838                     ; 3801 }
-5841  0013 84            	pop	a
-5842  0014 81            	ret	
-5876                     ; 3804 void clear_saved_postpartial_previous(void)
-5876                     ; 3805 {
-5877                     .text:	section	.text,new
-5878  0000               _clear_saved_postpartial_previous:
-5880  0000 88            	push	a
-5881       00000001      OFST:	set	1
-5884                     ; 3807   for (i=0; i<24; i++) saved_postpartial_previous[i] = '\0';
-5886  0001 4f            	clr	a
-5887  0002 6b01          	ld	(OFST+0,sp),a
-5889  0004               L3612:
-5892  0004 5f            	clrw	x
-5893  0005 97            	ld	xl,a
-5894  0006 724f0012      	clr	(_saved_postpartial_previous,x)
-5897  000a 0c01          	inc	(OFST+0,sp)
-5901  000c 7b01          	ld	a,(OFST+0,sp)
-5902  000e a118          	cp	a,#24
-5903  0010 25f2          	jrult	L3612
-5904                     ; 3808 }
-5907  0012 84            	pop	a
-5908  0013 81            	ret	
-5998                     ; 3811 void parse_POST_string(uint8_t curr_ParseCmd, uint8_t num_chars)
-5998                     ; 3812 {
-5999                     .text:	section	.text,new
-6000  0000               _parse_POST_string:
-6002  0000 89            	pushw	x
-6003  0001 5217          	subw	sp,#23
-6004       00000017      OFST:	set	23
-6007                     ; 3835   amp_found = 0;
-6009  0003 0f02          	clr	(OFST-21,sp)
-6011                     ; 3836   for (i=0; i<20; i++) tmp_Pending[i] = '\0';
-6013  0005 0f17          	clr	(OFST+0,sp)
-6015  0007               L3222:
-6018  0007 96            	ldw	x,sp
-6019  0008 1c0003        	addw	x,#OFST-20
-6020  000b 9f            	ld	a,xl
-6021  000c 5e            	swapw	x
-6022  000d 1b17          	add	a,(OFST+0,sp)
-6023  000f 2401          	jrnc	L662
-6024  0011 5c            	incw	x
-6025  0012               L662:
-6026  0012 02            	rlwa	x,a
-6027  0013 7f            	clr	(x)
-6030  0014 0c17          	inc	(OFST+0,sp)
-6034  0016 7b17          	ld	a,(OFST+0,sp)
-6035  0018 a114          	cp	a,#20
-6036  001a 25eb          	jrult	L3222
-6037                     ; 3838   if (saved_postpartial_previous[0] == curr_ParseCmd) {
-6039  001c c60012        	ld	a,_saved_postpartial_previous
-6040  001f 1118          	cp	a,(OFST+1,sp)
-6041  0021 260a          	jrne	L1322
-6042                     ; 3841     saved_postpartial_previous[0] = '\0';
-6044  0023 725f0012      	clr	_saved_postpartial_previous
-6045                     ; 3847     frag_flag = 1; // frag_flag is used to manage the TCP Fragment restore
-6047  0027 a601          	ld	a,#1
-6048  0029 6b17          	ld	(OFST+0,sp),a
-6051  002b 2005          	jra	L3322
-6052  002d               L1322:
-6053                     ; 3851     frag_flag = 0;
-6055  002d 0f17          	clr	(OFST+0,sp)
-6057                     ; 3855     clear_saved_postpartial_data(); // Clear [4] and higher
-6059  002f cd0000        	call	_clear_saved_postpartial_data
-6061  0032               L3322:
-6062                     ; 3876   resume = 0;
-6064  0032 0f01          	clr	(OFST-22,sp)
-6066                     ; 3877   if (frag_flag == 1) {
-6068  0034 7b17          	ld	a,(OFST+0,sp)
-6069  0036 4a            	dec	a
-6070  0037 263f          	jrne	L5322
-6071                     ; 3879     for (i = 0; i < num_chars; i++) {
-6073  0039 6b17          	ld	(OFST+0,sp),a
-6076  003b 2033          	jra	L3422
-6077  003d               L7322:
-6078                     ; 3888       if (saved_postpartial_previous[4+i] != '\0') {
-6080  003d 5f            	clrw	x
-6081  003e 97            	ld	xl,a
-6082  003f 724d0016      	tnz	(_saved_postpartial_previous+4,x)
-6083  0043 271b          	jreq	L7422
-6084                     ; 3889         tmp_Pending[i] = saved_postpartial_previous[4+i];
-6086  0045 96            	ldw	x,sp
-6087  0046 1c0003        	addw	x,#OFST-20
-6088  0049 9f            	ld	a,xl
-6089  004a 5e            	swapw	x
-6090  004b 1b17          	add	a,(OFST+0,sp)
-6091  004d 2401          	jrnc	L272
-6092  004f 5c            	incw	x
-6093  0050               L272:
-6094  0050 02            	rlwa	x,a
-6095  0051 7b17          	ld	a,(OFST+0,sp)
-6096  0053 905f          	clrw	y
-6097  0055 9097          	ld	yl,a
-6098  0057 90d60016      	ld	a,(_saved_postpartial_previous+4,y)
-6099  005b f7            	ld	(x),a
-6101                     ; 3879     for (i = 0; i < num_chars; i++) {
-6103  005c 0c17          	inc	(OFST+0,sp)
-6105  005e 2010          	jra	L3422
-6106  0060               L7422:
-6107                     ; 3892         resume = i;
-6109  0060 6b01          	ld	(OFST-22,sp),a
-6111                     ; 3893         break;
-6112  0062               L5422:
-6113                     ; 3896     if (*tmp_pBuffer == '&') {
-6115  0062 72c6000e      	ld	a,[_tmp_pBuffer.w]
-6116  0066 a126          	cp	a,#38
-6117  0068 260e          	jrne	L5322
-6118                     ; 3900       amp_found = 1;
-6120  006a a601          	ld	a,#1
-6121  006c 6b02          	ld	(OFST-21,sp),a
-6123  006e 2008          	jra	L5322
-6124  0070               L3422:
-6125                     ; 3879     for (i = 0; i < num_chars; i++) {
-6127  0070 7b17          	ld	a,(OFST+0,sp)
-6128  0072 1119          	cp	a,(OFST+2,sp)
-6129  0074 25c7          	jrult	L7322
-6130  0076 20ea          	jra	L5422
-6131  0078               L5322:
-6132                     ; 3912   if (amp_found == 0) {
-6134  0078 7b02          	ld	a,(OFST-21,sp)
-6135  007a 2703cc0104    	jrne	L5522
-6136                     ; 3913     for (i = resume; i < num_chars; i++) {
-6138  007f 7b01          	ld	a,(OFST-22,sp)
-6139  0081 6b17          	ld	(OFST+0,sp),a
-6142  0083 207b          	jra	L3622
-6143  0085               L7522:
-6144                     ; 3916       if (amp_found == 0) {
-6146  0085 7b02          	ld	a,(OFST-21,sp)
-6147  0087 265d          	jrne	L7622
-6148                     ; 3919         if (*tmp_pBuffer == '&') {
-6150  0089 72c6000e      	ld	a,[_tmp_pBuffer.w]
-6151  008d a126          	cp	a,#38
-6152  008f 2606          	jrne	L1722
-6153                     ; 3922           amp_found = 1;
-6155  0091 a601          	ld	a,#1
-6156  0093 6b02          	ld	(OFST-21,sp),a
-6159  0095 204f          	jra	L7622
-6160  0097               L1722:
-6161                     ; 3925           tmp_Pending[i] = *tmp_pBuffer;
-6163  0097 96            	ldw	x,sp
-6164  0098 1c0003        	addw	x,#OFST-20
-6165  009b 9f            	ld	a,xl
-6166  009c 5e            	swapw	x
-6167  009d 1b17          	add	a,(OFST+0,sp)
-6168  009f 2401          	jrnc	L472
-6169  00a1 5c            	incw	x
-6170  00a2               L472:
-6171  00a2 90ce000e      	ldw	y,_tmp_pBuffer
-6172  00a6 02            	rlwa	x,a
-6173  00a7 90f6          	ld	a,(y)
-6174  00a9 f7            	ld	(x),a
-6175                     ; 3926           saved_postpartial[4+i] = *tmp_pBuffer;
-6177  00aa 5f            	clrw	x
-6178  00ab 7b17          	ld	a,(OFST+0,sp)
-6179  00ad 97            	ld	xl,a
-6180  00ae 90f6          	ld	a,(y)
-6181  00b0 d7002e        	ld	(_saved_postpartial+4,x),a
-6182                     ; 3927           tmp_nParseLeft--;
-6184  00b3 725a000b      	dec	_tmp_nParseLeft
-6185                     ; 3928           saved_nparseleft = tmp_nParseLeft;
-6187                     ; 3929           tmp_pBuffer++;
-6189  00b7 93            	ldw	x,y
-6190  00b8 55000b0042    	mov	_saved_nparseleft,_tmp_nParseLeft
-6191  00bd 5c            	incw	x
-6192  00be cf000e        	ldw	_tmp_pBuffer,x
-6193                     ; 3930           tmp_nBytes--;
-6195  00c1 ce000c        	ldw	x,_tmp_nBytes
-6196  00c4 5a            	decw	x
-6197  00c5 cf000c        	ldw	_tmp_nBytes,x
-6198                     ; 3931           if (tmp_nBytes == 0) {
-6200  00c8 261c          	jrne	L7622
-6201                     ; 3935             if (i == (num_chars - 1)) {
-6203  00ca 7b19          	ld	a,(OFST+2,sp)
-6204  00cc 5f            	clrw	x
-6205  00cd 97            	ld	xl,a
-6206  00ce 5a            	decw	x
-6207  00cf 7b17          	ld	a,(OFST+0,sp)
-6208  00d1 905f          	clrw	y
-6209  00d3 9097          	ld	yl,a
-6210  00d5 90bf00        	ldw	c_y,y
-6211  00d8 b300          	cpw	x,c_y
-6212  00da 2604          	jrne	L7722
-6213                     ; 3940               saved_parsestate = PARSE_DELIM;
-6215  00dc 35050043      	mov	_saved_parsestate,#5
-6216  00e0               L7722:
-6217                     ; 3942             break_while = 1;
-6219  00e0 3501000a      	mov	_break_while,#1
-6220                     ; 3943             break; // This will break the for() loop. But we need to break the
-6222  00e4 201e          	jra	L5522
-6223  00e6               L7622:
-6224                     ; 3949       if (amp_found == 1) {
-6226  00e6 7b02          	ld	a,(OFST-21,sp)
-6227  00e8 4a            	dec	a
-6228  00e9 2611          	jrne	L1032
-6229                     ; 3952         tmp_Pending[i] = '\0';
-6231  00eb 96            	ldw	x,sp
-6232  00ec 1c0003        	addw	x,#OFST-20
-6233  00ef 9f            	ld	a,xl
-6234  00f0 5e            	swapw	x
-6235  00f1 1b17          	add	a,(OFST+0,sp)
-6236  00f3 2401          	jrnc	L672
-6237  00f5 5c            	incw	x
-6238  00f6               L672:
-6239  00f6 02            	rlwa	x,a
-6240  00f7 7f            	clr	(x)
-6241                     ; 3961         tmp_nParseLeft--;
-6243  00f8 725a000b      	dec	_tmp_nParseLeft
-6244  00fc               L1032:
-6245                     ; 3913     for (i = resume; i < num_chars; i++) {
-6247  00fc 0c17          	inc	(OFST+0,sp)
-6249  00fe 7b17          	ld	a,(OFST+0,sp)
-6250  0100               L3622:
-6253  0100 1119          	cp	a,(OFST+2,sp)
-6254  0102 2581          	jrult	L7522
-6255  0104               L5522:
-6256                     ; 3982   if (break_while == 0) clear_saved_postpartial_all();
-6258  0104 c6000a        	ld	a,_break_while
-6259  0107 2603          	jrne	L3032
-6262  0109 cd0000        	call	_clear_saved_postpartial_all
-6264  010c               L3032:
-6265                     ; 3985   if (curr_ParseCmd == 'a') {
-6267  010c 7b18          	ld	a,(OFST+1,sp)
-6268  010e a161          	cp	a,#97
-6269  0110 2622          	jrne	L5032
-6270                     ; 3986     for (i=0; i<num_chars; i++) Pending_devicename[i] = tmp_Pending[i];
-6272  0112 0f17          	clr	(OFST+0,sp)
-6275  0114 2016          	jra	L3132
-6276  0116               L7032:
-6279  0116 5f            	clrw	x
-6280  0117 97            	ld	xl,a
-6281  0118 89            	pushw	x
-6282  0119 96            	ldw	x,sp
-6283  011a 1c0005        	addw	x,#OFST-18
-6284  011d 9f            	ld	a,xl
-6285  011e 5e            	swapw	x
-6286  011f 1b19          	add	a,(OFST+2,sp)
-6287  0121 2401          	jrnc	L203
-6288  0123 5c            	incw	x
-6289  0124               L203:
-6290  0124 02            	rlwa	x,a
-6291  0125 f6            	ld	a,(x)
-6292  0126 85            	popw	x
-6293  0127 d70000        	ld	(_Pending_devicename,x),a
-6296  012a 0c17          	inc	(OFST+0,sp)
-6298  012c               L3132:
-6301  012c 7b17          	ld	a,(OFST+0,sp)
-6302  012e 1119          	cp	a,(OFST+2,sp)
-6303  0130 25e4          	jrult	L7032
-6305  0132 204a          	jra	L7132
-6306  0134               L5032:
-6307                     ; 3991   else if (curr_ParseCmd == 'l') {
-6309  0134 a16c          	cp	a,#108
-6310  0136 2622          	jrne	L1232
-6311                     ; 3992     for (i=0; i<num_chars; i++) Pending_mqtt_username[i] = tmp_Pending[i];
-6313  0138 0f17          	clr	(OFST+0,sp)
-6316  013a 2016          	jra	L7232
-6317  013c               L3232:
-6320  013c 5f            	clrw	x
-6321  013d 97            	ld	xl,a
-6322  013e 89            	pushw	x
-6323  013f 96            	ldw	x,sp
-6324  0140 1c0005        	addw	x,#OFST-18
-6325  0143 9f            	ld	a,xl
-6326  0144 5e            	swapw	x
-6327  0145 1b19          	add	a,(OFST+2,sp)
-6328  0147 2401          	jrnc	L403
-6329  0149 5c            	incw	x
-6330  014a               L403:
-6331  014a 02            	rlwa	x,a
-6332  014b f6            	ld	a,(x)
-6333  014c 85            	popw	x
-6334  014d d70000        	ld	(_Pending_mqtt_username,x),a
-6337  0150 0c17          	inc	(OFST+0,sp)
-6339  0152               L7232:
-6342  0152 7b17          	ld	a,(OFST+0,sp)
-6343  0154 1119          	cp	a,(OFST+2,sp)
-6344  0156 25e4          	jrult	L3232
-6346  0158 2024          	jra	L7132
-6347  015a               L1232:
-6348                     ; 3996   else if (curr_ParseCmd == 'm') {
-6350  015a a16d          	cp	a,#109
-6351  015c 2620          	jrne	L7132
-6352                     ; 3997     for (i=0; i<num_chars; i++) Pending_mqtt_password[i] = tmp_Pending[i];
-6354  015e 0f17          	clr	(OFST+0,sp)
-6357  0160 2016          	jra	L3432
-6358  0162               L7332:
-6361  0162 5f            	clrw	x
-6362  0163 97            	ld	xl,a
-6363  0164 89            	pushw	x
-6364  0165 96            	ldw	x,sp
-6365  0166 1c0005        	addw	x,#OFST-18
-6366  0169 9f            	ld	a,xl
-6367  016a 5e            	swapw	x
-6368  016b 1b19          	add	a,(OFST+2,sp)
-6369  016d 2401          	jrnc	L603
-6370  016f 5c            	incw	x
-6371  0170               L603:
-6372  0170 02            	rlwa	x,a
-6373  0171 f6            	ld	a,(x)
-6374  0172 85            	popw	x
-6375  0173 d70000        	ld	(_Pending_mqtt_password,x),a
-6378  0176 0c17          	inc	(OFST+0,sp)
-6380  0178               L3432:
-6383  0178 7b17          	ld	a,(OFST+0,sp)
-6384  017a 1119          	cp	a,(OFST+2,sp)
-6385  017c 25e4          	jrult	L7332
-6386  017e               L7132:
-6387                     ; 4000 }
-6390  017e 5b19          	addw	sp,#25
-6391  0180 81            	ret	
-6465                     	switch	.const
-6466  1d25               L023:
-6467  1d25 00de          	dc.w	L7432
-6468  1d27 00e5          	dc.w	L1532
-6469  1d29 00ec          	dc.w	L3532
-6470  1d2b 00f3          	dc.w	L5532
-6471  1d2d 00fa          	dc.w	L7532
-6472  1d2f 0101          	dc.w	L1632
-6473  1d31 0108          	dc.w	L3632
-6474  1d33 010f          	dc.w	L5632
-6475  1d35 0116          	dc.w	L7632
-6476  1d37 011d          	dc.w	L1732
-6477  1d39 0124          	dc.w	L3732
-6478  1d3b 012b          	dc.w	L5732
-6479  1d3d 0132          	dc.w	L7732
-6480  1d3f 0139          	dc.w	L1042
-6481  1d41 0140          	dc.w	L3042
-6482  1d43 0147          	dc.w	L5042
-6483                     ; 4003 void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
-6483                     ; 4004 {
-6484                     .text:	section	.text,new
-6485  0000               _parse_POST_address:
-6487  0000 89            	pushw	x
-6488  0001 89            	pushw	x
-6489       00000002      OFST:	set	2
-6492                     ; 4007   alpha[0] = '-';
-6494  0002 352d0004      	mov	_alpha,#45
-6495                     ; 4008   alpha[1] = '-';
-6497  0006 352d0005      	mov	_alpha+1,#45
-6498                     ; 4009   alpha[2] = '-';
-6500  000a 352d0006      	mov	_alpha+2,#45
-6501                     ; 4012   if (saved_postpartial_previous[0] == curr_ParseCmd) {
-6503  000e 9e            	ld	a,xh
-6504  000f c10012        	cp	a,_saved_postpartial_previous
-6505  0012 2624          	jrne	L5342
-6506                     ; 4015     saved_postpartial_previous[0] = '\0';
-6508  0014 725f0012      	clr	_saved_postpartial_previous
-6509                     ; 4022     if (saved_postpartial_previous[4] != '\0') alpha[0] = saved_postpartial_previous[4];
-6511  0018 c60016        	ld	a,_saved_postpartial_previous+4
-6512  001b 2705          	jreq	L7342
-6515  001d 5500160004    	mov	_alpha,_saved_postpartial_previous+4
-6516  0022               L7342:
-6517                     ; 4023     if (saved_postpartial_previous[5] != '\0') alpha[1] = saved_postpartial_previous[5];
-6519  0022 c60017        	ld	a,_saved_postpartial_previous+5
-6520  0025 2705          	jreq	L1442
-6523  0027 5500170005    	mov	_alpha+1,_saved_postpartial_previous+5
-6524  002c               L1442:
-6525                     ; 4024     if (saved_postpartial_previous[6] != '\0') alpha[2] = saved_postpartial_previous[6];
-6527  002c c60018        	ld	a,_saved_postpartial_previous+6
-6528  002f 270a          	jreq	L5442
-6531  0031 5500180006    	mov	_alpha+2,_saved_postpartial_previous+6
-6532  0036 2003          	jra	L5442
-6533  0038               L5342:
-6534                     ; 4030     clear_saved_postpartial_data(); // Clear [4] and higher
-6536  0038 cd0000        	call	_clear_saved_postpartial_data
-6538  003b               L5442:
-6539                     ; 4033   for (i=0; i<3; i++) {
-6541  003b 4f            	clr	a
-6542  003c 6b02          	ld	(OFST+0,sp),a
-6544  003e               L7442:
-6545                     ; 4039     if (alpha[i] == '-') {
-6547  003e 5f            	clrw	x
-6548  003f 97            	ld	xl,a
-6549  0040 d60004        	ld	a,(_alpha,x)
-6550  0043 a12d          	cp	a,#45
-6551  0045 263c          	jrne	L5542
-6552                     ; 4040       alpha[i] = (uint8_t)(*tmp_pBuffer);
-6554  0047 7b02          	ld	a,(OFST+0,sp)
-6555  0049 5f            	clrw	x
-6556  004a 90ce000e      	ldw	y,_tmp_pBuffer
-6557  004e 97            	ld	xl,a
-6558  004f 90f6          	ld	a,(y)
-6559  0051 d70004        	ld	(_alpha,x),a
-6560                     ; 4041       saved_postpartial[i+4] = (uint8_t)(*tmp_pBuffer);
-6562  0054 5f            	clrw	x
-6563  0055 7b02          	ld	a,(OFST+0,sp)
-6564  0057 97            	ld	xl,a
-6565  0058 90f6          	ld	a,(y)
-6566  005a d7002e        	ld	(_saved_postpartial+4,x),a
-6567                     ; 4042       tmp_nParseLeft--;
-6569  005d 725a000b      	dec	_tmp_nParseLeft
-6570                     ; 4043       saved_nparseleft = tmp_nParseLeft;
-6572                     ; 4044       tmp_pBuffer++;
-6574  0061 93            	ldw	x,y
-6575  0062 55000b0042    	mov	_saved_nparseleft,_tmp_nParseLeft
-6576  0067 5c            	incw	x
-6577  0068 cf000e        	ldw	_tmp_pBuffer,x
-6578                     ; 4045       tmp_nBytes--;
-6580  006b ce000c        	ldw	x,_tmp_nBytes
-6581  006e 5a            	decw	x
-6582  006f cf000c        	ldw	_tmp_nBytes,x
-6583                     ; 4046       if (i != 2 && tmp_nBytes == 0) {
-6585  0072 7b02          	ld	a,(OFST+0,sp)
-6586  0074 a102          	cp	a,#2
-6587  0076 270b          	jreq	L5542
-6589  0078 ce000c        	ldw	x,_tmp_nBytes
-6590  007b 2606          	jrne	L5542
-6591                     ; 4047         break_while = 1; // Hit end of fragment but still have characters to
-6593  007d 3501000a      	mov	_break_while,#1
-6594                     ; 4051         break; // Break out of for() loop.
-6596  0081 2008          	jra	L3542
-6597  0083               L5542:
-6598                     ; 4033   for (i=0; i<3; i++) {
-6600  0083 0c02          	inc	(OFST+0,sp)
-6604  0085 7b02          	ld	a,(OFST+0,sp)
-6605  0087 a103          	cp	a,#3
-6606  0089 25b3          	jrult	L7442
-6607  008b               L3542:
-6608                     ; 4055   if (break_while == 1) return; // Hit end of fragment. Break out of while() loop.
-6610  008b c6000a        	ld	a,_break_while
-6611  008e 4a            	dec	a
-6612  008f 2603cc0155    	jreq	L223
-6615                     ; 4059   clear_saved_postpartial_all();
-6617  0094 cd0000        	call	_clear_saved_postpartial_all
-6619                     ; 4072     invalid = 0;
-6621  0097 0f01          	clr	(OFST-1,sp)
-6623                     ; 4074     temp = (uint8_t)(       (alpha[2] - '0'));
-6625  0099 c60006        	ld	a,_alpha+2
-6626  009c a030          	sub	a,#48
-6627  009e 6b02          	ld	(OFST+0,sp),a
-6629                     ; 4075     temp = (uint8_t)(temp + (alpha[1] - '0') * 10);
-6631  00a0 c60005        	ld	a,_alpha+1
-6632  00a3 97            	ld	xl,a
-6633  00a4 a60a          	ld	a,#10
-6634  00a6 42            	mul	x,a
-6635  00a7 9f            	ld	a,xl
-6636  00a8 a0e0          	sub	a,#224
-6637  00aa 1b02          	add	a,(OFST+0,sp)
-6638  00ac 6b02          	ld	(OFST+0,sp),a
-6640                     ; 4076     if (temp > 55 && alpha[0] > '1') invalid = 1;
-6642  00ae a138          	cp	a,#56
-6643  00b0 250d          	jrult	L3642
-6645  00b2 c60004        	ld	a,_alpha
-6646  00b5 a132          	cp	a,#50
-6647  00b7 2506          	jrult	L3642
-6650  00b9 a601          	ld	a,#1
-6651  00bb 6b01          	ld	(OFST-1,sp),a
-6654  00bd 200e          	jra	L5642
-6655  00bf               L3642:
-6656                     ; 4077     else temp = (uint8_t)(temp + (alpha[0] - '0') * 100);
-6658  00bf c60004        	ld	a,_alpha
-6659  00c2 97            	ld	xl,a
-6660  00c3 a664          	ld	a,#100
-6661  00c5 42            	mul	x,a
-6662  00c6 9f            	ld	a,xl
-6663  00c7 a0c0          	sub	a,#192
-6664  00c9 1b02          	add	a,(OFST+0,sp)
-6665  00cb 6b02          	ld	(OFST+0,sp),a
-6667  00cd               L5642:
-6668                     ; 4078     if (invalid == 0) { // Make change only if valid entry
-6670  00cd 7b01          	ld	a,(OFST-1,sp)
-6671  00cf 267b          	jrne	L7642
-6672                     ; 4079       switch(curr_ParseNum)
-6674  00d1 7b04          	ld	a,(OFST+2,sp)
-6676                     ; 4102         default: break;
-6677  00d3 a110          	cp	a,#16
-6678  00d5 2475          	jruge	L7642
-6679  00d7 5f            	clrw	x
-6680  00d8 97            	ld	xl,a
-6681  00d9 58            	sllw	x
-6682  00da de1d25        	ldw	x,(L023,x)
-6683  00dd fc            	jp	(x)
-6684  00de               L7432:
-6685                     ; 4081         case 0:  Pending_hostaddr[3] = (uint8_t)temp; break;
-6687  00de 7b02          	ld	a,(OFST+0,sp)
-6688  00e0 c70003        	ld	_Pending_hostaddr+3,a
-6691  00e3 2067          	jra	L7642
-6692  00e5               L1532:
-6693                     ; 4082         case 1:  Pending_hostaddr[2] = (uint8_t)temp; break;
-6695  00e5 7b02          	ld	a,(OFST+0,sp)
-6696  00e7 c70002        	ld	_Pending_hostaddr+2,a
-6699  00ea 2060          	jra	L7642
-6700  00ec               L3532:
-6701                     ; 4083         case 2:  Pending_hostaddr[1] = (uint8_t)temp; break;
-6703  00ec 7b02          	ld	a,(OFST+0,sp)
-6704  00ee c70001        	ld	_Pending_hostaddr+1,a
-6707  00f1 2059          	jra	L7642
-6708  00f3               L5532:
-6709                     ; 4084         case 3:  Pending_hostaddr[0] = (uint8_t)temp; break;
-6711  00f3 7b02          	ld	a,(OFST+0,sp)
-6712  00f5 c70000        	ld	_Pending_hostaddr,a
-6715  00f8 2052          	jra	L7642
-6716  00fa               L7532:
-6717                     ; 4085         case 4:  Pending_draddr[3] = (uint8_t)temp; break;
-6719  00fa 7b02          	ld	a,(OFST+0,sp)
-6720  00fc c70003        	ld	_Pending_draddr+3,a
-6723  00ff 204b          	jra	L7642
-6724  0101               L1632:
-6725                     ; 4086         case 5:  Pending_draddr[2] = (uint8_t)temp; break;
-6727  0101 7b02          	ld	a,(OFST+0,sp)
-6728  0103 c70002        	ld	_Pending_draddr+2,a
-6731  0106 2044          	jra	L7642
-6732  0108               L3632:
-6733                     ; 4087         case 6:  Pending_draddr[1] = (uint8_t)temp; break;
-6735  0108 7b02          	ld	a,(OFST+0,sp)
-6736  010a c70001        	ld	_Pending_draddr+1,a
-6739  010d 203d          	jra	L7642
-6740  010f               L5632:
-6741                     ; 4088         case 7:  Pending_draddr[0] = (uint8_t)temp; break;
-6743  010f 7b02          	ld	a,(OFST+0,sp)
-6744  0111 c70000        	ld	_Pending_draddr,a
-6747  0114 2036          	jra	L7642
-6748  0116               L7632:
-6749                     ; 4089         case 8:  Pending_netmask[3] = (uint8_t)temp; break;
-6751  0116 7b02          	ld	a,(OFST+0,sp)
-6752  0118 c70003        	ld	_Pending_netmask+3,a
-6755  011b 202f          	jra	L7642
-6756  011d               L1732:
-6757                     ; 4090         case 9:  Pending_netmask[2] = (uint8_t)temp; break;
-6759  011d 7b02          	ld	a,(OFST+0,sp)
-6760  011f c70002        	ld	_Pending_netmask+2,a
-6763  0122 2028          	jra	L7642
-6764  0124               L3732:
-6765                     ; 4091         case 10: Pending_netmask[1] = (uint8_t)temp; break;
-6767  0124 7b02          	ld	a,(OFST+0,sp)
-6768  0126 c70001        	ld	_Pending_netmask+1,a
-6771  0129 2021          	jra	L7642
-6772  012b               L5732:
-6773                     ; 4092         case 11: Pending_netmask[0] = (uint8_t)temp; break;
-6775  012b 7b02          	ld	a,(OFST+0,sp)
-6776  012d c70000        	ld	_Pending_netmask,a
-6779  0130 201a          	jra	L7642
-6780  0132               L7732:
-6781                     ; 4095 	  Pending_mqttserveraddr[3] = (uint8_t)temp;
-6783  0132 7b02          	ld	a,(OFST+0,sp)
-6784  0134 c70003        	ld	_Pending_mqttserveraddr+3,a
-6785                     ; 4096 	  break;
-6787  0137 2013          	jra	L7642
-6788  0139               L1042:
-6789                     ; 4098         case 13: Pending_mqttserveraddr[2] = (uint8_t)temp; break;
-6791  0139 7b02          	ld	a,(OFST+0,sp)
-6792  013b c70002        	ld	_Pending_mqttserveraddr+2,a
-6795  013e 200c          	jra	L7642
-6796  0140               L3042:
-6797                     ; 4099         case 14: Pending_mqttserveraddr[1] = (uint8_t)temp; break;
-6799  0140 7b02          	ld	a,(OFST+0,sp)
-6800  0142 c70001        	ld	_Pending_mqttserveraddr+1,a
-6803  0145 2005          	jra	L7642
-6804  0147               L5042:
-6805                     ; 4100         case 15: Pending_mqttserveraddr[0] = (uint8_t)temp; break;
-6807  0147 7b02          	ld	a,(OFST+0,sp)
-6808  0149 c70000        	ld	_Pending_mqttserveraddr,a
-6811                     ; 4102         default: break;
-6813  014c               L7642:
-6814                     ; 4107   if (tmp_nBytes == 0) {
-6816  014c ce000c        	ldw	x,_tmp_nBytes
-6817  014f 2604          	jrne	L223
-6818                     ; 4110     break_while = 2; // Hit end of fragment. Set break_while to 2 so that
-6820  0151 3502000a      	mov	_break_while,#2
-6821                     ; 4113     return;
-6822  0155               L223:
-6825  0155 5b04          	addw	sp,#4
-6826  0157 81            	ret	
-6827                     ; 4115 }
-6907                     ; 4118 void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
-6907                     ; 4119 {
-6908                     .text:	section	.text,new
-6909  0000               _parse_POST_port:
-6911  0000 89            	pushw	x
-6912  0001 5203          	subw	sp,#3
-6913       00000003      OFST:	set	3
-6916                     ; 4122   for (i=0; i<5; i++) alpha[i] = '-';
-6918  0003 4f            	clr	a
-6919  0004 6b03          	ld	(OFST+0,sp),a
-6921  0006               L5252:
-6924  0006 5f            	clrw	x
-6925  0007 97            	ld	xl,a
-6926  0008 a62d          	ld	a,#45
-6927  000a d70004        	ld	(_alpha,x),a
-6930  000d 0c03          	inc	(OFST+0,sp)
-6934  000f 7b03          	ld	a,(OFST+0,sp)
-6935  0011 a105          	cp	a,#5
-6936  0013 25f1          	jrult	L5252
-6937                     ; 4124   if (saved_postpartial_previous[0] == curr_ParseCmd) {
-6939  0015 c60012        	ld	a,_saved_postpartial_previous
-6940  0018 1104          	cp	a,(OFST+1,sp)
-6941  001a 2621          	jrne	L3352
-6942                     ; 4127     saved_postpartial_previous[0] = '\0';
-6944  001c 725f0012      	clr	_saved_postpartial_previous
-6945                     ; 4134     for (i=0; i<5; i++) {
-6947  0020 4f            	clr	a
-6948  0021 6b03          	ld	(OFST+0,sp),a
-6950  0023               L5352:
-6951                     ; 4135       if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
-6953  0023 5f            	clrw	x
-6954  0024 97            	ld	xl,a
-6955  0025 724d0016      	tnz	(_saved_postpartial_previous+4,x)
-6956  0029 2708          	jreq	L3452
-6959  002b 5f            	clrw	x
-6960  002c 97            	ld	xl,a
-6961  002d d60016        	ld	a,(_saved_postpartial_previous+4,x)
-6962  0030 d70004        	ld	(_alpha,x),a
-6963  0033               L3452:
-6964                     ; 4134     for (i=0; i<5; i++) {
-6966  0033 0c03          	inc	(OFST+0,sp)
-6970  0035 7b03          	ld	a,(OFST+0,sp)
-6971  0037 a105          	cp	a,#5
-6972  0039 25e8          	jrult	L5352
-6974  003b 2003          	jra	L5452
-6975  003d               L3352:
-6976                     ; 4142     clear_saved_postpartial_data(); // Clear [4] and higher
-6978  003d cd0000        	call	_clear_saved_postpartial_data
-6980  0040               L5452:
-6981                     ; 4147     for (i=0; i<5; i++) {
-6983  0040 4f            	clr	a
-6984  0041 6b03          	ld	(OFST+0,sp),a
-6986  0043               L7452:
-6987                     ; 4153       if (alpha[i] == '-') {
-6989  0043 5f            	clrw	x
-6990  0044 97            	ld	xl,a
-6991  0045 d60004        	ld	a,(_alpha,x)
-6992  0048 a12d          	cp	a,#45
-6993  004a 263c          	jrne	L5552
-6994                     ; 4154         alpha[i] = (uint8_t)(*tmp_pBuffer);
-6996  004c 7b03          	ld	a,(OFST+0,sp)
-6997  004e 5f            	clrw	x
-6998  004f 90ce000e      	ldw	y,_tmp_pBuffer
-6999  0053 97            	ld	xl,a
-7000  0054 90f6          	ld	a,(y)
-7001  0056 d70004        	ld	(_alpha,x),a
-7002                     ; 4155         saved_postpartial[i+4] = *tmp_pBuffer;
-7004  0059 5f            	clrw	x
-7005  005a 7b03          	ld	a,(OFST+0,sp)
-7006  005c 97            	ld	xl,a
-7007  005d 90f6          	ld	a,(y)
-7008  005f d7002e        	ld	(_saved_postpartial+4,x),a
-7009                     ; 4156         tmp_nParseLeft--;
-7011  0062 725a000b      	dec	_tmp_nParseLeft
-7012                     ; 4157         saved_nparseleft = tmp_nParseLeft;
-7014                     ; 4158         tmp_pBuffer++;
-7016  0066 93            	ldw	x,y
-7017  0067 55000b0042    	mov	_saved_nparseleft,_tmp_nParseLeft
-7018  006c 5c            	incw	x
-7019  006d cf000e        	ldw	_tmp_pBuffer,x
-7020                     ; 4159         tmp_nBytes--;
-7022  0070 ce000c        	ldw	x,_tmp_nBytes
-7023  0073 5a            	decw	x
-7024  0074 cf000c        	ldw	_tmp_nBytes,x
-7025                     ; 4160         if (i != 4 && tmp_nBytes == 0) {
-7027  0077 7b03          	ld	a,(OFST+0,sp)
-7028  0079 a104          	cp	a,#4
-7029  007b 270b          	jreq	L5552
-7031  007d ce000c        	ldw	x,_tmp_nBytes
-7032  0080 2606          	jrne	L5552
-7033                     ; 4161           break_while = 1; // Hit end of fragment but still have characters to
-7035  0082 3501000a      	mov	_break_while,#1
-7036                     ; 4165    	break; // Break out of for() loop.
-7038  0086 2008          	jra	L3552
-7039  0088               L5552:
-7040                     ; 4147     for (i=0; i<5; i++) {
-7042  0088 0c03          	inc	(OFST+0,sp)
-7046  008a 7b03          	ld	a,(OFST+0,sp)
-7047  008c a105          	cp	a,#5
-7048  008e 25b3          	jrult	L7452
-7049  0090               L3552:
-7050                     ; 4169     if (break_while == 1) return; // Hit end of fragment. Break out of while() loop.
-7052  0090 c6000a        	ld	a,_break_while
-7053  0093 4a            	dec	a
-7054  0094 2603cc0122    	jreq	L233
-7057                     ; 4174   clear_saved_postpartial_all();
-7059  0099 cd0000        	call	_clear_saved_postpartial_all
-7061                     ; 4183     invalid = 0;
-7063  009c 0f03          	clr	(OFST+0,sp)
-7065                     ; 4185     temp = (uint16_t)(       (alpha[4] - '0'));
-7067  009e 5f            	clrw	x
-7068  009f c60008        	ld	a,_alpha+4
-7069  00a2 97            	ld	xl,a
-7070  00a3 1d0030        	subw	x,#48
-7071  00a6 1f01          	ldw	(OFST-2,sp),x
-7073                     ; 4186     temp = (uint16_t)(temp + (alpha[3] - '0') * 10);
-7075  00a8 c60007        	ld	a,_alpha+3
-7076  00ab 97            	ld	xl,a
-7077  00ac a60a          	ld	a,#10
-7078  00ae 42            	mul	x,a
-7079  00af 1d01e0        	subw	x,#480
-7080  00b2 72fb01        	addw	x,(OFST-2,sp)
-7081  00b5 1f01          	ldw	(OFST-2,sp),x
-7083                     ; 4187     temp = (uint16_t)(temp + (alpha[2] - '0') * 100);
-7085  00b7 c60006        	ld	a,_alpha+2
-7086  00ba 97            	ld	xl,a
-7087  00bb a664          	ld	a,#100
-7088  00bd 42            	mul	x,a
-7089  00be 1d12c0        	subw	x,#4800
-7090  00c1 72fb01        	addw	x,(OFST-2,sp)
-7091  00c4 1f01          	ldw	(OFST-2,sp),x
-7093                     ; 4188     temp = (uint16_t)(temp + (alpha[1] - '0') * 1000);
-7095  00c6 5f            	clrw	x
-7096  00c7 c60005        	ld	a,_alpha+1
-7097  00ca 97            	ld	xl,a
-7098  00cb 90ae03e8      	ldw	y,#1000
-7099  00cf cd0000        	call	c_imul
-7101  00d2 1dbb80        	subw	x,#48000
-7102  00d5 72fb01        	addw	x,(OFST-2,sp)
-7103  00d8 1f01          	ldw	(OFST-2,sp),x
-7105                     ; 4189     if (temp > 5535 && alpha[0] > '5') invalid = 1;
-7107  00da a315a0        	cpw	x,#5536
-7108  00dd 250d          	jrult	L3652
-7110  00df c60004        	ld	a,_alpha
-7111  00e2 a136          	cp	a,#54
-7112  00e4 2506          	jrult	L3652
-7115  00e6 a601          	ld	a,#1
-7116  00e8 6b03          	ld	(OFST+0,sp),a
-7119  00ea 2014          	jra	L5652
-7120  00ec               L3652:
-7121                     ; 4190     else temp = (uint16_t)(temp + (alpha[0] - '0') * 10000);
-7123  00ec c60004        	ld	a,_alpha
-7124  00ef 5f            	clrw	x
-7125  00f0 97            	ld	xl,a
-7126  00f1 90ae2710      	ldw	y,#10000
-7127  00f5 cd0000        	call	c_imul
-7129  00f8 1d5300        	subw	x,#21248
-7130  00fb 72fb01        	addw	x,(OFST-2,sp)
-7131  00fe 1f01          	ldw	(OFST-2,sp),x
-7133  0100               L5652:
-7134                     ; 4191     if (temp < 10) invalid = 1;
-7136  0100 a3000a        	cpw	x,#10
-7137  0103 2404          	jruge	L7652
-7140  0105 a601          	ld	a,#1
-7141  0107 6b03          	ld	(OFST+0,sp),a
-7143  0109               L7652:
-7144                     ; 4192     if (invalid == 0) {
-7146  0109 7b03          	ld	a,(OFST+0,sp)
-7147  010b 260c          	jrne	L1752
-7148                     ; 4193       if (curr_ParseNum == 0) Pending_port = (uint16_t)temp;
-7150  010d 7b05          	ld	a,(OFST+2,sp)
-7151  010f 2605          	jrne	L3752
-7154  0111 cf0000        	ldw	_Pending_port,x
-7156  0114 2003          	jra	L1752
-7157  0116               L3752:
-7158                     ; 4195       else Pending_mqttport = (uint16_t)temp;
-7160  0116 cf0000        	ldw	_Pending_mqttport,x
-7161  0119               L1752:
-7162                     ; 4200   if (tmp_nBytes == 0) {
-7164  0119 ce000c        	ldw	x,_tmp_nBytes
-7165  011c 2604          	jrne	L233
-7166                     ; 4203     break_while = 2; // Hit end of fragment. Set break_while to 2 so that
-7168  011e 3502000a      	mov	_break_while,#2
-7169                     ; 4206     return;
-7170  0122               L233:
-7173  0122 5b05          	addw	sp,#5
-7174  0124 81            	ret	
-7175                     ; 4208 }
-7210                     	switch	.const
-7211  1d45               L043:
-7212  1d45 000e          	dc.w	L1062
-7213  1d47 0016          	dc.w	L3062
-7214  1d49 001e          	dc.w	L5062
-7215  1d4b 0026          	dc.w	L7062
-7216  1d4d 002e          	dc.w	L1162
-7217  1d4f 0036          	dc.w	L3162
-7218  1d51 003e          	dc.w	L5162
-7219  1d53 0046          	dc.w	L7162
-7220  1d55 004e          	dc.w	L1262
-7221  1d57 0056          	dc.w	L3262
-7222  1d59 005e          	dc.w	L5262
-7223  1d5b 0066          	dc.w	L7262
-7224  1d5d 006e          	dc.w	L1362
-7225  1d5f 0076          	dc.w	L3362
-7226  1d61 007e          	dc.w	L5362
-7227  1d63 0086          	dc.w	L7362
-7228                     ; 4211 uint8_t GpioGetPin(uint8_t nGpio)
-7228                     ; 4212 {
-7229                     .text:	section	.text,new
-7230  0000               _GpioGetPin:
-7234                     ; 4217   switch (nGpio) {
-7237                     ; 4233     case 15: if (IO_16to9 & (uint8_t)(0x80)) return 1; break;
-7238  0000 a110          	cp	a,#16
-7239  0002 2503cc008e    	jruge	L7562
-7240  0007 5f            	clrw	x
-7241  0008 97            	ld	xl,a
-7242  0009 58            	sllw	x
-7243  000a de1d45        	ldw	x,(L043,x)
-7244  000d fc            	jp	(x)
-7245  000e               L1062:
-7246                     ; 4218     case 0:  if (IO_8to1  & (uint8_t)(0x01)) return 1; break;
-7248  000e 720100007b    	btjf	_IO_8to1,#0,L7562
-7251  0013 a601          	ld	a,#1
-7254  0015 81            	ret	
-7255  0016               L3062:
-7256                     ; 4219     case 1:  if (IO_8to1  & (uint8_t)(0x02)) return 1; break;
-7258  0016 7203000073    	btjf	_IO_8to1,#1,L7562
-7261  001b a601          	ld	a,#1
-7264  001d 81            	ret	
-7265  001e               L5062:
-7266                     ; 4220     case 2:  if (IO_8to1  & (uint8_t)(0x04)) return 1; break;
-7268  001e 720500006b    	btjf	_IO_8to1,#2,L7562
-7271  0023 a601          	ld	a,#1
-7274  0025 81            	ret	
-7275  0026               L7062:
-7276                     ; 4221     case 3:  if (IO_8to1  & (uint8_t)(0x08)) return 1; break;
-7278  0026 7207000063    	btjf	_IO_8to1,#3,L7562
-7281  002b a601          	ld	a,#1
-7284  002d 81            	ret	
-7285  002e               L1162:
-7286                     ; 4222     case 4:  if (IO_8to1  & (uint8_t)(0x10)) return 1; break;
-7288  002e 720900005b    	btjf	_IO_8to1,#4,L7562
-7291  0033 a601          	ld	a,#1
-7294  0035 81            	ret	
-7295  0036               L3162:
-7296                     ; 4223     case 5:  if (IO_8to1  & (uint8_t)(0x20)) return 1; break;
-7298  0036 720b000053    	btjf	_IO_8to1,#5,L7562
-7301  003b a601          	ld	a,#1
-7304  003d 81            	ret	
-7305  003e               L5162:
-7306                     ; 4224     case 6:  if (IO_8to1  & (uint8_t)(0x40)) return 1; break;
-7308  003e 720d00004b    	btjf	_IO_8to1,#6,L7562
-7311  0043 a601          	ld	a,#1
-7314  0045 81            	ret	
-7315  0046               L7162:
-7316                     ; 4225     case 7:  if (IO_8to1  & (uint8_t)(0x80)) return 1; break;
-7318  0046 720f000043    	btjf	_IO_8to1,#7,L7562
-7321  004b a601          	ld	a,#1
-7324  004d 81            	ret	
-7325  004e               L1262:
-7326                     ; 4226     case 8:  if (IO_16to9 & (uint8_t)(0x01)) return 1; break;
-7328  004e 720100003b    	btjf	_IO_16to9,#0,L7562
-7331  0053 a601          	ld	a,#1
-7334  0055 81            	ret	
-7335  0056               L3262:
-7336                     ; 4227     case 9:  if (IO_16to9 & (uint8_t)(0x02)) return 1; break;
-7338  0056 7203000033    	btjf	_IO_16to9,#1,L7562
-7341  005b a601          	ld	a,#1
-7344  005d 81            	ret	
-7345  005e               L5262:
-7346                     ; 4228     case 10: if (IO_16to9 & (uint8_t)(0x04)) return 1; break;
-7348  005e 720500002b    	btjf	_IO_16to9,#2,L7562
-7351  0063 a601          	ld	a,#1
-7354  0065 81            	ret	
-7355  0066               L7262:
-7356                     ; 4229     case 11: if (IO_16to9 & (uint8_t)(0x08)) return 1; break;
-7358  0066 7207000023    	btjf	_IO_16to9,#3,L7562
-7361  006b a601          	ld	a,#1
-7364  006d 81            	ret	
-7365  006e               L1362:
-7366                     ; 4230     case 12: if (IO_16to9 & (uint8_t)(0x10)) return 1; break;
-7368  006e 720900001b    	btjf	_IO_16to9,#4,L7562
-7371  0073 a601          	ld	a,#1
-7374  0075 81            	ret	
-7375  0076               L3362:
-7376                     ; 4231     case 13: if (IO_16to9 & (uint8_t)(0x20)) return 1; break;
-7378  0076 720b000013    	btjf	_IO_16to9,#5,L7562
-7381  007b a601          	ld	a,#1
-7384  007d 81            	ret	
-7385  007e               L5362:
-7386                     ; 4232     case 14: if (IO_16to9 & (uint8_t)(0x40)) return 1; break;
-7388  007e 720d00000b    	btjf	_IO_16to9,#6,L7562
-7391  0083 a601          	ld	a,#1
-7394  0085 81            	ret	
-7395  0086               L7362:
-7396                     ; 4233     case 15: if (IO_16to9 & (uint8_t)(0x80)) return 1; break;
-7398  0086 720f000003    	btjf	_IO_16to9,#7,L7562
-7401  008b a601          	ld	a,#1
-7404  008d 81            	ret	
-7405  008e               L7562:
-7406                     ; 4235   return 0;
-7408  008e 4f            	clr	a
-7411  008f 81            	ret	
-7458                     ; 4284 void GpioSetPin(uint8_t nGpio, uint8_t nState)
-7458                     ; 4285 {
-7459                     .text:	section	.text,new
-7460  0000               _GpioSetPin:
-7462  0000 89            	pushw	x
-7463  0001 88            	push	a
-7464       00000001      OFST:	set	1
-7467                     ; 4292   mask = 0;
-7469  0002 0f01          	clr	(OFST+0,sp)
-7471                     ; 4294   switch(nGpio) {
-7473  0004 9e            	ld	a,xh
-7475                     ; 4303     default: break;
-7476  0005 4d            	tnz	a
-7477  0006 2717          	jreq	L1272
-7478  0008 4a            	dec	a
-7479  0009 2717          	jreq	L3272
-7480  000b 4a            	dec	a
-7481  000c 2718          	jreq	L5272
-7482  000e 4a            	dec	a
-7483  000f 2719          	jreq	L7272
-7484  0011 4a            	dec	a
-7485  0012 271a          	jreq	L1372
-7486  0014 4a            	dec	a
-7487  0015 271b          	jreq	L3372
-7488  0017 4a            	dec	a
-7489  0018 271c          	jreq	L5372
-7490  001a 4a            	dec	a
-7491  001b 271d          	jreq	L7372
-7492  001d 201f          	jra	L5672
-7493  001f               L1272:
-7494                     ; 4295     case 0: mask = 0x01; break;
-7496  001f 4c            	inc	a
-7499  0020 201a          	jp	LC026
-7500  0022               L3272:
-7501                     ; 4296     case 1: mask = 0x02; break;
-7503  0022 a602          	ld	a,#2
-7506  0024 2016          	jp	LC026
-7507  0026               L5272:
-7508                     ; 4297     case 2: mask = 0x04; break;
-7510  0026 a604          	ld	a,#4
-7513  0028 2012          	jp	LC026
-7514  002a               L7272:
-7515                     ; 4298     case 3: mask = 0x08; break;
-7517  002a a608          	ld	a,#8
-7520  002c 200e          	jp	LC026
-7521  002e               L1372:
-7522                     ; 4299     case 4: mask = 0x10; break;
-7524  002e a610          	ld	a,#16
-7527  0030 200a          	jp	LC026
-7528  0032               L3372:
-7529                     ; 4300     case 5: mask = 0x20; break;
-7531  0032 a620          	ld	a,#32
-7534  0034 2006          	jp	LC026
-7535  0036               L5372:
-7536                     ; 4301     case 6: mask = 0x40; break;
-7538  0036 a640          	ld	a,#64
-7541  0038 2002          	jp	LC026
-7542  003a               L7372:
-7543                     ; 4302     case 7: mask = 0x80; break;
-7545  003a a680          	ld	a,#128
-7546  003c               LC026:
-7547  003c 6b01          	ld	(OFST+0,sp),a
-7551                     ; 4303     default: break;
-7553  003e               L5672:
-7554                     ; 4306   if (nState) IO_8to1 |= mask;
-7556  003e 7b03          	ld	a,(OFST+2,sp)
-7557  0040 2707          	jreq	L7672
-7560  0042 c60000        	ld	a,_IO_8to1
-7561  0045 1a01          	or	a,(OFST+0,sp)
-7563  0047 2006          	jra	L1772
-7564  0049               L7672:
-7565                     ; 4307   else IO_8to1 &= (uint8_t)~mask;
-7567  0049 7b01          	ld	a,(OFST+0,sp)
-7568  004b 43            	cpl	a
-7569  004c c40000        	and	a,_IO_8to1
-7570  004f               L1772:
-7571  004f c70000        	ld	_IO_8to1,a
-7572                     ; 4309 }
-7575  0052 5b03          	addw	sp,#3
-7576  0054 81            	ret	
-7637                     ; 4321 void SetMAC(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2)
-7637                     ; 4322 {
-7638                     .text:	section	.text,new
-7639  0000               _SetMAC:
-7641  0000 89            	pushw	x
-7642  0001 5203          	subw	sp,#3
-7643       00000003      OFST:	set	3
-7646                     ; 4336   temp = 0;
-7648                     ; 4337   invalid = 0;
-7650  0003 0f01          	clr	(OFST-2,sp)
-7652                     ; 4340   if (alpha1 >= '0' && alpha1 <= '9') alpha1 = (uint8_t)(alpha1 - '0');
-7654  0005 9f            	ld	a,xl
-7655  0006 a130          	cp	a,#48
-7656  0008 250b          	jrult	L5303
-7658  000a 9f            	ld	a,xl
-7659  000b a13a          	cp	a,#58
-7660  000d 2406          	jruge	L5303
-7663  000f 7b05          	ld	a,(OFST+2,sp)
-7664  0011 a030          	sub	a,#48
-7666  0013 200c          	jp	LC027
-7667  0015               L5303:
-7668                     ; 4341   else if (alpha1 >= 'a' && alpha1 <= 'f') alpha1 = (uint8_t)(alpha1 - 87);
-7670  0015 7b05          	ld	a,(OFST+2,sp)
-7671  0017 a161          	cp	a,#97
-7672  0019 250a          	jrult	L1403
-7674  001b a167          	cp	a,#103
-7675  001d 2406          	jruge	L1403
-7678  001f a057          	sub	a,#87
-7679  0021               LC027:
-7680  0021 6b05          	ld	(OFST+2,sp),a
-7682  0023 2004          	jra	L7303
-7683  0025               L1403:
-7684                     ; 4342   else invalid = 1; // If an invalid entry set indicator
-7686  0025 a601          	ld	a,#1
-7687  0027 6b01          	ld	(OFST-2,sp),a
-7689  0029               L7303:
-7690                     ; 4344   if (alpha2 >= '0' && alpha2 <= '9') alpha2 = (uint8_t)(alpha2 - '0');
-7692  0029 7b08          	ld	a,(OFST+5,sp)
-7693  002b a130          	cp	a,#48
-7694  002d 2508          	jrult	L5403
-7696  002f a13a          	cp	a,#58
-7697  0031 2404          	jruge	L5403
-7700  0033 a030          	sub	a,#48
-7702  0035 200a          	jp	LC028
-7703  0037               L5403:
-7704                     ; 4345   else if (alpha2 >= 'a' && alpha2 <= 'f') alpha2 = (uint8_t)(alpha2 - 87);
-7706  0037 a161          	cp	a,#97
-7707  0039 250a          	jrult	L1503
-7709  003b a167          	cp	a,#103
-7710  003d 2406          	jruge	L1503
-7713  003f a057          	sub	a,#87
-7714  0041               LC028:
-7715  0041 6b08          	ld	(OFST+5,sp),a
-7717  0043 2004          	jra	L7403
-7718  0045               L1503:
-7719                     ; 4346   else invalid = 1; // If an invalid entry set indicator
-7721  0045 a601          	ld	a,#1
-7722  0047 6b01          	ld	(OFST-2,sp),a
-7724  0049               L7403:
-7725                     ; 4348   if (invalid == 0) { // Change value only if valid entry
-7727  0049 7b01          	ld	a,(OFST-2,sp)
-7728  004b 264a          	jrne	L5503
-7729                     ; 4349     temp = (uint8_t)((alpha1<<4) + alpha2); // Convert to single digit
-7731  004d 7b05          	ld	a,(OFST+2,sp)
-7732  004f 97            	ld	xl,a
-7733  0050 a610          	ld	a,#16
-7734  0052 42            	mul	x,a
-7735  0053 01            	rrwa	x,a
-7736  0054 1b08          	add	a,(OFST+5,sp)
-7737  0056 5f            	clrw	x
-7738  0057 97            	ld	xl,a
-7739  0058 1f02          	ldw	(OFST-1,sp),x
-7741                     ; 4350     switch(itemnum)
-7743  005a 7b04          	ld	a,(OFST+1,sp)
-7745                     ; 4358     default: break;
-7746  005c 2711          	jreq	L3772
-7747  005e 4a            	dec	a
-7748  005f 2715          	jreq	L5772
-7749  0061 4a            	dec	a
-7750  0062 2719          	jreq	L7772
-7751  0064 4a            	dec	a
-7752  0065 271d          	jreq	L1003
-7753  0067 4a            	dec	a
-7754  0068 2721          	jreq	L3003
-7755  006a 4a            	dec	a
-7756  006b 2725          	jreq	L5003
-7757  006d 2028          	jra	L5503
-7758  006f               L3772:
-7759                     ; 4352     case 0: Pending_uip_ethaddr_oct[5] = (uint8_t)temp; break;
-7761  006f 7b03          	ld	a,(OFST+0,sp)
-7762  0071 c70005        	ld	_Pending_uip_ethaddr_oct+5,a
-7765  0074 2021          	jra	L5503
-7766  0076               L5772:
-7767                     ; 4353     case 1: Pending_uip_ethaddr_oct[4] = (uint8_t)temp; break;
-7769  0076 7b03          	ld	a,(OFST+0,sp)
-7770  0078 c70004        	ld	_Pending_uip_ethaddr_oct+4,a
-7773  007b 201a          	jra	L5503
-7774  007d               L7772:
-7775                     ; 4354     case 2: Pending_uip_ethaddr_oct[3] = (uint8_t)temp; break;
-7777  007d 7b03          	ld	a,(OFST+0,sp)
-7778  007f c70003        	ld	_Pending_uip_ethaddr_oct+3,a
-7781  0082 2013          	jra	L5503
-7782  0084               L1003:
-7783                     ; 4355     case 3: Pending_uip_ethaddr_oct[2] = (uint8_t)temp; break;
-7785  0084 7b03          	ld	a,(OFST+0,sp)
-7786  0086 c70002        	ld	_Pending_uip_ethaddr_oct+2,a
-7789  0089 200c          	jra	L5503
-7790  008b               L3003:
-7791                     ; 4356     case 4: Pending_uip_ethaddr_oct[1] = (uint8_t)temp; break;
-7793  008b 7b03          	ld	a,(OFST+0,sp)
-7794  008d c70001        	ld	_Pending_uip_ethaddr_oct+1,a
-7797  0090 2005          	jra	L5503
-7798  0092               L5003:
-7799                     ; 4357     case 5: Pending_uip_ethaddr_oct[0] = (uint8_t)temp; break;
-7801  0092 7b03          	ld	a,(OFST+0,sp)
-7802  0094 c70000        	ld	_Pending_uip_ethaddr_oct,a
-7805                     ; 4358     default: break;
-7807  0097               L5503:
-7808                     ; 4361 }
-7811  0097 5b05          	addw	sp,#5
-7812  0099 81            	ret	
-8206                     	switch	.bss
-8207  0000               _insertion_flag:
-8208  0000 000000        	ds.b	3
-8209                     	xdef	_insertion_flag
-8210                     	xref	_second_counter
-8211                     	xref	_TRANSMIT_counter
-8212                     	xref	_TXERIF_counter
-8213                     	xref	_RXERIF_counter
-8214                     	xref	_MQTT_error_status
-8215                     	xref	_mqtt_start_status
-8216                     	xref	_Pending_mqtt_password
-8217                     	xref	_Pending_mqtt_username
-8218                     	xref	_Pending_mqttport
-8219                     	xref	_Pending_mqttserveraddr
-8220                     	xref	_stored_mqtt_password
-8221                     	xref	_stored_mqtt_username
-8222                     	xref	_stored_mqttport
-8223                     	xref	_stored_mqttserveraddr
-8224  0003               _current_webpage:
-8225  0003 00            	ds.b	1
-8226                     	xdef	_current_webpage
-8227  0004               _alpha:
-8228  0004 000000000000  	ds.b	6
-8229                     	xdef	_alpha
-8230  000a               _break_while:
-8231  000a 00            	ds.b	1
-8232                     	xdef	_break_while
-8233  000b               _tmp_nParseLeft:
-8234  000b 00            	ds.b	1
-8235                     	xdef	_tmp_nParseLeft
-8236  000c               _tmp_nBytes:
-8237  000c 0000          	ds.b	2
-8238                     	xdef	_tmp_nBytes
-8239  000e               _tmp_pBuffer:
-8240  000e 0000          	ds.b	2
-8241                     	xdef	_tmp_pBuffer
-8242  0010               _z_diag:
-8243  0010 00            	ds.b	1
-8244                     	xdef	_z_diag
-8245  0011               _saved_newlines:
-8246  0011 00            	ds.b	1
-8247                     	xdef	_saved_newlines
-8248  0012               _saved_postpartial_previous:
-8249  0012 000000000000  	ds.b	24
-8250                     	xdef	_saved_postpartial_previous
-8251  002a               _saved_postpartial:
-8252  002a 000000000000  	ds.b	24
-8253                     	xdef	_saved_postpartial
-8254  0042               _saved_nparseleft:
-8255  0042 00            	ds.b	1
-8256                     	xdef	_saved_nparseleft
-8257  0043               _saved_parsestate:
-8258  0043 00            	ds.b	1
-8259                     	xdef	_saved_parsestate
-8260  0044               _saved_nstate:
-8261  0044 00            	ds.b	1
-8262                     	xdef	_saved_nstate
-8263  0045               _OctetArray:
-8264  0045 000000000000  	ds.b	11
-8265                     	xdef	_OctetArray
-8266                     	xref	_user_reboot_request
-8267                     	xref	_parse_complete
-8268                     	xref	_mac_string
-8269                     	xref	_stored_config_settings
-8270                     	xref	_stored_devicename
-8271                     	xref	_stored_port
-8272                     	xref	_stored_netmask
-8273                     	xref	_stored_draddr
-8274                     	xref	_stored_hostaddr
-8275                     	xref	_Pending_uip_ethaddr_oct
-8276                     	xref	_Pending_config_settings
-8277                     	xref	_Pending_devicename
-8278                     	xref	_Pending_port
-8279                     	xref	_Pending_netmask
-8280                     	xref	_Pending_draddr
-8281                     	xref	_Pending_hostaddr
-8282                     	xref	_invert_input
-8283                     	xref	_IO_8to1
-8284                     	xref	_IO_16to9
-8285                     	xref	_Port_Httpd
-8286                     	xref	_strlen
-8287                     	xref	_debugflash
-8288                     	xref	_uip_flags
-8289                     	xref	_uip_conn
-8290                     	xref	_uip_len
-8291                     	xref	_uip_appdata
-8292                     	xref	_htons
-8293                     	xref	_uip_send
-8294                     	xref	_uip_listen
-8295                     	xref	_uip_init_stats
-8296                     	xdef	_SetMAC
-8297                     	xdef	_clear_saved_postpartial_previous
-8298                     	xdef	_clear_saved_postpartial_data
-8299                     	xdef	_clear_saved_postpartial_all
-8300                     	xdef	_GpioSetPin
-8301                     	xdef	_GpioGetPin
-8302                     	xdef	_parse_POST_port
-8303                     	xdef	_parse_POST_address
-8304                     	xdef	_parse_POST_string
-8305                     	xdef	_HttpDCall
-8306                     	xdef	_HttpDInit
-8307                     	xdef	_emb_itoa
-8308                     	xdef	_adjust_template_size
-8309                     	switch	.const
-8310  1d65               L333:
-8311  1d65 436f6e6e6563  	dc.b	"Connection:close",13
-8312  1d76 0a00          	dc.b	10,0
-8313  1d78               L133:
-8314  1d78 436f6e74656e  	dc.b	"Content-Type: text"
-8315  1d8a 2f68746d6c3b  	dc.b	"/html; charset=utf"
-8316  1d9c 2d380d        	dc.b	"-8",13
-8317  1d9f 0a00          	dc.b	10,0
-8318  1da1               L723:
-8319  1da1 43616368652d  	dc.b	"Cache-Control: no-"
-8320  1db3 63616368652c  	dc.b	"cache, no-store",13
-8321  1dc3 0a00          	dc.b	10,0
-8322  1dc5               L713:
-8323  1dc5 436f6e74656e  	dc.b	"Content-Length:",0
-8324  1dd5               L513:
-8325  1dd5 0d0a00        	dc.b	13,10,0
-8326  1dd8               L313:
-8327  1dd8 485454502f31  	dc.b	"HTTP/1.1 200 OK",0
-8328                     	xref.b	c_lreg
-8329                     	xref.b	c_x
-8330                     	xref.b	c_y
-8350                     	xref	c_imul
-8351                     	xref	c_uitolx
-8352                     	xref	c_ludv
-8353                     	xref	c_lumd
-8354                     	xref	c_rtol
-8355                     	xref	c_ltor
-8356                     	xref	c_lzmp
-8357                     	end
+5222  08b0 35010000      	mov	_parse_complete,#1
+5225  08b4 cc09f0        	jra	L5402
+5226  08b7               L3701:
+5227                     ; 3577 	    case 1:  IO_8to1 |= (uint8_t)0x01;     parse_complete = 1; break; // Relay-01 ON
+5229  08b7 72100000      	bset	_IO_8to1,#0
+5232  08bb 35010000      	mov	_parse_complete,#1
+5235  08bf cc09f0        	jra	L5402
+5236  08c2               L5701:
+5237                     ; 3578 	    case 2:  IO_8to1 &= (uint8_t)(~0x02);  parse_complete = 1; break; // Relay-02 OFF
+5239  08c2 72130000      	bres	_IO_8to1,#1
+5242  08c6 35010000      	mov	_parse_complete,#1
+5245  08ca cc09f0        	jra	L5402
+5246  08cd               L7701:
+5247                     ; 3579 	    case 3:  IO_8to1 |= (uint8_t)0x02;     parse_complete = 1; break; // Relay-02 ON
+5249  08cd 72120000      	bset	_IO_8to1,#1
+5252  08d1 35010000      	mov	_parse_complete,#1
+5255  08d5 cc09f0        	jra	L5402
+5256  08d8               L1011:
+5257                     ; 3580 	    case 4:  IO_8to1 &= (uint8_t)(~0x04);  parse_complete = 1; break; // Relay-03 OFF
+5259  08d8 72150000      	bres	_IO_8to1,#2
+5262  08dc 35010000      	mov	_parse_complete,#1
+5265  08e0 cc09f0        	jra	L5402
+5266  08e3               L3011:
+5267                     ; 3581 	    case 5:  IO_8to1 |= (uint8_t)0x04;     parse_complete = 1; break; // Relay-03 ON
+5269  08e3 72140000      	bset	_IO_8to1,#2
+5272  08e7 35010000      	mov	_parse_complete,#1
+5275  08eb cc09f0        	jra	L5402
+5276  08ee               L5011:
+5277                     ; 3582 	    case 6:  IO_8to1 &= (uint8_t)(~0x08);  parse_complete = 1; break; // Relay-04 OFF
+5279  08ee 72170000      	bres	_IO_8to1,#3
+5282  08f2 35010000      	mov	_parse_complete,#1
+5285  08f6 cc09f0        	jra	L5402
+5286  08f9               L7011:
+5287                     ; 3583 	    case 7:  IO_8to1 |= (uint8_t)0x08;     parse_complete = 1; break; // Relay-04 ON
+5289  08f9 72160000      	bset	_IO_8to1,#3
+5292  08fd 35010000      	mov	_parse_complete,#1
+5295  0901 cc09f0        	jra	L5402
+5296  0904               L1111:
+5297                     ; 3584 	    case 8:  IO_8to1 &= (uint8_t)(~0x10);  parse_complete = 1; break; // Relay-05 OFF
+5299  0904 72190000      	bres	_IO_8to1,#4
+5302  0908 35010000      	mov	_parse_complete,#1
+5305  090c cc09f0        	jra	L5402
+5306  090f               L3111:
+5307                     ; 3585 	    case 9:  IO_8to1 |= (uint8_t)0x10;     parse_complete = 1; break; // Relay-05 ON
+5309  090f 72180000      	bset	_IO_8to1,#4
+5312  0913 35010000      	mov	_parse_complete,#1
+5315  0917 cc09f0        	jra	L5402
+5316  091a               L5111:
+5317                     ; 3586 	    case 10: IO_8to1 &= (uint8_t)(~0x20);  parse_complete = 1; break; // Relay-06 OFF
+5319  091a 721b0000      	bres	_IO_8to1,#5
+5322  091e 35010000      	mov	_parse_complete,#1
+5325  0922 cc09f0        	jra	L5402
+5326  0925               L7111:
+5327                     ; 3587 	    case 11: IO_8to1 |= (uint8_t)0x20;     parse_complete = 1; break; // Relay-06 ON
+5329  0925 721a0000      	bset	_IO_8to1,#5
+5332  0929 35010000      	mov	_parse_complete,#1
+5335  092d cc09f0        	jra	L5402
+5336  0930               L1211:
+5337                     ; 3588 	    case 12: IO_8to1 &= (uint8_t)(~0x40);  parse_complete = 1; break; // Relay-07 OFF
+5339  0930 721d0000      	bres	_IO_8to1,#6
+5342  0934 35010000      	mov	_parse_complete,#1
+5345  0938 cc09f0        	jra	L5402
+5346  093b               L3211:
+5347                     ; 3589 	    case 13: IO_8to1 |= (uint8_t)0x40;     parse_complete = 1; break; // Relay-07 ON
+5349  093b 721c0000      	bset	_IO_8to1,#6
+5352  093f 35010000      	mov	_parse_complete,#1
+5355  0943 cc09f0        	jra	L5402
+5356  0946               L5211:
+5357                     ; 3590 	    case 14: IO_8to1 &= (uint8_t)(~0x80);  parse_complete = 1; break; // Relay-08 OFF
+5359  0946 721f0000      	bres	_IO_8to1,#7
+5362  094a 35010000      	mov	_parse_complete,#1
+5365  094e cc09f0        	jra	L5402
+5366  0951               L7211:
+5367                     ; 3591 	    case 15: IO_8to1 |= (uint8_t)0x80;     parse_complete = 1; break; // Relay-08 ON
+5369  0951 721e0000      	bset	_IO_8to1,#7
+5372  0955 35010000      	mov	_parse_complete,#1
+5375  0959 cc09f0        	jra	L5402
+5376  095c               L1311:
+5377                     ; 3593 	    case 55:
+5377                     ; 3594   	      IO_8to1 = (uint8_t)0xff; // Relays 1-8 ON
+5379  095c 35ff0000      	mov	_IO_8to1,#255
+5380                     ; 3595 	      parse_complete = 1; 
+5382  0960 35010000      	mov	_parse_complete,#1
+5383                     ; 3596 	      break;
+5385  0964 cc09f0        	jra	L5402
+5386  0967               L3311:
+5387                     ; 3598 	    case 56:
+5387                     ; 3599               IO_8to1 = (uint8_t)0x00; // Relays 1-8 OFF
+5389  0967 c70000        	ld	_IO_8to1,a
+5390                     ; 3600 	      parse_complete = 1; 
+5392  096a 35010000      	mov	_parse_complete,#1
+5393                     ; 3601 	      break;
+5395  096e cc09f0        	jra	L5402
+5396  0971               L5311:
+5397                     ; 3608 	    case 60: // Show IO Control page
+5397                     ; 3609 	      current_webpage = WEBPAGE_IOCONTROL;
+5399  0971 c70003        	ld	_current_webpage,a
+5400                     ; 3610               pSocket->pData = g_HtmlPageIOControl;
+5402  0974 90ae0008      	ldw	y,#L31_g_HtmlPageIOControl
+5403  0978 ef01          	ldw	(1,x),y
+5404                     ; 3611               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
+5406  097a 90ae0c06      	ldw	y,#3078
+5407                     ; 3612               pSocket->nState = STATE_CONNECTED;
+5408                     ; 3613               pSocket->nPrevBytes = 0xFFFF;
+5409                     ; 3614 	      break;
+5411  097e 2029          	jp	LC021
+5412  0980               L7311:
+5413                     ; 3616 	    case 61: // Show Configuration page
+5413                     ; 3617 	      current_webpage = WEBPAGE_CONFIGURATION;
+5415  0980 35010003      	mov	_current_webpage,#1
+5416                     ; 3618               pSocket->pData = g_HtmlPageConfiguration;
+5418  0984 90ae0c0f      	ldw	y,#L51_g_HtmlPageConfiguration
+5419  0988 ef01          	ldw	(1,x),y
+5420                     ; 3619               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
+5422  098a 90ae0c5c      	ldw	y,#3164
+5423                     ; 3620               pSocket->nState = STATE_CONNECTED;
+5424                     ; 3621               pSocket->nPrevBytes = 0xFFFF;
+5425                     ; 3622 	      break;
+5427  098e 2019          	jp	LC021
+5428  0990               L1411:
+5429                     ; 3642 	    case 65: // Flash LED for diagnostics
+5429                     ; 3643 	      // XXXXXXXXXXXXXXXXXXXXXX
+5429                     ; 3644 	      // XXXXXXXXXXXXXXXXXXXXXX
+5429                     ; 3645 	      // XXXXXXXXXXXXXXXXXXXXXX
+5429                     ; 3646 	      debugflash();
+5431  0990 cd0000        	call	_debugflash
+5433                     ; 3647 	      debugflash();
+5435  0993 cd0000        	call	_debugflash
+5437                     ; 3648 	      debugflash();
+5439  0996 cd0000        	call	_debugflash
+5441                     ; 3652 	      break;
+5443  0999 2055          	jra	L5402
+5444  099b               L3411:
+5445                     ; 3655             case 66: // Show statistics page
+5445                     ; 3656 	      current_webpage = WEBPAGE_STATS;
+5447  099b 35050003      	mov	_current_webpage,#5
+5448                     ; 3657               pSocket->pData = g_HtmlPageStats;
+5450  099f 90ae186c      	ldw	y,#L71_g_HtmlPageStats
+5451  09a3 ef01          	ldw	(1,x),y
+5452                     ; 3658               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
+5454  09a5 90ae0175      	ldw	y,#373
+5455                     ; 3659               pSocket->nState = STATE_CONNECTED;
+5457  09a9               LC021:
+5458  09a9 ef03          	ldw	(3,x),y
+5462  09ab f7            	ld	(x),a
+5463                     ; 3660               pSocket->nPrevBytes = 0xFFFF;
+5464                     ; 3661 	      break;
+5466  09ac 203c          	jp	LC019
+5467  09ae               L5411:
+5468                     ; 3663             case 67: // Clear statistics
+5468                     ; 3664 	      uip_init_stats();
+5470  09ae cd0000        	call	_uip_init_stats
+5472                     ; 3679 	      current_webpage = WEBPAGE_STATS;
+5474  09b1 35050003      	mov	_current_webpage,#5
+5475                     ; 3680               pSocket->pData = g_HtmlPageStats;
+5477  09b5 1e0b          	ldw	x,(OFST+7,sp)
+5478  09b7 90ae186c      	ldw	y,#L71_g_HtmlPageStats
+5479  09bb ef01          	ldw	(1,x),y
+5480                     ; 3681               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
+5482  09bd 90ae0175      	ldw	y,#373
+5483                     ; 3682               pSocket->nState = STATE_CONNECTED;
+5484                     ; 3683               pSocket->nPrevBytes = 0xFFFF;
+5485                     ; 3684 	      break;
+5487  09c1 2024          	jp	LC020
+5488  09c3               L7411:
+5489                     ; 3687 	    case 91: // Reboot
+5489                     ; 3688 	      user_reboot_request = 1;
+5491  09c3 35010000      	mov	_user_reboot_request,#1
+5492                     ; 3689 	      break;
+5494  09c7 2027          	jra	L5402
+5495  09c9               L1511:
+5496                     ; 3691             case 99: // Show simplified IO state page
+5496                     ; 3692 	      current_webpage = WEBPAGE_RSTATE;
+5498  09c9 35060003      	mov	_current_webpage,#6
+5499                     ; 3693               pSocket->pData = g_HtmlPageRstate;
+5501  09cd 90ae19e2      	ldw	y,#L12_g_HtmlPageRstate
+5502  09d1 ef01          	ldw	(1,x),y
+5503                     ; 3694               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRstate) - 1);
+5505  09d3 90ae0087      	ldw	y,#135
+5506                     ; 3695               pSocket->nState = STATE_CONNECTED;
+5507                     ; 3696               pSocket->nPrevBytes = 0xFFFF;
+5508                     ; 3697 	      break;
+5510  09d7 20d0          	jp	LC021
+5511  09d9               L3511:
+5512                     ; 3699 	    default: // Show IO Control page
+5512                     ; 3700 	      current_webpage = WEBPAGE_IOCONTROL;
+5514  09d9 725f0003      	clr	_current_webpage
+5515                     ; 3701               pSocket->pData = g_HtmlPageIOControl;
+5517  09dd 90ae0008      	ldw	y,#L31_g_HtmlPageIOControl
+5518  09e1 ef01          	ldw	(1,x),y
+5519                     ; 3702               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
+5521  09e3 90ae0c06      	ldw	y,#3078
+5522                     ; 3703               pSocket->nState = STATE_CONNECTED;
+5524  09e7               LC020:
+5525  09e7 ef03          	ldw	(3,x),y
+5527  09e9 7f            	clr	(x)
+5528                     ; 3704               pSocket->nPrevBytes = 0xFFFF;
+5530  09ea               LC019:
+5536  09ea 90aeffff      	ldw	y,#65535
+5537  09ee ef0b          	ldw	(11,x),y
+5538                     ; 3705 	      break;
+5540  09f0               L5402:
+5541                     ; 3707           pSocket->nParseLeft = 0;
+5543  09f0 1e0b          	ldw	x,(OFST+7,sp)
+5544  09f2 6f06          	clr	(6,x)
+5545  09f4               L3102:
+5546                     ; 3710         if (pSocket->ParseState == PARSE_FAIL) {
+5548  09f4 1e0b          	ldw	x,(OFST+7,sp)
+5549  09f6 e60a          	ld	a,(10,x)
+5550  09f8 a107          	cp	a,#7
+5551                     ; 3715           pSocket->nState = STATE_SENDHEADER;
+5552                     ; 3716 	  break;
+5554  09fa 2704          	jreq	LC025
+5555                     ; 3719         if (pSocket->nParseLeft == 0) {
+5557  09fc e606          	ld	a,(6,x)
+5558  09fe 2605          	jrne	L1002
+5559                     ; 3722           pSocket->nState = STATE_SENDHEADER;
+5561  0a00               LC025:
+5563  0a00 a60b          	ld	a,#11
+5564  0a02 f7            	ld	(x),a
+5565                     ; 3723           break;
+5567  0a03 2007          	jra	L5771
+5568  0a05               L1002:
+5569                     ; 3387       while (nBytes != 0) {
+5571  0a05 1e09          	ldw	x,(OFST+5,sp)
+5572  0a07 2703cc079a    	jrne	L7771
+5573  0a0c               L5771:
+5574                     ; 3728     if (pSocket->nState == STATE_SENDHEADER) {
+5576  0a0c 1e0b          	ldw	x,(OFST+7,sp)
+5577  0a0e f6            	ld	a,(x)
+5578  0a0f a10b          	cp	a,#11
+5579  0a11 261c          	jrne	L5511
+5580                     ; 3734       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
+5582  0a13 cd0000        	call	_adjust_template_size
+5584  0a16 89            	pushw	x
+5585  0a17 ce0000        	ldw	x,_uip_appdata
+5586  0a1a cd0000        	call	L5_CopyHttpHeader
+5588  0a1d 5b02          	addw	sp,#2
+5589  0a1f 89            	pushw	x
+5590  0a20 ce0000        	ldw	x,_uip_appdata
+5591  0a23 cd0000        	call	_uip_send
+5593  0a26 85            	popw	x
+5594                     ; 3735       pSocket->nState = STATE_SENDDATA;
+5596  0a27 1e0b          	ldw	x,(OFST+7,sp)
+5597  0a29 a60c          	ld	a,#12
+5598  0a2b f7            	ld	(x),a
+5599                     ; 3736       return;
+5601  0a2c cc012f        	jra	L452
+5602  0a2f               L5511:
+5603                     ; 3739     senddata:
+5603                     ; 3740     if (pSocket->nState == STATE_SENDDATA) {
+5605  0a2f 1e0b          	ldw	x,(OFST+7,sp)
+5606  0a31 f6            	ld	a,(x)
+5607  0a32 a10c          	cp	a,#12
+5608  0a34 26f6          	jrne	L452
+5609                     ; 3747       if (pSocket->nDataLeft == 0) {
+5611  0a36 e604          	ld	a,(4,x)
+5612  0a38 ea03          	or	a,(3,x)
+5613  0a3a 2605          	jrne	L7502
+5614                     ; 3749         nBufSize = 0;
+5616  0a3c 5f            	clrw	x
+5617  0a3d 1f02          	ldw	(OFST-2,sp),x
+5620  0a3f 202f          	jra	L1602
+5621  0a41               L7502:
+5622                     ; 3752         pSocket->nPrevBytes = pSocket->nDataLeft;
+5624  0a41 9093          	ldw	y,x
+5625  0a43 90ee03        	ldw	y,(3,y)
+5626  0a46 ef0b          	ldw	(11,x),y
+5627                     ; 3753         nBufSize = CopyHttpData(uip_appdata, &pSocket->pData, &pSocket->nDataLeft, uip_mss());
+5629  0a48 ce0000        	ldw	x,_uip_conn
+5630  0a4b ee12          	ldw	x,(18,x)
+5631  0a4d 89            	pushw	x
+5632  0a4e 1e0d          	ldw	x,(OFST+9,sp)
+5633  0a50 1c0003        	addw	x,#3
+5634  0a53 89            	pushw	x
+5635  0a54 1e0f          	ldw	x,(OFST+11,sp)
+5636  0a56 5c            	incw	x
+5637  0a57 89            	pushw	x
+5638  0a58 ce0000        	ldw	x,_uip_appdata
+5639  0a5b cd0000        	call	L7_CopyHttpData
+5641  0a5e 5b06          	addw	sp,#6
+5642  0a60 1f02          	ldw	(OFST-2,sp),x
+5644                     ; 3754         pSocket->nPrevBytes -= pSocket->nDataLeft;
+5646  0a62 1e0b          	ldw	x,(OFST+7,sp)
+5647  0a64 e60c          	ld	a,(12,x)
+5648  0a66 e004          	sub	a,(4,x)
+5649  0a68 e70c          	ld	(12,x),a
+5650  0a6a e60b          	ld	a,(11,x)
+5651  0a6c e203          	sbc	a,(3,x)
+5652  0a6e e70b          	ld	(11,x),a
+5653  0a70               L1602:
+5654                     ; 3757       if (nBufSize == 0) {
+5656  0a70 1e02          	ldw	x,(OFST-2,sp)
+5657  0a72 2621          	jrne	LC016
+5658                     ; 3759         uip_close();
+5660  0a74               LC017:
+5662  0a74 35100000      	mov	_uip_flags,#16
+5664  0a78 cc012f        	jra	L452
+5665                     ; 3763         uip_send(uip_appdata, nBufSize);
+5667                     ; 3765       return;
+5669  0a7b               L7621:
+5670                     ; 3769   else if (uip_rexmit()) {
+5672  0a7b 7205000075    	btjf	_uip_flags,#2,L5621
+5673                     ; 3770     if (pSocket->nPrevBytes == 0xFFFF) {
+5675  0a80 160b          	ldw	y,(OFST+7,sp)
+5676  0a82 90ee0b        	ldw	y,(11,y)
+5677  0a85 905c          	incw	y
+5678  0a87 2617          	jrne	L3702
+5679                     ; 3772       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
+5681  0a89 cd0000        	call	_adjust_template_size
+5683  0a8c 89            	pushw	x
+5684  0a8d ce0000        	ldw	x,_uip_appdata
+5685  0a90 cd0000        	call	L5_CopyHttpHeader
+5687  0a93 5b02          	addw	sp,#2
+5689  0a95               LC016:
+5691  0a95 89            	pushw	x
+5692  0a96 ce0000        	ldw	x,_uip_appdata
+5693  0a99 cd0000        	call	_uip_send
+5694  0a9c 85            	popw	x
+5696  0a9d cc012f        	jra	L452
+5697  0aa0               L3702:
+5698                     ; 3775       pSocket->pData -= pSocket->nPrevBytes;
+5700  0aa0 1e0b          	ldw	x,(OFST+7,sp)
+5701  0aa2 e602          	ld	a,(2,x)
+5702  0aa4 e00c          	sub	a,(12,x)
+5703  0aa6 e702          	ld	(2,x),a
+5704  0aa8 e601          	ld	a,(1,x)
+5705  0aaa e20b          	sbc	a,(11,x)
+5706  0aac e701          	ld	(1,x),a
+5707                     ; 3776       pSocket->nDataLeft += pSocket->nPrevBytes;
+5709  0aae e604          	ld	a,(4,x)
+5710  0ab0 eb0c          	add	a,(12,x)
+5711  0ab2 e704          	ld	(4,x),a
+5712  0ab4 e603          	ld	a,(3,x)
+5713  0ab6 e90b          	adc	a,(11,x)
+5714                     ; 3777       pSocket->nPrevBytes = pSocket->nDataLeft;
+5716  0ab8 9093          	ldw	y,x
+5717  0aba e703          	ld	(3,x),a
+5718  0abc 90ee03        	ldw	y,(3,y)
+5719  0abf ef0b          	ldw	(11,x),y
+5720                     ; 3778       nBufSize = CopyHttpData(uip_appdata, &pSocket->pData, &pSocket->nDataLeft, uip_mss());
+5722  0ac1 ce0000        	ldw	x,_uip_conn
+5723  0ac4 ee12          	ldw	x,(18,x)
+5724  0ac6 89            	pushw	x
+5725  0ac7 1e0d          	ldw	x,(OFST+9,sp)
+5726  0ac9 1c0003        	addw	x,#3
+5727  0acc 89            	pushw	x
+5728  0acd 1e0f          	ldw	x,(OFST+11,sp)
+5729  0acf 5c            	incw	x
+5730  0ad0 89            	pushw	x
+5731  0ad1 ce0000        	ldw	x,_uip_appdata
+5732  0ad4 cd0000        	call	L7_CopyHttpData
+5734  0ad7 5b06          	addw	sp,#6
+5735  0ad9 1f02          	ldw	(OFST-2,sp),x
+5737                     ; 3779       pSocket->nPrevBytes -= pSocket->nDataLeft;
+5739  0adb 1e0b          	ldw	x,(OFST+7,sp)
+5740  0add e60c          	ld	a,(12,x)
+5741  0adf e004          	sub	a,(4,x)
+5742  0ae1 e70c          	ld	(12,x),a
+5743  0ae3 e60b          	ld	a,(11,x)
+5744  0ae5 e203          	sbc	a,(3,x)
+5745  0ae7 e70b          	ld	(11,x),a
+5746                     ; 3780       if (nBufSize == 0) {
+5748  0ae9 1e02          	ldw	x,(OFST-2,sp)
+5749                     ; 3782         uip_close();
+5751  0aeb 2787          	jreq	LC017
+5752                     ; 3786         uip_send(uip_appdata, nBufSize);
+5754  0aed 89            	pushw	x
+5755  0aee ce0000        	ldw	x,_uip_appdata
+5756  0af1 cd0000        	call	_uip_send
+5758  0af4 85            	popw	x
+5759                     ; 3789     return;
+5761  0af5               L5621:
+5762                     ; 3791 }
+5764  0af5 cc012f        	jra	L452
+5798                     ; 3794 void clear_saved_postpartial_all(void)
+5798                     ; 3795 {
+5799                     .text:	section	.text,new
+5800  0000               _clear_saved_postpartial_all:
+5802  0000 88            	push	a
+5803       00000001      OFST:	set	1
+5806                     ; 3797   for (i=0; i<24; i++) saved_postpartial[i] = '\0';
+5808  0001 4f            	clr	a
+5809  0002 6b01          	ld	(OFST+0,sp),a
+5811  0004               L7112:
+5814  0004 5f            	clrw	x
+5815  0005 97            	ld	xl,a
+5816  0006 724f002a      	clr	(_saved_postpartial,x)
+5819  000a 0c01          	inc	(OFST+0,sp)
+5823  000c 7b01          	ld	a,(OFST+0,sp)
+5824  000e a118          	cp	a,#24
+5825  0010 25f2          	jrult	L7112
+5826                     ; 3798 }
+5829  0012 84            	pop	a
+5830  0013 81            	ret	
+5864                     ; 3801 void clear_saved_postpartial_data(void)
+5864                     ; 3802 {
+5865                     .text:	section	.text,new
+5866  0000               _clear_saved_postpartial_data:
+5868  0000 88            	push	a
+5869       00000001      OFST:	set	1
+5872                     ; 3804   for (i=4; i<24; i++) saved_postpartial[i] = '\0';
+5874  0001 a604          	ld	a,#4
+5875  0003 6b01          	ld	(OFST+0,sp),a
+5877  0005               L1412:
+5880  0005 5f            	clrw	x
+5881  0006 97            	ld	xl,a
+5882  0007 724f002a      	clr	(_saved_postpartial,x)
+5885  000b 0c01          	inc	(OFST+0,sp)
+5889  000d 7b01          	ld	a,(OFST+0,sp)
+5890  000f a118          	cp	a,#24
+5891  0011 25f2          	jrult	L1412
+5892                     ; 3805 }
+5895  0013 84            	pop	a
+5896  0014 81            	ret	
+5930                     ; 3808 void clear_saved_postpartial_previous(void)
+5930                     ; 3809 {
+5931                     .text:	section	.text,new
+5932  0000               _clear_saved_postpartial_previous:
+5934  0000 88            	push	a
+5935       00000001      OFST:	set	1
+5938                     ; 3811   for (i=0; i<24; i++) saved_postpartial_previous[i] = '\0';
+5940  0001 4f            	clr	a
+5941  0002 6b01          	ld	(OFST+0,sp),a
+5943  0004               L3612:
+5946  0004 5f            	clrw	x
+5947  0005 97            	ld	xl,a
+5948  0006 724f0012      	clr	(_saved_postpartial_previous,x)
+5951  000a 0c01          	inc	(OFST+0,sp)
+5955  000c 7b01          	ld	a,(OFST+0,sp)
+5956  000e a118          	cp	a,#24
+5957  0010 25f2          	jrult	L3612
+5958                     ; 3812 }
+5961  0012 84            	pop	a
+5962  0013 81            	ret	
+6052                     ; 3815 void parse_POST_string(uint8_t curr_ParseCmd, uint8_t num_chars)
+6052                     ; 3816 {
+6053                     .text:	section	.text,new
+6054  0000               _parse_POST_string:
+6056  0000 89            	pushw	x
+6057  0001 5217          	subw	sp,#23
+6058       00000017      OFST:	set	23
+6061                     ; 3839   amp_found = 0;
+6063  0003 0f02          	clr	(OFST-21,sp)
+6065                     ; 3840   for (i=0; i<20; i++) tmp_Pending[i] = '\0';
+6067  0005 0f17          	clr	(OFST+0,sp)
+6069  0007               L3222:
+6072  0007 96            	ldw	x,sp
+6073  0008 1c0003        	addw	x,#OFST-20
+6074  000b 9f            	ld	a,xl
+6075  000c 5e            	swapw	x
+6076  000d 1b17          	add	a,(OFST+0,sp)
+6077  000f 2401          	jrnc	L662
+6078  0011 5c            	incw	x
+6079  0012               L662:
+6080  0012 02            	rlwa	x,a
+6081  0013 7f            	clr	(x)
+6084  0014 0c17          	inc	(OFST+0,sp)
+6088  0016 7b17          	ld	a,(OFST+0,sp)
+6089  0018 a114          	cp	a,#20
+6090  001a 25eb          	jrult	L3222
+6091                     ; 3842   if (saved_postpartial_previous[0] == curr_ParseCmd) {
+6093  001c c60012        	ld	a,_saved_postpartial_previous
+6094  001f 1118          	cp	a,(OFST+1,sp)
+6095  0021 260a          	jrne	L1322
+6096                     ; 3845     saved_postpartial_previous[0] = '\0';
+6098  0023 725f0012      	clr	_saved_postpartial_previous
+6099                     ; 3851     frag_flag = 1; // frag_flag is used to manage the TCP Fragment restore
+6101  0027 a601          	ld	a,#1
+6102  0029 6b17          	ld	(OFST+0,sp),a
+6105  002b 2005          	jra	L3322
+6106  002d               L1322:
+6107                     ; 3855     frag_flag = 0;
+6109  002d 0f17          	clr	(OFST+0,sp)
+6111                     ; 3859     clear_saved_postpartial_data(); // Clear [4] and higher
+6113  002f cd0000        	call	_clear_saved_postpartial_data
+6115  0032               L3322:
+6116                     ; 3880   resume = 0;
+6118  0032 0f01          	clr	(OFST-22,sp)
+6120                     ; 3881   if (frag_flag == 1) {
+6122  0034 7b17          	ld	a,(OFST+0,sp)
+6123  0036 4a            	dec	a
+6124  0037 263f          	jrne	L5322
+6125                     ; 3883     for (i = 0; i < num_chars; i++) {
+6127  0039 6b17          	ld	(OFST+0,sp),a
+6130  003b 2033          	jra	L3422
+6131  003d               L7322:
+6132                     ; 3892       if (saved_postpartial_previous[4+i] != '\0') {
+6134  003d 5f            	clrw	x
+6135  003e 97            	ld	xl,a
+6136  003f 724d0016      	tnz	(_saved_postpartial_previous+4,x)
+6137  0043 271b          	jreq	L7422
+6138                     ; 3893         tmp_Pending[i] = saved_postpartial_previous[4+i];
+6140  0045 96            	ldw	x,sp
+6141  0046 1c0003        	addw	x,#OFST-20
+6142  0049 9f            	ld	a,xl
+6143  004a 5e            	swapw	x
+6144  004b 1b17          	add	a,(OFST+0,sp)
+6145  004d 2401          	jrnc	L272
+6146  004f 5c            	incw	x
+6147  0050               L272:
+6148  0050 02            	rlwa	x,a
+6149  0051 7b17          	ld	a,(OFST+0,sp)
+6150  0053 905f          	clrw	y
+6151  0055 9097          	ld	yl,a
+6152  0057 90d60016      	ld	a,(_saved_postpartial_previous+4,y)
+6153  005b f7            	ld	(x),a
+6155                     ; 3883     for (i = 0; i < num_chars; i++) {
+6157  005c 0c17          	inc	(OFST+0,sp)
+6159  005e 2010          	jra	L3422
+6160  0060               L7422:
+6161                     ; 3896         resume = i;
+6163  0060 6b01          	ld	(OFST-22,sp),a
+6165                     ; 3897         break;
+6166  0062               L5422:
+6167                     ; 3900     if (*tmp_pBuffer == '&') {
+6169  0062 72c6000e      	ld	a,[_tmp_pBuffer.w]
+6170  0066 a126          	cp	a,#38
+6171  0068 260e          	jrne	L5322
+6172                     ; 3904       amp_found = 1;
+6174  006a a601          	ld	a,#1
+6175  006c 6b02          	ld	(OFST-21,sp),a
+6177  006e 2008          	jra	L5322
+6178  0070               L3422:
+6179                     ; 3883     for (i = 0; i < num_chars; i++) {
+6181  0070 7b17          	ld	a,(OFST+0,sp)
+6182  0072 1119          	cp	a,(OFST+2,sp)
+6183  0074 25c7          	jrult	L7322
+6184  0076 20ea          	jra	L5422
+6185  0078               L5322:
+6186                     ; 3916   if (amp_found == 0) {
+6188  0078 7b02          	ld	a,(OFST-21,sp)
+6189  007a 2703cc0104    	jrne	L5522
+6190                     ; 3917     for (i = resume; i < num_chars; i++) {
+6192  007f 7b01          	ld	a,(OFST-22,sp)
+6193  0081 6b17          	ld	(OFST+0,sp),a
+6196  0083 207b          	jra	L3622
+6197  0085               L7522:
+6198                     ; 3920       if (amp_found == 0) {
+6200  0085 7b02          	ld	a,(OFST-21,sp)
+6201  0087 265d          	jrne	L7622
+6202                     ; 3923         if (*tmp_pBuffer == '&') {
+6204  0089 72c6000e      	ld	a,[_tmp_pBuffer.w]
+6205  008d a126          	cp	a,#38
+6206  008f 2606          	jrne	L1722
+6207                     ; 3926           amp_found = 1;
+6209  0091 a601          	ld	a,#1
+6210  0093 6b02          	ld	(OFST-21,sp),a
+6213  0095 204f          	jra	L7622
+6214  0097               L1722:
+6215                     ; 3929           tmp_Pending[i] = *tmp_pBuffer;
+6217  0097 96            	ldw	x,sp
+6218  0098 1c0003        	addw	x,#OFST-20
+6219  009b 9f            	ld	a,xl
+6220  009c 5e            	swapw	x
+6221  009d 1b17          	add	a,(OFST+0,sp)
+6222  009f 2401          	jrnc	L472
+6223  00a1 5c            	incw	x
+6224  00a2               L472:
+6225  00a2 90ce000e      	ldw	y,_tmp_pBuffer
+6226  00a6 02            	rlwa	x,a
+6227  00a7 90f6          	ld	a,(y)
+6228  00a9 f7            	ld	(x),a
+6229                     ; 3930           saved_postpartial[4+i] = *tmp_pBuffer;
+6231  00aa 5f            	clrw	x
+6232  00ab 7b17          	ld	a,(OFST+0,sp)
+6233  00ad 97            	ld	xl,a
+6234  00ae 90f6          	ld	a,(y)
+6235  00b0 d7002e        	ld	(_saved_postpartial+4,x),a
+6236                     ; 3931           tmp_nParseLeft--;
+6238  00b3 725a000b      	dec	_tmp_nParseLeft
+6239                     ; 3932           saved_nparseleft = tmp_nParseLeft;
+6241                     ; 3933           tmp_pBuffer++;
+6243  00b7 93            	ldw	x,y
+6244  00b8 55000b0042    	mov	_saved_nparseleft,_tmp_nParseLeft
+6245  00bd 5c            	incw	x
+6246  00be cf000e        	ldw	_tmp_pBuffer,x
+6247                     ; 3934           tmp_nBytes--;
+6249  00c1 ce000c        	ldw	x,_tmp_nBytes
+6250  00c4 5a            	decw	x
+6251  00c5 cf000c        	ldw	_tmp_nBytes,x
+6252                     ; 3935           if (tmp_nBytes == 0) {
+6254  00c8 261c          	jrne	L7622
+6255                     ; 3939             if (i == (num_chars - 1)) {
+6257  00ca 7b19          	ld	a,(OFST+2,sp)
+6258  00cc 5f            	clrw	x
+6259  00cd 97            	ld	xl,a
+6260  00ce 5a            	decw	x
+6261  00cf 7b17          	ld	a,(OFST+0,sp)
+6262  00d1 905f          	clrw	y
+6263  00d3 9097          	ld	yl,a
+6264  00d5 90bf00        	ldw	c_y,y
+6265  00d8 b300          	cpw	x,c_y
+6266  00da 2604          	jrne	L7722
+6267                     ; 3944               saved_parsestate = PARSE_DELIM;
+6269  00dc 35050043      	mov	_saved_parsestate,#5
+6270  00e0               L7722:
+6271                     ; 3946             break_while = 1;
+6273  00e0 3501000a      	mov	_break_while,#1
+6274                     ; 3947             break; // This will break the for() loop. But we need to break the
+6276  00e4 201e          	jra	L5522
+6277  00e6               L7622:
+6278                     ; 3953       if (amp_found == 1) {
+6280  00e6 7b02          	ld	a,(OFST-21,sp)
+6281  00e8 4a            	dec	a
+6282  00e9 2611          	jrne	L1032
+6283                     ; 3956         tmp_Pending[i] = '\0';
+6285  00eb 96            	ldw	x,sp
+6286  00ec 1c0003        	addw	x,#OFST-20
+6287  00ef 9f            	ld	a,xl
+6288  00f0 5e            	swapw	x
+6289  00f1 1b17          	add	a,(OFST+0,sp)
+6290  00f3 2401          	jrnc	L672
+6291  00f5 5c            	incw	x
+6292  00f6               L672:
+6293  00f6 02            	rlwa	x,a
+6294  00f7 7f            	clr	(x)
+6295                     ; 3965         tmp_nParseLeft--;
+6297  00f8 725a000b      	dec	_tmp_nParseLeft
+6298  00fc               L1032:
+6299                     ; 3917     for (i = resume; i < num_chars; i++) {
+6301  00fc 0c17          	inc	(OFST+0,sp)
+6303  00fe 7b17          	ld	a,(OFST+0,sp)
+6304  0100               L3622:
+6307  0100 1119          	cp	a,(OFST+2,sp)
+6308  0102 2581          	jrult	L7522
+6309  0104               L5522:
+6310                     ; 3986   if (break_while == 0) clear_saved_postpartial_all();
+6312  0104 c6000a        	ld	a,_break_while
+6313  0107 2603          	jrne	L3032
+6316  0109 cd0000        	call	_clear_saved_postpartial_all
+6318  010c               L3032:
+6319                     ; 3989   if (curr_ParseCmd == 'a') {
+6321  010c 7b18          	ld	a,(OFST+1,sp)
+6322  010e a161          	cp	a,#97
+6323  0110 2622          	jrne	L5032
+6324                     ; 3990     for (i=0; i<num_chars; i++) Pending_devicename[i] = tmp_Pending[i];
+6326  0112 0f17          	clr	(OFST+0,sp)
+6329  0114 2016          	jra	L3132
+6330  0116               L7032:
+6333  0116 5f            	clrw	x
+6334  0117 97            	ld	xl,a
+6335  0118 89            	pushw	x
+6336  0119 96            	ldw	x,sp
+6337  011a 1c0005        	addw	x,#OFST-18
+6338  011d 9f            	ld	a,xl
+6339  011e 5e            	swapw	x
+6340  011f 1b19          	add	a,(OFST+2,sp)
+6341  0121 2401          	jrnc	L203
+6342  0123 5c            	incw	x
+6343  0124               L203:
+6344  0124 02            	rlwa	x,a
+6345  0125 f6            	ld	a,(x)
+6346  0126 85            	popw	x
+6347  0127 d70000        	ld	(_Pending_devicename,x),a
+6350  012a 0c17          	inc	(OFST+0,sp)
+6352  012c               L3132:
+6355  012c 7b17          	ld	a,(OFST+0,sp)
+6356  012e 1119          	cp	a,(OFST+2,sp)
+6357  0130 25e4          	jrult	L7032
+6359  0132 204a          	jra	L7132
+6360  0134               L5032:
+6361                     ; 3995   else if (curr_ParseCmd == 'l') {
+6363  0134 a16c          	cp	a,#108
+6364  0136 2622          	jrne	L1232
+6365                     ; 3996     for (i=0; i<num_chars; i++) Pending_mqtt_username[i] = tmp_Pending[i];
+6367  0138 0f17          	clr	(OFST+0,sp)
+6370  013a 2016          	jra	L7232
+6371  013c               L3232:
+6374  013c 5f            	clrw	x
+6375  013d 97            	ld	xl,a
+6376  013e 89            	pushw	x
+6377  013f 96            	ldw	x,sp
+6378  0140 1c0005        	addw	x,#OFST-18
+6379  0143 9f            	ld	a,xl
+6380  0144 5e            	swapw	x
+6381  0145 1b19          	add	a,(OFST+2,sp)
+6382  0147 2401          	jrnc	L403
+6383  0149 5c            	incw	x
+6384  014a               L403:
+6385  014a 02            	rlwa	x,a
+6386  014b f6            	ld	a,(x)
+6387  014c 85            	popw	x
+6388  014d d70000        	ld	(_Pending_mqtt_username,x),a
+6391  0150 0c17          	inc	(OFST+0,sp)
+6393  0152               L7232:
+6396  0152 7b17          	ld	a,(OFST+0,sp)
+6397  0154 1119          	cp	a,(OFST+2,sp)
+6398  0156 25e4          	jrult	L3232
+6400  0158 2024          	jra	L7132
+6401  015a               L1232:
+6402                     ; 4000   else if (curr_ParseCmd == 'm') {
+6404  015a a16d          	cp	a,#109
+6405  015c 2620          	jrne	L7132
+6406                     ; 4001     for (i=0; i<num_chars; i++) Pending_mqtt_password[i] = tmp_Pending[i];
+6408  015e 0f17          	clr	(OFST+0,sp)
+6411  0160 2016          	jra	L3432
+6412  0162               L7332:
+6415  0162 5f            	clrw	x
+6416  0163 97            	ld	xl,a
+6417  0164 89            	pushw	x
+6418  0165 96            	ldw	x,sp
+6419  0166 1c0005        	addw	x,#OFST-18
+6420  0169 9f            	ld	a,xl
+6421  016a 5e            	swapw	x
+6422  016b 1b19          	add	a,(OFST+2,sp)
+6423  016d 2401          	jrnc	L603
+6424  016f 5c            	incw	x
+6425  0170               L603:
+6426  0170 02            	rlwa	x,a
+6427  0171 f6            	ld	a,(x)
+6428  0172 85            	popw	x
+6429  0173 d70000        	ld	(_Pending_mqtt_password,x),a
+6432  0176 0c17          	inc	(OFST+0,sp)
+6434  0178               L3432:
+6437  0178 7b17          	ld	a,(OFST+0,sp)
+6438  017a 1119          	cp	a,(OFST+2,sp)
+6439  017c 25e4          	jrult	L7332
+6440  017e               L7132:
+6441                     ; 4004 }
+6444  017e 5b19          	addw	sp,#25
+6445  0180 81            	ret	
+6519                     	switch	.const
+6520  1d25               L023:
+6521  1d25 00de          	dc.w	L7432
+6522  1d27 00e5          	dc.w	L1532
+6523  1d29 00ec          	dc.w	L3532
+6524  1d2b 00f3          	dc.w	L5532
+6525  1d2d 00fa          	dc.w	L7532
+6526  1d2f 0101          	dc.w	L1632
+6527  1d31 0108          	dc.w	L3632
+6528  1d33 010f          	dc.w	L5632
+6529  1d35 0116          	dc.w	L7632
+6530  1d37 011d          	dc.w	L1732
+6531  1d39 0124          	dc.w	L3732
+6532  1d3b 012b          	dc.w	L5732
+6533  1d3d 0132          	dc.w	L7732
+6534  1d3f 0139          	dc.w	L1042
+6535  1d41 0140          	dc.w	L3042
+6536  1d43 0147          	dc.w	L5042
+6537                     ; 4007 void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
+6537                     ; 4008 {
+6538                     .text:	section	.text,new
+6539  0000               _parse_POST_address:
+6541  0000 89            	pushw	x
+6542  0001 89            	pushw	x
+6543       00000002      OFST:	set	2
+6546                     ; 4011   alpha[0] = '-';
+6548  0002 352d0004      	mov	_alpha,#45
+6549                     ; 4012   alpha[1] = '-';
+6551  0006 352d0005      	mov	_alpha+1,#45
+6552                     ; 4013   alpha[2] = '-';
+6554  000a 352d0006      	mov	_alpha+2,#45
+6555                     ; 4016   if (saved_postpartial_previous[0] == curr_ParseCmd) {
+6557  000e 9e            	ld	a,xh
+6558  000f c10012        	cp	a,_saved_postpartial_previous
+6559  0012 2624          	jrne	L5342
+6560                     ; 4019     saved_postpartial_previous[0] = '\0';
+6562  0014 725f0012      	clr	_saved_postpartial_previous
+6563                     ; 4026     if (saved_postpartial_previous[4] != '\0') alpha[0] = saved_postpartial_previous[4];
+6565  0018 c60016        	ld	a,_saved_postpartial_previous+4
+6566  001b 2705          	jreq	L7342
+6569  001d 5500160004    	mov	_alpha,_saved_postpartial_previous+4
+6570  0022               L7342:
+6571                     ; 4027     if (saved_postpartial_previous[5] != '\0') alpha[1] = saved_postpartial_previous[5];
+6573  0022 c60017        	ld	a,_saved_postpartial_previous+5
+6574  0025 2705          	jreq	L1442
+6577  0027 5500170005    	mov	_alpha+1,_saved_postpartial_previous+5
+6578  002c               L1442:
+6579                     ; 4028     if (saved_postpartial_previous[6] != '\0') alpha[2] = saved_postpartial_previous[6];
+6581  002c c60018        	ld	a,_saved_postpartial_previous+6
+6582  002f 270a          	jreq	L5442
+6585  0031 5500180006    	mov	_alpha+2,_saved_postpartial_previous+6
+6586  0036 2003          	jra	L5442
+6587  0038               L5342:
+6588                     ; 4034     clear_saved_postpartial_data(); // Clear [4] and higher
+6590  0038 cd0000        	call	_clear_saved_postpartial_data
+6592  003b               L5442:
+6593                     ; 4037   for (i=0; i<3; i++) {
+6595  003b 4f            	clr	a
+6596  003c 6b02          	ld	(OFST+0,sp),a
+6598  003e               L7442:
+6599                     ; 4043     if (alpha[i] == '-') {
+6601  003e 5f            	clrw	x
+6602  003f 97            	ld	xl,a
+6603  0040 d60004        	ld	a,(_alpha,x)
+6604  0043 a12d          	cp	a,#45
+6605  0045 263c          	jrne	L5542
+6606                     ; 4044       alpha[i] = (uint8_t)(*tmp_pBuffer);
+6608  0047 7b02          	ld	a,(OFST+0,sp)
+6609  0049 5f            	clrw	x
+6610  004a 90ce000e      	ldw	y,_tmp_pBuffer
+6611  004e 97            	ld	xl,a
+6612  004f 90f6          	ld	a,(y)
+6613  0051 d70004        	ld	(_alpha,x),a
+6614                     ; 4045       saved_postpartial[i+4] = (uint8_t)(*tmp_pBuffer);
+6616  0054 5f            	clrw	x
+6617  0055 7b02          	ld	a,(OFST+0,sp)
+6618  0057 97            	ld	xl,a
+6619  0058 90f6          	ld	a,(y)
+6620  005a d7002e        	ld	(_saved_postpartial+4,x),a
+6621                     ; 4046       tmp_nParseLeft--;
+6623  005d 725a000b      	dec	_tmp_nParseLeft
+6624                     ; 4047       saved_nparseleft = tmp_nParseLeft;
+6626                     ; 4048       tmp_pBuffer++;
+6628  0061 93            	ldw	x,y
+6629  0062 55000b0042    	mov	_saved_nparseleft,_tmp_nParseLeft
+6630  0067 5c            	incw	x
+6631  0068 cf000e        	ldw	_tmp_pBuffer,x
+6632                     ; 4049       tmp_nBytes--;
+6634  006b ce000c        	ldw	x,_tmp_nBytes
+6635  006e 5a            	decw	x
+6636  006f cf000c        	ldw	_tmp_nBytes,x
+6637                     ; 4050       if (i != 2 && tmp_nBytes == 0) {
+6639  0072 7b02          	ld	a,(OFST+0,sp)
+6640  0074 a102          	cp	a,#2
+6641  0076 270b          	jreq	L5542
+6643  0078 ce000c        	ldw	x,_tmp_nBytes
+6644  007b 2606          	jrne	L5542
+6645                     ; 4051         break_while = 1; // Hit end of fragment but still have characters to
+6647  007d 3501000a      	mov	_break_while,#1
+6648                     ; 4055         break; // Break out of for() loop.
+6650  0081 2008          	jra	L3542
+6651  0083               L5542:
+6652                     ; 4037   for (i=0; i<3; i++) {
+6654  0083 0c02          	inc	(OFST+0,sp)
+6658  0085 7b02          	ld	a,(OFST+0,sp)
+6659  0087 a103          	cp	a,#3
+6660  0089 25b3          	jrult	L7442
+6661  008b               L3542:
+6662                     ; 4059   if (break_while == 1) return; // Hit end of fragment. Break out of while() loop.
+6664  008b c6000a        	ld	a,_break_while
+6665  008e 4a            	dec	a
+6666  008f 2603cc0155    	jreq	L223
+6669                     ; 4063   clear_saved_postpartial_all();
+6671  0094 cd0000        	call	_clear_saved_postpartial_all
+6673                     ; 4076     invalid = 0;
+6675  0097 0f01          	clr	(OFST-1,sp)
+6677                     ; 4078     temp = (uint8_t)(       (alpha[2] - '0'));
+6679  0099 c60006        	ld	a,_alpha+2
+6680  009c a030          	sub	a,#48
+6681  009e 6b02          	ld	(OFST+0,sp),a
+6683                     ; 4079     temp = (uint8_t)(temp + (alpha[1] - '0') * 10);
+6685  00a0 c60005        	ld	a,_alpha+1
+6686  00a3 97            	ld	xl,a
+6687  00a4 a60a          	ld	a,#10
+6688  00a6 42            	mul	x,a
+6689  00a7 9f            	ld	a,xl
+6690  00a8 a0e0          	sub	a,#224
+6691  00aa 1b02          	add	a,(OFST+0,sp)
+6692  00ac 6b02          	ld	(OFST+0,sp),a
+6694                     ; 4080     if (temp > 55 && alpha[0] > '1') invalid = 1;
+6696  00ae a138          	cp	a,#56
+6697  00b0 250d          	jrult	L3642
+6699  00b2 c60004        	ld	a,_alpha
+6700  00b5 a132          	cp	a,#50
+6701  00b7 2506          	jrult	L3642
+6704  00b9 a601          	ld	a,#1
+6705  00bb 6b01          	ld	(OFST-1,sp),a
+6708  00bd 200e          	jra	L5642
+6709  00bf               L3642:
+6710                     ; 4081     else temp = (uint8_t)(temp + (alpha[0] - '0') * 100);
+6712  00bf c60004        	ld	a,_alpha
+6713  00c2 97            	ld	xl,a
+6714  00c3 a664          	ld	a,#100
+6715  00c5 42            	mul	x,a
+6716  00c6 9f            	ld	a,xl
+6717  00c7 a0c0          	sub	a,#192
+6718  00c9 1b02          	add	a,(OFST+0,sp)
+6719  00cb 6b02          	ld	(OFST+0,sp),a
+6721  00cd               L5642:
+6722                     ; 4082     if (invalid == 0) { // Make change only if valid entry
+6724  00cd 7b01          	ld	a,(OFST-1,sp)
+6725  00cf 267b          	jrne	L7642
+6726                     ; 4083       switch(curr_ParseNum)
+6728  00d1 7b04          	ld	a,(OFST+2,sp)
+6730                     ; 4106         default: break;
+6731  00d3 a110          	cp	a,#16
+6732  00d5 2475          	jruge	L7642
+6733  00d7 5f            	clrw	x
+6734  00d8 97            	ld	xl,a
+6735  00d9 58            	sllw	x
+6736  00da de1d25        	ldw	x,(L023,x)
+6737  00dd fc            	jp	(x)
+6738  00de               L7432:
+6739                     ; 4085         case 0:  Pending_hostaddr[3] = (uint8_t)temp; break;
+6741  00de 7b02          	ld	a,(OFST+0,sp)
+6742  00e0 c70003        	ld	_Pending_hostaddr+3,a
+6745  00e3 2067          	jra	L7642
+6746  00e5               L1532:
+6747                     ; 4086         case 1:  Pending_hostaddr[2] = (uint8_t)temp; break;
+6749  00e5 7b02          	ld	a,(OFST+0,sp)
+6750  00e7 c70002        	ld	_Pending_hostaddr+2,a
+6753  00ea 2060          	jra	L7642
+6754  00ec               L3532:
+6755                     ; 4087         case 2:  Pending_hostaddr[1] = (uint8_t)temp; break;
+6757  00ec 7b02          	ld	a,(OFST+0,sp)
+6758  00ee c70001        	ld	_Pending_hostaddr+1,a
+6761  00f1 2059          	jra	L7642
+6762  00f3               L5532:
+6763                     ; 4088         case 3:  Pending_hostaddr[0] = (uint8_t)temp; break;
+6765  00f3 7b02          	ld	a,(OFST+0,sp)
+6766  00f5 c70000        	ld	_Pending_hostaddr,a
+6769  00f8 2052          	jra	L7642
+6770  00fa               L7532:
+6771                     ; 4089         case 4:  Pending_draddr[3] = (uint8_t)temp; break;
+6773  00fa 7b02          	ld	a,(OFST+0,sp)
+6774  00fc c70003        	ld	_Pending_draddr+3,a
+6777  00ff 204b          	jra	L7642
+6778  0101               L1632:
+6779                     ; 4090         case 5:  Pending_draddr[2] = (uint8_t)temp; break;
+6781  0101 7b02          	ld	a,(OFST+0,sp)
+6782  0103 c70002        	ld	_Pending_draddr+2,a
+6785  0106 2044          	jra	L7642
+6786  0108               L3632:
+6787                     ; 4091         case 6:  Pending_draddr[1] = (uint8_t)temp; break;
+6789  0108 7b02          	ld	a,(OFST+0,sp)
+6790  010a c70001        	ld	_Pending_draddr+1,a
+6793  010d 203d          	jra	L7642
+6794  010f               L5632:
+6795                     ; 4092         case 7:  Pending_draddr[0] = (uint8_t)temp; break;
+6797  010f 7b02          	ld	a,(OFST+0,sp)
+6798  0111 c70000        	ld	_Pending_draddr,a
+6801  0114 2036          	jra	L7642
+6802  0116               L7632:
+6803                     ; 4093         case 8:  Pending_netmask[3] = (uint8_t)temp; break;
+6805  0116 7b02          	ld	a,(OFST+0,sp)
+6806  0118 c70003        	ld	_Pending_netmask+3,a
+6809  011b 202f          	jra	L7642
+6810  011d               L1732:
+6811                     ; 4094         case 9:  Pending_netmask[2] = (uint8_t)temp; break;
+6813  011d 7b02          	ld	a,(OFST+0,sp)
+6814  011f c70002        	ld	_Pending_netmask+2,a
+6817  0122 2028          	jra	L7642
+6818  0124               L3732:
+6819                     ; 4095         case 10: Pending_netmask[1] = (uint8_t)temp; break;
+6821  0124 7b02          	ld	a,(OFST+0,sp)
+6822  0126 c70001        	ld	_Pending_netmask+1,a
+6825  0129 2021          	jra	L7642
+6826  012b               L5732:
+6827                     ; 4096         case 11: Pending_netmask[0] = (uint8_t)temp; break;
+6829  012b 7b02          	ld	a,(OFST+0,sp)
+6830  012d c70000        	ld	_Pending_netmask,a
+6833  0130 201a          	jra	L7642
+6834  0132               L7732:
+6835                     ; 4099 	  Pending_mqttserveraddr[3] = (uint8_t)temp;
+6837  0132 7b02          	ld	a,(OFST+0,sp)
+6838  0134 c70003        	ld	_Pending_mqttserveraddr+3,a
+6839                     ; 4100 	  break;
+6841  0137 2013          	jra	L7642
+6842  0139               L1042:
+6843                     ; 4102         case 13: Pending_mqttserveraddr[2] = (uint8_t)temp; break;
+6845  0139 7b02          	ld	a,(OFST+0,sp)
+6846  013b c70002        	ld	_Pending_mqttserveraddr+2,a
+6849  013e 200c          	jra	L7642
+6850  0140               L3042:
+6851                     ; 4103         case 14: Pending_mqttserveraddr[1] = (uint8_t)temp; break;
+6853  0140 7b02          	ld	a,(OFST+0,sp)
+6854  0142 c70001        	ld	_Pending_mqttserveraddr+1,a
+6857  0145 2005          	jra	L7642
+6858  0147               L5042:
+6859                     ; 4104         case 15: Pending_mqttserveraddr[0] = (uint8_t)temp; break;
+6861  0147 7b02          	ld	a,(OFST+0,sp)
+6862  0149 c70000        	ld	_Pending_mqttserveraddr,a
+6865                     ; 4106         default: break;
+6867  014c               L7642:
+6868                     ; 4111   if (tmp_nBytes == 0) {
+6870  014c ce000c        	ldw	x,_tmp_nBytes
+6871  014f 2604          	jrne	L223
+6872                     ; 4114     break_while = 2; // Hit end of fragment. Set break_while to 2 so that
+6874  0151 3502000a      	mov	_break_while,#2
+6875                     ; 4117     return;
+6876  0155               L223:
+6879  0155 5b04          	addw	sp,#4
+6880  0157 81            	ret	
+6881                     ; 4119 }
+6961                     ; 4122 void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
+6961                     ; 4123 {
+6962                     .text:	section	.text,new
+6963  0000               _parse_POST_port:
+6965  0000 89            	pushw	x
+6966  0001 5203          	subw	sp,#3
+6967       00000003      OFST:	set	3
+6970                     ; 4126   for (i=0; i<5; i++) alpha[i] = '-';
+6972  0003 4f            	clr	a
+6973  0004 6b03          	ld	(OFST+0,sp),a
+6975  0006               L5252:
+6978  0006 5f            	clrw	x
+6979  0007 97            	ld	xl,a
+6980  0008 a62d          	ld	a,#45
+6981  000a d70004        	ld	(_alpha,x),a
+6984  000d 0c03          	inc	(OFST+0,sp)
+6988  000f 7b03          	ld	a,(OFST+0,sp)
+6989  0011 a105          	cp	a,#5
+6990  0013 25f1          	jrult	L5252
+6991                     ; 4128   if (saved_postpartial_previous[0] == curr_ParseCmd) {
+6993  0015 c60012        	ld	a,_saved_postpartial_previous
+6994  0018 1104          	cp	a,(OFST+1,sp)
+6995  001a 2621          	jrne	L3352
+6996                     ; 4131     saved_postpartial_previous[0] = '\0';
+6998  001c 725f0012      	clr	_saved_postpartial_previous
+6999                     ; 4138     for (i=0; i<5; i++) {
+7001  0020 4f            	clr	a
+7002  0021 6b03          	ld	(OFST+0,sp),a
+7004  0023               L5352:
+7005                     ; 4139       if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
+7007  0023 5f            	clrw	x
+7008  0024 97            	ld	xl,a
+7009  0025 724d0016      	tnz	(_saved_postpartial_previous+4,x)
+7010  0029 2708          	jreq	L3452
+7013  002b 5f            	clrw	x
+7014  002c 97            	ld	xl,a
+7015  002d d60016        	ld	a,(_saved_postpartial_previous+4,x)
+7016  0030 d70004        	ld	(_alpha,x),a
+7017  0033               L3452:
+7018                     ; 4138     for (i=0; i<5; i++) {
+7020  0033 0c03          	inc	(OFST+0,sp)
+7024  0035 7b03          	ld	a,(OFST+0,sp)
+7025  0037 a105          	cp	a,#5
+7026  0039 25e8          	jrult	L5352
+7028  003b 2003          	jra	L5452
+7029  003d               L3352:
+7030                     ; 4146     clear_saved_postpartial_data(); // Clear [4] and higher
+7032  003d cd0000        	call	_clear_saved_postpartial_data
+7034  0040               L5452:
+7035                     ; 4151     for (i=0; i<5; i++) {
+7037  0040 4f            	clr	a
+7038  0041 6b03          	ld	(OFST+0,sp),a
+7040  0043               L7452:
+7041                     ; 4157       if (alpha[i] == '-') {
+7043  0043 5f            	clrw	x
+7044  0044 97            	ld	xl,a
+7045  0045 d60004        	ld	a,(_alpha,x)
+7046  0048 a12d          	cp	a,#45
+7047  004a 263c          	jrne	L5552
+7048                     ; 4158         alpha[i] = (uint8_t)(*tmp_pBuffer);
+7050  004c 7b03          	ld	a,(OFST+0,sp)
+7051  004e 5f            	clrw	x
+7052  004f 90ce000e      	ldw	y,_tmp_pBuffer
+7053  0053 97            	ld	xl,a
+7054  0054 90f6          	ld	a,(y)
+7055  0056 d70004        	ld	(_alpha,x),a
+7056                     ; 4159         saved_postpartial[i+4] = *tmp_pBuffer;
+7058  0059 5f            	clrw	x
+7059  005a 7b03          	ld	a,(OFST+0,sp)
+7060  005c 97            	ld	xl,a
+7061  005d 90f6          	ld	a,(y)
+7062  005f d7002e        	ld	(_saved_postpartial+4,x),a
+7063                     ; 4160         tmp_nParseLeft--;
+7065  0062 725a000b      	dec	_tmp_nParseLeft
+7066                     ; 4161         saved_nparseleft = tmp_nParseLeft;
+7068                     ; 4162         tmp_pBuffer++;
+7070  0066 93            	ldw	x,y
+7071  0067 55000b0042    	mov	_saved_nparseleft,_tmp_nParseLeft
+7072  006c 5c            	incw	x
+7073  006d cf000e        	ldw	_tmp_pBuffer,x
+7074                     ; 4163         tmp_nBytes--;
+7076  0070 ce000c        	ldw	x,_tmp_nBytes
+7077  0073 5a            	decw	x
+7078  0074 cf000c        	ldw	_tmp_nBytes,x
+7079                     ; 4164         if (i != 4 && tmp_nBytes == 0) {
+7081  0077 7b03          	ld	a,(OFST+0,sp)
+7082  0079 a104          	cp	a,#4
+7083  007b 270b          	jreq	L5552
+7085  007d ce000c        	ldw	x,_tmp_nBytes
+7086  0080 2606          	jrne	L5552
+7087                     ; 4165           break_while = 1; // Hit end of fragment but still have characters to
+7089  0082 3501000a      	mov	_break_while,#1
+7090                     ; 4169    	break; // Break out of for() loop.
+7092  0086 2008          	jra	L3552
+7093  0088               L5552:
+7094                     ; 4151     for (i=0; i<5; i++) {
+7096  0088 0c03          	inc	(OFST+0,sp)
+7100  008a 7b03          	ld	a,(OFST+0,sp)
+7101  008c a105          	cp	a,#5
+7102  008e 25b3          	jrult	L7452
+7103  0090               L3552:
+7104                     ; 4173     if (break_while == 1) return; // Hit end of fragment. Break out of while() loop.
+7106  0090 c6000a        	ld	a,_break_while
+7107  0093 4a            	dec	a
+7108  0094 2603cc0122    	jreq	L233
+7111                     ; 4178   clear_saved_postpartial_all();
+7113  0099 cd0000        	call	_clear_saved_postpartial_all
+7115                     ; 4187     invalid = 0;
+7117  009c 0f03          	clr	(OFST+0,sp)
+7119                     ; 4189     temp = (uint16_t)(       (alpha[4] - '0'));
+7121  009e 5f            	clrw	x
+7122  009f c60008        	ld	a,_alpha+4
+7123  00a2 97            	ld	xl,a
+7124  00a3 1d0030        	subw	x,#48
+7125  00a6 1f01          	ldw	(OFST-2,sp),x
+7127                     ; 4190     temp = (uint16_t)(temp + (alpha[3] - '0') * 10);
+7129  00a8 c60007        	ld	a,_alpha+3
+7130  00ab 97            	ld	xl,a
+7131  00ac a60a          	ld	a,#10
+7132  00ae 42            	mul	x,a
+7133  00af 1d01e0        	subw	x,#480
+7134  00b2 72fb01        	addw	x,(OFST-2,sp)
+7135  00b5 1f01          	ldw	(OFST-2,sp),x
+7137                     ; 4191     temp = (uint16_t)(temp + (alpha[2] - '0') * 100);
+7139  00b7 c60006        	ld	a,_alpha+2
+7140  00ba 97            	ld	xl,a
+7141  00bb a664          	ld	a,#100
+7142  00bd 42            	mul	x,a
+7143  00be 1d12c0        	subw	x,#4800
+7144  00c1 72fb01        	addw	x,(OFST-2,sp)
+7145  00c4 1f01          	ldw	(OFST-2,sp),x
+7147                     ; 4192     temp = (uint16_t)(temp + (alpha[1] - '0') * 1000);
+7149  00c6 5f            	clrw	x
+7150  00c7 c60005        	ld	a,_alpha+1
+7151  00ca 97            	ld	xl,a
+7152  00cb 90ae03e8      	ldw	y,#1000
+7153  00cf cd0000        	call	c_imul
+7155  00d2 1dbb80        	subw	x,#48000
+7156  00d5 72fb01        	addw	x,(OFST-2,sp)
+7157  00d8 1f01          	ldw	(OFST-2,sp),x
+7159                     ; 4193     if (temp > 5535 && alpha[0] > '5') invalid = 1;
+7161  00da a315a0        	cpw	x,#5536
+7162  00dd 250d          	jrult	L3652
+7164  00df c60004        	ld	a,_alpha
+7165  00e2 a136          	cp	a,#54
+7166  00e4 2506          	jrult	L3652
+7169  00e6 a601          	ld	a,#1
+7170  00e8 6b03          	ld	(OFST+0,sp),a
+7173  00ea 2014          	jra	L5652
+7174  00ec               L3652:
+7175                     ; 4194     else temp = (uint16_t)(temp + (alpha[0] - '0') * 10000);
+7177  00ec c60004        	ld	a,_alpha
+7178  00ef 5f            	clrw	x
+7179  00f0 97            	ld	xl,a
+7180  00f1 90ae2710      	ldw	y,#10000
+7181  00f5 cd0000        	call	c_imul
+7183  00f8 1d5300        	subw	x,#21248
+7184  00fb 72fb01        	addw	x,(OFST-2,sp)
+7185  00fe 1f01          	ldw	(OFST-2,sp),x
+7187  0100               L5652:
+7188                     ; 4195     if (temp < 10) invalid = 1;
+7190  0100 a3000a        	cpw	x,#10
+7191  0103 2404          	jruge	L7652
+7194  0105 a601          	ld	a,#1
+7195  0107 6b03          	ld	(OFST+0,sp),a
+7197  0109               L7652:
+7198                     ; 4196     if (invalid == 0) {
+7200  0109 7b03          	ld	a,(OFST+0,sp)
+7201  010b 260c          	jrne	L1752
+7202                     ; 4197       if (curr_ParseNum == 0) Pending_port = (uint16_t)temp;
+7204  010d 7b05          	ld	a,(OFST+2,sp)
+7205  010f 2605          	jrne	L3752
+7208  0111 cf0000        	ldw	_Pending_port,x
+7210  0114 2003          	jra	L1752
+7211  0116               L3752:
+7212                     ; 4199       else Pending_mqttport = (uint16_t)temp;
+7214  0116 cf0000        	ldw	_Pending_mqttport,x
+7215  0119               L1752:
+7216                     ; 4204   if (tmp_nBytes == 0) {
+7218  0119 ce000c        	ldw	x,_tmp_nBytes
+7219  011c 2604          	jrne	L233
+7220                     ; 4207     break_while = 2; // Hit end of fragment. Set break_while to 2 so that
+7222  011e 3502000a      	mov	_break_while,#2
+7223                     ; 4210     return;
+7224  0122               L233:
+7227  0122 5b05          	addw	sp,#5
+7228  0124 81            	ret	
+7229                     ; 4212 }
+7264                     	switch	.const
+7265  1d45               L043:
+7266  1d45 000e          	dc.w	L1062
+7267  1d47 0016          	dc.w	L3062
+7268  1d49 001e          	dc.w	L5062
+7269  1d4b 0026          	dc.w	L7062
+7270  1d4d 002e          	dc.w	L1162
+7271  1d4f 0036          	dc.w	L3162
+7272  1d51 003e          	dc.w	L5162
+7273  1d53 0046          	dc.w	L7162
+7274  1d55 004e          	dc.w	L1262
+7275  1d57 0056          	dc.w	L3262
+7276  1d59 005e          	dc.w	L5262
+7277  1d5b 0066          	dc.w	L7262
+7278  1d5d 006e          	dc.w	L1362
+7279  1d5f 0076          	dc.w	L3362
+7280  1d61 007e          	dc.w	L5362
+7281  1d63 0086          	dc.w	L7362
+7282                     ; 4215 uint8_t GpioGetPin(uint8_t nGpio)
+7282                     ; 4216 {
+7283                     .text:	section	.text,new
+7284  0000               _GpioGetPin:
+7288                     ; 4221   switch (nGpio) {
+7291                     ; 4237     case 15: if (IO_16to9 & (uint8_t)(0x80)) return 1; break;
+7292  0000 a110          	cp	a,#16
+7293  0002 2503cc008e    	jruge	L7562
+7294  0007 5f            	clrw	x
+7295  0008 97            	ld	xl,a
+7296  0009 58            	sllw	x
+7297  000a de1d45        	ldw	x,(L043,x)
+7298  000d fc            	jp	(x)
+7299  000e               L1062:
+7300                     ; 4222     case 0:  if (IO_8to1  & (uint8_t)(0x01)) return 1; break;
+7302  000e 720100007b    	btjf	_IO_8to1,#0,L7562
+7305  0013 a601          	ld	a,#1
+7308  0015 81            	ret	
+7309  0016               L3062:
+7310                     ; 4223     case 1:  if (IO_8to1  & (uint8_t)(0x02)) return 1; break;
+7312  0016 7203000073    	btjf	_IO_8to1,#1,L7562
+7315  001b a601          	ld	a,#1
+7318  001d 81            	ret	
+7319  001e               L5062:
+7320                     ; 4224     case 2:  if (IO_8to1  & (uint8_t)(0x04)) return 1; break;
+7322  001e 720500006b    	btjf	_IO_8to1,#2,L7562
+7325  0023 a601          	ld	a,#1
+7328  0025 81            	ret	
+7329  0026               L7062:
+7330                     ; 4225     case 3:  if (IO_8to1  & (uint8_t)(0x08)) return 1; break;
+7332  0026 7207000063    	btjf	_IO_8to1,#3,L7562
+7335  002b a601          	ld	a,#1
+7338  002d 81            	ret	
+7339  002e               L1162:
+7340                     ; 4226     case 4:  if (IO_8to1  & (uint8_t)(0x10)) return 1; break;
+7342  002e 720900005b    	btjf	_IO_8to1,#4,L7562
+7345  0033 a601          	ld	a,#1
+7348  0035 81            	ret	
+7349  0036               L3162:
+7350                     ; 4227     case 5:  if (IO_8to1  & (uint8_t)(0x20)) return 1; break;
+7352  0036 720b000053    	btjf	_IO_8to1,#5,L7562
+7355  003b a601          	ld	a,#1
+7358  003d 81            	ret	
+7359  003e               L5162:
+7360                     ; 4228     case 6:  if (IO_8to1  & (uint8_t)(0x40)) return 1; break;
+7362  003e 720d00004b    	btjf	_IO_8to1,#6,L7562
+7365  0043 a601          	ld	a,#1
+7368  0045 81            	ret	
+7369  0046               L7162:
+7370                     ; 4229     case 7:  if (IO_8to1  & (uint8_t)(0x80)) return 1; break;
+7372  0046 720f000043    	btjf	_IO_8to1,#7,L7562
+7375  004b a601          	ld	a,#1
+7378  004d 81            	ret	
+7379  004e               L1262:
+7380                     ; 4230     case 8:  if (IO_16to9 & (uint8_t)(0x01)) return 1; break;
+7382  004e 720100003b    	btjf	_IO_16to9,#0,L7562
+7385  0053 a601          	ld	a,#1
+7388  0055 81            	ret	
+7389  0056               L3262:
+7390                     ; 4231     case 9:  if (IO_16to9 & (uint8_t)(0x02)) return 1; break;
+7392  0056 7203000033    	btjf	_IO_16to9,#1,L7562
+7395  005b a601          	ld	a,#1
+7398  005d 81            	ret	
+7399  005e               L5262:
+7400                     ; 4232     case 10: if (IO_16to9 & (uint8_t)(0x04)) return 1; break;
+7402  005e 720500002b    	btjf	_IO_16to9,#2,L7562
+7405  0063 a601          	ld	a,#1
+7408  0065 81            	ret	
+7409  0066               L7262:
+7410                     ; 4233     case 11: if (IO_16to9 & (uint8_t)(0x08)) return 1; break;
+7412  0066 7207000023    	btjf	_IO_16to9,#3,L7562
+7415  006b a601          	ld	a,#1
+7418  006d 81            	ret	
+7419  006e               L1362:
+7420                     ; 4234     case 12: if (IO_16to9 & (uint8_t)(0x10)) return 1; break;
+7422  006e 720900001b    	btjf	_IO_16to9,#4,L7562
+7425  0073 a601          	ld	a,#1
+7428  0075 81            	ret	
+7429  0076               L3362:
+7430                     ; 4235     case 13: if (IO_16to9 & (uint8_t)(0x20)) return 1; break;
+7432  0076 720b000013    	btjf	_IO_16to9,#5,L7562
+7435  007b a601          	ld	a,#1
+7438  007d 81            	ret	
+7439  007e               L5362:
+7440                     ; 4236     case 14: if (IO_16to9 & (uint8_t)(0x40)) return 1; break;
+7442  007e 720d00000b    	btjf	_IO_16to9,#6,L7562
+7445  0083 a601          	ld	a,#1
+7448  0085 81            	ret	
+7449  0086               L7362:
+7450                     ; 4237     case 15: if (IO_16to9 & (uint8_t)(0x80)) return 1; break;
+7452  0086 720f000003    	btjf	_IO_16to9,#7,L7562
+7455  008b a601          	ld	a,#1
+7458  008d 81            	ret	
+7459  008e               L7562:
+7460                     ; 4239   return 0;
+7462  008e 4f            	clr	a
+7465  008f 81            	ret	
+7512                     ; 4288 void GpioSetPin(uint8_t nGpio, uint8_t nState)
+7512                     ; 4289 {
+7513                     .text:	section	.text,new
+7514  0000               _GpioSetPin:
+7516  0000 89            	pushw	x
+7517  0001 88            	push	a
+7518       00000001      OFST:	set	1
+7521                     ; 4296   mask = 0;
+7523  0002 0f01          	clr	(OFST+0,sp)
+7525                     ; 4298   switch(nGpio) {
+7527  0004 9e            	ld	a,xh
+7529                     ; 4307     default: break;
+7530  0005 4d            	tnz	a
+7531  0006 2717          	jreq	L1272
+7532  0008 4a            	dec	a
+7533  0009 2717          	jreq	L3272
+7534  000b 4a            	dec	a
+7535  000c 2718          	jreq	L5272
+7536  000e 4a            	dec	a
+7537  000f 2719          	jreq	L7272
+7538  0011 4a            	dec	a
+7539  0012 271a          	jreq	L1372
+7540  0014 4a            	dec	a
+7541  0015 271b          	jreq	L3372
+7542  0017 4a            	dec	a
+7543  0018 271c          	jreq	L5372
+7544  001a 4a            	dec	a
+7545  001b 271d          	jreq	L7372
+7546  001d 201f          	jra	L5672
+7547  001f               L1272:
+7548                     ; 4299     case 0: mask = 0x01; break;
+7550  001f 4c            	inc	a
+7553  0020 201a          	jp	LC026
+7554  0022               L3272:
+7555                     ; 4300     case 1: mask = 0x02; break;
+7557  0022 a602          	ld	a,#2
+7560  0024 2016          	jp	LC026
+7561  0026               L5272:
+7562                     ; 4301     case 2: mask = 0x04; break;
+7564  0026 a604          	ld	a,#4
+7567  0028 2012          	jp	LC026
+7568  002a               L7272:
+7569                     ; 4302     case 3: mask = 0x08; break;
+7571  002a a608          	ld	a,#8
+7574  002c 200e          	jp	LC026
+7575  002e               L1372:
+7576                     ; 4303     case 4: mask = 0x10; break;
+7578  002e a610          	ld	a,#16
+7581  0030 200a          	jp	LC026
+7582  0032               L3372:
+7583                     ; 4304     case 5: mask = 0x20; break;
+7585  0032 a620          	ld	a,#32
+7588  0034 2006          	jp	LC026
+7589  0036               L5372:
+7590                     ; 4305     case 6: mask = 0x40; break;
+7592  0036 a640          	ld	a,#64
+7595  0038 2002          	jp	LC026
+7596  003a               L7372:
+7597                     ; 4306     case 7: mask = 0x80; break;
+7599  003a a680          	ld	a,#128
+7600  003c               LC026:
+7601  003c 6b01          	ld	(OFST+0,sp),a
+7605                     ; 4307     default: break;
+7607  003e               L5672:
+7608                     ; 4310   if (nState) IO_8to1 |= mask;
+7610  003e 7b03          	ld	a,(OFST+2,sp)
+7611  0040 2707          	jreq	L7672
+7614  0042 c60000        	ld	a,_IO_8to1
+7615  0045 1a01          	or	a,(OFST+0,sp)
+7617  0047 2006          	jra	L1772
+7618  0049               L7672:
+7619                     ; 4311   else IO_8to1 &= (uint8_t)~mask;
+7621  0049 7b01          	ld	a,(OFST+0,sp)
+7622  004b 43            	cpl	a
+7623  004c c40000        	and	a,_IO_8to1
+7624  004f               L1772:
+7625  004f c70000        	ld	_IO_8to1,a
+7626                     ; 4313 }
+7629  0052 5b03          	addw	sp,#3
+7630  0054 81            	ret	
+7691                     ; 4325 void SetMAC(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2)
+7691                     ; 4326 {
+7692                     .text:	section	.text,new
+7693  0000               _SetMAC:
+7695  0000 89            	pushw	x
+7696  0001 5203          	subw	sp,#3
+7697       00000003      OFST:	set	3
+7700                     ; 4340   temp = 0;
+7702                     ; 4341   invalid = 0;
+7704  0003 0f01          	clr	(OFST-2,sp)
+7706                     ; 4344   if (alpha1 >= '0' && alpha1 <= '9') alpha1 = (uint8_t)(alpha1 - '0');
+7708  0005 9f            	ld	a,xl
+7709  0006 a130          	cp	a,#48
+7710  0008 250b          	jrult	L5303
+7712  000a 9f            	ld	a,xl
+7713  000b a13a          	cp	a,#58
+7714  000d 2406          	jruge	L5303
+7717  000f 7b05          	ld	a,(OFST+2,sp)
+7718  0011 a030          	sub	a,#48
+7720  0013 200c          	jp	LC027
+7721  0015               L5303:
+7722                     ; 4345   else if (alpha1 >= 'a' && alpha1 <= 'f') alpha1 = (uint8_t)(alpha1 - 87);
+7724  0015 7b05          	ld	a,(OFST+2,sp)
+7725  0017 a161          	cp	a,#97
+7726  0019 250a          	jrult	L1403
+7728  001b a167          	cp	a,#103
+7729  001d 2406          	jruge	L1403
+7732  001f a057          	sub	a,#87
+7733  0021               LC027:
+7734  0021 6b05          	ld	(OFST+2,sp),a
+7736  0023 2004          	jra	L7303
+7737  0025               L1403:
+7738                     ; 4346   else invalid = 1; // If an invalid entry set indicator
+7740  0025 a601          	ld	a,#1
+7741  0027 6b01          	ld	(OFST-2,sp),a
+7743  0029               L7303:
+7744                     ; 4348   if (alpha2 >= '0' && alpha2 <= '9') alpha2 = (uint8_t)(alpha2 - '0');
+7746  0029 7b08          	ld	a,(OFST+5,sp)
+7747  002b a130          	cp	a,#48
+7748  002d 2508          	jrult	L5403
+7750  002f a13a          	cp	a,#58
+7751  0031 2404          	jruge	L5403
+7754  0033 a030          	sub	a,#48
+7756  0035 200a          	jp	LC028
+7757  0037               L5403:
+7758                     ; 4349   else if (alpha2 >= 'a' && alpha2 <= 'f') alpha2 = (uint8_t)(alpha2 - 87);
+7760  0037 a161          	cp	a,#97
+7761  0039 250a          	jrult	L1503
+7763  003b a167          	cp	a,#103
+7764  003d 2406          	jruge	L1503
+7767  003f a057          	sub	a,#87
+7768  0041               LC028:
+7769  0041 6b08          	ld	(OFST+5,sp),a
+7771  0043 2004          	jra	L7403
+7772  0045               L1503:
+7773                     ; 4350   else invalid = 1; // If an invalid entry set indicator
+7775  0045 a601          	ld	a,#1
+7776  0047 6b01          	ld	(OFST-2,sp),a
+7778  0049               L7403:
+7779                     ; 4352   if (invalid == 0) { // Change value only if valid entry
+7781  0049 7b01          	ld	a,(OFST-2,sp)
+7782  004b 264a          	jrne	L5503
+7783                     ; 4353     temp = (uint8_t)((alpha1<<4) + alpha2); // Convert to single digit
+7785  004d 7b05          	ld	a,(OFST+2,sp)
+7786  004f 97            	ld	xl,a
+7787  0050 a610          	ld	a,#16
+7788  0052 42            	mul	x,a
+7789  0053 01            	rrwa	x,a
+7790  0054 1b08          	add	a,(OFST+5,sp)
+7791  0056 5f            	clrw	x
+7792  0057 97            	ld	xl,a
+7793  0058 1f02          	ldw	(OFST-1,sp),x
+7795                     ; 4354     switch(itemnum)
+7797  005a 7b04          	ld	a,(OFST+1,sp)
+7799                     ; 4362     default: break;
+7800  005c 2711          	jreq	L3772
+7801  005e 4a            	dec	a
+7802  005f 2715          	jreq	L5772
+7803  0061 4a            	dec	a
+7804  0062 2719          	jreq	L7772
+7805  0064 4a            	dec	a
+7806  0065 271d          	jreq	L1003
+7807  0067 4a            	dec	a
+7808  0068 2721          	jreq	L3003
+7809  006a 4a            	dec	a
+7810  006b 2725          	jreq	L5003
+7811  006d 2028          	jra	L5503
+7812  006f               L3772:
+7813                     ; 4356     case 0: Pending_uip_ethaddr_oct[5] = (uint8_t)temp; break;
+7815  006f 7b03          	ld	a,(OFST+0,sp)
+7816  0071 c70005        	ld	_Pending_uip_ethaddr_oct+5,a
+7819  0074 2021          	jra	L5503
+7820  0076               L5772:
+7821                     ; 4357     case 1: Pending_uip_ethaddr_oct[4] = (uint8_t)temp; break;
+7823  0076 7b03          	ld	a,(OFST+0,sp)
+7824  0078 c70004        	ld	_Pending_uip_ethaddr_oct+4,a
+7827  007b 201a          	jra	L5503
+7828  007d               L7772:
+7829                     ; 4358     case 2: Pending_uip_ethaddr_oct[3] = (uint8_t)temp; break;
+7831  007d 7b03          	ld	a,(OFST+0,sp)
+7832  007f c70003        	ld	_Pending_uip_ethaddr_oct+3,a
+7835  0082 2013          	jra	L5503
+7836  0084               L1003:
+7837                     ; 4359     case 3: Pending_uip_ethaddr_oct[2] = (uint8_t)temp; break;
+7839  0084 7b03          	ld	a,(OFST+0,sp)
+7840  0086 c70002        	ld	_Pending_uip_ethaddr_oct+2,a
+7843  0089 200c          	jra	L5503
+7844  008b               L3003:
+7845                     ; 4360     case 4: Pending_uip_ethaddr_oct[1] = (uint8_t)temp; break;
+7847  008b 7b03          	ld	a,(OFST+0,sp)
+7848  008d c70001        	ld	_Pending_uip_ethaddr_oct+1,a
+7851  0090 2005          	jra	L5503
+7852  0092               L5003:
+7853                     ; 4361     case 5: Pending_uip_ethaddr_oct[0] = (uint8_t)temp; break;
+7855  0092 7b03          	ld	a,(OFST+0,sp)
+7856  0094 c70000        	ld	_Pending_uip_ethaddr_oct,a
+7859                     ; 4362     default: break;
+7861  0097               L5503:
+7862                     ; 4365 }
+7865  0097 5b05          	addw	sp,#5
+7866  0099 81            	ret	
+8260                     	switch	.bss
+8261  0000               _insertion_flag:
+8262  0000 000000        	ds.b	3
+8263                     	xdef	_insertion_flag
+8264                     	xref	_second_counter
+8265                     	xref	_TRANSMIT_counter
+8266                     	xref	_TXERIF_counter
+8267                     	xref	_RXERIF_counter
+8268                     	xref	_MQTT_error_status
+8269                     	xref	_mqtt_start_status
+8270                     	xref	_Pending_mqtt_password
+8271                     	xref	_Pending_mqtt_username
+8272                     	xref	_Pending_mqttport
+8273                     	xref	_Pending_mqttserveraddr
+8274                     	xref	_stored_mqtt_password
+8275                     	xref	_stored_mqtt_username
+8276                     	xref	_stored_mqttport
+8277                     	xref	_stored_mqttserveraddr
+8278  0003               _current_webpage:
+8279  0003 00            	ds.b	1
+8280                     	xdef	_current_webpage
+8281  0004               _alpha:
+8282  0004 000000000000  	ds.b	6
+8283                     	xdef	_alpha
+8284  000a               _break_while:
+8285  000a 00            	ds.b	1
+8286                     	xdef	_break_while
+8287  000b               _tmp_nParseLeft:
+8288  000b 00            	ds.b	1
+8289                     	xdef	_tmp_nParseLeft
+8290  000c               _tmp_nBytes:
+8291  000c 0000          	ds.b	2
+8292                     	xdef	_tmp_nBytes
+8293  000e               _tmp_pBuffer:
+8294  000e 0000          	ds.b	2
+8295                     	xdef	_tmp_pBuffer
+8296  0010               _z_diag:
+8297  0010 00            	ds.b	1
+8298                     	xdef	_z_diag
+8299  0011               _saved_newlines:
+8300  0011 00            	ds.b	1
+8301                     	xdef	_saved_newlines
+8302  0012               _saved_postpartial_previous:
+8303  0012 000000000000  	ds.b	24
+8304                     	xdef	_saved_postpartial_previous
+8305  002a               _saved_postpartial:
+8306  002a 000000000000  	ds.b	24
+8307                     	xdef	_saved_postpartial
+8308  0042               _saved_nparseleft:
+8309  0042 00            	ds.b	1
+8310                     	xdef	_saved_nparseleft
+8311  0043               _saved_parsestate:
+8312  0043 00            	ds.b	1
+8313                     	xdef	_saved_parsestate
+8314  0044               _saved_nstate:
+8315  0044 00            	ds.b	1
+8316                     	xdef	_saved_nstate
+8317  0045               _OctetArray:
+8318  0045 000000000000  	ds.b	11
+8319                     	xdef	_OctetArray
+8320                     	xref	_user_reboot_request
+8321                     	xref	_parse_complete
+8322                     	xref	_mac_string
+8323                     	xref	_stored_config_settings
+8324                     	xref	_stored_devicename
+8325                     	xref	_stored_port
+8326                     	xref	_stored_netmask
+8327                     	xref	_stored_draddr
+8328                     	xref	_stored_hostaddr
+8329                     	xref	_Pending_uip_ethaddr_oct
+8330                     	xref	_Pending_config_settings
+8331                     	xref	_Pending_devicename
+8332                     	xref	_Pending_port
+8333                     	xref	_Pending_netmask
+8334                     	xref	_Pending_draddr
+8335                     	xref	_Pending_hostaddr
+8336                     	xref	_invert_input
+8337                     	xref	_IO_8to1
+8338                     	xref	_IO_16to9
+8339                     	xref	_Port_Httpd
+8340                     	xref	_strlen
+8341                     	xref	_debugflash
+8342                     	xref	_uip_flags
+8343                     	xref	_uip_conn
+8344                     	xref	_uip_len
+8345                     	xref	_uip_appdata
+8346                     	xref	_htons
+8347                     	xref	_uip_send
+8348                     	xref	_uip_listen
+8349                     	xref	_uip_init_stats
+8350                     	xdef	_SetMAC
+8351                     	xdef	_clear_saved_postpartial_previous
+8352                     	xdef	_clear_saved_postpartial_data
+8353                     	xdef	_clear_saved_postpartial_all
+8354                     	xdef	_GpioSetPin
+8355                     	xdef	_GpioGetPin
+8356                     	xdef	_parse_POST_port
+8357                     	xdef	_parse_POST_address
+8358                     	xdef	_parse_POST_string
+8359                     	xdef	_HttpDCall
+8360                     	xdef	_HttpDInit
+8361                     	xdef	_emb_itoa
+8362                     	xdef	_adjust_template_size
+8363                     	switch	.const
+8364  1d65               L333:
+8365  1d65 436f6e6e6563  	dc.b	"Connection:close",13
+8366  1d76 0a00          	dc.b	10,0
+8367  1d78               L133:
+8368  1d78 436f6e74656e  	dc.b	"Content-Type: text"
+8369  1d8a 2f68746d6c3b  	dc.b	"/html; charset=utf"
+8370  1d9c 2d380d        	dc.b	"-8",13
+8371  1d9f 0a00          	dc.b	10,0
+8372  1da1               L723:
+8373  1da1 43616368652d  	dc.b	"Cache-Control: no-"
+8374  1db3 63616368652c  	dc.b	"cache, no-store",13
+8375  1dc3 0a00          	dc.b	10,0
+8376  1dc5               L713:
+8377  1dc5 436f6e74656e  	dc.b	"Content-Length:",0
+8378  1dd5               L513:
+8379  1dd5 0d0a00        	dc.b	13,10,0
+8380  1dd8               L313:
+8381  1dd8 485454502f31  	dc.b	"HTTP/1.1 200 OK",0
+8382                     	xref.b	c_lreg
+8383                     	xref.b	c_x
+8384                     	xref.b	c_y
+8404                     	xref	c_imul
+8405                     	xref	c_uitolx
+8406                     	xref	c_ludv
+8407                     	xref	c_lumd
+8408                     	xref	c_rtol
+8409                     	xref	c_ltor
+8410                     	xref	c_lzmp
+8411                     	end

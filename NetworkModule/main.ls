@@ -839,21 +839,21 @@
 3955  0000               _publish_outbound:
 3957  0000 88            	push	a
 3958       00000001      OFST:	set	1
-3961                     ; 1186   if (state_request == STATE_REQUEST_IDLE) {
+3961                     ; 1210   if (state_request == STATE_REQUEST_IDLE) {
 3963  0001 c600fd        	ld	a,_state_request
 3964  0004 2703cc00f9    	jrne	L1222
-3965                     ; 1189     xor_tmp = (uint8_t)(IO_16to9 ^ IO_16to9_sent);
+3965                     ; 1213     xor_tmp = (uint8_t)(IO_16to9 ^ IO_16to9_sent);
 3967  0009 c60107        	ld	a,_IO_16to9
 3968  000c c80101        	xor	a,_IO_16to9_sent
 3969  000f 6b01          	ld	(OFST+0,sp),a
-3971                     ; 1191     if      (xor_tmp & 0x80) publish_pinstate('I', '8', IO_16to9, 0x80); // Input 8
+3971                     ; 1215     if      (xor_tmp & 0x80) publish_pinstate('I', '8', IO_16to9, 0x80); // Input 8
 3973  0011 2a0a          	jrpl	L3222
 3976  0013 4b80          	push	#128
 3977  0015 3b0107        	push	_IO_16to9
 3978  0018 ae4938        	ldw	x,#18744
 3981  001b 2060          	jp	LC002
 3982  001d               L3222:
-3983                     ; 1192     else if (xor_tmp & 0x40) publish_pinstate('I', '7', IO_16to9, 0x40); // Input 7
+3983                     ; 1216     else if (xor_tmp & 0x40) publish_pinstate('I', '7', IO_16to9, 0x40); // Input 7
 3985  001d a540          	bcp	a,#64
 3986  001f 270a          	jreq	L7222
 3989  0021 4b40          	push	#64
@@ -861,7 +861,7 @@
 3991  0026 ae4937        	ldw	x,#18743
 3994  0029 2052          	jp	LC002
 3995  002b               L7222:
-3996                     ; 1193     else if (xor_tmp & 0x20) publish_pinstate('I', '6', IO_16to9, 0x20); // Input 6
+3996                     ; 1217     else if (xor_tmp & 0x20) publish_pinstate('I', '6', IO_16to9, 0x20); // Input 6
 3998  002b a520          	bcp	a,#32
 3999  002d 270a          	jreq	L3322
 4002  002f 4b20          	push	#32
@@ -869,7 +869,7 @@
 4004  0034 ae4936        	ldw	x,#18742
 4007  0037 2044          	jp	LC002
 4008  0039               L3322:
-4009                     ; 1194     else if (xor_tmp & 0x10) publish_pinstate('I', '5', IO_16to9, 0x10); // Input 5
+4009                     ; 1218     else if (xor_tmp & 0x10) publish_pinstate('I', '5', IO_16to9, 0x10); // Input 5
 4011  0039 a510          	bcp	a,#16
 4012  003b 270a          	jreq	L7322
 4015  003d 4b10          	push	#16
@@ -877,7 +877,7 @@
 4017  0042 ae4935        	ldw	x,#18741
 4020  0045 2036          	jp	LC002
 4021  0047               L7322:
-4022                     ; 1195     else if (xor_tmp & 0x08) publish_pinstate('I', '4', IO_16to9, 0x08); // Input 4
+4022                     ; 1219     else if (xor_tmp & 0x08) publish_pinstate('I', '4', IO_16to9, 0x08); // Input 4
 4024  0047 a508          	bcp	a,#8
 4025  0049 270a          	jreq	L3422
 4028  004b 4b08          	push	#8
@@ -885,7 +885,7 @@
 4030  0050 ae4934        	ldw	x,#18740
 4033  0053 2028          	jp	LC002
 4034  0055               L3422:
-4035                     ; 1196     else if (xor_tmp & 0x04) publish_pinstate('I', '3', IO_16to9, 0x04); // Input 3
+4035                     ; 1220     else if (xor_tmp & 0x04) publish_pinstate('I', '3', IO_16to9, 0x04); // Input 3
 4037  0055 a504          	bcp	a,#4
 4038  0057 270a          	jreq	L7422
 4041  0059 4b04          	push	#4
@@ -893,7 +893,7 @@
 4043  005e ae4933        	ldw	x,#18739
 4046  0061 201a          	jp	LC002
 4047  0063               L7422:
-4048                     ; 1197     else if (xor_tmp & 0x02) publish_pinstate('I', '2', IO_16to9, 0x02); // Input 2
+4048                     ; 1221     else if (xor_tmp & 0x02) publish_pinstate('I', '2', IO_16to9, 0x02); // Input 2
 4050  0063 a502          	bcp	a,#2
 4051  0065 270a          	jreq	L3522
 4054  0067 4b02          	push	#2
@@ -901,7 +901,7 @@
 4056  006c ae4932        	ldw	x,#18738
 4059  006f 200c          	jp	LC002
 4060  0071               L3522:
-4061                     ; 1198     else if (xor_tmp & 0x01) publish_pinstate('I', '1', IO_16to9, 0x01); // Input 1
+4061                     ; 1222     else if (xor_tmp & 0x01) publish_pinstate('I', '1', IO_16to9, 0x01); // Input 1
 4063  0071 a501          	bcp	a,#1
 4064  0073 270c          	jreq	L5222
 4067  0075 4b01          	push	#1
@@ -911,18 +911,18 @@
 4072  007d cd0000        	call	_publish_pinstate
 4073  0080 85            	popw	x
 4074  0081               L5222:
-4075                     ; 1202     xor_tmp = (uint8_t)(IO_8to1 ^ IO_8to1_sent);
+4075                     ; 1226     xor_tmp = (uint8_t)(IO_8to1 ^ IO_8to1_sent);
 4077  0081 c60106        	ld	a,_IO_8to1
 4078  0084 c80100        	xor	a,_IO_8to1_sent
 4079  0087 6b01          	ld	(OFST+0,sp),a
-4081                     ; 1204     if      (xor_tmp & 0x80) publish_pinstate('O', '8', IO_8to1, 0x80); // Output 8
+4081                     ; 1228     if      (xor_tmp & 0x80) publish_pinstate('O', '8', IO_8to1, 0x80); // Output 8
 4083  0089 2a0a          	jrpl	L1622
 4086  008b 4b80          	push	#128
 4087  008d 3b0106        	push	_IO_8to1
 4088  0090 ae4f38        	ldw	x,#20280
 4091  0093 2060          	jp	LC003
 4092  0095               L1622:
-4093                     ; 1205     else if (xor_tmp & 0x40) publish_pinstate('O', '7', IO_8to1, 0x40); // Output 7
+4093                     ; 1229     else if (xor_tmp & 0x40) publish_pinstate('O', '7', IO_8to1, 0x40); // Output 7
 4095  0095 a540          	bcp	a,#64
 4096  0097 270a          	jreq	L5622
 4099  0099 4b40          	push	#64
@@ -930,7 +930,7 @@
 4101  009e ae4f37        	ldw	x,#20279
 4104  00a1 2052          	jp	LC003
 4105  00a3               L5622:
-4106                     ; 1206     else if (xor_tmp & 0x20) publish_pinstate('O', '6', IO_8to1, 0x20); // Output 6
+4106                     ; 1230     else if (xor_tmp & 0x20) publish_pinstate('O', '6', IO_8to1, 0x20); // Output 6
 4108  00a3 a520          	bcp	a,#32
 4109  00a5 270a          	jreq	L1722
 4112  00a7 4b20          	push	#32
@@ -938,7 +938,7 @@
 4114  00ac ae4f36        	ldw	x,#20278
 4117  00af 2044          	jp	LC003
 4118  00b1               L1722:
-4119                     ; 1207     else if (xor_tmp & 0x10) publish_pinstate('O', '5', IO_8to1, 0x10); // Output 5
+4119                     ; 1231     else if (xor_tmp & 0x10) publish_pinstate('O', '5', IO_8to1, 0x10); // Output 5
 4121  00b1 a510          	bcp	a,#16
 4122  00b3 270a          	jreq	L5722
 4125  00b5 4b10          	push	#16
@@ -946,7 +946,7 @@
 4127  00ba ae4f35        	ldw	x,#20277
 4130  00bd 2036          	jp	LC003
 4131  00bf               L5722:
-4132                     ; 1208     else if (xor_tmp & 0x08) publish_pinstate('O', '4', IO_8to1, 0x08); // Output 4
+4132                     ; 1232     else if (xor_tmp & 0x08) publish_pinstate('O', '4', IO_8to1, 0x08); // Output 4
 4134  00bf a508          	bcp	a,#8
 4135  00c1 270a          	jreq	L1032
 4138  00c3 4b08          	push	#8
@@ -954,7 +954,7 @@
 4140  00c8 ae4f34        	ldw	x,#20276
 4143  00cb 2028          	jp	LC003
 4144  00cd               L1032:
-4145                     ; 1209     else if (xor_tmp & 0x04) publish_pinstate('O', '3', IO_8to1, 0x04); // Output 3
+4145                     ; 1233     else if (xor_tmp & 0x04) publish_pinstate('O', '3', IO_8to1, 0x04); // Output 3
 4147  00cd a504          	bcp	a,#4
 4148  00cf 270a          	jreq	L5032
 4151  00d1 4b04          	push	#4
@@ -962,7 +962,7 @@
 4153  00d6 ae4f33        	ldw	x,#20275
 4156  00d9 201a          	jp	LC003
 4157  00db               L5032:
-4158                     ; 1210     else if (xor_tmp & 0x02) publish_pinstate('O', '2', IO_8to1, 0x02); // Output 2
+4158                     ; 1234     else if (xor_tmp & 0x02) publish_pinstate('O', '2', IO_8to1, 0x02); // Output 2
 4160  00db a502          	bcp	a,#2
 4161  00dd 270a          	jreq	L1132
 4164  00df 4b02          	push	#2
@@ -970,7 +970,7 @@
 4166  00e4 ae4f32        	ldw	x,#20274
 4169  00e7 200c          	jp	LC003
 4170  00e9               L1132:
-4171                     ; 1211     else if (xor_tmp & 0x01) publish_pinstate('O', '1', IO_8to1, 0x01); // Output 1
+4171                     ; 1235     else if (xor_tmp & 0x01) publish_pinstate('O', '1', IO_8to1, 0x01); // Output 1
 4173  00e9 a501          	bcp	a,#1
 4174  00eb 270c          	jreq	L1222
 4177  00ed 4b01          	push	#1
@@ -980,76 +980,76 @@
 4182  00f5 cd0000        	call	_publish_pinstate
 4183  00f8 85            	popw	x
 4184  00f9               L1222:
-4185                     ; 1215   if (state_request == STATE_REQUEST_RCVD) {
+4185                     ; 1239   if (state_request == STATE_REQUEST_RCVD) {
 4187  00f9 c600fd        	ld	a,_state_request
 4188  00fc 4a            	dec	a
 4189  00fd 2606          	jrne	L7132
-4190                     ; 1217     state_request = STATE_REQUEST_IDLE;
+4190                     ; 1241     state_request = STATE_REQUEST_IDLE;
 4192  00ff c700fd        	ld	_state_request,a
-4193                     ; 1218     publish_pinstate_all();
+4193                     ; 1242     publish_pinstate_all();
 4195  0102 cd0000        	call	_publish_pinstate_all
 4197  0105               L7132:
-4198                     ; 1246 }
+4198                     ; 1244 }
 4201  0105 84            	pop	a
 4202  0106 81            	ret	
-4266                     ; 1249 void publish_pinstate(uint8_t direction, uint8_t pin, uint8_t value, uint8_t mask)
-4266                     ; 1250 {
+4266                     ; 1247 void publish_pinstate(uint8_t direction, uint8_t pin, uint8_t value, uint8_t mask)
+4266                     ; 1248 {
 4267                     .text:	section	.text,new
 4268  0000               _publish_pinstate:
 4270  0000 89            	pushw	x
 4271       00000000      OFST:	set	0
-4274                     ; 1253   application_message[0] = '0';
+4274                     ; 1251   application_message[0] = '0';
 4276  0001 3530008c      	mov	_application_message,#48
-4277                     ; 1254   application_message[1] = (uint8_t)(pin);
+4277                     ; 1252   application_message[1] = (uint8_t)(pin);
 4279  0005 9f            	ld	a,xl
 4280  0006 c7008d        	ld	_application_message+1,a
-4281                     ; 1255   application_message[2] = '\0';
+4281                     ; 1253   application_message[2] = '\0';
 4283  0009 725f008e      	clr	_application_message+2
-4284                     ; 1257   topic_base[topic_base_len] = '\0';
+4284                     ; 1255   topic_base[topic_base_len] = '\0';
 4286  000d 5f            	clrw	x
 4287  000e c6000c        	ld	a,_topic_base_len
 4288  0011 97            	ld	xl,a
 4289  0012 724f000d      	clr	(_topic_base,x)
-4290                     ; 1260   if (direction == 'I') {
+4290                     ; 1258   if (direction == 'I') {
 4292  0016 7b01          	ld	a,(OFST+1,sp)
 4293  0018 a149          	cp	a,#73
 4294  001a 2618          	jrne	L3432
-4295                     ; 1262     if (invert_input == 0xff) value = (uint8_t)(~value);
+4295                     ; 1260     if (invert_input == 0xff) value = (uint8_t)(~value);
 4297  001c c600fe        	ld	a,_invert_input
 4298  001f 4c            	inc	a
 4299  0020 2602          	jrne	L5432
 4302  0022 0305          	cpl	(OFST+5,sp)
 4303  0024               L5432:
-4304                     ; 1263     if (value & mask) strcat(topic_base, "/in_on");
+4304                     ; 1261     if (value & mask) strcat(topic_base, "/in_on");
 4306  0024 7b05          	ld	a,(OFST+5,sp)
 4307  0026 1506          	bcp	a,(OFST+6,sp)
 4308  0028 2705          	jreq	L7432
 4311  002a ae002f        	ldw	x,#L1532
 4314  002d 2013          	jra	L7532
 4315  002f               L7432:
-4316                     ; 1264     else strcat(topic_base, "/in_off");
+4316                     ; 1262     else strcat(topic_base, "/in_off");
 4318  002f ae0027        	ldw	x,#L5532
 4320  0032 200e          	jra	L7532
 4321  0034               L3432:
-4322                     ; 1268     if (value & mask) strcat(topic_base, "/out_on");
+4322                     ; 1266     if (value & mask) strcat(topic_base, "/out_on");
 4324  0034 7b05          	ld	a,(OFST+5,sp)
 4325  0036 1506          	bcp	a,(OFST+6,sp)
 4326  0038 2705          	jreq	L1632
 4329  003a ae001f        	ldw	x,#L3632
 4332  003d 2003          	jra	L7532
 4333  003f               L1632:
-4334                     ; 1269     else strcat(topic_base, "/out_off");
+4334                     ; 1267     else strcat(topic_base, "/out_off");
 4336  003f ae0016        	ldw	x,#L7632
 4338  0042               L7532:
 4339  0042 89            	pushw	x
 4340  0043 ae000d        	ldw	x,#_topic_base
 4341  0046 cd0000        	call	_strcat
 4342  0049 85            	popw	x
-4343                     ; 1273   mqtt_publish(&mqttclient,
-4343                     ; 1274                topic_base,
-4343                     ; 1275 	       application_message,
-4343                     ; 1276 	       2,
-4343                     ; 1277 	       MQTT_PUBLISH_QOS_0);
+4343                     ; 1271   mqtt_publish(&mqttclient,
+4343                     ; 1272                topic_base,
+4343                     ; 1273 	       application_message,
+4343                     ; 1274 	       2,
+4343                     ; 1275 	       MQTT_PUBLISH_QOS_0);
 4345  004a 4b00          	push	#0
 4346  004c ae0002        	ldw	x,#2
 4347  004f 89            	pushw	x
@@ -1060,11 +1060,11 @@
 4352  0058 ae005e        	ldw	x,#_mqttclient
 4353  005b cd0000        	call	_mqtt_publish
 4355  005e 5b07          	addw	sp,#7
-4356                     ; 1279   if (direction == 'I') {
+4356                     ; 1277   if (direction == 'I') {
 4358  0060 7b01          	ld	a,(OFST+1,sp)
 4359  0062 a149          	cp	a,#73
 4360  0064 2619          	jrne	L1732
-4361                     ; 1281     if (IO_16to9 & mask) IO_16to9_sent |= mask;
+4361                     ; 1279     if (IO_16to9 & mask) IO_16to9_sent |= mask;
 4363  0066 c60107        	ld	a,_IO_16to9
 4364  0069 1506          	bcp	a,(OFST+6,sp)
 4365  006b 2707          	jreq	L3732
@@ -1072,7 +1072,7 @@
 4369  0070 1a06          	or	a,(OFST+6,sp)
 4371  0072 2006          	jp	LC005
 4372  0074               L3732:
-4373                     ; 1282     else IO_16to9_sent &= (uint8_t)~mask;
+4373                     ; 1280     else IO_16to9_sent &= (uint8_t)~mask;
 4375  0074 7b06          	ld	a,(OFST+6,sp)
 4376  0076 43            	cpl	a
 4377  0077 c40101        	and	a,_IO_16to9_sent
@@ -1080,7 +1080,7 @@
 4379  007a c70101        	ld	_IO_16to9_sent,a
 4380  007d 2017          	jra	L7732
 4381  007f               L1732:
-4382                     ; 1286     if (IO_8to1 & mask) IO_8to1_sent |= mask;
+4382                     ; 1284     if (IO_8to1 & mask) IO_8to1_sent |= mask;
 4384  007f c60106        	ld	a,_IO_8to1
 4385  0082 1506          	bcp	a,(OFST+6,sp)
 4386  0084 2707          	jreq	L1042
@@ -1088,58 +1088,58 @@
 4390  0089 1a06          	or	a,(OFST+6,sp)
 4392  008b 2006          	jp	LC004
 4393  008d               L1042:
-4394                     ; 1287     else IO_8to1_sent &= (uint8_t)~mask;
+4394                     ; 1285     else IO_8to1_sent &= (uint8_t)~mask;
 4396  008d 7b06          	ld	a,(OFST+6,sp)
 4397  008f 43            	cpl	a
 4398  0090 c40100        	and	a,_IO_8to1_sent
 4399  0093               LC004:
 4400  0093 c70100        	ld	_IO_8to1_sent,a
 4401  0096               L7732:
-4402                     ; 1289 }
+4402                     ; 1287 }
 4405  0096 85            	popw	x
 4406  0097 81            	ret	
-4455                     ; 1292 void publish_pinstate_all(void)
-4455                     ; 1293 {
+4455                     ; 1290 void publish_pinstate_all(void)
+4455                     ; 1291 {
 4456                     .text:	section	.text,new
 4457  0000               _publish_pinstate_all:
 4459  0000 89            	pushw	x
 4460       00000002      OFST:	set	2
-4463                     ; 1299   j = IO_16to9;
+4463                     ; 1297   j = IO_16to9;
 4465  0001 c60107        	ld	a,_IO_16to9
 4466  0004 6b02          	ld	(OFST+0,sp),a
-4468                     ; 1300   k = IO_8to1;
+4468                     ; 1298   k = IO_8to1;
 4470  0006 c60106        	ld	a,_IO_8to1
 4471  0009 6b01          	ld	(OFST-1,sp),a
-4473                     ; 1303   if (invert_input == 0xff) j = (uint8_t)(~j);
+4473                     ; 1301   if (invert_input == 0xff) j = (uint8_t)(~j);
 4475  000b c600fe        	ld	a,_invert_input
 4476  000e 4c            	inc	a
 4477  000f 2602          	jrne	L3242
 4480  0011 0302          	cpl	(OFST+0,sp)
 4482  0013               L3242:
-4483                     ; 1305   application_message[0] = j;
+4483                     ; 1303   application_message[0] = j;
 4485  0013 7b02          	ld	a,(OFST+0,sp)
 4486  0015 c7008c        	ld	_application_message,a
-4487                     ; 1306   application_message[1] = k;
+4487                     ; 1304   application_message[1] = k;
 4489  0018 7b01          	ld	a,(OFST-1,sp)
 4490  001a c7008d        	ld	_application_message+1,a
-4491                     ; 1307   application_message[2] = '\0';
+4491                     ; 1305   application_message[2] = '\0';
 4493  001d 725f008e      	clr	_application_message+2
-4494                     ; 1309   topic_base[topic_base_len] = '\0';
+4494                     ; 1307   topic_base[topic_base_len] = '\0';
 4496  0021 5f            	clrw	x
 4497  0022 c6000c        	ld	a,_topic_base_len
 4498  0025 97            	ld	xl,a
 4499  0026 724f000d      	clr	(_topic_base,x)
-4500                     ; 1310   strcat(topic_base, "/state");
+4500                     ; 1308   strcat(topic_base, "/state");
 4502  002a ae000f        	ldw	x,#L5242
 4503  002d 89            	pushw	x
 4504  002e ae000d        	ldw	x,#_topic_base
 4505  0031 cd0000        	call	_strcat
 4507  0034 85            	popw	x
-4508                     ; 1313   mqtt_publish(&mqttclient,
-4508                     ; 1314                topic_base,
-4508                     ; 1315 	       application_message,
-4508                     ; 1316 	       2,
-4508                     ; 1317 	       MQTT_PUBLISH_QOS_0);
+4508                     ; 1311   mqtt_publish(&mqttclient,
+4508                     ; 1312                topic_base,
+4508                     ; 1313 	       application_message,
+4508                     ; 1314 	       2,
+4508                     ; 1315 	       MQTT_PUBLISH_QOS_0);
 4510  0035 4b00          	push	#0
 4511  0037 ae0002        	ldw	x,#2
 4512  003a 89            	pushw	x
@@ -1149,34 +1149,34 @@
 4516  0042 89            	pushw	x
 4517  0043 ae005e        	ldw	x,#_mqttclient
 4518  0046 cd0000        	call	_mqtt_publish
-4520                     ; 1318 }
+4520                     ; 1316 }
 4523  0049 5b09          	addw	sp,#9
 4524  004b 81            	ret	
-4549                     ; 1323 void unlock_eeprom(void)
-4549                     ; 1324 {
+4549                     ; 1321 void unlock_eeprom(void)
+4549                     ; 1322 {
 4550                     .text:	section	.text,new
 4551  0000               _unlock_eeprom:
 4555  0000 2008          	jra	L1442
 4556  0002               L7342:
-4557                     ; 1336     FLASH_DUKR = 0xAE; // MASS key 1
+4557                     ; 1334     FLASH_DUKR = 0xAE; // MASS key 1
 4559  0002 35ae5064      	mov	_FLASH_DUKR,#174
-4560                     ; 1337     FLASH_DUKR = 0x56; // MASS key 2
+4560                     ; 1335     FLASH_DUKR = 0x56; // MASS key 2
 4562  0006 35565064      	mov	_FLASH_DUKR,#86
 4563  000a               L1442:
-4564                     ; 1335   while (!(FLASH_IAPSR & 0x08)) {  // Check DUL bit, 0=Protected
+4564                     ; 1333   while (!(FLASH_IAPSR & 0x08)) {  // Check DUL bit, 0=Protected
 4566  000a 7207505ff3    	btjf	_FLASH_IAPSR,#3,L7342
-4567                     ; 1365 }
+4567                     ; 1363 }
 4570  000f 81            	ret	
-4655                     ; 1368 void check_eeprom_settings(void)
-4655                     ; 1369 {
+4655                     ; 1366 void check_eeprom_settings(void)
+4655                     ; 1367 {
 4656                     .text:	section	.text,new
 4657  0000               _check_eeprom_settings:
 4659  0000 88            	push	a
 4660       00000001      OFST:	set	1
-4663                     ; 1381   if ((magic4 == 0x55) && 
-4663                     ; 1382       (magic3 == 0xee) && 
-4663                     ; 1383       (magic2 == 0x0f) && 
-4663                     ; 1384       (magic1 == 0xf0)) {
+4663                     ; 1379   if ((magic4 == 0x55) && 
+4663                     ; 1380       (magic3 == 0xee) && 
+4663                     ; 1381       (magic2 == 0x0f) && 
+4663                     ; 1382       (magic1 == 0xf0)) {
 4665  0001 c6002e        	ld	a,_magic4
 4666  0004 a155          	cp	a,#85
 4667  0006 2703cc01af    	jrne	L1652
@@ -1189,7 +1189,7 @@
 4677  0019 c6002b        	ld	a,_magic1
 4678  001c a1f0          	cp	a,#240
 4679  001e 26e8          	jrne	L1652
-4680                     ; 1389     uip_ipaddr(IpAddr, stored_hostaddr[3], stored_hostaddr[2], stored_hostaddr[1], stored_hostaddr[0]);
+4680                     ; 1387     uip_ipaddr(IpAddr, stored_hostaddr[3], stored_hostaddr[2], stored_hostaddr[1], stored_hostaddr[0]);
 4682  0020 c6002a        	ld	a,_stored_hostaddr+3
 4683  0023 97            	ld	xl,a
 4684  0024 c60029        	ld	a,_stored_hostaddr+2
@@ -1200,12 +1200,12 @@
 4691  002f c60027        	ld	a,_stored_hostaddr
 4692  0032 02            	rlwa	x,a
 4693  0033 cf009a        	ldw	_IpAddr+2,x
-4694                     ; 1390     uip_sethostaddr(IpAddr);
+4694                     ; 1388     uip_sethostaddr(IpAddr);
 4696  0036 ce0098        	ldw	x,_IpAddr
 4697  0039 cf0000        	ldw	_uip_hostaddr,x
 4700  003c ce009a        	ldw	x,_IpAddr+2
 4701  003f cf0002        	ldw	_uip_hostaddr+2,x
-4702                     ; 1393     uip_ipaddr(IpAddr,
+4702                     ; 1391     uip_ipaddr(IpAddr,
 4704  0042 c60026        	ld	a,_stored_draddr+3
 4705  0045 97            	ld	xl,a
 4706  0046 c60025        	ld	a,_stored_draddr+2
@@ -1216,12 +1216,12 @@
 4713  0051 c60023        	ld	a,_stored_draddr
 4714  0054 02            	rlwa	x,a
 4715  0055 cf009a        	ldw	_IpAddr+2,x
-4716                     ; 1398     uip_setdraddr(IpAddr);
+4716                     ; 1396     uip_setdraddr(IpAddr);
 4718  0058 ce0098        	ldw	x,_IpAddr
 4719  005b cf0000        	ldw	_uip_draddr,x
 4722  005e ce009a        	ldw	x,_IpAddr+2
 4723  0061 cf0002        	ldw	_uip_draddr+2,x
-4724                     ; 1401     uip_ipaddr(IpAddr,
+4724                     ; 1399     uip_ipaddr(IpAddr,
 4726  0064 c60022        	ld	a,_stored_netmask+3
 4727  0067 97            	ld	xl,a
 4728  0068 c60021        	ld	a,_stored_netmask+2
@@ -1232,12 +1232,12 @@
 4735  0073 c6001f        	ld	a,_stored_netmask
 4736  0076 02            	rlwa	x,a
 4737  0077 cf009a        	ldw	_IpAddr+2,x
-4738                     ; 1406     uip_setnetmask(IpAddr);
+4738                     ; 1404     uip_setnetmask(IpAddr);
 4740  007a ce0098        	ldw	x,_IpAddr
 4741  007d cf0000        	ldw	_uip_netmask,x
 4744  0080 ce009a        	ldw	x,_IpAddr+2
 4745  0083 cf0002        	ldw	_uip_netmask+2,x
-4746                     ; 1410     uip_ipaddr(IpAddr,
+4746                     ; 1408     uip_ipaddr(IpAddr,
 4748  0086 c60034        	ld	a,_stored_mqttserveraddr+3
 4749  0089 97            	ld	xl,a
 4750  008a c60033        	ld	a,_stored_mqttserveraddr+2
@@ -1248,52 +1248,52 @@
 4757  0095 c60031        	ld	a,_stored_mqttserveraddr
 4758  0098 02            	rlwa	x,a
 4759  0099 cf009a        	ldw	_IpAddr+2,x
-4760                     ; 1415     uip_setmqttserveraddr(IpAddr);
+4760                     ; 1413     uip_setmqttserveraddr(IpAddr);
 4762  009c ce0098        	ldw	x,_IpAddr
 4763  009f cf0000        	ldw	_uip_mqttserveraddr,x
 4766  00a2 ce009a        	ldw	x,_IpAddr+2
 4767  00a5 cf0002        	ldw	_uip_mqttserveraddr+2,x
-4768                     ; 1417     Port_Mqttd = stored_mqttport;
+4768                     ; 1415     Port_Mqttd = stored_mqttport;
 4770  00a8 ce002f        	ldw	x,_stored_mqttport
 4771  00ab cf008f        	ldw	_Port_Mqttd,x
-4772                     ; 1421     Port_Httpd = stored_port;
+4772                     ; 1419     Port_Httpd = stored_port;
 4774  00ae ce001d        	ldw	x,_stored_port
 4775  00b1 cf009c        	ldw	_Port_Httpd,x
-4776                     ; 1426     uip_ethaddr.addr[0] = stored_uip_ethaddr_oct[5]; // MSB
+4776                     ; 1424     uip_ethaddr.addr[0] = stored_uip_ethaddr_oct[5]; // MSB
 4778  00b4 55001c0000    	mov	_uip_ethaddr,_stored_uip_ethaddr_oct+5
-4779                     ; 1427     uip_ethaddr.addr[1] = stored_uip_ethaddr_oct[4];
+4779                     ; 1425     uip_ethaddr.addr[1] = stored_uip_ethaddr_oct[4];
 4781  00b9 55001b0001    	mov	_uip_ethaddr+1,_stored_uip_ethaddr_oct+4
-4782                     ; 1428     uip_ethaddr.addr[2] = stored_uip_ethaddr_oct[3];
+4782                     ; 1426     uip_ethaddr.addr[2] = stored_uip_ethaddr_oct[3];
 4784  00be 55001a0002    	mov	_uip_ethaddr+2,_stored_uip_ethaddr_oct+3
-4785                     ; 1429     uip_ethaddr.addr[3] = stored_uip_ethaddr_oct[2];
+4785                     ; 1427     uip_ethaddr.addr[3] = stored_uip_ethaddr_oct[2];
 4787  00c3 5500190003    	mov	_uip_ethaddr+3,_stored_uip_ethaddr_oct+2
-4788                     ; 1430     uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
+4788                     ; 1428     uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
 4790  00c8 5500180004    	mov	_uip_ethaddr+4,_stored_uip_ethaddr_oct+1
-4791                     ; 1431     uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
+4791                     ; 1429     uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
 4793  00cd 5500170005    	mov	_uip_ethaddr+5,_stored_uip_ethaddr_oct
-4794                     ; 1435     if (stored_config_settings[0] != '0' && stored_config_settings[0] != '1') {
+4794                     ; 1433     if (stored_config_settings[0] != '0' && stored_config_settings[0] != '1') {
 4796  00d2 c6004c        	ld	a,_stored_config_settings
 4797  00d5 a130          	cp	a,#48
 4798  00d7 270c          	jreq	L3252
 4800  00d9 a131          	cp	a,#49
 4801  00db 2708          	jreq	L3252
-4802                     ; 1436       stored_config_settings[0] = '0';
+4802                     ; 1434       stored_config_settings[0] = '0';
 4804  00dd a630          	ld	a,#48
 4805  00df ae004c        	ldw	x,#_stored_config_settings
 4806  00e2 cd0000        	call	c_eewrc
 4808  00e5               L3252:
-4809                     ; 1438     if (stored_config_settings[1] != '0' && stored_config_settings[1] != '1') {
+4809                     ; 1436     if (stored_config_settings[1] != '0' && stored_config_settings[1] != '1') {
 4811  00e5 c6004d        	ld	a,_stored_config_settings+1
 4812  00e8 a130          	cp	a,#48
 4813  00ea 270c          	jreq	L5252
 4815  00ec a131          	cp	a,#49
 4816  00ee 2708          	jreq	L5252
-4817                     ; 1439       stored_config_settings[1] = '0';
+4817                     ; 1437       stored_config_settings[1] = '0';
 4819  00f0 a630          	ld	a,#48
 4820  00f2 ae004d        	ldw	x,#_stored_config_settings+1
 4821  00f5 cd0000        	call	c_eewrc
 4823  00f8               L5252:
-4824                     ; 1441     if (stored_config_settings[2] != '0' && stored_config_settings[2] != '1' && stored_config_settings[2] != '2') {
+4824                     ; 1439     if (stored_config_settings[2] != '0' && stored_config_settings[2] != '1' && stored_config_settings[2] != '2') {
 4826  00f8 c6004e        	ld	a,_stored_config_settings+2
 4827  00fb a130          	cp	a,#48
 4828  00fd 2710          	jreq	L7252
@@ -1301,205 +1301,205 @@
 4831  0101 270c          	jreq	L7252
 4833  0103 a132          	cp	a,#50
 4834  0105 2708          	jreq	L7252
-4835                     ; 1442       stored_config_settings[2] = '2';
+4835                     ; 1440       stored_config_settings[2] = '2';
 4837  0107 a632          	ld	a,#50
 4838  0109 ae004e        	ldw	x,#_stored_config_settings+2
 4839  010c cd0000        	call	c_eewrc
 4841  010f               L7252:
-4842                     ; 1444     if (stored_config_settings[3] != '0' && stored_config_settings[3] != '1') {
+4842                     ; 1442     if (stored_config_settings[3] != '0' && stored_config_settings[3] != '1') {
 4844  010f c6004f        	ld	a,_stored_config_settings+3
 4845  0112 a130          	cp	a,#48
 4846  0114 270c          	jreq	L1352
 4848  0116 a131          	cp	a,#49
 4849  0118 2708          	jreq	L1352
-4850                     ; 1445       stored_config_settings[3] = '0';
+4850                     ; 1443       stored_config_settings[3] = '0';
 4852  011a a630          	ld	a,#48
 4853  011c ae004f        	ldw	x,#_stored_config_settings+3
 4854  011f cd0000        	call	c_eewrc
 4856  0122               L1352:
-4857                     ; 1447     if (stored_config_settings[4] != '0') {
+4857                     ; 1445     if (stored_config_settings[4] != '0') {
 4859  0122 c60050        	ld	a,_stored_config_settings+4
 4860  0125 a130          	cp	a,#48
 4861  0127 2708          	jreq	L3352
-4862                     ; 1448       stored_config_settings[4] = '0';
+4862                     ; 1446       stored_config_settings[4] = '0';
 4864  0129 a630          	ld	a,#48
 4865  012b ae0050        	ldw	x,#_stored_config_settings+4
 4866  012e cd0000        	call	c_eewrc
 4868  0131               L3352:
-4869                     ; 1450     if (stored_config_settings[5] != '0') {
+4869                     ; 1448     if (stored_config_settings[5] != '0') {
 4871  0131 c60051        	ld	a,_stored_config_settings+5
 4872  0134 a130          	cp	a,#48
 4873  0136 2708          	jreq	L5352
-4874                     ; 1451       stored_config_settings[5] = '0';
+4874                     ; 1449       stored_config_settings[5] = '0';
 4876  0138 a630          	ld	a,#48
 4877  013a ae0051        	ldw	x,#_stored_config_settings+5
 4878  013d cd0000        	call	c_eewrc
 4880  0140               L5352:
-4881                     ; 1455     if (stored_config_settings[0] == '0') invert_output = 0x00;
+4881                     ; 1453     if (stored_config_settings[0] == '0') invert_output = 0x00;
 4883  0140 c6004c        	ld	a,_stored_config_settings
 4884  0143 a130          	cp	a,#48
 4885  0145 2606          	jrne	L7352
 4888  0147 725f00ff      	clr	_invert_output
 4890  014b 2004          	jra	L1452
 4891  014d               L7352:
-4892                     ; 1456     else invert_output = 0xff;
+4892                     ; 1454     else invert_output = 0xff;
 4894  014d 35ff00ff      	mov	_invert_output,#255
 4895  0151               L1452:
-4896                     ; 1459     if (stored_config_settings[1] == '0') invert_input = 0x00;
+4896                     ; 1457     if (stored_config_settings[1] == '0') invert_input = 0x00;
 4898  0151 c6004d        	ld	a,_stored_config_settings+1
 4899  0154 a130          	cp	a,#48
 4900  0156 2606          	jrne	L3452
 4903  0158 725f00fe      	clr	_invert_input
 4905  015c 2004          	jra	L5452
 4906  015e               L3452:
-4907                     ; 1460     else invert_input = 0xff;
+4907                     ; 1458     else invert_input = 0xff;
 4909  015e 35ff00fe      	mov	_invert_input,#255
 4910  0162               L5452:
-4911                     ; 1465     if (stored_config_settings[2] == '0') {
+4911                     ; 1463     if (stored_config_settings[2] == '0') {
 4913  0162 c6004e        	ld	a,_stored_config_settings+2
 4914  0165 a130          	cp	a,#48
 4915  0167 260a          	jrne	L7452
-4916                     ; 1467       IO_16to9 = 0x00;
+4916                     ; 1465       IO_16to9 = 0x00;
 4918  0169 725f0107      	clr	_IO_16to9
-4919                     ; 1468       IO_8to1 = 0x00;
+4919                     ; 1466       IO_8to1 = 0x00;
 4921  016d 725f0106      	clr	_IO_8to1
 4923  0171 2036          	jra	L1552
 4924  0173               L7452:
-4925                     ; 1470     else if (stored_config_settings[2] == '1') {
+4925                     ; 1468     else if (stored_config_settings[2] == '1') {
 4927  0173 a131          	cp	a,#49
 4928  0175 260a          	jrne	L3552
-4929                     ; 1472       IO_16to9 = 0xff;
+4929                     ; 1470       IO_16to9 = 0xff;
 4931  0177 35ff0107      	mov	_IO_16to9,#255
-4932                     ; 1473       IO_8to1 = 0xff;
+4932                     ; 1471       IO_8to1 = 0xff;
 4934  017b 35ff0106      	mov	_IO_8to1,#255
 4936  017f 2028          	jra	L1552
 4937  0181               L3552:
-4938                     ; 1477       IO_16to9 = IO_16to9_new1 = IO_16to9_new2 = IO_16to9_sent = stored_IO_16to9;
+4938                     ; 1475       IO_16to9 = IO_16to9_new1 = IO_16to9_new2 = IO_16to9_sent = stored_IO_16to9;
 4940  0181 55004b0101    	mov	_IO_16to9_sent,_stored_IO_16to9
 4941  0186 5501010103    	mov	_IO_16to9_new2,_IO_16to9_sent
 4942  018b 5501030105    	mov	_IO_16to9_new1,_IO_16to9_new2
 4943  0190 5501050107    	mov	_IO_16to9,_IO_16to9_new1
-4944                     ; 1478       IO_8to1  = IO_8to1_new1  = IO_8to1_new2  = IO_8to1_sent  = stored_IO_8to1;
+4944                     ; 1476       IO_8to1  = IO_8to1_new1  = IO_8to1_new2  = IO_8to1_sent  = stored_IO_8to1;
 4946  0195 5500140100    	mov	_IO_8to1_sent,_stored_IO_8to1
 4947  019a 5501000102    	mov	_IO_8to1_new2,_IO_8to1_sent
 4948  019f 5501020104    	mov	_IO_8to1_new1,_IO_8to1_new2
 4949  01a4 5501040106    	mov	_IO_8to1,_IO_8to1_new1
 4950  01a9               L1552:
-4951                     ; 1482     write_output_registers();
+4951                     ; 1480     write_output_registers();
 4953  01a9 cd0000        	call	_write_output_registers
 4956  01ac cc040e        	jra	L7552
 4957  01af               L1652:
-4958                     ; 1491     uip_ipaddr(IpAddr, 192,168,1,4);
+4958                     ; 1489     uip_ipaddr(IpAddr, 192,168,1,4);
 4960  01af aec0a8        	ldw	x,#49320
 4961  01b2 cf0098        	ldw	_IpAddr,x
 4964  01b5 ae0104        	ldw	x,#260
 4965  01b8 cf009a        	ldw	_IpAddr+2,x
-4966                     ; 1492     uip_sethostaddr(IpAddr);
+4966                     ; 1490     uip_sethostaddr(IpAddr);
 4968  01bb ce0098        	ldw	x,_IpAddr
 4969  01be cf0000        	ldw	_uip_hostaddr,x
 4972  01c1 ce009a        	ldw	x,_IpAddr+2
 4973  01c4 cf0002        	ldw	_uip_hostaddr+2,x
-4974                     ; 1494     stored_hostaddr[3] = 192;	// MSB
+4974                     ; 1492     stored_hostaddr[3] = 192;	// MSB
 4976  01c7 a6c0          	ld	a,#192
 4977  01c9 ae002a        	ldw	x,#_stored_hostaddr+3
 4978  01cc cd0000        	call	c_eewrc
-4980                     ; 1495     stored_hostaddr[2] = 168;	//
+4980                     ; 1493     stored_hostaddr[2] = 168;	//
 4982  01cf a6a8          	ld	a,#168
 4983  01d1 ae0029        	ldw	x,#_stored_hostaddr+2
 4984  01d4 cd0000        	call	c_eewrc
-4986                     ; 1496     stored_hostaddr[1] = 1;	//
+4986                     ; 1494     stored_hostaddr[1] = 1;	//
 4988  01d7 a601          	ld	a,#1
 4989  01d9 ae0028        	ldw	x,#_stored_hostaddr+1
 4990  01dc cd0000        	call	c_eewrc
-4992                     ; 1497     stored_hostaddr[0] = 4;	// LSB
+4992                     ; 1495     stored_hostaddr[0] = 4;	// LSB
 4994  01df a604          	ld	a,#4
 4995  01e1 ae0027        	ldw	x,#_stored_hostaddr
 4996  01e4 cd0000        	call	c_eewrc
-4998                     ; 1500     uip_ipaddr(IpAddr, 192,168,1,1);
+4998                     ; 1498     uip_ipaddr(IpAddr, 192,168,1,1);
 5000  01e7 aec0a8        	ldw	x,#49320
 5001  01ea cf0098        	ldw	_IpAddr,x
 5004  01ed ae0101        	ldw	x,#257
 5005  01f0 cf009a        	ldw	_IpAddr+2,x
-5006                     ; 1501     uip_setdraddr(IpAddr);
+5006                     ; 1499     uip_setdraddr(IpAddr);
 5008  01f3 ce0098        	ldw	x,_IpAddr
 5009  01f6 cf0000        	ldw	_uip_draddr,x
 5012  01f9 ce009a        	ldw	x,_IpAddr+2
 5013  01fc cf0002        	ldw	_uip_draddr+2,x
-5014                     ; 1503     stored_draddr[3] = 192;	// MSB
+5014                     ; 1501     stored_draddr[3] = 192;	// MSB
 5016  01ff a6c0          	ld	a,#192
 5017  0201 ae0026        	ldw	x,#_stored_draddr+3
 5018  0204 cd0000        	call	c_eewrc
-5020                     ; 1504     stored_draddr[2] = 168;	//
+5020                     ; 1502     stored_draddr[2] = 168;	//
 5022  0207 a6a8          	ld	a,#168
 5023  0209 ae0025        	ldw	x,#_stored_draddr+2
 5024  020c cd0000        	call	c_eewrc
-5026                     ; 1505     stored_draddr[1] = 1;		//
+5026                     ; 1503     stored_draddr[1] = 1;		//
 5028  020f a601          	ld	a,#1
 5029  0211 ae0024        	ldw	x,#_stored_draddr+1
 5030  0214 cd0000        	call	c_eewrc
-5032                     ; 1506     stored_draddr[0] = 1;		// LSB
+5032                     ; 1504     stored_draddr[0] = 1;		// LSB
 5034  0217 a601          	ld	a,#1
 5035  0219 ae0023        	ldw	x,#_stored_draddr
 5036  021c cd0000        	call	c_eewrc
-5038                     ; 1509     uip_ipaddr(IpAddr, 255,255,255,0);
+5038                     ; 1507     uip_ipaddr(IpAddr, 255,255,255,0);
 5040  021f aeffff        	ldw	x,#65535
 5041  0222 cf0098        	ldw	_IpAddr,x
 5044  0225 aeff00        	ldw	x,#65280
 5045  0228 cf009a        	ldw	_IpAddr+2,x
-5046                     ; 1510     uip_setnetmask(IpAddr);
+5046                     ; 1508     uip_setnetmask(IpAddr);
 5048  022b ce0098        	ldw	x,_IpAddr
 5049  022e cf0000        	ldw	_uip_netmask,x
 5052  0231 ce009a        	ldw	x,_IpAddr+2
 5053  0234 cf0002        	ldw	_uip_netmask+2,x
-5054                     ; 1512     stored_netmask[3] = 255;	// MSB
+5054                     ; 1510     stored_netmask[3] = 255;	// MSB
 5056  0237 a6ff          	ld	a,#255
 5057  0239 ae0022        	ldw	x,#_stored_netmask+3
 5058  023c cd0000        	call	c_eewrc
-5060                     ; 1513     stored_netmask[2] = 255;	//
+5060                     ; 1511     stored_netmask[2] = 255;	//
 5062  023f a6ff          	ld	a,#255
 5063  0241 ae0021        	ldw	x,#_stored_netmask+2
 5064  0244 cd0000        	call	c_eewrc
-5066                     ; 1514     stored_netmask[1] = 255;	//
+5066                     ; 1512     stored_netmask[1] = 255;	//
 5068  0247 a6ff          	ld	a,#255
 5069  0249 ae0020        	ldw	x,#_stored_netmask+1
 5070  024c cd0000        	call	c_eewrc
-5072                     ; 1515     stored_netmask[0] = 0;	// LSB
+5072                     ; 1513     stored_netmask[0] = 0;	// LSB
 5074  024f 4f            	clr	a
 5075  0250 ae001f        	ldw	x,#_stored_netmask
 5076  0253 cd0000        	call	c_eewrc
-5078                     ; 1519     uip_ipaddr(IpAddr, 0,0,0,0);
+5078                     ; 1517     uip_ipaddr(IpAddr, 0,0,0,0);
 5080  0256 5f            	clrw	x
 5081  0257 cf0098        	ldw	_IpAddr,x
 5084  025a cf009a        	ldw	_IpAddr+2,x
-5085                     ; 1520     uip_setmqttserveraddr(IpAddr);
+5085                     ; 1518     uip_setmqttserveraddr(IpAddr);
 5087  025d cf0000        	ldw	_uip_mqttserveraddr,x
 5090  0260 cf0002        	ldw	_uip_mqttserveraddr+2,x
-5091                     ; 1523     stored_mqttserveraddr[3] = 0;	// MSB
+5091                     ; 1521     stored_mqttserveraddr[3] = 0;	// MSB
 5093  0263 4f            	clr	a
 5094  0264 ae0034        	ldw	x,#_stored_mqttserveraddr+3
 5095  0267 cd0000        	call	c_eewrc
-5097                     ; 1524     stored_mqttserveraddr[2] = 0;	//
+5097                     ; 1522     stored_mqttserveraddr[2] = 0;	//
 5099  026a 4f            	clr	a
 5100  026b ae0033        	ldw	x,#_stored_mqttserveraddr+2
 5101  026e cd0000        	call	c_eewrc
-5103                     ; 1525     stored_mqttserveraddr[1] = 0;	//
+5103                     ; 1523     stored_mqttserveraddr[1] = 0;	//
 5105  0271 4f            	clr	a
 5106  0272 ae0032        	ldw	x,#_stored_mqttserveraddr+1
 5107  0275 cd0000        	call	c_eewrc
-5109                     ; 1526     stored_mqttserveraddr[0] = 0;	// LSB
+5109                     ; 1524     stored_mqttserveraddr[0] = 0;	// LSB
 5111  0278 4f            	clr	a
 5112  0279 ae0031        	ldw	x,#_stored_mqttserveraddr
 5113  027c cd0000        	call	c_eewrc
-5115                     ; 1529     stored_mqttport = 1883;		// Port
+5115                     ; 1527     stored_mqttport = 1883;		// Port
 5117  027f ae075b        	ldw	x,#1883
 5118  0282 89            	pushw	x
 5119  0283 ae002f        	ldw	x,#_stored_mqttport
 5120  0286 cd0000        	call	c_eewrw
 5122  0289 85            	popw	x
-5123                     ; 1531     Port_Mqttd = 1883;
+5123                     ; 1529     Port_Mqttd = 1883;
 5125  028a ae075b        	ldw	x,#1883
 5126  028d cf008f        	ldw	_Port_Mqttd,x
-5127                     ; 1534     for(i=0; i<11; i++) { stored_mqtt_username[i] = '\0'; }
+5127                     ; 1532     for(i=0; i<11; i++) { stored_mqtt_username[i] = '\0'; }
 5129  0290 4f            	clr	a
 5130  0291 6b01          	ld	(OFST+0,sp),a
 5132  0293               L1262:
@@ -1512,7 +1512,7 @@
 5147  029e 7b01          	ld	a,(OFST+0,sp)
 5148  02a0 a10b          	cp	a,#11
 5149  02a2 25ef          	jrult	L1262
-5150                     ; 1535     for(i=0; i<11; i++) { stored_mqtt_password[i] = '\0'; }
+5150                     ; 1533     for(i=0; i<11; i++) { stored_mqtt_password[i] = '\0'; }
 5152  02a4 4f            	clr	a
 5153  02a5 6b01          	ld	(OFST+0,sp),a
 5155  02a7               L7262:
@@ -1525,100 +1525,100 @@
 5170  02b2 7b01          	ld	a,(OFST+0,sp)
 5171  02b4 a10b          	cp	a,#11
 5172  02b6 25ef          	jrult	L7262
-5173                     ; 1540     stored_port = 8080;
+5173                     ; 1538     stored_port = 8080;
 5175  02b8 ae1f90        	ldw	x,#8080
 5176  02bb 89            	pushw	x
 5177  02bc ae001d        	ldw	x,#_stored_port
 5178  02bf cd0000        	call	c_eewrw
 5180  02c2 85            	popw	x
-5181                     ; 1542     Port_Httpd = 8080;
+5181                     ; 1540     Port_Httpd = 8080;
 5183  02c3 ae1f90        	ldw	x,#8080
 5184  02c6 cf009c        	ldw	_Port_Httpd,x
-5185                     ; 1558     stored_uip_ethaddr_oct[5] = 0xc2;	//MAC MSB
+5185                     ; 1556     stored_uip_ethaddr_oct[5] = 0xc2;	//MAC MSB
 5187  02c9 a6c2          	ld	a,#194
 5188  02cb ae001c        	ldw	x,#_stored_uip_ethaddr_oct+5
 5189  02ce cd0000        	call	c_eewrc
-5191                     ; 1559     stored_uip_ethaddr_oct[4] = 0x4d;
+5191                     ; 1557     stored_uip_ethaddr_oct[4] = 0x4d;
 5193  02d1 a64d          	ld	a,#77
 5194  02d3 ae001b        	ldw	x,#_stored_uip_ethaddr_oct+4
 5195  02d6 cd0000        	call	c_eewrc
-5197                     ; 1560     stored_uip_ethaddr_oct[3] = 0x69;
+5197                     ; 1558     stored_uip_ethaddr_oct[3] = 0x69;
 5199  02d9 a669          	ld	a,#105
 5200  02db ae001a        	ldw	x,#_stored_uip_ethaddr_oct+3
 5201  02de cd0000        	call	c_eewrc
-5203                     ; 1561     stored_uip_ethaddr_oct[2] = 0x6b;
+5203                     ; 1559     stored_uip_ethaddr_oct[2] = 0x6b;
 5205  02e1 a66b          	ld	a,#107
 5206  02e3 ae0019        	ldw	x,#_stored_uip_ethaddr_oct+2
 5207  02e6 cd0000        	call	c_eewrc
-5209                     ; 1562     stored_uip_ethaddr_oct[1] = 0x65;
+5209                     ; 1560     stored_uip_ethaddr_oct[1] = 0x65;
 5211  02e9 a665          	ld	a,#101
 5212  02eb ae0018        	ldw	x,#_stored_uip_ethaddr_oct+1
 5213  02ee cd0000        	call	c_eewrc
-5215                     ; 1563     stored_uip_ethaddr_oct[0] = 0x00;	//MAC LSB
+5215                     ; 1561     stored_uip_ethaddr_oct[0] = 0x00;	//MAC LSB
 5217  02f1 4f            	clr	a
 5218  02f2 ae0017        	ldw	x,#_stored_uip_ethaddr_oct
 5219  02f5 cd0000        	call	c_eewrc
-5221                     ; 1565     uip_ethaddr.addr[0] = stored_uip_ethaddr_oct[5]; // MSB
+5221                     ; 1563     uip_ethaddr.addr[0] = stored_uip_ethaddr_oct[5]; // MSB
 5223  02f8 35c20000      	mov	_uip_ethaddr,#194
-5224                     ; 1566     uip_ethaddr.addr[1] = stored_uip_ethaddr_oct[4];
+5224                     ; 1564     uip_ethaddr.addr[1] = stored_uip_ethaddr_oct[4];
 5226  02fc 354d0001      	mov	_uip_ethaddr+1,#77
-5227                     ; 1567     uip_ethaddr.addr[2] = stored_uip_ethaddr_oct[3];
+5227                     ; 1565     uip_ethaddr.addr[2] = stored_uip_ethaddr_oct[3];
 5229  0300 35690002      	mov	_uip_ethaddr+2,#105
-5230                     ; 1568     uip_ethaddr.addr[3] = stored_uip_ethaddr_oct[2];
+5230                     ; 1566     uip_ethaddr.addr[3] = stored_uip_ethaddr_oct[2];
 5232  0304 356b0003      	mov	_uip_ethaddr+3,#107
-5233                     ; 1569     uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
+5233                     ; 1567     uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
 5235  0308 35650004      	mov	_uip_ethaddr+4,#101
-5236                     ; 1570     uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
+5236                     ; 1568     uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
 5238  030c 725f0005      	clr	_uip_ethaddr+5
-5239                     ; 1573     stored_devicename[0] =  'N';
+5239                     ; 1571     stored_devicename[0] =  'N';
 5241  0310 a64e          	ld	a,#78
 5242  0312 ae0000        	ldw	x,#_stored_devicename
 5243  0315 cd0000        	call	c_eewrc
-5245                     ; 1574     stored_devicename[1] =  'e';
+5245                     ; 1572     stored_devicename[1] =  'e';
 5247  0318 a665          	ld	a,#101
 5248  031a ae0001        	ldw	x,#_stored_devicename+1
 5249  031d cd0000        	call	c_eewrc
-5251                     ; 1575     stored_devicename[2] =  'w';
+5251                     ; 1573     stored_devicename[2] =  'w';
 5253  0320 a677          	ld	a,#119
 5254  0322 ae0002        	ldw	x,#_stored_devicename+2
 5255  0325 cd0000        	call	c_eewrc
-5257                     ; 1576     stored_devicename[3] =  'D';
+5257                     ; 1574     stored_devicename[3] =  'D';
 5259  0328 a644          	ld	a,#68
 5260  032a ae0003        	ldw	x,#_stored_devicename+3
 5261  032d cd0000        	call	c_eewrc
-5263                     ; 1577     stored_devicename[4] =  'e';
+5263                     ; 1575     stored_devicename[4] =  'e';
 5265  0330 a665          	ld	a,#101
 5266  0332 ae0004        	ldw	x,#_stored_devicename+4
 5267  0335 cd0000        	call	c_eewrc
-5269                     ; 1578     stored_devicename[5] =  'v';
+5269                     ; 1576     stored_devicename[5] =  'v';
 5271  0338 a676          	ld	a,#118
 5272  033a ae0005        	ldw	x,#_stored_devicename+5
 5273  033d cd0000        	call	c_eewrc
-5275                     ; 1579     stored_devicename[6] =  'i';
+5275                     ; 1577     stored_devicename[6] =  'i';
 5277  0340 a669          	ld	a,#105
 5278  0342 ae0006        	ldw	x,#_stored_devicename+6
 5279  0345 cd0000        	call	c_eewrc
-5281                     ; 1580     stored_devicename[7] =  'c';
+5281                     ; 1578     stored_devicename[7] =  'c';
 5283  0348 a663          	ld	a,#99
 5284  034a ae0007        	ldw	x,#_stored_devicename+7
 5285  034d cd0000        	call	c_eewrc
-5287                     ; 1581     stored_devicename[8] =  'e';
+5287                     ; 1579     stored_devicename[8] =  'e';
 5289  0350 a665          	ld	a,#101
 5290  0352 ae0008        	ldw	x,#_stored_devicename+8
 5291  0355 cd0000        	call	c_eewrc
-5293                     ; 1582     stored_devicename[9] =  '0';
+5293                     ; 1580     stored_devicename[9] =  '0';
 5295  0358 a630          	ld	a,#48
 5296  035a ae0009        	ldw	x,#_stored_devicename+9
 5297  035d cd0000        	call	c_eewrc
-5299                     ; 1583     stored_devicename[10] = '0';
+5299                     ; 1581     stored_devicename[10] = '0';
 5301  0360 a630          	ld	a,#48
 5302  0362 ae000a        	ldw	x,#_stored_devicename+10
 5303  0365 cd0000        	call	c_eewrc
-5305                     ; 1584     stored_devicename[11] = '0';
+5305                     ; 1582     stored_devicename[11] = '0';
 5307  0368 a630          	ld	a,#48
 5308  036a ae000b        	ldw	x,#_stored_devicename+11
 5309  036d cd0000        	call	c_eewrc
-5311                     ; 1585     for (i=12; i<20; i++) stored_devicename[i] = '\0';
+5311                     ; 1583     for (i=12; i<20; i++) stored_devicename[i] = '\0';
 5313  0370 a60c          	ld	a,#12
 5314  0372 6b01          	ld	(OFST+0,sp),a
 5316  0374               L5362:
@@ -1631,35 +1631,35 @@
 5331  037f 7b01          	ld	a,(OFST+0,sp)
 5332  0381 a114          	cp	a,#20
 5333  0383 25ef          	jrult	L5362
-5334                     ; 1590     stored_config_settings[0] = '0'; // Set to Invert Output OFF
+5334                     ; 1588     stored_config_settings[0] = '0'; // Set to Invert Output OFF
 5336  0385 a630          	ld	a,#48
 5337  0387 ae004c        	ldw	x,#_stored_config_settings
 5338  038a cd0000        	call	c_eewrc
-5340                     ; 1591     stored_config_settings[1] = '0'; // Set to Invert Input Off
+5340                     ; 1589     stored_config_settings[1] = '0'; // Set to Invert Input Off
 5342  038d a630          	ld	a,#48
 5343  038f ae004d        	ldw	x,#_stored_config_settings+1
 5344  0392 cd0000        	call	c_eewrc
-5346                     ; 1592     stored_config_settings[2] = '2'; // Set to Retain pin states
+5346                     ; 1590     stored_config_settings[2] = '2'; // Set to Retain pin states
 5348  0395 a632          	ld	a,#50
 5349  0397 ae004e        	ldw	x,#_stored_config_settings+2
 5350  039a cd0000        	call	c_eewrc
-5352                     ; 1593     stored_config_settings[3] = '0'; // Set to Half Duplex
+5352                     ; 1591     stored_config_settings[3] = '0'; // Set to Half Duplex
 5354  039d a630          	ld	a,#48
 5355  039f ae004f        	ldw	x,#_stored_config_settings+3
 5356  03a2 cd0000        	call	c_eewrc
-5358                     ; 1594     stored_config_settings[4] = '0'; // undefined
+5358                     ; 1592     stored_config_settings[4] = '0'; // undefined
 5360  03a5 a630          	ld	a,#48
 5361  03a7 ae0050        	ldw	x,#_stored_config_settings+4
 5362  03aa cd0000        	call	c_eewrc
-5364                     ; 1595     stored_config_settings[5] = '0'; // undefined
+5364                     ; 1593     stored_config_settings[5] = '0'; // undefined
 5366  03ad a630          	ld	a,#48
 5367  03af ae0051        	ldw	x,#_stored_config_settings+5
 5368  03b2 cd0000        	call	c_eewrc
-5370                     ; 1596     invert_output = 0x00;			// Turn off output invert bit
+5370                     ; 1594     invert_output = 0x00;			// Turn off output invert bit
 5372  03b5 725f00ff      	clr	_invert_output
-5373                     ; 1597     invert_input = 0x00;			// Turn off output invert bit
+5373                     ; 1595     invert_input = 0x00;			// Turn off output invert bit
 5375  03b9 725f00fe      	clr	_invert_input
-5376                     ; 1598     IO_16to9 = IO_16to9_new1 = IO_16to9_new2 = IO_16to9_sent = stored_IO_16to9 = 0x00;
+5376                     ; 1596     IO_16to9 = IO_16to9_new1 = IO_16to9_new2 = IO_16to9_sent = stored_IO_16to9 = 0x00;
 5378  03bd 4f            	clr	a
 5379  03be ae004b        	ldw	x,#_stored_IO_16to9
 5380  03c1 cd0000        	call	c_eewrc
@@ -1667,7 +1667,7 @@
 5383  03c8 725f0103      	clr	_IO_16to9_new2
 5384  03cc 725f0105      	clr	_IO_16to9_new1
 5385  03d0 725f0107      	clr	_IO_16to9
-5386                     ; 1599     IO_8to1  = IO_8to1_new1  = IO_8to1_new2  = IO_8to1_sent  = stored_IO_8to1  = 0x00;
+5386                     ; 1597     IO_8to1  = IO_8to1_new1  = IO_8to1_new2  = IO_8to1_sent  = stored_IO_8to1  = 0x00;
 5388  03d4 4f            	clr	a
 5389  03d5 ae0014        	ldw	x,#_stored_IO_8to1
 5390  03d8 cd0000        	call	c_eewrc
@@ -1675,153 +1675,153 @@
 5393  03df 725f0102      	clr	_IO_8to1_new2
 5394  03e3 725f0104      	clr	_IO_8to1_new1
 5395  03e7 725f0106      	clr	_IO_8to1
-5396                     ; 1600     write_output_registers();          // Set Relay Control outputs
+5396                     ; 1598     write_output_registers();          // Set Relay Control outputs
 5398  03eb cd0000        	call	_write_output_registers
-5400                     ; 1603     magic4 = 0x55;		// MSB
+5400                     ; 1601     magic4 = 0x55;		// MSB
 5402  03ee a655          	ld	a,#85
 5403  03f0 ae002e        	ldw	x,#_magic4
 5404  03f3 cd0000        	call	c_eewrc
-5406                     ; 1604     magic3 = 0xee;		//
+5406                     ; 1602     magic3 = 0xee;		//
 5408  03f6 a6ee          	ld	a,#238
 5409  03f8 ae002d        	ldw	x,#_magic3
 5410  03fb cd0000        	call	c_eewrc
-5412                     ; 1605     magic2 = 0x0f;		//
+5412                     ; 1603     magic2 = 0x0f;		//
 5414  03fe a60f          	ld	a,#15
 5415  0400 ae002c        	ldw	x,#_magic2
 5416  0403 cd0000        	call	c_eewrc
-5418                     ; 1606     magic1 = 0xf0;		// LSB
+5418                     ; 1604     magic1 = 0xf0;		// LSB
 5420  0406 a6f0          	ld	a,#240
 5421  0408 ae002b        	ldw	x,#_magic1
 5422  040b cd0000        	call	c_eewrc
 5424  040e               L7552:
-5425                     ; 1611   for (i=0; i<4; i++) {
+5425                     ; 1609   for (i=0; i<4; i++) {
 5427  040e 4f            	clr	a
 5428  040f 6b01          	ld	(OFST+0,sp),a
 5430  0411               L3462:
-5431                     ; 1612     Pending_hostaddr[i] = stored_hostaddr[i];
+5431                     ; 1610     Pending_hostaddr[i] = stored_hostaddr[i];
 5433  0411 5f            	clrw	x
 5434  0412 97            	ld	xl,a
 5435  0413 d60027        	ld	a,(_stored_hostaddr,x)
 5436  0416 d700dc        	ld	(_Pending_hostaddr,x),a
-5437                     ; 1613     Pending_draddr[i] = stored_draddr[i];
+5437                     ; 1611     Pending_draddr[i] = stored_draddr[i];
 5439  0419 5f            	clrw	x
 5440  041a 7b01          	ld	a,(OFST+0,sp)
 5441  041c 97            	ld	xl,a
 5442  041d d60023        	ld	a,(_stored_draddr,x)
 5443  0420 d700d8        	ld	(_Pending_draddr,x),a
-5444                     ; 1614     Pending_netmask[i] = stored_netmask[i];
+5444                     ; 1612     Pending_netmask[i] = stored_netmask[i];
 5446  0423 5f            	clrw	x
 5447  0424 7b01          	ld	a,(OFST+0,sp)
 5448  0426 97            	ld	xl,a
 5449  0427 d6001f        	ld	a,(_stored_netmask,x)
 5450  042a d700d4        	ld	(_Pending_netmask,x),a
-5451                     ; 1611   for (i=0; i<4; i++) {
+5451                     ; 1609   for (i=0; i<4; i++) {
 5453  042d 0c01          	inc	(OFST+0,sp)
 5457  042f 7b01          	ld	a,(OFST+0,sp)
 5458  0431 a104          	cp	a,#4
 5459  0433 25dc          	jrult	L3462
-5460                     ; 1617   Pending_port = stored_port;
+5460                     ; 1615   Pending_port = stored_port;
 5462  0435 ce001d        	ldw	x,_stored_port
 5463  0438 cf00d2        	ldw	_Pending_port,x
-5464                     ; 1619   for (i=0; i<20; i++) {
+5464                     ; 1617   for (i=0; i<20; i++) {
 5466  043b 4f            	clr	a
 5467  043c 6b01          	ld	(OFST+0,sp),a
 5469  043e               L1562:
-5470                     ; 1620     Pending_devicename[i] = stored_devicename[i];
+5470                     ; 1618     Pending_devicename[i] = stored_devicename[i];
 5472  043e 5f            	clrw	x
 5473  043f 97            	ld	xl,a
 5474  0440 d60000        	ld	a,(_stored_devicename,x)
 5475  0443 d700be        	ld	(_Pending_devicename,x),a
-5476                     ; 1619   for (i=0; i<20; i++) {
+5476                     ; 1617   for (i=0; i<20; i++) {
 5478  0446 0c01          	inc	(OFST+0,sp)
 5482  0448 7b01          	ld	a,(OFST+0,sp)
 5483  044a a114          	cp	a,#20
 5484  044c 25f0          	jrult	L1562
-5485                     ; 1623   for (i=0; i<6; i++) {
+5485                     ; 1621   for (i=0; i<6; i++) {
 5487  044e 4f            	clr	a
 5488  044f 6b01          	ld	(OFST+0,sp),a
 5490  0451               L7562:
-5491                     ; 1624     Pending_config_settings[i] = stored_config_settings[i];
+5491                     ; 1622     Pending_config_settings[i] = stored_config_settings[i];
 5493  0451 5f            	clrw	x
 5494  0452 97            	ld	xl,a
 5495  0453 d6004c        	ld	a,(_stored_config_settings,x)
 5496  0456 d700b8        	ld	(_Pending_config_settings,x),a
-5497                     ; 1625     Pending_uip_ethaddr_oct[i] = stored_uip_ethaddr_oct[i];
+5497                     ; 1623     Pending_uip_ethaddr_oct[i] = stored_uip_ethaddr_oct[i];
 5499  0459 5f            	clrw	x
 5500  045a 7b01          	ld	a,(OFST+0,sp)
 5501  045c 97            	ld	xl,a
 5502  045d d60017        	ld	a,(_stored_uip_ethaddr_oct,x)
 5503  0460 d700b2        	ld	(_Pending_uip_ethaddr_oct,x),a
-5504                     ; 1623   for (i=0; i<6; i++) {
+5504                     ; 1621   for (i=0; i<6; i++) {
 5506  0463 0c01          	inc	(OFST+0,sp)
 5510  0465 7b01          	ld	a,(OFST+0,sp)
 5511  0467 a106          	cp	a,#6
 5512  0469 25e6          	jrult	L7562
-5513                     ; 1629   for (i=0; i<4; i++) {
+5513                     ; 1627   for (i=0; i<4; i++) {
 5515  046b 4f            	clr	a
 5516  046c 6b01          	ld	(OFST+0,sp),a
 5518  046e               L5662:
-5519                     ; 1630     Pending_mqttserveraddr[i] = stored_mqttserveraddr[i];
+5519                     ; 1628     Pending_mqttserveraddr[i] = stored_mqttserveraddr[i];
 5521  046e 5f            	clrw	x
 5522  046f 97            	ld	xl,a
 5523  0470 d60031        	ld	a,(_stored_mqttserveraddr,x)
 5524  0473 d700f8        	ld	(_Pending_mqttserveraddr,x),a
-5525                     ; 1629   for (i=0; i<4; i++) {
+5525                     ; 1627   for (i=0; i<4; i++) {
 5527  0476 0c01          	inc	(OFST+0,sp)
 5531  0478 7b01          	ld	a,(OFST+0,sp)
 5532  047a a104          	cp	a,#4
 5533  047c 25f0          	jrult	L5662
-5534                     ; 1632   Pending_mqttport = stored_mqttport;
+5534                     ; 1630   Pending_mqttport = stored_mqttport;
 5536  047e ce002f        	ldw	x,_stored_mqttport
 5537  0481 cf00f6        	ldw	_Pending_mqttport,x
-5538                     ; 1633   for (i=0; i<11; i++) {
+5538                     ; 1631   for (i=0; i<11; i++) {
 5540  0484 4f            	clr	a
 5541  0485 6b01          	ld	(OFST+0,sp),a
 5543  0487               L3762:
-5544                     ; 1634     Pending_mqtt_username[i] = stored_mqtt_username[i];
+5544                     ; 1632     Pending_mqtt_username[i] = stored_mqtt_username[i];
 5546  0487 5f            	clrw	x
 5547  0488 97            	ld	xl,a
 5548  0489 d60035        	ld	a,(_stored_mqtt_username,x)
 5549  048c d700eb        	ld	(_Pending_mqtt_username,x),a
-5550                     ; 1635     Pending_mqtt_password[i] = stored_mqtt_password[i];
+5550                     ; 1633     Pending_mqtt_password[i] = stored_mqtt_password[i];
 5552  048f 5f            	clrw	x
 5553  0490 7b01          	ld	a,(OFST+0,sp)
 5554  0492 97            	ld	xl,a
 5555  0493 d60040        	ld	a,(_stored_mqtt_password,x)
 5556  0496 d700e0        	ld	(_Pending_mqtt_password,x),a
-5557                     ; 1633   for (i=0; i<11; i++) {
+5557                     ; 1631   for (i=0; i<11; i++) {
 5559  0499 0c01          	inc	(OFST+0,sp)
 5563  049b 7b01          	ld	a,(OFST+0,sp)
 5564  049d a10b          	cp	a,#11
 5565  049f 25e6          	jrult	L3762
-5566                     ; 1638   strcat(topic_base, stored_devicename);
+5566                     ; 1636   strcat(topic_base, stored_devicename);
 5568  04a1 ae0000        	ldw	x,#_stored_devicename
 5569  04a4 89            	pushw	x
 5570  04a5 ae000d        	ldw	x,#_topic_base
 5571  04a8 cd0000        	call	_strcat
 5573  04ab 85            	popw	x
-5574                     ; 1641   topic_base_len = (uint8_t)strlen(topic_base);
+5574                     ; 1639   topic_base_len = (uint8_t)strlen(topic_base);
 5576  04ac ae000d        	ldw	x,#_topic_base
 5577  04af cd0000        	call	_strlen
 5579  04b2 9f            	ld	a,xl
 5580  04b3 c7000c        	ld	_topic_base_len,a
-5581                     ; 1645   update_mac_string();
+5581                     ; 1643   update_mac_string();
 5583  04b6 cd0000        	call	_update_mac_string
-5585                     ; 1647 }
+5585                     ; 1645 }
 5588  04b9 84            	pop	a
 5589  04ba 81            	ret	
-5632                     ; 1650 void update_mac_string(void) {
+5632                     ; 1648 void update_mac_string(void) {
 5633                     .text:	section	.text,new
 5634  0000               _update_mac_string:
 5636  0000 89            	pushw	x
 5637       00000002      OFST:	set	2
-5640                     ; 1656   i = 5;
+5640                     ; 1654   i = 5;
 5642  0001 a605          	ld	a,#5
 5643  0003 6b01          	ld	(OFST-1,sp),a
-5645                     ; 1657   j = 0;
+5645                     ; 1655   j = 0;
 5647  0005 0f02          	clr	(OFST+0,sp)
 5649  0007               L7172:
-5650                     ; 1659     emb_itoa(stored_uip_ethaddr_oct[i], OctetArray, 16, 2);
+5650                     ; 1657     emb_itoa(stored_uip_ethaddr_oct[i], OctetArray, 16, 2);
 5652  0007 4b02          	push	#2
 5653  0009 4b10          	push	#16
 5654  000b ae0000        	ldw	x,#_OctetArray
@@ -1840,40 +1840,40 @@
 5667  0023 89            	pushw	x
 5668  0024 cd0000        	call	_emb_itoa
 5670  0027 5b08          	addw	sp,#8
-5671                     ; 1660     mac_string[j++] = OctetArray[0];
+5671                     ; 1658     mac_string[j++] = OctetArray[0];
 5673  0029 7b02          	ld	a,(OFST+0,sp)
 5674  002b 0c02          	inc	(OFST+0,sp)
 5676  002d 5f            	clrw	x
 5677  002e 97            	ld	xl,a
 5678  002f c60000        	ld	a,_OctetArray
 5679  0032 d700a5        	ld	(_mac_string,x),a
-5680                     ; 1661     mac_string[j++] = OctetArray[1];
+5680                     ; 1659     mac_string[j++] = OctetArray[1];
 5682  0035 7b02          	ld	a,(OFST+0,sp)
 5683  0037 0c02          	inc	(OFST+0,sp)
 5685  0039 5f            	clrw	x
 5686  003a 97            	ld	xl,a
 5687  003b c60001        	ld	a,_OctetArray+1
 5688  003e d700a5        	ld	(_mac_string,x),a
-5689                     ; 1662     i--;
+5689                     ; 1660     i--;
 5691  0041 0a01          	dec	(OFST-1,sp)
-5693                     ; 1658   while (j<12) {
+5693                     ; 1656   while (j<12) {
 5695  0043 7b02          	ld	a,(OFST+0,sp)
 5696  0045 a10c          	cp	a,#12
 5697  0047 25be          	jrult	L7172
-5698                     ; 1664   mac_string[12] = '\0';
+5698                     ; 1662   mac_string[12] = '\0';
 5700  0049 725f00b1      	clr	_mac_string+12
-5701                     ; 1665 }
+5701                     ; 1663 }
 5704  004d 85            	popw	x
 5705  004e 81            	ret	
-5783                     ; 1668 void check_runtime_changes(void)
-5783                     ; 1669 {
+5783                     ; 1666 void check_runtime_changes(void)
+5783                     ; 1667 {
 5784                     .text:	section	.text,new
 5785  0000               _check_runtime_changes:
 5787  0000 88            	push	a
 5788       00000001      OFST:	set	1
-5791                     ; 1682   read_input_registers();
+5791                     ; 1680   read_input_registers();
 5793  0001 cd0000        	call	_read_input_registers
-5795                     ; 1684   if (parse_complete == 1 || mqtt_parse_complete == 1) {
+5795                     ; 1682   if (parse_complete == 1 || mqtt_parse_complete == 1) {
 5797  0004 c6009f        	ld	a,_parse_complete
 5798  0007 4a            	dec	a
 5799  0008 2706          	jreq	L3472
@@ -1881,34 +1881,34 @@
 5802  000d 4a            	dec	a
 5803  000e 2624          	jrne	L1472
 5804  0010               L3472:
-5805                     ; 1707     if (stored_IO_8to1 != IO_8to1) {
+5805                     ; 1706     if (stored_IO_8to1 != IO_8to1) {
 5807  0010 c60014        	ld	a,_stored_IO_8to1
 5808  0013 c10106        	cp	a,_IO_8to1
 5809  0016 2710          	jreq	L5472
-5810                     ; 1711       if (stored_config_settings[2] == '2') {
+5810                     ; 1710       if (stored_config_settings[2] == '2') {
 5812  0018 c6004e        	ld	a,_stored_config_settings+2
 5813  001b a132          	cp	a,#50
 5814  001d 2609          	jrne	L5472
-5815                     ; 1712         stored_IO_8to1 = IO_8to1;
+5815                     ; 1711         stored_IO_8to1 = IO_8to1;
 5817  001f c60106        	ld	a,_IO_8to1
 5818  0022 ae0014        	ldw	x,#_stored_IO_8to1
 5819  0025 cd0000        	call	c_eewrc
 5821  0028               L5472:
-5822                     ; 1716     write_output_registers();
+5822                     ; 1715     write_output_registers();
 5824  0028 cd0000        	call	_write_output_registers
-5826                     ; 1722     if (mqtt_parse_complete == 1) {
+5826                     ; 1721     if (mqtt_parse_complete == 1) {
 5828  002b c6009e        	ld	a,_mqtt_parse_complete
 5829  002e 4a            	dec	a
 5830  002f 2603          	jrne	L1472
-5831                     ; 1724       mqtt_parse_complete = 0;
+5831                     ; 1723       mqtt_parse_complete = 0;
 5833  0031 c7009e        	ld	_mqtt_parse_complete,a
 5834  0034               L1472:
-5835                     ; 1729   if (parse_complete == 1) {
+5835                     ; 1728   if (parse_complete == 1) {
 5837  0034 c6009f        	ld	a,_parse_complete
 5838  0037 4a            	dec	a
 5839  0038 2703cc02c5    	jrne	L3572
-5840                     ; 1770     if ((Pending_config_settings[0] != stored_config_settings[0])
-5840                     ; 1771      || (stored_IO_8to1 != IO_8to1)) {
+5840                     ; 1769     if ((Pending_config_settings[0] != stored_config_settings[0])
+5840                     ; 1770      || (stored_IO_8to1 != IO_8to1)) {
 5842  003d c6004c        	ld	a,_stored_config_settings
 5843  0040 c100b8        	cp	a,_Pending_config_settings
 5844  0043 2608          	jrne	L7572
@@ -1916,85 +1916,85 @@
 5847  0048 c10106        	cp	a,_IO_8to1
 5848  004b 272d          	jreq	L5572
 5849  004d               L7572:
-5850                     ; 1774       stored_config_settings[0] = Pending_config_settings[0];
+5850                     ; 1773       stored_config_settings[0] = Pending_config_settings[0];
 5852  004d c600b8        	ld	a,_Pending_config_settings
 5853  0050 ae004c        	ldw	x,#_stored_config_settings
 5854  0053 cd0000        	call	c_eewrc
-5856                     ; 1777       if (stored_config_settings[0] == '0') invert_output = 0x00;
+5856                     ; 1776       if (stored_config_settings[0] == '0') invert_output = 0x00;
 5858  0056 c6004c        	ld	a,_stored_config_settings
 5859  0059 a130          	cp	a,#48
 5860  005b 2606          	jrne	L1672
 5863  005d 725f00ff      	clr	_invert_output
 5865  0061 2004          	jra	L3672
 5866  0063               L1672:
-5867                     ; 1778       else invert_output = 0xff;
+5867                     ; 1777       else invert_output = 0xff;
 5869  0063 35ff00ff      	mov	_invert_output,#255
 5870  0067               L3672:
-5871                     ; 1782       if (stored_config_settings[2] == '2') {
+5871                     ; 1781       if (stored_config_settings[2] == '2') {
 5873  0067 c6004e        	ld	a,_stored_config_settings+2
 5874  006a a132          	cp	a,#50
 5875  006c 2609          	jrne	L5672
-5876                     ; 1783         stored_IO_8to1 = IO_8to1;
+5876                     ; 1782         stored_IO_8to1 = IO_8to1;
 5878  006e c60106        	ld	a,_IO_8to1
 5879  0071 ae0014        	ldw	x,#_stored_IO_8to1
 5880  0074 cd0000        	call	c_eewrc
 5882  0077               L5672:
-5883                     ; 1787       write_output_registers();
+5883                     ; 1786       write_output_registers();
 5885  0077 cd0000        	call	_write_output_registers
 5887  007a               L5572:
-5888                     ; 1791     if (Pending_config_settings[1] != stored_config_settings[1]) {
+5888                     ; 1790     if (Pending_config_settings[1] != stored_config_settings[1]) {
 5890  007a c6004d        	ld	a,_stored_config_settings+1
 5891  007d c100b9        	cp	a,_Pending_config_settings+1
 5892  0080 271e          	jreq	L7672
-5893                     ; 1793       stored_config_settings[1] = Pending_config_settings[1];
+5893                     ; 1792       stored_config_settings[1] = Pending_config_settings[1];
 5895  0082 c600b9        	ld	a,_Pending_config_settings+1
 5896  0085 ae004d        	ldw	x,#_stored_config_settings+1
 5897  0088 cd0000        	call	c_eewrc
-5899                     ; 1796       if (stored_config_settings[1] == '0') invert_input = 0x00;
+5899                     ; 1795       if (stored_config_settings[1] == '0') invert_input = 0x00;
 5901  008b c6004d        	ld	a,_stored_config_settings+1
 5902  008e a130          	cp	a,#48
 5903  0090 2606          	jrne	L1772
 5906  0092 725f00fe      	clr	_invert_input
 5908  0096 2004          	jra	L3772
 5909  0098               L1772:
-5910                     ; 1797       else invert_input = 0xff;
+5910                     ; 1796       else invert_input = 0xff;
 5912  0098 35ff00fe      	mov	_invert_input,#255
 5913  009c               L3772:
-5914                     ; 1801       restart_request = 1;
+5914                     ; 1800       restart_request = 1;
 5916  009c 350100a2      	mov	_restart_request,#1
 5917  00a0               L7672:
-5918                     ; 1835     if (Pending_config_settings[2] != stored_config_settings[2]) {
+5918                     ; 1834     if (Pending_config_settings[2] != stored_config_settings[2]) {
 5920  00a0 c6004e        	ld	a,_stored_config_settings+2
 5921  00a3 c100ba        	cp	a,_Pending_config_settings+2
 5922  00a6 2709          	jreq	L5772
-5923                     ; 1837       stored_config_settings[2] = Pending_config_settings[2];
+5923                     ; 1836       stored_config_settings[2] = Pending_config_settings[2];
 5925  00a8 c600ba        	ld	a,_Pending_config_settings+2
 5926  00ab ae004e        	ldw	x,#_stored_config_settings+2
 5927  00ae cd0000        	call	c_eewrc
 5929  00b1               L5772:
-5930                     ; 1841     if (Pending_config_settings[3] != stored_config_settings[3]) {
+5930                     ; 1840     if (Pending_config_settings[3] != stored_config_settings[3]) {
 5932  00b1 c6004f        	ld	a,_stored_config_settings+3
 5933  00b4 c100bb        	cp	a,_Pending_config_settings+3
 5934  00b7 270d          	jreq	L7772
-5935                     ; 1844       stored_config_settings[3] = Pending_config_settings[3];
+5935                     ; 1843       stored_config_settings[3] = Pending_config_settings[3];
 5937  00b9 c600bb        	ld	a,_Pending_config_settings+3
 5938  00bc ae004f        	ldw	x,#_stored_config_settings+3
 5939  00bf cd0000        	call	c_eewrc
-5941                     ; 1846       user_reboot_request = 1;
+5941                     ; 1845       user_reboot_request = 1;
 5943  00c2 350100a3      	mov	_user_reboot_request,#1
 5944  00c6               L7772:
-5945                     ; 1849     stored_config_settings[4] = Pending_config_settings[4];
+5945                     ; 1848     stored_config_settings[4] = Pending_config_settings[4];
 5947  00c6 c600bc        	ld	a,_Pending_config_settings+4
 5948  00c9 ae0050        	ldw	x,#_stored_config_settings+4
 5949  00cc cd0000        	call	c_eewrc
-5951                     ; 1850     stored_config_settings[5] = Pending_config_settings[5];
+5951                     ; 1849     stored_config_settings[5] = Pending_config_settings[5];
 5953  00cf c600bd        	ld	a,_Pending_config_settings+5
 5954  00d2 ae0051        	ldw	x,#_stored_config_settings+5
 5955  00d5 cd0000        	call	c_eewrc
-5957                     ; 1853     if (stored_hostaddr[3] != Pending_hostaddr[3] ||
-5957                     ; 1854         stored_hostaddr[2] != Pending_hostaddr[2] ||
-5957                     ; 1855         stored_hostaddr[1] != Pending_hostaddr[1] ||
-5957                     ; 1856         stored_hostaddr[0] != Pending_hostaddr[0]) {
+5957                     ; 1852     if (stored_hostaddr[3] != Pending_hostaddr[3] ||
+5957                     ; 1853         stored_hostaddr[2] != Pending_hostaddr[2] ||
+5957                     ; 1854         stored_hostaddr[1] != Pending_hostaddr[1] ||
+5957                     ; 1855         stored_hostaddr[0] != Pending_hostaddr[0]) {
 5959  00d8 c6002a        	ld	a,_stored_hostaddr+3
 5960  00db c100df        	cp	a,_Pending_hostaddr+3
 5961  00de 2618          	jrne	L3003
@@ -2008,7 +2008,7 @@
 5972  00f3 c100dc        	cp	a,_Pending_hostaddr
 5973  00f6 2713          	jreq	L1003
 5974  00f8               L3003:
-5975                     ; 1858       for (i=0; i<4; i++) stored_hostaddr[i] = Pending_hostaddr[i];
+5975                     ; 1857       for (i=0; i<4; i++) stored_hostaddr[i] = Pending_hostaddr[i];
 5977  00f8 4f            	clr	a
 5978  00f9 6b01          	ld	(OFST+0,sp),a
 5980  00fb               L1103:
@@ -2021,10 +2021,10 @@
 5994  0107 a104          	cp	a,#4
 5995  0109 25f0          	jrult	L1103
 5996  010b               L1003:
-5997                     ; 1862     if (stored_draddr[3] != Pending_draddr[3] ||
-5997                     ; 1863         stored_draddr[2] != Pending_draddr[2] ||
-5997                     ; 1864         stored_draddr[1] != Pending_draddr[1] ||
-5997                     ; 1865         stored_draddr[0] != Pending_draddr[0]) {
+5997                     ; 1861     if (stored_draddr[3] != Pending_draddr[3] ||
+5997                     ; 1862         stored_draddr[2] != Pending_draddr[2] ||
+5997                     ; 1863         stored_draddr[1] != Pending_draddr[1] ||
+5997                     ; 1864         stored_draddr[0] != Pending_draddr[0]) {
 5999  010b c60026        	ld	a,_stored_draddr+3
 6000  010e c100db        	cp	a,_Pending_draddr+3
 6001  0111 2618          	jrne	L1203
@@ -2038,7 +2038,7 @@
 6012  0126 c100d8        	cp	a,_Pending_draddr
 6013  0129 2717          	jreq	L7103
 6014  012b               L1203:
-6015                     ; 1867       for (i=0; i<4; i++) stored_draddr[i] = Pending_draddr[i];
+6015                     ; 1866       for (i=0; i<4; i++) stored_draddr[i] = Pending_draddr[i];
 6017  012b 4f            	clr	a
 6018  012c 6b01          	ld	(OFST+0,sp),a
 6020  012e               L7203:
@@ -2050,13 +2050,13 @@
 6033  0138 7b01          	ld	a,(OFST+0,sp)
 6034  013a a104          	cp	a,#4
 6035  013c 25f0          	jrult	L7203
-6036                     ; 1868       restart_request = 1;
+6036                     ; 1867       restart_request = 1;
 6038  013e 350100a2      	mov	_restart_request,#1
 6039  0142               L7103:
-6040                     ; 1872     if (stored_netmask[3] != Pending_netmask[3] ||
-6040                     ; 1873         stored_netmask[2] != Pending_netmask[2] ||
-6040                     ; 1874         stored_netmask[1] != Pending_netmask[1] ||
-6040                     ; 1875         stored_netmask[0] != Pending_netmask[0]) {
+6040                     ; 1871     if (stored_netmask[3] != Pending_netmask[3] ||
+6040                     ; 1872         stored_netmask[2] != Pending_netmask[2] ||
+6040                     ; 1873         stored_netmask[1] != Pending_netmask[1] ||
+6040                     ; 1874         stored_netmask[0] != Pending_netmask[0]) {
 6042  0142 c60022        	ld	a,_stored_netmask+3
 6043  0145 c100d7        	cp	a,_Pending_netmask+3
 6044  0148 2618          	jrne	L7303
@@ -2070,7 +2070,7 @@
 6055  015d c100d4        	cp	a,_Pending_netmask
 6056  0160 2717          	jreq	L5303
 6057  0162               L7303:
-6058                     ; 1877       for (i=0; i<4; i++) stored_netmask[i] = Pending_netmask[i];
+6058                     ; 1876       for (i=0; i<4; i++) stored_netmask[i] = Pending_netmask[i];
 6060  0162 4f            	clr	a
 6061  0163 6b01          	ld	(OFST+0,sp),a
 6063  0165               L5403:
@@ -2082,27 +2082,27 @@
 6076  016f 7b01          	ld	a,(OFST+0,sp)
 6077  0171 a104          	cp	a,#4
 6078  0173 25f0          	jrult	L5403
-6079                     ; 1878       restart_request = 1;
+6079                     ; 1877       restart_request = 1;
 6081  0175 350100a2      	mov	_restart_request,#1
 6082  0179               L5303:
-6083                     ; 1882     if (stored_port != Pending_port) {
+6083                     ; 1881     if (stored_port != Pending_port) {
 6085  0179 ce001d        	ldw	x,_stored_port
 6086  017c c300d2        	cpw	x,_Pending_port
 6087  017f 270f          	jreq	L3503
-6088                     ; 1884       stored_port = Pending_port;
+6088                     ; 1883       stored_port = Pending_port;
 6090  0181 ce00d2        	ldw	x,_Pending_port
 6091  0184 89            	pushw	x
 6092  0185 ae001d        	ldw	x,#_stored_port
 6093  0188 cd0000        	call	c_eewrw
 6095  018b 350100a2      	mov	_restart_request,#1
 6096  018f 85            	popw	x
-6097                     ; 1886       restart_request = 1;
+6097                     ; 1885       restart_request = 1;
 6099  0190               L3503:
-6100                     ; 1890     for(i=0; i<20; i++) {
+6100                     ; 1889     for(i=0; i<20; i++) {
 6102  0190 4f            	clr	a
 6103  0191 6b01          	ld	(OFST+0,sp),a
 6105  0193               L5503:
-6106                     ; 1891       if (stored_devicename[i] != Pending_devicename[i]) {
+6106                     ; 1890       if (stored_devicename[i] != Pending_devicename[i]) {
 6108  0193 5f            	clrw	x
 6109  0194 97            	ld	xl,a
 6110  0195 905f          	clrw	y
@@ -2110,21 +2110,21 @@
 6112  0199 90d60000      	ld	a,(_stored_devicename,y)
 6113  019d d100be        	cp	a,(_Pending_devicename,x)
 6114  01a0 270e          	jreq	L3603
-6115                     ; 1892         stored_devicename[i] = Pending_devicename[i];
+6115                     ; 1891         stored_devicename[i] = Pending_devicename[i];
 6117  01a2 7b01          	ld	a,(OFST+0,sp)
 6118  01a4 5f            	clrw	x
 6119  01a5 97            	ld	xl,a
 6120  01a6 d600be        	ld	a,(_Pending_devicename,x)
 6121  01a9 d70000        	ld	(_stored_devicename,x),a
-6122                     ; 1898         restart_request = 1;
+6122                     ; 1897         restart_request = 1;
 6124  01ac 350100a2      	mov	_restart_request,#1
 6125  01b0               L3603:
-6126                     ; 1890     for(i=0; i<20; i++) {
+6126                     ; 1889     for(i=0; i<20; i++) {
 6128  01b0 0c01          	inc	(OFST+0,sp)
 6132  01b2 7b01          	ld	a,(OFST+0,sp)
 6133  01b4 a114          	cp	a,#20
 6134  01b6 25db          	jrult	L5503
-6135                     ; 1905     strcpy(topic_base, devicetype);
+6135                     ; 1904     strcpy(topic_base, devicetype);
 6137  01b8 ae000d        	ldw	x,#_topic_base
 6138  01bb 90ae0000      	ldw	y,#L5261_devicetype
 6139  01bf               L403:
@@ -2134,21 +2134,21 @@
 6143  01c4 5c            	incw	x
 6144  01c5 4d            	tnz	a
 6145  01c6 26f7          	jrne	L403
-6146                     ; 1906     strcat(topic_base, stored_devicename);
+6146                     ; 1905     strcat(topic_base, stored_devicename);
 6148  01c8 ae0000        	ldw	x,#_stored_devicename
 6149  01cb 89            	pushw	x
 6150  01cc ae000d        	ldw	x,#_topic_base
 6151  01cf cd0000        	call	_strcat
 6153  01d2 85            	popw	x
-6154                     ; 1907     topic_base_len = (uint8_t)strlen(topic_base);
+6154                     ; 1906     topic_base_len = (uint8_t)strlen(topic_base);
 6156  01d3 ae000d        	ldw	x,#_topic_base
 6157  01d6 cd0000        	call	_strlen
 6159  01d9 9f            	ld	a,xl
 6160  01da c7000c        	ld	_topic_base_len,a
-6161                     ; 1910     if (stored_mqttserveraddr[3] != Pending_mqttserveraddr[3] ||
-6161                     ; 1911         stored_mqttserveraddr[2] != Pending_mqttserveraddr[2] ||
-6161                     ; 1912         stored_mqttserveraddr[1] != Pending_mqttserveraddr[1] ||
-6161                     ; 1913         stored_mqttserveraddr[0] != Pending_mqttserveraddr[0]) {
+6161                     ; 1909     if (stored_mqttserveraddr[3] != Pending_mqttserveraddr[3] ||
+6161                     ; 1910         stored_mqttserveraddr[2] != Pending_mqttserveraddr[2] ||
+6161                     ; 1911         stored_mqttserveraddr[1] != Pending_mqttserveraddr[1] ||
+6161                     ; 1912         stored_mqttserveraddr[0] != Pending_mqttserveraddr[0]) {
 6163  01dd c60034        	ld	a,_stored_mqttserveraddr+3
 6164  01e0 c100fb        	cp	a,_Pending_mqttserveraddr+3
 6165  01e3 2618          	jrne	L7603
@@ -2162,7 +2162,7 @@
 6176  01f8 c100f8        	cp	a,_Pending_mqttserveraddr
 6177  01fb 2717          	jreq	L5603
 6178  01fd               L7603:
-6179                     ; 1915       for (i=0; i<4; i++) stored_mqttserveraddr[i] = Pending_mqttserveraddr[i];
+6179                     ; 1914       for (i=0; i<4; i++) stored_mqttserveraddr[i] = Pending_mqttserveraddr[i];
 6181  01fd 4f            	clr	a
 6182  01fe 6b01          	ld	(OFST+0,sp),a
 6184  0200               L5703:
@@ -2174,27 +2174,27 @@
 6197  020a 7b01          	ld	a,(OFST+0,sp)
 6198  020c a104          	cp	a,#4
 6199  020e 25f0          	jrult	L5703
-6200                     ; 1917       restart_request = 1;
+6200                     ; 1916       restart_request = 1;
 6202  0210 350100a2      	mov	_restart_request,#1
 6203  0214               L5603:
-6204                     ; 1921     if (stored_mqttport != Pending_mqttport) {
+6204                     ; 1920     if (stored_mqttport != Pending_mqttport) {
 6206  0214 ce002f        	ldw	x,_stored_mqttport
 6207  0217 c300f6        	cpw	x,_Pending_mqttport
 6208  021a 270f          	jreq	L3013
-6209                     ; 1923       stored_mqttport = Pending_mqttport;
+6209                     ; 1922       stored_mqttport = Pending_mqttport;
 6211  021c ce00f6        	ldw	x,_Pending_mqttport
 6212  021f 89            	pushw	x
 6213  0220 ae002f        	ldw	x,#_stored_mqttport
 6214  0223 cd0000        	call	c_eewrw
 6216  0226 350100a2      	mov	_restart_request,#1
 6217  022a 85            	popw	x
-6218                     ; 1925       restart_request = 1;
+6218                     ; 1924       restart_request = 1;
 6220  022b               L3013:
-6221                     ; 1929     for(i=0; i<11; i++) {
+6221                     ; 1928     for(i=0; i<11; i++) {
 6223  022b 4f            	clr	a
 6224  022c 6b01          	ld	(OFST+0,sp),a
 6226  022e               L5013:
-6227                     ; 1930       if (stored_mqtt_username[i] != Pending_mqtt_username[i]) {
+6227                     ; 1929       if (stored_mqtt_username[i] != Pending_mqtt_username[i]) {
 6229  022e 5f            	clrw	x
 6230  022f 97            	ld	xl,a
 6231  0230 905f          	clrw	y
@@ -2202,25 +2202,25 @@
 6233  0234 90d60035      	ld	a,(_stored_mqtt_username,y)
 6234  0238 d100eb        	cp	a,(_Pending_mqtt_username,x)
 6235  023b 270e          	jreq	L3113
-6236                     ; 1931         stored_mqtt_username[i] = Pending_mqtt_username[i];
+6236                     ; 1930         stored_mqtt_username[i] = Pending_mqtt_username[i];
 6238  023d 7b01          	ld	a,(OFST+0,sp)
 6239  023f 5f            	clrw	x
 6240  0240 97            	ld	xl,a
 6241  0241 d600eb        	ld	a,(_Pending_mqtt_username,x)
 6242  0244 d70035        	ld	(_stored_mqtt_username,x),a
-6243                     ; 1933         restart_request = 1;
+6243                     ; 1932         restart_request = 1;
 6245  0247 350100a2      	mov	_restart_request,#1
 6246  024b               L3113:
-6247                     ; 1929     for(i=0; i<11; i++) {
+6247                     ; 1928     for(i=0; i<11; i++) {
 6249  024b 0c01          	inc	(OFST+0,sp)
 6253  024d 7b01          	ld	a,(OFST+0,sp)
 6254  024f a10b          	cp	a,#11
 6255  0251 25db          	jrult	L5013
-6256                     ; 1938     for(i=0; i<11; i++) {
+6256                     ; 1937     for(i=0; i<11; i++) {
 6258  0253 4f            	clr	a
 6259  0254 6b01          	ld	(OFST+0,sp),a
 6261  0256               L5113:
-6262                     ; 1939       if (stored_mqtt_password[i] != Pending_mqtt_password[i]) {
+6262                     ; 1938       if (stored_mqtt_password[i] != Pending_mqtt_password[i]) {
 6264  0256 5f            	clrw	x
 6265  0257 97            	ld	xl,a
 6266  0258 905f          	clrw	y
@@ -2228,26 +2228,26 @@
 6268  025c 90d60040      	ld	a,(_stored_mqtt_password,y)
 6269  0260 d100e0        	cp	a,(_Pending_mqtt_password,x)
 6270  0263 270e          	jreq	L3213
-6271                     ; 1940         stored_mqtt_password[i] = Pending_mqtt_password[i];
+6271                     ; 1939         stored_mqtt_password[i] = Pending_mqtt_password[i];
 6273  0265 7b01          	ld	a,(OFST+0,sp)
 6274  0267 5f            	clrw	x
 6275  0268 97            	ld	xl,a
 6276  0269 d600e0        	ld	a,(_Pending_mqtt_password,x)
 6277  026c d70040        	ld	(_stored_mqtt_password,x),a
-6278                     ; 1942         restart_request = 1;
+6278                     ; 1941         restart_request = 1;
 6280  026f 350100a2      	mov	_restart_request,#1
 6281  0273               L3213:
-6282                     ; 1938     for(i=0; i<11; i++) {
+6282                     ; 1937     for(i=0; i<11; i++) {
 6284  0273 0c01          	inc	(OFST+0,sp)
 6288  0275 7b01          	ld	a,(OFST+0,sp)
 6289  0277 a10b          	cp	a,#11
 6290  0279 25db          	jrult	L5113
-6291                     ; 1948     if (stored_uip_ethaddr_oct[0] != Pending_uip_ethaddr_oct[0] ||
-6291                     ; 1949       stored_uip_ethaddr_oct[1] != Pending_uip_ethaddr_oct[1] ||
-6291                     ; 1950       stored_uip_ethaddr_oct[2] != Pending_uip_ethaddr_oct[2] ||
-6291                     ; 1951       stored_uip_ethaddr_oct[3] != Pending_uip_ethaddr_oct[3] ||
-6291                     ; 1952       stored_uip_ethaddr_oct[4] != Pending_uip_ethaddr_oct[4] ||
-6291                     ; 1953       stored_uip_ethaddr_oct[5] != Pending_uip_ethaddr_oct[5]) {
+6291                     ; 1947     if (stored_uip_ethaddr_oct[0] != Pending_uip_ethaddr_oct[0] ||
+6291                     ; 1948       stored_uip_ethaddr_oct[1] != Pending_uip_ethaddr_oct[1] ||
+6291                     ; 1949       stored_uip_ethaddr_oct[2] != Pending_uip_ethaddr_oct[2] ||
+6291                     ; 1950       stored_uip_ethaddr_oct[3] != Pending_uip_ethaddr_oct[3] ||
+6291                     ; 1951       stored_uip_ethaddr_oct[4] != Pending_uip_ethaddr_oct[4] ||
+6291                     ; 1952       stored_uip_ethaddr_oct[5] != Pending_uip_ethaddr_oct[5]) {
 6293  027b c60017        	ld	a,_stored_uip_ethaddr_oct
 6294  027e c100b2        	cp	a,_Pending_uip_ethaddr_oct
 6295  0281 2628          	jrne	L7213
@@ -2267,7 +2267,7 @@
 6314  02a6 c100b7        	cp	a,_Pending_uip_ethaddr_oct+5
 6315  02a9 271a          	jreq	L3572
 6316  02ab               L7213:
-6317                     ; 1955       for (i=0; i<6; i++) stored_uip_ethaddr_oct[i] = Pending_uip_ethaddr_oct[i];
+6317                     ; 1954       for (i=0; i<6; i++) stored_uip_ethaddr_oct[i] = Pending_uip_ethaddr_oct[i];
 6319  02ab 4f            	clr	a
 6320  02ac 6b01          	ld	(OFST+0,sp),a
 6322  02ae               L1413:
@@ -2279,38 +2279,38 @@
 6335  02b8 7b01          	ld	a,(OFST+0,sp)
 6336  02ba a106          	cp	a,#6
 6337  02bc 25f0          	jrult	L1413
-6338                     ; 1957       update_mac_string();
+6338                     ; 1956       update_mac_string();
 6340  02be cd0000        	call	_update_mac_string
-6342                     ; 1959       restart_request = 1;
+6342                     ; 1958       restart_request = 1;
 6344  02c1 350100a2      	mov	_restart_request,#1
 6345  02c5               L3572:
-6346                     ; 1963   if (restart_request == 1) {
+6346                     ; 1962   if (restart_request == 1) {
 6348  02c5 c600a2        	ld	a,_restart_request
 6349  02c8 4a            	dec	a
 6350  02c9 2609          	jrne	L7413
-6351                     ; 1966     if (restart_reboot_step == RESTART_REBOOT_IDLE) {
+6351                     ; 1965     if (restart_reboot_step == RESTART_REBOOT_IDLE) {
 6353  02cb c600a1        	ld	a,_restart_reboot_step
 6354  02ce 2604          	jrne	L7413
-6355                     ; 1967       restart_reboot_step = RESTART_REBOOT_ARM;
+6355                     ; 1966       restart_reboot_step = RESTART_REBOOT_ARM;
 6357  02d0 350100a1      	mov	_restart_reboot_step,#1
 6358  02d4               L7413:
-6359                     ; 1971   if (user_reboot_request == 1) {
+6359                     ; 1970   if (user_reboot_request == 1) {
 6361  02d4 c600a3        	ld	a,_user_reboot_request
 6362  02d7 4a            	dec	a
 6363  02d8 2611          	jrne	L3513
-6364                     ; 1974     if (restart_reboot_step == RESTART_REBOOT_IDLE) {
+6364                     ; 1973     if (restart_reboot_step == RESTART_REBOOT_IDLE) {
 6366  02da 725d00a1      	tnz	_restart_reboot_step
 6367  02de 260b          	jrne	L3513
-6368                     ; 1975       restart_reboot_step = RESTART_REBOOT_ARM;
+6368                     ; 1974       restart_reboot_step = RESTART_REBOOT_ARM;
 6370  02e0 350100a1      	mov	_restart_reboot_step,#1
-6371                     ; 1976       user_reboot_request = 0;
+6371                     ; 1975       user_reboot_request = 0;
 6373  02e4 c700a3        	ld	_user_reboot_request,a
-6374                     ; 1977       reboot_request = 1;
+6374                     ; 1976       reboot_request = 1;
 6376  02e7 350100a4      	mov	_reboot_request,#1
 6377  02eb               L3513:
-6378                     ; 1986   parse_complete = 0; // Reset parse_complete for future changes
+6378                     ; 1985   parse_complete = 0; // Reset parse_complete for future changes
 6380  02eb 725f009f      	clr	_parse_complete
-6381                     ; 1989   if (stack_limit1 != 0xaa || stack_limit2 != 0x55) {
+6381                     ; 1988   if (stack_limit1 != 0xaa || stack_limit2 != 0x55) {
 6383  02ef c60001        	ld	a,_stack_limit1
 6384  02f2 a1aa          	cp	a,#170
 6385  02f4 2607          	jrne	L1613
@@ -2318,21 +2318,21 @@
 6388  02f9 a155          	cp	a,#85
 6389  02fb 270a          	jreq	L7513
 6390  02fd               L1613:
-6391                     ; 1990     stack_error = 1;
+6391                     ; 1989     stack_error = 1;
 6393  02fd 350100fc      	mov	_stack_error,#1
-6394                     ; 1991     fastflash();
+6394                     ; 1990     fastflash();
 6396  0301 cd0000        	call	_fastflash
-6398                     ; 1992     fastflash();
+6398                     ; 1991     fastflash();
 6400  0304 cd0000        	call	_fastflash
 6402  0307               L7513:
-6403                     ; 2005 }
+6403                     ; 2004 }
 6406  0307 84            	pop	a
 6407  0308 81            	ret	
-6442                     ; 2008 void check_restart_reboot(void)
-6442                     ; 2009 {
+6442                     ; 2007 void check_restart_reboot(void)
+6442                     ; 2008 {
 6443                     .text:	section	.text,new
 6444  0000               _check_restart_reboot:
-6448                     ; 2015   if (restart_request == 1 || reboot_request == 1) {
+6448                     ; 2014   if (restart_request == 1 || reboot_request == 1) {
 6450  0000 c600a2        	ld	a,_restart_request
 6451  0003 4a            	dec	a
 6452  0004 2709          	jreq	L5713
@@ -2340,56 +2340,56 @@
 6455  0009 4a            	dec	a
 6456  000a 2703cc00d4    	jrne	L3713
 6457  000f               L5713:
-6458                     ; 2026     if (restart_reboot_step == RESTART_REBOOT_ARM) {
+6458                     ; 2025     if (restart_reboot_step == RESTART_REBOOT_ARM) {
 6460  000f c600a1        	ld	a,_restart_reboot_step
 6461  0012 a101          	cp	a,#1
 6462  0014 2611          	jrne	L7713
-6463                     ; 2031       time_mark2 = second_counter;
+6463                     ; 2030       time_mark2 = second_counter;
 6465  0016 ce0002        	ldw	x,_second_counter+2
 6466  0019 cf0096        	ldw	_time_mark2+2,x
 6467  001c ce0000        	ldw	x,_second_counter
 6468  001f cf0094        	ldw	_time_mark2,x
-6469                     ; 2032       restart_reboot_step = RESTART_REBOOT_ARM2;
+6469                     ; 2031       restart_reboot_step = RESTART_REBOOT_ARM2;
 6471  0022 350200a1      	mov	_restart_reboot_step,#2
 6474  0026 81            	ret	
 6475  0027               L7713:
-6476                     ; 2035     else if (restart_reboot_step == RESTART_REBOOT_ARM2) {
+6476                     ; 2034     else if (restart_reboot_step == RESTART_REBOOT_ARM2) {
 6478  0027 a102          	cp	a,#2
 6479  0029 2613          	jrne	L3023
-6480                     ; 2041       if (second_counter > time_mark2 + 0 ) {
+6480                     ; 2040       if (second_counter > time_mark2 + 0 ) {
 6482  002b ae0000        	ldw	x,#_second_counter
 6483  002e cd0000        	call	c_ltor
 6485  0031 ae0094        	ldw	x,#_time_mark2
 6486  0034 cd0000        	call	c_lcmp
 6488  0037 23d3          	jrule	L3713
-6489                     ; 2042         restart_reboot_step = RESTART_REBOOT_DISCONNECT;
+6489                     ; 2041         restart_reboot_step = RESTART_REBOOT_DISCONNECT;
 6491  0039 350300a1      	mov	_restart_reboot_step,#3
 6493  003d 81            	ret	
 6494  003e               L3023:
-6495                     ; 2047     else if (restart_reboot_step == RESTART_REBOOT_DISCONNECT) {
+6495                     ; 2046     else if (restart_reboot_step == RESTART_REBOOT_DISCONNECT) {
 6497  003e a103          	cp	a,#3
 6498  0040 261e          	jrne	L1123
-6499                     ; 2048       restart_reboot_step = RESTART_REBOOT_DISCONNECTWAIT;
+6499                     ; 2047       restart_reboot_step = RESTART_REBOOT_DISCONNECTWAIT;
 6501  0042 350400a1      	mov	_restart_reboot_step,#4
-6502                     ; 2049       if (mqtt_start == MQTT_START_COMPLETE) {
+6502                     ; 2048       if (mqtt_start == MQTT_START_COMPLETE) {
 6504  0046 c60041        	ld	a,_mqtt_start
 6505  0049 a114          	cp	a,#20
 6506  004b 2606          	jrne	L3123
-6507                     ; 2051         mqtt_disconnect(&mqttclient);
+6507                     ; 2050         mqtt_disconnect(&mqttclient);
 6509  004d ae005e        	ldw	x,#_mqttclient
 6510  0050 cd0000        	call	_mqtt_disconnect
 6512  0053               L3123:
-6513                     ; 2054       time_mark2 = second_counter;
+6513                     ; 2053       time_mark2 = second_counter;
 6515  0053 ce0002        	ldw	x,_second_counter+2
 6516  0056 cf0096        	ldw	_time_mark2+2,x
 6517  0059 ce0000        	ldw	x,_second_counter
 6518  005c cf0094        	ldw	_time_mark2,x
 6521  005f 81            	ret	
 6522  0060               L1123:
-6523                     ; 2057     else if (restart_reboot_step == RESTART_REBOOT_DISCONNECTWAIT) {
+6523                     ; 2056     else if (restart_reboot_step == RESTART_REBOOT_DISCONNECTWAIT) {
 6525  0060 a104          	cp	a,#4
 6526  0062 2618          	jrne	L7123
-6527                     ; 2058       if (second_counter > time_mark2 + 1 ) {
+6527                     ; 2057       if (second_counter > time_mark2 + 1 ) {
 6529  0064 ae0094        	ldw	x,#_time_mark2
 6530  0067 cd0000        	call	c_ltor
 6532  006a a601          	ld	a,#1
@@ -2397,28 +2397,28 @@
 6535  006f ae0000        	ldw	x,#_second_counter
 6536  0072 cd0000        	call	c_lcmp
 6538  0075 245d          	jruge	L3713
-6539                     ; 2061         restart_reboot_step = RESTART_REBOOT_TCPCLOSE;
+6539                     ; 2060         restart_reboot_step = RESTART_REBOOT_TCPCLOSE;
 6541  0077 350500a1      	mov	_restart_reboot_step,#5
 6543  007b 81            	ret	
 6544  007c               L7123:
-6545                     ; 2065     else if (restart_reboot_step == RESTART_REBOOT_TCPCLOSE) {
+6545                     ; 2064     else if (restart_reboot_step == RESTART_REBOOT_TCPCLOSE) {
 6547  007c a105          	cp	a,#5
 6548  007e 2615          	jrne	L5223
-6549                     ; 2081       mqtt_close_tcp = 1;
+6549                     ; 2080       mqtt_close_tcp = 1;
 6551  0080 350100a0      	mov	_mqtt_close_tcp,#1
-6552                     ; 2083       time_mark2 = second_counter;
+6552                     ; 2082       time_mark2 = second_counter;
 6554  0084 ce0002        	ldw	x,_second_counter+2
 6555  0087 cf0096        	ldw	_time_mark2+2,x
 6556  008a ce0000        	ldw	x,_second_counter
 6557  008d cf0094        	ldw	_time_mark2,x
-6558                     ; 2084       restart_reboot_step = RESTART_REBOOT_TCPWAIT;
+6558                     ; 2083       restart_reboot_step = RESTART_REBOOT_TCPWAIT;
 6560  0090 350600a1      	mov	_restart_reboot_step,#6
 6563  0094 81            	ret	
 6564  0095               L5223:
-6565                     ; 2086     else if (restart_reboot_step == RESTART_REBOOT_TCPWAIT) {
+6565                     ; 2085     else if (restart_reboot_step == RESTART_REBOOT_TCPWAIT) {
 6567  0095 a106          	cp	a,#6
 6568  0097 261c          	jrne	L1323
-6569                     ; 2091       if (second_counter > time_mark2 + 1) {
+6569                     ; 2090       if (second_counter > time_mark2 + 1) {
 6571  0099 ae0094        	ldw	x,#_time_mark2
 6572  009c cd0000        	call	c_ltor
 6574  009f a601          	ld	a,#1
@@ -2426,71 +2426,71 @@
 6577  00a4 ae0000        	ldw	x,#_second_counter
 6578  00a7 cd0000        	call	c_lcmp
 6580  00aa 2428          	jruge	L3713
-6581                     ; 2092 	mqtt_close_tcp = 0;
+6581                     ; 2091 	mqtt_close_tcp = 0;
 6583  00ac 725f00a0      	clr	_mqtt_close_tcp
-6584                     ; 2093         restart_reboot_step = RESTART_REBOOT_FINISH;
+6584                     ; 2092         restart_reboot_step = RESTART_REBOOT_FINISH;
 6586  00b0 350700a1      	mov	_restart_reboot_step,#7
 6588  00b4 81            	ret	
 6589  00b5               L1323:
-6590                     ; 2103     else if (restart_reboot_step == RESTART_REBOOT_FINISH) {
+6590                     ; 2102     else if (restart_reboot_step == RESTART_REBOOT_FINISH) {
 6592  00b5 a107          	cp	a,#7
 6593  00b7 261b          	jrne	L3713
-6594                     ; 2104       if (reboot_request == 1) {
+6594                     ; 2103       if (reboot_request == 1) {
 6596  00b9 c600a4        	ld	a,_reboot_request
 6597  00bc 4a            	dec	a
 6598  00bd 2606          	jrne	L1423
-6599                     ; 2105         restart_reboot_step = RESTART_REBOOT_IDLE;
+6599                     ; 2104         restart_reboot_step = RESTART_REBOOT_IDLE;
 6601  00bf c700a1        	ld	_restart_reboot_step,a
-6602                     ; 2107         reboot();
+6602                     ; 2106         reboot();
 6604  00c2 cd0000        	call	_reboot
 6606  00c5               L1423:
-6607                     ; 2109       if (restart_request == 1) {
+6607                     ; 2108       if (restart_request == 1) {
 6609  00c5 c600a2        	ld	a,_restart_request
 6610  00c8 4a            	dec	a
 6611  00c9 2609          	jrne	L3713
-6612                     ; 2110 	restart_request = 0;
+6612                     ; 2109 	restart_request = 0;
 6614  00cb c700a2        	ld	_restart_request,a
-6615                     ; 2111         restart_reboot_step = RESTART_REBOOT_IDLE;
+6615                     ; 2110         restart_reboot_step = RESTART_REBOOT_IDLE;
 6617  00ce c700a1        	ld	_restart_reboot_step,a
-6618                     ; 2113 	restart();
+6618                     ; 2112 	restart();
 6620  00d1 cd0000        	call	_restart
 6622  00d4               L3713:
-6623                     ; 2117 }
+6623                     ; 2116 }
 6626  00d4 81            	ret	
-6679                     ; 2120 void restart(void)
-6679                     ; 2121 {
+6679                     ; 2119 void restart(void)
+6679                     ; 2120 {
 6680                     .text:	section	.text,new
 6681  0000               _restart:
-6685                     ; 2135   LEDcontrol(0); // Turn LED off
+6685                     ; 2134   LEDcontrol(0); // Turn LED off
 6687  0000 4f            	clr	a
 6688  0001 cd0000        	call	_LEDcontrol
-6690                     ; 2137   parse_complete = 0;
+6690                     ; 2136   parse_complete = 0;
 6692  0004 725f009f      	clr	_parse_complete
-6693                     ; 2138   reboot_request = 0;
+6693                     ; 2137   reboot_request = 0;
 6695  0008 725f00a4      	clr	_reboot_request
-6696                     ; 2139   restart_request = 0;
+6696                     ; 2138   restart_request = 0;
 6698  000c 725f00a2      	clr	_restart_request
-6699                     ; 2141   time_mark2 = 0;           // Time capture used in reboot
+6699                     ; 2140   time_mark2 = 0;           // Time capture used in reboot
 6701  0010 5f            	clrw	x
 6702  0011 cf0096        	ldw	_time_mark2+2,x
 6703  0014 cf0094        	ldw	_time_mark2,x
-6704                     ; 2144   mqtt_close_tcp = 0;
+6704                     ; 2143   mqtt_close_tcp = 0;
 6706  0017 725f00a0      	clr	_mqtt_close_tcp
-6707                     ; 2146   mqtt_start = MQTT_START_TCP_CONNECT;
+6707                     ; 2145   mqtt_start = MQTT_START_TCP_CONNECT;
 6709  001b 35010041      	mov	_mqtt_start,#1
-6710                     ; 2147   mqtt_start_status = MQTT_START_NOT_STARTED;
+6710                     ; 2146   mqtt_start_status = MQTT_START_NOT_STARTED;
 6712  001f 725f0040      	clr	_mqtt_start_status
-6713                     ; 2148   mqtt_start_ctr1 = 0;
+6713                     ; 2147   mqtt_start_ctr1 = 0;
 6715  0023 725f003f      	clr	_mqtt_start_ctr1
-6716                     ; 2149   mqtt_sanity_ctr = 0;
+6716                     ; 2148   mqtt_sanity_ctr = 0;
 6718  0027 725f003d      	clr	_mqtt_sanity_ctr
-6719                     ; 2150   mqtt_start_retry = 0;
+6719                     ; 2149   mqtt_start_retry = 0;
 6721  002b 725f003c      	clr	_mqtt_start_retry
-6722                     ; 2151   MQTT_error_status = 0;
+6722                     ; 2150   MQTT_error_status = 0;
 6724  002f 725f0000      	clr	_MQTT_error_status
-6725                     ; 2152   mqtt_restart_step = MQTT_RESTART_IDLE;
+6725                     ; 2151   mqtt_restart_step = MQTT_RESTART_IDLE;
 6727  0033 725f0039      	clr	_mqtt_restart_step
-6728                     ; 2153   strcpy(topic_base, devicetype);
+6728                     ; 2152   strcpy(topic_base, devicetype);
 6730  0037 ae000d        	ldw	x,#_topic_base
 6731  003a 90ae0000      	ldw	y,#L5261_devicetype
 6732  003e               L433:
@@ -2500,28 +2500,28 @@
 6736  0043 5c            	incw	x
 6737  0044 4d            	tnz	a
 6738  0045 26f7          	jrne	L433
-6739                     ; 2154   state_request = STATE_REQUEST_IDLE;
+6739                     ; 2153   state_request = STATE_REQUEST_IDLE;
 6741  0047 c700fd        	ld	_state_request,a
-6742                     ; 2157   spi_init();              // Initialize the SPI bit bang interface to the
+6742                     ; 2156   spi_init();              // Initialize the SPI bit bang interface to the
 6744  004a cd0000        	call	_spi_init
-6746                     ; 2159   unlock_eeprom();         // unlock the EEPROM so writes can be performed
+6746                     ; 2158   unlock_eeprom();         // unlock the EEPROM so writes can be performed
 6748  004d cd0000        	call	_unlock_eeprom
-6750                     ; 2160   check_eeprom_settings(); // Verify EEPROM up to date
+6750                     ; 2159   check_eeprom_settings(); // Verify EEPROM up to date
 6752  0050 cd0000        	call	_check_eeprom_settings
-6754                     ; 2161   Enc28j60Init();          // Initialize the ENC28J60 ethernet interface
+6754                     ; 2160   Enc28j60Init();          // Initialize the ENC28J60 ethernet interface
 6756  0053 cd0000        	call	_Enc28j60Init
-6758                     ; 2162   uip_arp_init();          // Initialize the ARP module
+6758                     ; 2161   uip_arp_init();          // Initialize the ARP module
 6760  0056 cd0000        	call	_uip_arp_init
-6762                     ; 2163   uip_init();              // Initialize uIP
+6762                     ; 2162   uip_init();              // Initialize uIP
 6764  0059 cd0000        	call	_uip_init
-6766                     ; 2164   HttpDInit();             // Initialize httpd; sets up listening ports
+6766                     ; 2163   HttpDInit();             // Initialize httpd; sets up listening ports
 6768  005c cd0000        	call	_HttpDInit
-6770                     ; 2168   mqtt_init(&mqttclient,
-6770                     ; 2169             mqtt_sendbuf,
-6770                     ; 2170 	    sizeof(mqtt_sendbuf),
-6770                     ; 2171 	    &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
-6770                     ; 2172 	    UIP_APPDATA_SIZE,
-6770                     ; 2173 	    publish_callback);
+6770                     ; 2167   mqtt_init(&mqttclient,
+6770                     ; 2168             mqtt_sendbuf,
+6770                     ; 2169 	    sizeof(mqtt_sendbuf),
+6770                     ; 2170 	    &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
+6770                     ; 2171 	    UIP_APPDATA_SIZE,
+6770                     ; 2172 	    publish_callback);
 6772  005f ae0000        	ldw	x,#_publish_callback
 6773  0062 89            	pushw	x
 6774  0063 ae01be        	ldw	x,#446
@@ -2535,106 +2535,106 @@
 6782  0073 ae005e        	ldw	x,#_mqttclient
 6783  0076 cd0000        	call	_mqtt_init
 6785  0079 5b0a          	addw	sp,#10
-6786                     ; 2176   LEDcontrol(1); // Turn LED on
+6786                     ; 2175   LEDcontrol(1); // Turn LED on
 6788  007b a601          	ld	a,#1
-6790                     ; 2179 }
+6790                     ; 2178 }
 6793  007d cc0000        	jp	_LEDcontrol
-6821                     ; 2182 void reboot(void)
-6821                     ; 2183 {
+6821                     ; 2181 void reboot(void)
+6821                     ; 2182 {
 6822                     .text:	section	.text,new
 6823  0000               _reboot:
-6827                     ; 2186   fastflash(); // A useful signal that a deliberate reboot is occurring.
+6827                     ; 2185   fastflash(); // A useful signal that a deliberate reboot is occurring.
 6829  0000 cd0000        	call	_fastflash
-6831                     ; 2188   LEDcontrol(0);  // turn LED off
+6831                     ; 2187   LEDcontrol(0);  // turn LED off
 6833  0003 4f            	clr	a
 6834  0004 cd0000        	call	_LEDcontrol
-6836                     ; 2190   WWDG_WR = (uint8_t)0x7f;     // Window register reset
+6836                     ; 2189   WWDG_WR = (uint8_t)0x7f;     // Window register reset
 6838  0007 357f50d2      	mov	_WWDG_WR,#127
-6839                     ; 2191   WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
+6839                     ; 2190   WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
 6841  000b 35ff50d1      	mov	_WWDG_CR,#255
-6842                     ; 2192   WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
+6842                     ; 2191   WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
 6844  000f 356050d2      	mov	_WWDG_WR,#96
-6845                     ; 2195   wait_timer((uint16_t)50000); // Wait for watchdog to generate reset
+6845                     ; 2194   wait_timer((uint16_t)50000); // Wait for watchdog to generate reset
 6847  0013 aec350        	ldw	x,#50000
 6848  0016 cd0000        	call	_wait_timer
-6850                     ; 2196   wait_timer((uint16_t)50000);
+6850                     ; 2195   wait_timer((uint16_t)50000);
 6852  0019 aec350        	ldw	x,#50000
 6853  001c cd0000        	call	_wait_timer
-6855                     ; 2197   wait_timer((uint16_t)50000);
+6855                     ; 2196   wait_timer((uint16_t)50000);
 6857  001f aec350        	ldw	x,#50000
-6859                     ; 2198 }
+6859                     ; 2197 }
 6862  0022 cc0000        	jp	_wait_timer
-6903                     ; 2201 void read_input_registers(void)
-6903                     ; 2202 {
+6903                     ; 2200 void read_input_registers(void)
+6903                     ; 2201 {
 6904                     .text:	section	.text,new
 6905  0000               _read_input_registers:
 6907  0000 89            	pushw	x
 6908       00000002      OFST:	set	2
-6911                     ; 2219   if (PC_IDR & (uint8_t)0x40) IO_16to9_new1 |= 0x80; // PC bit 6 = 1, Input 8 = 1
+6911                     ; 2218   if (PC_IDR & (uint8_t)0x40) IO_16to9_new1 |= 0x80; // PC bit 6 = 1, Input 8 = 1
 6913  0001 720d500b06    	btjf	_PC_IDR,#6,L1033
 6916  0006 721e0105      	bset	_IO_16to9_new1,#7
 6918  000a 2004          	jra	L3033
 6919  000c               L1033:
-6920                     ; 2220   else IO_16to9_new1 &= (uint8_t)(~0x80);
+6920                     ; 2219   else IO_16to9_new1 &= (uint8_t)(~0x80);
 6922  000c 721f0105      	bres	_IO_16to9_new1,#7
 6923  0010               L3033:
-6924                     ; 2221   if (PG_IDR & (uint8_t)0x01) IO_16to9_new1 |= 0x40; // PG bit 0 = 1, Input 7 = 1
+6924                     ; 2220   if (PG_IDR & (uint8_t)0x01) IO_16to9_new1 |= 0x40; // PG bit 0 = 1, Input 7 = 1
 6926  0010 7201501f06    	btjf	_PG_IDR,#0,L5033
 6929  0015 721c0105      	bset	_IO_16to9_new1,#6
 6931  0019 2004          	jra	L7033
 6932  001b               L5033:
-6933                     ; 2222   else IO_16to9_new1 &= (uint8_t)(~0x40);
+6933                     ; 2221   else IO_16to9_new1 &= (uint8_t)(~0x40);
 6935  001b 721d0105      	bres	_IO_16to9_new1,#6
 6936  001f               L7033:
-6937                     ; 2223   if (PE_IDR & (uint8_t)0x08) IO_16to9_new1 |= 0x20; // PE bit 3 = 1, Input 6 = 1
+6937                     ; 2222   if (PE_IDR & (uint8_t)0x08) IO_16to9_new1 |= 0x20; // PE bit 3 = 1, Input 6 = 1
 6939  001f 7207501506    	btjf	_PE_IDR,#3,L1133
 6942  0024 721a0105      	bset	_IO_16to9_new1,#5
 6944  0028 2004          	jra	L3133
 6945  002a               L1133:
-6946                     ; 2224   else IO_16to9_new1 &= (uint8_t)(~0x20);
+6946                     ; 2223   else IO_16to9_new1 &= (uint8_t)(~0x20);
 6948  002a 721b0105      	bres	_IO_16to9_new1,#5
 6949  002e               L3133:
-6950                     ; 2225   if (PD_IDR & (uint8_t)0x01) IO_16to9_new1 |= 0x10; // PD bit 0 = 1, Input 5 = 1
+6950                     ; 2224   if (PD_IDR & (uint8_t)0x01) IO_16to9_new1 |= 0x10; // PD bit 0 = 1, Input 5 = 1
 6952  002e 7201501006    	btjf	_PD_IDR,#0,L5133
 6955  0033 72180105      	bset	_IO_16to9_new1,#4
 6957  0037 2004          	jra	L7133
 6958  0039               L5133:
-6959                     ; 2226   else IO_16to9_new1 &= (uint8_t)(~0x10);
+6959                     ; 2225   else IO_16to9_new1 &= (uint8_t)(~0x10);
 6961  0039 72190105      	bres	_IO_16to9_new1,#4
 6962  003d               L7133:
-6963                     ; 2227   if (PD_IDR & (uint8_t)0x08) IO_16to9_new1 |= 0x08; // PD bit 3 = 1, Input 4 = 1
+6963                     ; 2226   if (PD_IDR & (uint8_t)0x08) IO_16to9_new1 |= 0x08; // PD bit 3 = 1, Input 4 = 1
 6965  003d 7207501006    	btjf	_PD_IDR,#3,L1233
 6968  0042 72160105      	bset	_IO_16to9_new1,#3
 6970  0046 2004          	jra	L3233
 6971  0048               L1233:
-6972                     ; 2228   else IO_16to9_new1 &= (uint8_t)(~0x08);
+6972                     ; 2227   else IO_16to9_new1 &= (uint8_t)(~0x08);
 6974  0048 72170105      	bres	_IO_16to9_new1,#3
 6975  004c               L3233:
-6976                     ; 2229   if (PD_IDR & (uint8_t)0x20) IO_16to9_new1 |= 0x04; // PD bit 5 = 1, Input 3 = 1
+6976                     ; 2228   if (PD_IDR & (uint8_t)0x20) IO_16to9_new1 |= 0x04; // PD bit 5 = 1, Input 3 = 1
 6978  004c 720b501006    	btjf	_PD_IDR,#5,L5233
 6981  0051 72140105      	bset	_IO_16to9_new1,#2
 6983  0055 2004          	jra	L7233
 6984  0057               L5233:
-6985                     ; 2230   else IO_16to9_new1 &= (uint8_t)(~0x04);
+6985                     ; 2229   else IO_16to9_new1 &= (uint8_t)(~0x04);
 6987  0057 72150105      	bres	_IO_16to9_new1,#2
 6988  005b               L7233:
-6989                     ; 2231   if (PD_IDR & (uint8_t)0x80) IO_16to9_new1 |= 0x02; // PD bit 7 = 1, Input 2 = 1
+6989                     ; 2230   if (PD_IDR & (uint8_t)0x80) IO_16to9_new1 |= 0x02; // PD bit 7 = 1, Input 2 = 1
 6991  005b 720f501006    	btjf	_PD_IDR,#7,L1333
 6994  0060 72120105      	bset	_IO_16to9_new1,#1
 6996  0064 2004          	jra	L3333
 6997  0066               L1333:
-6998                     ; 2232   else IO_16to9_new1 &= (uint8_t)(~0x02);
+6998                     ; 2231   else IO_16to9_new1 &= (uint8_t)(~0x02);
 7000  0066 72130105      	bres	_IO_16to9_new1,#1
 7001  006a               L3333:
-7002                     ; 2233   if (PA_IDR & (uint8_t)0x10) IO_16to9_new1 |= 0x01; // PA bit 4 = 1, Input 1 = 1
+7002                     ; 2232   if (PA_IDR & (uint8_t)0x10) IO_16to9_new1 |= 0x01; // PA bit 4 = 1, Input 1 = 1
 7004  006a 7209500106    	btjf	_PA_IDR,#4,L5333
 7007  006f 72100105      	bset	_IO_16to9_new1,#0
 7009  0073 2004          	jra	L7333
 7010  0075               L5333:
-7011                     ; 2234   else IO_16to9_new1 &= (uint8_t)(~0x01);
+7011                     ; 2233   else IO_16to9_new1 &= (uint8_t)(~0x01);
 7013  0075 72110105      	bres	_IO_16to9_new1,#0
 7014  0079               L7333:
-7015                     ; 2239   xor_tmp = (uint8_t)((IO_16to9 ^ IO_16to9_new1) & (IO_16to9 ^ IO_16to9_new2));
+7015                     ; 2238   xor_tmp = (uint8_t)((IO_16to9 ^ IO_16to9_new1) & (IO_16to9 ^ IO_16to9_new2));
 7017  0079 c60107        	ld	a,_IO_16to9
 7018  007c c80103        	xor	a,_IO_16to9_new2
 7019  007f 6b01          	ld	(OFST-1,sp),a
@@ -2642,180 +2642,180 @@
 7022  0084 c80105        	xor	a,_IO_16to9_new1
 7023  0087 1401          	and	a,(OFST-1,sp)
 7024  0089 6b02          	ld	(OFST+0,sp),a
-7026                     ; 2240   IO_16to9 = (uint8_t)(IO_16to9 ^ xor_tmp);
+7026                     ; 2239   IO_16to9 = (uint8_t)(IO_16to9 ^ xor_tmp);
 7028  008b c80107        	xor	a,_IO_16to9
 7029  008e c70107        	ld	_IO_16to9,a
-7030                     ; 2242   IO_16to9_new2 = IO_16to9_new1;
-7032                     ; 2296 }
+7030                     ; 2241   IO_16to9_new2 = IO_16to9_new1;
+7032                     ; 2295 }
 7035  0091 85            	popw	x
 7036  0092 5501050103    	mov	_IO_16to9_new2,_IO_16to9_new1
 7037  0097 81            	ret	
-7077                     ; 2299 void write_output_registers(void)
-7077                     ; 2300 {
+7077                     ; 2298 void write_output_registers(void)
+7077                     ; 2299 {
 7078                     .text:	section	.text,new
 7079  0000               _write_output_registers:
 7081  0000 88            	push	a
 7082       00000001      OFST:	set	1
-7085                     ; 2354   xor_tmp = (uint8_t)(invert_output ^ IO_8to1);
+7085                     ; 2353   xor_tmp = (uint8_t)(invert_output ^ IO_8to1);
 7087  0001 c600ff        	ld	a,_invert_output
 7088  0004 c80106        	xor	a,_IO_8to1
 7089  0007 6b01          	ld	(OFST+0,sp),a
-7091                     ; 2355   if (xor_tmp & 0x80) PC_ODR |= (uint8_t)0x80; // Relay 8 off
+7091                     ; 2354   if (xor_tmp & 0x80) PC_ODR |= (uint8_t)0x80; // Relay 8 off
 7093  0009 2a06          	jrpl	L5533
 7096  000b 721e500a      	bset	_PC_ODR,#7
 7098  000f 2004          	jra	L7533
 7099  0011               L5533:
-7100                     ; 2356   else PC_ODR &= (uint8_t)~0x80; // Relay 8 on
+7100                     ; 2355   else PC_ODR &= (uint8_t)~0x80; // Relay 8 on
 7102  0011 721f500a      	bres	_PC_ODR,#7
 7103  0015               L7533:
-7104                     ; 2357   if (xor_tmp & 0x40) PG_ODR |= (uint8_t)0x02; // Relay 7 off
+7104                     ; 2356   if (xor_tmp & 0x40) PG_ODR |= (uint8_t)0x02; // Relay 7 off
 7106  0015 a540          	bcp	a,#64
 7107  0017 2706          	jreq	L1633
 7110  0019 7212501e      	bset	_PG_ODR,#1
 7112  001d 2004          	jra	L3633
 7113  001f               L1633:
-7114                     ; 2358   else PG_ODR &= (uint8_t)~0x02; // Relay 7 on
+7114                     ; 2357   else PG_ODR &= (uint8_t)~0x02; // Relay 7 on
 7116  001f 7213501e      	bres	_PG_ODR,#1
 7117  0023               L3633:
-7118                     ; 2359   if (xor_tmp & 0x20) PE_ODR |= (uint8_t)0x01; // Relay 6 off
+7118                     ; 2358   if (xor_tmp & 0x20) PE_ODR |= (uint8_t)0x01; // Relay 6 off
 7120  0023 7b01          	ld	a,(OFST+0,sp)
 7121  0025 a520          	bcp	a,#32
 7122  0027 2706          	jreq	L5633
 7125  0029 72105014      	bset	_PE_ODR,#0
 7127  002d 2004          	jra	L7633
 7128  002f               L5633:
-7129                     ; 2360   else PE_ODR &= (uint8_t)~0x01; // Relay 6 on
+7129                     ; 2359   else PE_ODR &= (uint8_t)~0x01; // Relay 6 on
 7131  002f 72115014      	bres	_PE_ODR,#0
 7132  0033               L7633:
-7133                     ; 2361   if (xor_tmp & 0x10) PD_ODR |= (uint8_t)0x04; // Relay 5 off
+7133                     ; 2360   if (xor_tmp & 0x10) PD_ODR |= (uint8_t)0x04; // Relay 5 off
 7135  0033 a510          	bcp	a,#16
 7136  0035 2706          	jreq	L1733
 7139  0037 7214500f      	bset	_PD_ODR,#2
 7141  003b 2004          	jra	L3733
 7142  003d               L1733:
-7143                     ; 2362   else PD_ODR &= (uint8_t)~0x04; // Relay 5 on
+7143                     ; 2361   else PD_ODR &= (uint8_t)~0x04; // Relay 5 on
 7145  003d 7215500f      	bres	_PD_ODR,#2
 7146  0041               L3733:
-7147                     ; 2363   if (xor_tmp & 0x08) PD_ODR |= (uint8_t)0x10; // Relay 4 off
+7147                     ; 2362   if (xor_tmp & 0x08) PD_ODR |= (uint8_t)0x10; // Relay 4 off
 7149  0041 7b01          	ld	a,(OFST+0,sp)
 7150  0043 a508          	bcp	a,#8
 7151  0045 2706          	jreq	L5733
 7154  0047 7218500f      	bset	_PD_ODR,#4
 7156  004b 2004          	jra	L7733
 7157  004d               L5733:
-7158                     ; 2364   else PD_ODR &= (uint8_t)~0x10; // Relay 4 on
+7158                     ; 2363   else PD_ODR &= (uint8_t)~0x10; // Relay 4 on
 7160  004d 7219500f      	bres	_PD_ODR,#4
 7161  0051               L7733:
-7162                     ; 2365   if (xor_tmp & 0x04) PD_ODR |= (uint8_t)0x40; // Relay 3 off
+7162                     ; 2364   if (xor_tmp & 0x04) PD_ODR |= (uint8_t)0x40; // Relay 3 off
 7164  0051 a504          	bcp	a,#4
 7165  0053 2706          	jreq	L1043
 7168  0055 721c500f      	bset	_PD_ODR,#6
 7170  0059 2004          	jra	L3043
 7171  005b               L1043:
-7172                     ; 2366   else PD_ODR &= (uint8_t)~0x40; // Relay 3 on
+7172                     ; 2365   else PD_ODR &= (uint8_t)~0x40; // Relay 3 on
 7174  005b 721d500f      	bres	_PD_ODR,#6
 7175  005f               L3043:
-7176                     ; 2367   if (xor_tmp & 0x02) PA_ODR |= (uint8_t)0x20; // Relay 2 off
+7176                     ; 2366   if (xor_tmp & 0x02) PA_ODR |= (uint8_t)0x20; // Relay 2 off
 7178  005f 7b01          	ld	a,(OFST+0,sp)
 7179  0061 a502          	bcp	a,#2
 7180  0063 2706          	jreq	L5043
 7183  0065 721a5000      	bset	_PA_ODR,#5
 7185  0069 2004          	jra	L7043
 7186  006b               L5043:
-7187                     ; 2368   else PA_ODR &= (uint8_t)~0x20; // Relay 2 on
+7187                     ; 2367   else PA_ODR &= (uint8_t)~0x20; // Relay 2 on
 7189  006b 721b5000      	bres	_PA_ODR,#5
 7190  006f               L7043:
-7191                     ; 2369   if (xor_tmp & 0x01) PA_ODR |= (uint8_t)0x08; // Relay 1 off
+7191                     ; 2368   if (xor_tmp & 0x01) PA_ODR |= (uint8_t)0x08; // Relay 1 off
 7193  006f a501          	bcp	a,#1
 7194  0071 2706          	jreq	L1143
 7197  0073 72165000      	bset	_PA_ODR,#3
 7199  0077 2004          	jra	L3143
 7200  0079               L1143:
-7201                     ; 2370   else PA_ODR &= (uint8_t)~0x08; // Relay 1 on
+7201                     ; 2369   else PA_ODR &= (uint8_t)~0x08; // Relay 1 on
 7203  0079 72175000      	bres	_PA_ODR,#3
 7204  007d               L3143:
-7205                     ; 2376 }
+7205                     ; 2375 }
 7208  007d 84            	pop	a
 7209  007e 81            	ret	
-7250                     ; 2379 void check_reset_button(void)
-7250                     ; 2380 {
+7250                     ; 2378 void check_reset_button(void)
+7250                     ; 2379 {
 7251                     .text:	section	.text,new
 7252  0000               _check_reset_button:
 7254  0000 88            	push	a
 7255       00000001      OFST:	set	1
-7258                     ; 2385   if ((PA_IDR & 0x02) == 0) {
+7258                     ; 2384   if ((PA_IDR & 0x02) == 0) {
 7260  0001 720250015d    	btjt	_PA_IDR,#1,L1343
-7261                     ; 2387     for (i=0; i<100; i++) {
+7261                     ; 2386     for (i=0; i<100; i++) {
 7263  0006 0f01          	clr	(OFST+0,sp)
 7265  0008               L3343:
-7266                     ; 2388       wait_timer(50000); // wait 50ms
+7266                     ; 2387       wait_timer(50000); // wait 50ms
 7268  0008 aec350        	ldw	x,#50000
 7269  000b cd0000        	call	_wait_timer
-7271                     ; 2389       if ((PA_IDR & 0x02) == 1) { // check Reset Button again. If released
+7271                     ; 2388       if ((PA_IDR & 0x02) == 1) { // check Reset Button again. If released
 7273  000e c65001        	ld	a,_PA_IDR
 7274  0011 a402          	and	a,#2
 7275  0013 4a            	dec	a
 7276  0014 2602          	jrne	L1443
-7277                     ; 2391         return;
+7277                     ; 2390         return;
 7280  0016 84            	pop	a
 7281  0017 81            	ret	
 7282  0018               L1443:
-7283                     ; 2387     for (i=0; i<100; i++) {
+7283                     ; 2386     for (i=0; i<100; i++) {
 7285  0018 0c01          	inc	(OFST+0,sp)
 7289  001a 7b01          	ld	a,(OFST+0,sp)
 7290  001c a164          	cp	a,#100
 7291  001e 25e8          	jrult	L3343
-7292                     ; 2396     LEDcontrol(0);  // turn LED off
+7292                     ; 2395     LEDcontrol(0);  // turn LED off
 7294  0020 4f            	clr	a
 7295  0021 cd0000        	call	_LEDcontrol
 7298  0024               L5443:
-7299                     ; 2397     while((PA_IDR & 0x02) == 0) {  // Wait for button release
+7299                     ; 2396     while((PA_IDR & 0x02) == 0) {  // Wait for button release
 7301  0024 72035001fb    	btjf	_PA_IDR,#1,L5443
-7302                     ; 2400     magic4 = 0x00;
+7302                     ; 2399     magic4 = 0x00;
 7304  0029 4f            	clr	a
 7305  002a ae002e        	ldw	x,#_magic4
 7306  002d cd0000        	call	c_eewrc
-7308                     ; 2401     magic3 = 0x00;
+7308                     ; 2400     magic3 = 0x00;
 7310  0030 4f            	clr	a
 7311  0031 ae002d        	ldw	x,#_magic3
 7312  0034 cd0000        	call	c_eewrc
-7314                     ; 2402     magic2 = 0x00;
+7314                     ; 2401     magic2 = 0x00;
 7316  0037 4f            	clr	a
 7317  0038 ae002c        	ldw	x,#_magic2
 7318  003b cd0000        	call	c_eewrc
-7320                     ; 2403     magic1 = 0x00;
+7320                     ; 2402     magic1 = 0x00;
 7322  003e 4f            	clr	a
 7323  003f ae002b        	ldw	x,#_magic1
 7324  0042 cd0000        	call	c_eewrc
-7326                     ; 2405     WWDG_WR = (uint8_t)0x7f;       // Window register reset
+7326                     ; 2404     WWDG_WR = (uint8_t)0x7f;       // Window register reset
 7328  0045 357f50d2      	mov	_WWDG_WR,#127
-7329                     ; 2406     WWDG_CR = (uint8_t)0xff;       // Set watchdog to timeout in 49ms
+7329                     ; 2405     WWDG_CR = (uint8_t)0xff;       // Set watchdog to timeout in 49ms
 7331  0049 35ff50d1      	mov	_WWDG_CR,#255
-7332                     ; 2407     WWDG_WR = (uint8_t)0x60;       // Window register value - doesn't matter
+7332                     ; 2406     WWDG_WR = (uint8_t)0x60;       // Window register value - doesn't matter
 7334  004d 356050d2      	mov	_WWDG_WR,#96
-7335                     ; 2410     wait_timer((uint16_t)50000);   // Wait for watchdog to generate reset
+7335                     ; 2409     wait_timer((uint16_t)50000);   // Wait for watchdog to generate reset
 7337  0051 aec350        	ldw	x,#50000
 7338  0054 cd0000        	call	_wait_timer
-7340                     ; 2411     wait_timer((uint16_t)50000);
+7340                     ; 2410     wait_timer((uint16_t)50000);
 7342  0057 aec350        	ldw	x,#50000
 7343  005a cd0000        	call	_wait_timer
-7345                     ; 2412     wait_timer((uint16_t)50000);
+7345                     ; 2411     wait_timer((uint16_t)50000);
 7347  005d aec350        	ldw	x,#50000
 7348  0060 cd0000        	call	_wait_timer
 7350  0063               L1343:
-7351                     ; 2414 }
+7351                     ; 2413 }
 7354  0063 84            	pop	a
 7355  0064 81            	ret	
-7389                     ; 2417 void debugflash(void)
-7389                     ; 2418 {
+7389                     ; 2416 void debugflash(void)
+7389                     ; 2417 {
 7390                     .text:	section	.text,new
 7391  0000               _debugflash:
 7393  0000 88            	push	a
 7394       00000001      OFST:	set	1
-7397                     ; 2433   LEDcontrol(0);     // turn LED off
+7397                     ; 2432   LEDcontrol(0);     // turn LED off
 7399  0001 4f            	clr	a
 7400  0002 cd0000        	call	_LEDcontrol
-7402                     ; 2434   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
+7402                     ; 2433   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
 7404  0005 0f01          	clr	(OFST+0,sp)
 7406  0007               L5643:
 7409  0007 aec350        	ldw	x,#50000
@@ -2824,10 +2824,10 @@
 7418  000f 7b01          	ld	a,(OFST+0,sp)
 7419  0011 a10a          	cp	a,#10
 7420  0013 25f2          	jrult	L5643
-7421                     ; 2436   LEDcontrol(1);     // turn LED on
+7421                     ; 2435   LEDcontrol(1);     // turn LED on
 7423  0015 a601          	ld	a,#1
 7424  0017 cd0000        	call	_LEDcontrol
-7426                     ; 2437   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
+7426                     ; 2436   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
 7428  001a 0f01          	clr	(OFST+0,sp)
 7430  001c               L3743:
 7433  001c aec350        	ldw	x,#50000
@@ -2836,51 +2836,51 @@
 7442  0024 7b01          	ld	a,(OFST+0,sp)
 7443  0026 a10a          	cp	a,#10
 7444  0028 25f2          	jrult	L3743
-7445                     ; 2438 }
+7445                     ; 2437 }
 7448  002a 84            	pop	a
 7449  002b 81            	ret	
-7483                     ; 2441 void fastflash(void)
-7483                     ; 2442 {
+7483                     ; 2440 void fastflash(void)
+7483                     ; 2441 {
 7484                     .text:	section	.text,new
 7485  0000               _fastflash:
 7487  0000 88            	push	a
 7488       00000001      OFST:	set	1
-7491                     ; 2457   for (i=0; i<10; i++) {
+7491                     ; 2456   for (i=0; i<10; i++) {
 7493  0001 0f01          	clr	(OFST+0,sp)
 7495  0003               L5153:
-7496                     ; 2458     LEDcontrol(0);     // turn LED off
+7496                     ; 2457     LEDcontrol(0);     // turn LED off
 7498  0003 4f            	clr	a
 7499  0004 cd0000        	call	_LEDcontrol
-7501                     ; 2459     wait_timer((uint16_t)50000); // wait 50ms
+7501                     ; 2458     wait_timer((uint16_t)50000); // wait 50ms
 7503  0007 aec350        	ldw	x,#50000
 7504  000a cd0000        	call	_wait_timer
-7506                     ; 2461     LEDcontrol(1);     // turn LED on
+7506                     ; 2460     LEDcontrol(1);     // turn LED on
 7508  000d a601          	ld	a,#1
 7509  000f cd0000        	call	_LEDcontrol
-7511                     ; 2462     wait_timer((uint16_t)50000); // wait 50ms
+7511                     ; 2461     wait_timer((uint16_t)50000); // wait 50ms
 7513  0012 aec350        	ldw	x,#50000
 7514  0015 cd0000        	call	_wait_timer
-7516                     ; 2457   for (i=0; i<10; i++) {
+7516                     ; 2456   for (i=0; i<10; i++) {
 7518  0018 0c01          	inc	(OFST+0,sp)
 7522  001a 7b01          	ld	a,(OFST+0,sp)
 7523  001c a10a          	cp	a,#10
 7524  001e 25e3          	jrult	L5153
-7525                     ; 2464 }
+7525                     ; 2463 }
 7528  0020 84            	pop	a
 7529  0021 81            	ret	
-7554                     ; 2467 void oneflash(void)
-7554                     ; 2468 {
+7554                     ; 2466 void oneflash(void)
+7554                     ; 2467 {
 7555                     .text:	section	.text,new
 7556  0000               _oneflash:
-7560                     ; 2483   LEDcontrol(0);     // turn LED off
+7560                     ; 2482   LEDcontrol(0);     // turn LED off
 7562  0000 4f            	clr	a
 7563  0001 cd0000        	call	_LEDcontrol
-7565                     ; 2484   wait_timer((uint16_t)25000); // wait 25ms
+7565                     ; 2483   wait_timer((uint16_t)25000); // wait 25ms
 7567  0004 ae61a8        	ldw	x,#25000
 7568  0007 cd0000        	call	_wait_timer
-7570                     ; 2486   LEDcontrol(1);     // turn LED on
+7570                     ; 2485   LEDcontrol(1);     // turn LED on
 7572  000a a601          	ld	a,#1
-7574                     ; 2487 }
+7574                     ; 2486 }
 7577  000c cc0000        	jp	_LEDcontrol
 8905                     	switch	.bss
 8906  0000               _TRANSMIT_counter:

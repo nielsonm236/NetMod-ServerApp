@@ -644,7 +644,7 @@ static const char g_HtmlPageConfiguration[] =
   "If you change the highest octet of the MAC you MUST use an even number to<br>"
   "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
   "multicast and will not work.<br>"
-  "Code Revision 20201128 1733</p>"
+  "Code Revision 20201130 1752</p>"
   "%y03/91%y02Reboot</button></form>"
   "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -827,7 +827,7 @@ static const char g_HtmlPageConfiguration[] =
   "</form>"
   "<p>"
   "See Documentation for help<br>"
-  "Code Revision 20201128 1733</p>"
+  "Code Revision 20201130 1752</p>"
   "%y03/91%y02Reboot</button></form>"
   "<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -872,14 +872,14 @@ static const char g_HtmlPageHelp[] =
   "- Port = the device Port number, for example 8080<br>"
   "- xx = one of the codes below:<br>"
   "<table>"
-  "<tr><td>00 = Relay-01 OFF</td><td>09 = Relay-05 OFF</td><td>17 = Relay-09 OFF</td><td>25 = Relay-13 OFF<br></td></tr>"
-  "<tr><td>01 = Relay-01  ON</td><td>10 = Relay-05  ON</td><td>18 = Relay-09  ON</td><td>26 = Relay-13  ON<br></td></tr>"
-  "<tr><td>02 = Relay-02 OFF</td><td>11 = Relay-06 OFF</td><td>19 = Relay-10 OFF</td><td>27 = Relay-14 OFF<br></td></tr>"
-  "<tr><td>03 = Relay-02  ON</td><td>12 = Relay-06  ON</td><td>20 = Relay-10  ON</td><td>28 = Relay-14  ON<br></td></tr>"
-  "<tr><td>04 = Relay-03 OFF</td><td>13 = Relay-07 OFF</td><td>21 = Relay-11 OFF</td><td>29 = Relay-15 OFF<br></td></tr>"
-  "<tr><td>05 = Relay-03  ON</td><td>14 = Relay-07  ON</td><td>22 = Relay-11  ON</td><td>30 = Relay-15  ON<br></td></tr>"
-  "<tr><td>07 = Relay-04 OFF</td><td>15 = Relay-08 OFF</td><td>23 = Relay-12 OFF</td><td>31 = Relay-16 OFF<br></td></tr>"
-  "<tr><td>08 = Relay-04  ON</td><td>16 = Relay-08  ON</td><td>24 = Relay-12  ON</td><td>32 = Relay-16  ON<br></td></tr>"
+  "<tr><td>00 = Relay-01 OFF</td><td>08 = Relay-05 OFF</td><td>16 = Relay-09 OFF</td><td>24 = Relay-13 OFF<br></td></tr>"
+  "<tr><td>01 = Relay-01  ON</td><td>09 = Relay-05  ON</td><td>17 = Relay-09  ON</td><td>25 = Relay-13  ON<br></td></tr>"
+  "<tr><td>02 = Relay-02 OFF</td><td>10 = Relay-06 OFF</td><td>18 = Relay-10 OFF</td><td>26 = Relay-14 OFF<br></td></tr>"
+  "<tr><td>03 = Relay-02  ON</td><td>11 = Relay-06  ON</td><td>19 = Relay-10  ON</td><td>27 = Relay-14  ON<br></td></tr>"
+  "<tr><td>04 = Relay-03 OFF</td><td>12 = Relay-07 OFF</td><td>20 = Relay-11 OFF</td><td>28 = Relay-15 OFF<br></td></tr>"
+  "<tr><td>05 = Relay-03  ON</td><td>13 = Relay-07  ON</td><td>21 = Relay-11  ON</td><td>29 = Relay-15  ON<br></td></tr>"
+  "<tr><td>06 = Relay-04 OFF</td><td>14 = Relay-08 OFF</td><td>22 = Relay-12 OFF</td><td>30 = Relay-16 OFF<br></td></tr>"
+  "<tr><td>07 = Relay-04  ON</td><td>15 = Relay-08  ON</td><td>23 = Relay-12  ON</td><td>31 = Relay-16  ON<br></td></tr>"
   "</table>"
   "55 = All Relays ON<br>"
   "56 = All Relays OFF<br><br>"
@@ -892,6 +892,7 @@ static const char g_HtmlPageHelp[] =
   "66 = Show Statistics<br>"
   "67 = Clear Statistics<br>"
   "91 = Reboot<br>"
+  "98 = Show Short Form IO Status (no HTML formatting)<br>"
   "99 = Show Short Form IO Settings<br>"
   "</p>"
   "%y03/64' method='GET'><button title='Go to next Help page'>Next Help Page</button></form>"
@@ -923,14 +924,14 @@ static const char g_HtmlPageHelp[] =
   "- Port = the device Port number, for example 8080<br>"
   "- xx = one of the codes below:<br>"
   "<table>"
-  "<tr><td>00 = Relay-01 OFF</td><td>09 = Relay-05 OFF<br></td></tr>"
-  "<tr><td>01 = Relay-01  ON</td><td>10 = Relay-05  ON<br></td></tr>"
-  "<tr><td>02 = Relay-02 OFF</td><td>11 = Relay-06 OFF<br></td></tr>"
-  "<tr><td>03 = Relay-02  ON</td><td>12 = Relay-06  ON<br></td></tr>"
-  "<tr><td>04 = Relay-03 OFF</td><td>13 = Relay-07 OFF<br></td></tr>"
-  "<tr><td>05 = Relay-03  ON</td><td>14 = Relay-07  ON<br></td></tr>"
-  "<tr><td>07 = Relay-04 OFF</td><td>15 = Relay-08 OFF<br></td></tr>"
-  "<tr><td>08 = Relay-04  ON</td><td>16 = Relay-08  ON<br></td></tr>"
+  "<tr><td>00 = Relay-01 OFF</td><td>08 = Relay-05 OFF<br></td></tr>"
+  "<tr><td>01 = Relay-01  ON</td><td>09 = Relay-05  ON<br></td></tr>"
+  "<tr><td>02 = Relay-02 OFF</td><td>10 = Relay-06 OFF<br></td></tr>"
+  "<tr><td>03 = Relay-02  ON</td><td>11 = Relay-06  ON<br></td></tr>"
+  "<tr><td>04 = Relay-03 OFF</td><td>12 = Relay-07 OFF<br></td></tr>"
+  "<tr><td>05 = Relay-03  ON</td><td>13 = Relay-07  ON<br></td></tr>"
+  "<tr><td>06 = Relay-04 OFF</td><td>14 = Relay-08 OFF<br></td></tr>"
+  "<tr><td>07 = Relay-04  ON</td><td>15 = Relay-08  ON<br></td></tr>"
   "</table>"
   "55 = All Relays ON<br>"
   "56 = All Relays OFF<br><br>"
@@ -943,6 +944,7 @@ static const char g_HtmlPageHelp[] =
   "66 = Show Statistics<br>"
   "67 = Clear Statistics<br>"
   "91 = Reboot<br>"
+  "98 = Show Short Form IO Status (no HTML formatting)<br>"
   "99 = Show Short Form IO Status<br>"
   "</p>"
   "%y03/64' method='GET'><button title='Go to next Help page'>Next Help Page</button></form>"
@@ -1105,21 +1107,33 @@ static const char g_HtmlPageStats[] =
 #endif // UIP_STATISTICS == 2
 
 
+
 // Shortened IO state page Template
 // Mimics original Network Module relay state report
-// 135 bytes; sizeof reports 136
+// 134 bytes; sizeof reports 135
 #define WEBPAGE_RSTATE		6
 static const char g_HtmlPageRstate[] =
   "<!DOCTYPE html>"
   "<html lang='en-US'>"
   "<head>"
-  "<title>Help Page 2</title>"
+  "<title>Short Form</title>"
   "<link rel='icon' href='data:,'>"
   "</head>"
   "<body>"
   "<p>%f00</p>"
   "</body>"
   "</html>";
+
+
+
+// Very Short IO state page Template
+// Only responds with a TCP payload that contains the 16 alphanumeric
+// characters representing the IO pins states. The response is not
+// browser compatible.
+// 4 bytes; size of reports 5
+#define WEBPAGE_SSTATE		7
+static const char g_HtmlPageSstate[] =
+  "%f00";
 
 
 
@@ -1582,6 +1596,19 @@ uint16_t adjust_template_size()
   //
   else if (current_webpage == WEBPAGE_RSTATE) {
     size = (uint16_t)(sizeof(g_HtmlPageRstate) - 1);
+    
+    // Account for Short Form Relay Settings field (%f00)
+    // size = size + (value size - marker_field_size)
+    // size = size + (16 - 4);
+    size = size + 12;
+  }
+
+
+  /*---------------------------------------------------------------------------*/
+  // Adjust the size reported by the WEBPAGE_SSTATE template
+  //
+  else if (current_webpage == WEBPAGE_SSTATE) {
+    size = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
     
     // Account for Short Form Relay Settings field (%f00)
     // size = size + (value size - marker_field_size)
@@ -2157,8 +2184,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 #endif // UIP_STATISTICS == 2
 
         else if (nParsedMode == 'f') {
-	  // Output the pin state information in the format used by the "99" command
-	  // of the original Network Module.
+	  // Output the pin state information in the format used by the "98" and
+	  // "99" command. "99" is the command used in the original Network Module.
 	  // For output pins display what is returned by GpioGetPin()
 	  // For input pins if invert_input != 0 the GPIO pin state needs to be
 	  // inverted before displaying.
@@ -2472,6 +2499,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     else if (current_webpage == WEBPAGE_RSTATE) {
       pSocket->pData = g_HtmlPageRstate;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRstate) - 1);
+    }
+    
+    else if (current_webpage == WEBPAGE_SSTATE) {
+      pSocket->pData = g_HtmlPageSstate;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
     }
     
     pSocket->nState = STATE_CONNECTED;
@@ -3521,6 +3553,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/66  Show Statistics page
 	  // http://IP/67  Clear Statistics
 	  // http://IP/91  Reboot
+	  // http://IP/98  Show Very Short Form IO States page
 	  // http://IP/99  Show Short Form IO States page
 	  //
           switch(pSocket->ParseNum)
@@ -3688,7 +3721,15 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      user_reboot_request = 1;
 	      break;
 	      
-            case 99: // Show simplified IO state page
+            case 98: // Show Very Short Form IO state page
+	      current_webpage = WEBPAGE_SSTATE;
+              pSocket->pData = g_HtmlPageSstate;
+              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
+              pSocket->nState = STATE_CONNECTED;
+              pSocket->nPrevBytes = 0xFFFF;
+	      break;
+	      
+            case 99: // Show Short Form IO state page
 	      current_webpage = WEBPAGE_RSTATE;
               pSocket->pData = g_HtmlPageRstate;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRstate) - 1);

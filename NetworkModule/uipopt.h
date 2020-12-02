@@ -108,7 +108,12 @@
 // port requires 2 bytes of memory.
 //
 // Comment MN: Experiment shows the 2 bytes of RAM estimate to be correct.
-#define UIP_LISTENPORTS 2
+// Comment MN: In order to allow multiple browsers on >different< IP addresses
+// to work UIP_LISTENPORTS had to be the same value as UIP_CONNS, even though
+// only the MQTT port was set to 1883 and the HTTP port was set to 80, which I
+// would think would only require 2 listen ports. Examining the uip.c code did
+// not explain why this is the case.
+#define UIP_LISTENPORTS 4
 
 
 // The initial retransmission timeout counted in timer pulses.
@@ -210,7 +215,7 @@
 // 0 = disabled
 // 1 = full statistics page for non-MQTT builds
 // 2 = error statistics page for MQTT builds
-#define UIP_STATISTICS  2
+#define UIP_STATISTICS  0
 
 
 // Determines if help support should be compiled in. If you are modifying the

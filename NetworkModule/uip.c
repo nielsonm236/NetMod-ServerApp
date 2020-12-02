@@ -837,7 +837,7 @@ void uip_process(uint8_t flag)
   uip_connr->rcv_nxt[1] = BUF->seqno[1];
   uip_connr->rcv_nxt[0] = BUF->seqno[0];
   uip_add_rcv_nxt(1);
-
+  
   // Parse the TCP MSS option, if present.
   if ((BUF->tcpoffset & 0xf0) > 0x50) {
     for (c = 0; c < ((BUF->tcpoffset >> 4) - 5) << 2;) {

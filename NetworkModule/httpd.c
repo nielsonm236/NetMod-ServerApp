@@ -631,7 +631,7 @@ static const char g_HtmlPageConfiguration[] =
                                      "<td><input name='d05' class='t7' value='%d05' %y01</tr>"
   "</table>"
   "<p></p>"
-  "<input type='hidden' name='z00' value='0'>"
+  "<input type='hidden' name='z00' value='1'>"
   "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
   "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
   "</form>"
@@ -644,7 +644,7 @@ static const char g_HtmlPageConfiguration[] =
   "If you change the highest octet of the MAC you MUST use an even number to<br>"
   "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
   "multicast and will not work.<br>"
-  "Code Revision 20201130 1752</p>"
+  "Code Revision 20201202 1547</p>"
   "%y03/91%y02Reboot</button></form>"
   "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -821,13 +821,13 @@ static const char g_HtmlPageConfiguration[] =
   "<tr><td class='t1'>MQTT Status  </td><td class='s%n00'></td><td class='s%n01'></td><td class='s%n02'></td><td class='s%n03'></td><td class='s%n04'></td></tr>"
   "</table>"
   "<p></p>"
-  "<input type='hidden' name='z00' value='0'>"
+  "<input type='hidden' name='z00' value='1'>"
   "<button type='submit'>Save</button>"
   "<button type='reset'>Undo All</button>"
   "</form>"
   "<p>"
   "See Documentation for help<br>"
-  "Code Revision 20201130 1752</p>"
+  "Code Revision 20201202 1547</p>"
   "%y03/91%y02Reboot</button></form>"
   "<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -983,6 +983,7 @@ static const char g_HtmlPageHelp[] =
   "66 = Show Statistics<br>"
   "67 = Clear Statistics<br>"
   "91 = Reboot<br>"
+  "98 = Show Short Form IO Status (no HTML formatting)<br>"
   "99 = Show Short Form IO Status<br>"
   "</p>"
   "%y03/64' method='GET'><button title='Go to next Help page'>Next Help Page</button></form>"
@@ -2464,7 +2465,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   uint8_t i;
   
   i = 0;
-  
+
   if (uip_connected()) {
     //Initialize this connection
     if (current_webpage == WEBPAGE_IOCONTROL) {
@@ -2931,6 +2932,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // processed and we won't come here - we will instead be in the
 	    // PARSE_DELIM state.
 	    
+	    // If parsing a 'o' we know we are parsing an IOControl page.
+	    // Set current_webpage to WEBPAGE_IOCONTROL so that the browser
+	    // will display this page after Save is clicked. This is a
+	    // workaround for the "multiple browser page interference" issue.
+	    current_webpage = WEBPAGE_IOCONTROL;
+	    
 	    {
               uint8_t pin_value;
               if ((uint8_t)(*pBuffer) == '1') pin_value = 1;
@@ -2959,6 +2966,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // a = Update the Device Name field
             // l = Update the MQTT Username field
             // m = Update the MQTT Password field
+	    	    
+	    // If parsing 'a' 'l' or 'm' we know we are parsing a Configuration
+	    // page. Set current_webpage to WEBPAGE_CONFIGURATION so that the
+	    // browser will display this page after Save is clicked. This is a
+	    // workaround for the "multiple browser page interference" issue.
+	    current_webpage = WEBPAGE_CONFIGURATION;
+	    
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
 	                     // occurs.
             tmp_pBuffer = pBuffer;
@@ -3722,7 +3736,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 	      
             case 98: // Show Very Short Form IO state page
-	      current_webpage = WEBPAGE_SSTATE;
+	      // Normally when a page is transmitted the "current_webpage" is
+	      // updated to reflect the page just transmitted. This is not
+	      // done for this case as the page is very short (only requires
+	      // one packet to send) and not changing the current_webpage
+	      // pointer prevents "page interference" between normal browser
+	      // activity and the automated functions that normally use this
+	      // page.
+	      // current_webpage = WEBPAGE_SSTATE;
               pSocket->pData = g_HtmlPageSstate;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
               pSocket->nState = STATE_CONNECTED;
@@ -3730,7 +3751,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 	      
             case 99: // Show Short Form IO state page
-	      current_webpage = WEBPAGE_RSTATE;
+	      // Normally when a page is transmitted the "current_webpage" is
+	      // updated to reflect the page just transmitted. This is not
+	      // done for this case as the page is very short (only requires
+	      // one packet to send) and not changing the current_webpage
+	      // pointer prevents "page interference" between normal browser
+	      // activity and the automated functions that normally use this
+	      // page.
+	      // current_webpage = WEBPAGE_RSTATE;
               pSocket->pData = g_HtmlPageRstate;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRstate) - 1);
               pSocket->nState = STATE_CONNECTED;

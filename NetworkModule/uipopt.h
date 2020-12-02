@@ -215,7 +215,7 @@
 // 0 = disabled
 // 1 = full statistics page for non-MQTT builds
 // 2 = error statistics page for MQTT builds
-#define UIP_STATISTICS  0
+#define UIP_STATISTICS  2
 
 
 // Determines if help support should be compiled in. If you are modifying the

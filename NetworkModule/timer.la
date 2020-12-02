@@ -5,168 +5,168 @@
 2565                     ; 42 void clock_init(void)
 2565                     ; 43 {
 2567                     .text:	section	.text,new
-2568  e32f               _clock_init:
+2568  e5b5               _clock_init:
 2572                     ; 86   CLK_ICKR = ((uint8_t)0x01);
-2574  e32f 350150c0      	mov	_CLK_ICKR,#1
+2574  e5b5 350150c0      	mov	_CLK_ICKR,#1
 2575                     ; 87   CLK_ECKR = ((uint8_t)0x00);
-2577  e333 725f50c1      	clr	_CLK_ECKR
+2577  e5b9 725f50c1      	clr	_CLK_ECKR
 2578                     ; 88   CLK_SWR  = ((uint8_t)0xE1);
-2580  e337 35e150c4      	mov	_CLK_SWR,#225
+2580  e5bd 35e150c4      	mov	_CLK_SWR,#225
 2581                     ; 89   CLK_SWCR = ((uint8_t)0x00);
-2583  e33b 725f50c5      	clr	_CLK_SWCR
+2583  e5c1 725f50c5      	clr	_CLK_SWCR
 2584                     ; 90   CLK_CKDIVR = ((uint8_t)0x18);
-2586  e33f 351850c6      	mov	_CLK_CKDIVR,#24
+2586  e5c5 351850c6      	mov	_CLK_CKDIVR,#24
 2587                     ; 91   CLK_PCKENR1 = ((uint8_t)0xFF);
-2589  e343 35ff50c7      	mov	_CLK_PCKENR1,#255
+2589  e5c9 35ff50c7      	mov	_CLK_PCKENR1,#255
 2590                     ; 92   CLK_PCKENR2 = ((uint8_t)0xFF);
-2592  e347 35ff50ca      	mov	_CLK_PCKENR2,#255
+2592  e5cd 35ff50ca      	mov	_CLK_PCKENR2,#255
 2593                     ; 93   CLK_CSSR = ((uint8_t)0x00);
-2595  e34b 725f50c8      	clr	_CLK_CSSR
+2595  e5d1 725f50c8      	clr	_CLK_CSSR
 2596                     ; 94   CLK_CCOR = ((uint8_t)0x00);
-2598  e34f 725f50c9      	clr	_CLK_CCOR
-2600  e353               L1461:
+2598  e5d5 725f50c9      	clr	_CLK_CCOR
+2600  e5d9               L1461:
 2601                     ; 95   while ((CLK_CCOR & CLK_CCOR_CCOEN)!= 0) {}
-2603  e353 720050c9fb    	btjt	_CLK_CCOR,#0,L1461
+2603  e5d9 720050c9fb    	btjt	_CLK_CCOR,#0,L1461
 2604                     ; 96   CLK_CCOR = ((uint8_t)0x00);
-2606  e358 725f50c9      	clr	_CLK_CCOR
+2606  e5de 725f50c9      	clr	_CLK_CCOR
 2607                     ; 97   CLK_HSITRIMR = ((uint8_t)0x00);
-2609  e35c 725f50cc      	clr	_CLK_HSITRIMR
+2609  e5e2 725f50cc      	clr	_CLK_HSITRIMR
 2610                     ; 98   CLK_SWIMCCR = ((uint8_t)0x00);
-2612  e360 725f50cd      	clr	_CLK_SWIMCCR
+2612  e5e6 725f50cd      	clr	_CLK_SWIMCCR
 2613                     ; 101   CLK_ICKR |= ((uint8_t)0x01); // Enable HSI oscillator (MAY NOT BE NECESSARY AFTER RESET)
-2615  e364 721050c0      	bset	_CLK_ICKR,#0
-2617  e368               L7461:
+2615  e5ea 721050c0      	bset	_CLK_ICKR,#0
+2617  e5ee               L7461:
 2618                     ; 104   while ((CLK_ICKR & CLK_ICKR_HSIRDY)== 0) {}
-2620  e368 720350c0fb    	btjf	_CLK_ICKR,#1,L7461
+2620  e5ee 720350c0fb    	btjf	_CLK_ICKR,#1,L7461
 2621                     ; 107   CLK_SWCR |= CLK_SWCR_SWEN;
-2623  e36d 721250c5      	bset	_CLK_SWCR,#1
+2623  e5f3 721250c5      	bset	_CLK_SWCR,#1
 2624                     ; 113   CLK_CKDIVR = (uint8_t)0x00;
-2626  e371 725f50c6      	clr	_CLK_CKDIVR
+2626  e5f7 725f50c6      	clr	_CLK_CKDIVR
 2627                     ; 126   CLK_PCKENR1 |= (uint8_t)0x80;		// Enable clock to TIM1
-2629  e375 721e50c7      	bset	_CLK_PCKENR1,#7
+2629  e5fb 721e50c7      	bset	_CLK_PCKENR1,#7
 2630                     ; 127   CLK_PCKENR1 |= (uint8_t)0x20;		// Enable clock to TIM2
-2632  e379 721a50c7      	bset	_CLK_PCKENR1,#5
+2632  e5ff 721a50c7      	bset	_CLK_PCKENR1,#5
 2633                     ; 128   CLK_PCKENR1 |= (uint8_t)0x40;		// Enable clock to TIM3
-2635  e37d 721c50c7      	bset	_CLK_PCKENR1,#6
+2635  e603 721c50c7      	bset	_CLK_PCKENR1,#6
 2636                     ; 129   CLK_PCKENR1 &= (uint8_t)(~0x10);	// Disable clock to TIM4
-2638  e381 721950c7      	bres	_CLK_PCKENR1,#4
+2638  e607 721950c7      	bres	_CLK_PCKENR1,#4
 2639                     ; 130   CLK_PCKENR1 &= (uint8_t)(~0x08);	// Disable clock to UART
-2641  e385 721750c7      	bres	_CLK_PCKENR1,#3
+2641  e60b 721750c7      	bres	_CLK_PCKENR1,#3
 2642                     ; 131   CLK_PCKENR1 &= (uint8_t)(~0x02);	// Disable clock to SPI
-2644  e389 721350c7      	bres	_CLK_PCKENR1,#1
+2644  e60f 721350c7      	bres	_CLK_PCKENR1,#1
 2645                     ; 132   CLK_PCKENR1 &= (uint8_t)(~0x01);	// Disable clock to I2C
-2647  e38d 721150c7      	bres	_CLK_PCKENR1,#0
+2647  e613 721150c7      	bres	_CLK_PCKENR1,#0
 2648                     ; 133   CLK_PCKENR2 &= (uint8_t)(~0x08);	// Disable clock to ADC
-2650  e391 721750ca      	bres	_CLK_PCKENR2,#3
+2650  e617 721750ca      	bres	_CLK_PCKENR2,#3
 2651                     ; 134   CLK_PCKENR2 &= (uint8_t)(~0x04);	// Disable clock to AWU
-2653  e395 721550ca      	bres	_CLK_PCKENR2,#2
+2653  e61b 721550ca      	bres	_CLK_PCKENR2,#2
 2654                     ; 152   TIM2_PSCR = (uint8_t)0x0e;
-2656  e399 350e530c      	mov	_TIM2_PSCR,#14
+2656  e61f 350e530c      	mov	_TIM2_PSCR,#14
 2657                     ; 154   TIM2_CR1 = (uint8_t)0x01;
-2659  e39d 35015300      	mov	_TIM2_CR1,#1
+2659  e623 35015300      	mov	_TIM2_CR1,#1
 2660                     ; 156   TIM2_EGR = (uint8_t)0x01;
-2662  e3a1 35015304      	mov	_TIM2_EGR,#1
+2662  e627 35015304      	mov	_TIM2_EGR,#1
 2663                     ; 164   TIM3_PSCR = (uint8_t)0x04;
-2665  e3a5 3504532a      	mov	_TIM3_PSCR,#4
+2665  e62b 3504532a      	mov	_TIM3_PSCR,#4
 2666                     ; 166   TIM3_CR1 = (uint8_t)0x01;
-2668  e3a9 35015320      	mov	_TIM3_CR1,#1
+2668  e62f 35015320      	mov	_TIM3_CR1,#1
 2669                     ; 168   TIM3_EGR = (uint8_t)0x01;
-2671  e3ad 35015324      	mov	_TIM3_EGR,#1
+2671  e633 35015324      	mov	_TIM3_EGR,#1
 2672                     ; 170   arp_timer = 0x00;   // Initialize arp timer
-2674  e3b1 725f02a1      	clr	_arp_timer
+2674  e637 725f02a1      	clr	_arp_timer
 2675                     ; 171   second_toggle = 0;  // Initialize toggle for seconds counter
-2677  e3b5 725f02a0      	clr	_second_toggle
+2677  e63b 725f02a0      	clr	_second_toggle
 2678                     ; 172   second_counter = 0; // Initialize seconds counter
-2680  e3b9 5f            	clrw	x
-2681  e3ba cf029e        	ldw	_second_counter+2,x
-2682  e3bd cf029c        	ldw	_second_counter,x
+2680  e63f 5f            	clrw	x
+2681  e640 cf029e        	ldw	_second_counter+2,x
+2682  e643 cf029c        	ldw	_second_counter,x
 2683                     ; 173 }
-2686  e3c0 81            	ret	
+2686  e646 81            	ret	
 2716                     ; 177 periodic_timer_expired(void)
 2716                     ; 178 {
 2717                     .text:	section	.text,new
-2718  e3c1               _periodic_timer_expired:
+2718  e647               _periodic_timer_expired:
 2722                     ; 194   if ((uint8_t)TIM2_CNTRL > 0x62) {     // Evaluate at 100ms
-2724  e3c1 c6530b        	ld	a,_TIM2_CNTRL
-2725  e3c4 a163          	cp	a,#99
-2726  e3c6 2530          	jrult	L3661
+2724  e647 c6530b        	ld	a,_TIM2_CNTRL
+2725  e64a a163          	cp	a,#99
+2726  e64c 2530          	jrult	L3661
 2727                     ; 195     TIM2_CR1 &= (uint8_t)(~0x01);	// Disable counter
-2729  e3c8 72115300      	bres	_TIM2_CR1,#0
+2729  e64e 72115300      	bres	_TIM2_CR1,#0
 2730                     ; 196     TIM2_CNTRH = (uint8_t)0x00;		// Clear counter High
-2732  e3cc 725f530a      	clr	_TIM2_CNTRH
+2732  e652 725f530a      	clr	_TIM2_CNTRH
 2733                     ; 197     TIM2_CNTRL = (uint8_t)0x00;		// Clear counter Low
-2735  e3d0 725f530b      	clr	_TIM2_CNTRL
+2735  e656 725f530b      	clr	_TIM2_CNTRL
 2736                     ; 198     TIM2_CR1 |= (uint8_t)0x01;		// Enable counter
-2738  e3d4 72105300      	bset	_TIM2_CR1,#0
+2738  e65a 72105300      	bset	_TIM2_CR1,#0
 2739                     ; 200     arp_timer++;			// Increment arp_timer every ~100 ms
-2741  e3d8 725c02a1      	inc	_arp_timer
+2741  e65e 725c02a1      	inc	_arp_timer
 2742                     ; 202     if (second_toggle < 10) {
-2744  e3dc c602a0        	ld	a,_second_toggle
-2745  e3df a10a          	cp	a,#10
-2746  e3e1 2406          	jruge	L5661
+2744  e662 c602a0        	ld	a,_second_toggle
+2745  e665 a10a          	cp	a,#10
+2746  e667 2406          	jruge	L5661
 2747                     ; 203       second_toggle++;			// Increment second_toggle every ~100 ms
-2749  e3e3 725c02a0      	inc	_second_toggle
-2751  e3e7 200c          	jra	L7661
-2752  e3e9               L5661:
+2749  e669 725c02a0      	inc	_second_toggle
+2751  e66d 200c          	jra	L7661
+2752  e66f               L5661:
 2753                     ; 206       second_toggle = 0;
-2755  e3e9 725f02a0      	clr	_second_toggle
+2755  e66f 725f02a0      	clr	_second_toggle
 2756                     ; 207       second_counter++;			// Increment second_counter every ~1000 ms
-2758  e3ed ae029c        	ldw	x,#_second_counter
-2759  e3f0 a601          	ld	a,#1
-2760  e3f2 cdf698        	call	c_lgadc
-2762  e3f5               L7661:
+2758  e673 ae029c        	ldw	x,#_second_counter
+2759  e676 a601          	ld	a,#1
+2760  e678 cdf91f        	call	c_lgadc
+2762  e67b               L7661:
 2763                     ; 210     return(1);
-2765  e3f5 a601          	ld	a,#1
-2768  e3f7 81            	ret	
-2769  e3f8               L3661:
+2765  e67b a601          	ld	a,#1
+2768  e67d 81            	ret	
+2769  e67e               L3661:
 2770                     ; 212   else return(0);
-2772  e3f8 4f            	clr	a
-2775  e3f9 81            	ret	
+2772  e67e 4f            	clr	a
+2775  e67f 81            	ret	
 2799                     ; 217 arp_timer_expired(void)
 2799                     ; 218 {
 2800                     .text:	section	.text,new
-2801  e3fa               _arp_timer_expired:
+2801  e680               _arp_timer_expired:
 2805                     ; 222   if (arp_timer > 99) {
-2807  e3fa c602a1        	ld	a,_arp_timer
-2808  e3fd a164          	cp	a,#100
-2809  e3ff 2507          	jrult	L3071
+2807  e680 c602a1        	ld	a,_arp_timer
+2808  e683 a164          	cp	a,#100
+2809  e685 2507          	jrult	L3071
 2810                     ; 223     arp_timer = 0;       // Reset arp_timer
-2812  e401 725f02a1      	clr	_arp_timer
+2812  e687 725f02a1      	clr	_arp_timer
 2813                     ; 224     return(1);
-2815  e405 a601          	ld	a,#1
-2818  e407 81            	ret	
-2819  e408               L3071:
+2815  e68b a601          	ld	a,#1
+2818  e68d 81            	ret	
+2819  e68e               L3071:
 2820                     ; 226   else return(0);
-2822  e408 4f            	clr	a
-2825  e409 81            	ret	
+2822  e68e 4f            	clr	a
+2825  e68f 81            	ret	
 2867                     ; 231 wait_timer(uint16_t wait)
 2867                     ; 232 {
 2868                     .text:	section	.text,new
-2869  e40a               _wait_timer:
-2871  e40a 89            	pushw	x
-2872  e40b 89            	pushw	x
+2869  e690               _wait_timer:
+2871  e690 89            	pushw	x
+2872  e691 89            	pushw	x
 2873       00000002      OFST:	set	2
 2876                     ; 243   TIM3_CR1 &= (uint8_t)(~0x01);		// Disable counter
-2878  e40c 72115320      	bres	_TIM3_CR1,#0
+2878  e692 72115320      	bres	_TIM3_CR1,#0
 2879                     ; 244   TIM3_CNTRH = (uint8_t)0x00;		// Clear counter High
-2881  e410 725f5328      	clr	_TIM3_CNTRH
+2881  e696 725f5328      	clr	_TIM3_CNTRH
 2882                     ; 245   TIM3_CNTRL = (uint8_t)0x00;		// Clear counter Low
-2884  e414 725f5329      	clr	_TIM3_CNTRL
+2884  e69a 725f5329      	clr	_TIM3_CNTRL
 2885                     ; 246   TIM3_CR1 |= (uint8_t)0x01;		// Enable counter
-2887  e418 72105320      	bset	_TIM3_CR1,#0
-2888  e41c               L5271:
+2887  e69e 72105320      	bset	_TIM3_CR1,#0
+2888  e6a2               L5271:
 2889                     ; 249     counter = ((uint16_t)TIM3_CNTRH << 8) | (uint8_t)TIM3_CNTRL;
-2891  e41c c65328        	ld	a,_TIM3_CNTRH
-2892  e41f 97            	ld	xl,a
-2893  e420 c65329        	ld	a,_TIM3_CNTRL
-2894  e423 02            	rlwa	x,a
-2895  e424 1f01          	ldw	(OFST-1,sp),x
+2891  e6a2 c65328        	ld	a,_TIM3_CNTRH
+2892  e6a5 97            	ld	xl,a
+2893  e6a6 c65329        	ld	a,_TIM3_CNTRL
+2894  e6a9 02            	rlwa	x,a
+2895  e6aa 1f01          	ldw	(OFST-1,sp),x
 2897                     ; 250   } while(counter <= wait);
-2899  e426 1303          	cpw	x,(OFST+1,sp)
-2900  e428 23f2          	jrule	L5271
+2899  e6ac 1303          	cpw	x,(OFST+1,sp)
+2900  e6ae 23f2          	jrule	L5271
 2901                     ; 252   return;
-2904  e42a 5b04          	addw	sp,#4
-2905  e42c 81            	ret	
+2904  e6b0 5b04          	addw	sp,#4
+2905  e6b2 81            	ret	
 2941                     	xdef	_wait_timer
 2942                     	xdef	_arp_timer_expired
 2943                     	xdef	_periodic_timer_expired

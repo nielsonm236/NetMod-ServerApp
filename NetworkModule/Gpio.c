@@ -27,7 +27,13 @@
 #include <stdint.h>
 #include "iostm8s005.h"
 #include "gpio.h"
+#include "main.h"
 #include "uipopt.h"
+
+extern uint8_t magic4;			// MSB Magic Number stored in EEPROM
+extern uint8_t magic3;			// 
+extern uint8_t magic2;			// 
+extern uint8_t magic1;			// LSB Magic Number
 
 
 #if GPIO_SUPPORT == 1
@@ -45,7 +51,28 @@ void gpio_init(void)
   // is also GPIO "bit bang" driven.
   //
   // Any pins that are "not used" are set as pulled up inputs.
-  
+
+  // To reduce the incidence of output pin "chatter" the ODR (Output
+  // Data Register) for each output pin is pre-written to the state
+  // stored in EEPROM if the Magic Number indicates there is data
+  // stored in the EEPROM. When the device is rebooted the output
+  // pins briefly become floating input pins (effectively tri-state),
+  // but when their configuration are asserted as outputs the ODR is
+  // already set to the previous state of the output.
+  if ((magic4 == 0x55) && 
+      (magic3 == 0xee) && 
+      (magic2 == 0x0f) && 
+      (magic1 == 0xf0)) {
+
+    // Read and use the Config Setting for Output inversion control.
+    // Read and use the Config Setting for Input inversion control.
+    // Read and use the Relay states from EEPROM.
+    check_eeprom_IOpin_settings();
+    
+    // Update the relay control registers
+    write_output_registers();
+  }
+
   // Port A
   // Pinout map:
   // Bit 7 - Not attached to pin
@@ -56,7 +83,8 @@ void gpio_init(void)
   // Bit 2 - Pin 03 - Output PP - LED
   // Bit 1 - Pin 02 - Input  PU - -RstButton
   // Bit 0 - Not attached to pin
-  // PA_ODR is assumed to be all zero from power on reset
+  // PA_ODR for relay pins has been pre-set by code above. PA_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PA_DDR = (uint8_t)0x3c; // 0b0011 1100
                           //   Pins 3, 9, 10, 11 are outputs
   PA_CR1 = (uint8_t)0xff; // 0b1111 1111
@@ -76,7 +104,8 @@ void gpio_init(void)
   // Bit 2 - Pin 20 - Input  PU - Not used?
   // Bit 1 - Pin 21 - Input  PU - Not used?
   // Bit 0 - Pin 22 - Input  PU - Not used?
-  // PB_ODR is assumed to be all zero from power on reset
+  // PB_ODR for relay pins has been pre-set by code above. PB_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PB_DDR = (uint8_t)0x00; // 0b0000 0000
                           //   All pins are inputs
   PB_CR1 = (uint8_t)0xff; // 0b1111 1111
@@ -94,7 +123,8 @@ void gpio_init(void)
   // Bit 2 - Pin 27 - Output PP - ENC28J60 SCK
   // Bit 1 - Pin 26 - Output PP - ENC28J60 -CS
   // Bit 0 - Not attached to pin
-  // PC_ODR is assumed to be all zero from power on reset
+  // PC_ODR for relay pins has been pre-set by code above. PC_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PC_DDR = (uint8_t)0xce; // 0b1100 1110
                           //   Pins 26, 27, 28, 33, 34 are outputs
   PC_CR1 = (uint8_t)0xff; // 0b1111 1111
@@ -115,7 +145,8 @@ void gpio_init(void)
   // Bit 2 - Pin 43 - Output PP - Relay 5 control
   // Bit 1 - Pin 42 - Alternate - SWIM
   // Bit 0 - Pin 41 - Output PP - Relay 13 control
-  // PD_ODR is assumed to be all zero from power on reset
+  // PD_ODR for relay pins has been pre-set by code above. PD_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PD_DDR = (uint8_t)0xfd; // 0b1111 1101
                           //   Pins 41, 43, 44, 45, 46, 47, 48 are outputs
                           //   Note that the SWIM pin is not affected by these settings
@@ -134,7 +165,8 @@ void gpio_init(void)
   // Bit 2 - Pin 38 - Input  PU - Not used?
   // Bit 1 - Pin 39 - Input  PU - Not used?
   // Bit 0 - Pin 40 - Output PP - Relay 6 control
-  // PE_ODR is assumed to be all zero from power on reset
+  // PE_ODR for relay pins has been pre-set by code above. PE_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PE_DDR = (uint8_t)0x29; // 0b0010 1001
                           //   Pins 25, 37, 40 are outputs
   PE_CR1 = (uint8_t)0xff; // 0b1111 1111
@@ -157,7 +189,8 @@ void gpio_init(void)
   // Bit 2 - Not attached to pin
   // Bit 1 - Pin 36 - Output PP - Relay 7 control
   // Bit 0 - Pin 35 - Output PP - Relay 15 control
-  // PG_ODR is assumed to be all zero from power on reset
+  // PG_ODR for relay pins has been pre-set by code above. PG_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PG_DDR = (uint8_t)0x03; // 0b0000 0011
                           //   Pins 35, 36 are outputs
   PG_CR1 = (uint8_t)0xff; // 0b1111 1111
@@ -185,6 +218,29 @@ void gpio_init(void)
   // The SPI interface to the ENC28J60 chip is GPIO "bit bang" driven.
   //
   // Any pins that are "not used" are set as pulled up inputs.
+
+
+  // To reduce the incidence of output pin "chatter" the ODR (Output
+  // Data Register) for each output pin is pre-written to the state
+  // stored in EEPROM if the Magic Number indicates there is data
+  // stored in the EEPROM. When the device is rebooted the output
+  // pins briefly become floating input pins (effectively tri-state),
+  // but when their configuration are asserted as outputs the ODR is
+  // already set to the previous state of the output.
+  if ((magic4 == 0x55) && 
+      (magic3 == 0xee) && 
+      (magic2 == 0x0f) && 
+      (magic1 == 0xf0)) {
+
+    // Read and use the Config Setting for Output inversion control.
+    // Read and use the Config Setting for Input inversion control.
+    // Read and use the Relay states from EEPROM.
+    check_eeprom_IOpin_settings();
+    
+    // Update the relay control registers
+    write_output_registers();
+  }
+
   
   // Port A
   // Pinout map:
@@ -196,7 +252,8 @@ void gpio_init(void)
   // Bit 2 - Pin 03 - Output PP - LED
   // Bit 1 - Pin 02 - Input  PU - -RstButton
   // Bit 0 - Not attached to pin
-  // PA_ODR is assumed to be all zero from power on reset
+  // PA_ODR for relay pins has been pre-set by code above. PA_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PA_DDR = (uint8_t)0x2c; // 0b0010 1100
                           //   Pins 3, 9, 11 are outputs
   PA_CR1 = (uint8_t)0xff; // 0b1111 1111
@@ -216,7 +273,8 @@ void gpio_init(void)
   // Bit 2 - Pin 20 - Input  PU - Not used?
   // Bit 1 - Pin 21 - Input  PU - Not used?
   // Bit 0 - Pin 22 - Input  PU - Not used?
-  // PB_ODR is assumed to be all zero from power on reset
+  // PB_ODR for relay pins has been pre-set by code above. PB_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PB_DDR = (uint8_t)0x00; // 0b0000 0000
                           //   All pins are inputs
   PB_CR1 = (uint8_t)0xff; // 0b1111 1111
@@ -234,7 +292,8 @@ void gpio_init(void)
   // Bit 2 - Pin 27 - Output PP - ENC28J60 SCK
   // Bit 1 - Pin 26 - Output PP - ENC28J60 -CS
   // Bit 0 - Not attached to pin
-  // PC_ODR is assumed to be all zero from power on reset
+  // PC_ODR for relay pins has been pre-set by code above. PC_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PC_DDR = (uint8_t)0x8e; // 0b1000 1110
                           //   Pins 26, 27, 28, 34 are outputs
   PC_CR1 = (uint8_t)0xff; // 0b1111 1111
@@ -255,7 +314,8 @@ void gpio_init(void)
   // Bit 2 - Pin 43 - Output PP - Relay 5 control
   // Bit 1 - Pin 42 - Alternate - SWIM
   // Bit 0 - Pin 41 - Input  PU - Input 5
-  // PD_ODR is assumed to be all zero from power on reset
+  // PD_ODR for relay pins has been pre-set by code above. PD_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PD_DDR = (uint8_t)0x54; // 0b0101 0100
                           //   Pins 43, 45, 47 are outputs
                           //   Note that the SWIM pin is not affected by these settings
@@ -276,7 +336,8 @@ void gpio_init(void)
   // Bit 2 - Pin 38 - Input  PU - Not used?
   // Bit 1 - Pin 39 - Input  PU - Not used?
   // Bit 0 - Pin 40 - Output PP - Relay 6 control
-  // PE_ODR is assumed to be all zero from power on reset
+  // PE_ODR for relay pins has been pre-set by code above. PE_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PE_DDR = (uint8_t)0x21; // 0b0010 0001
                           //   Pins 25, 40 are outputs
   PE_CR1 = (uint8_t)0xff; // 0b1111 1111
@@ -299,7 +360,8 @@ void gpio_init(void)
   // Bit 2 - Not attached to pin
   // Bit 1 - Pin 36 - Output PP - Relay 7 control
   // Bit 0 - Pin 35 - Input  PU - Input 7
-  // PG_ODR is assumed to be all zero from power on reset
+  // PG_ODR for relay pins has been pre-set by code above. PG_ODR for
+  // all other output pins is assumed to be zero from power on or reset
   PG_DDR = (uint8_t)0x02; // 0b0000 0010
                           //   Pin 36 is output
   PG_CR1 = (uint8_t)0xff; // 0b1111 1111

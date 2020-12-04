@@ -363,7 +363,7 @@
  376  1782 3c703e536565  	dc.b	"<p>See Documentati"
  377  1794 6f6e20666f72  	dc.b	"on for help<br>Cod"
  378  17a6 652052657669  	dc.b	"e Revision 2020120"
- 379  17b8 322031353437  	dc.b	"2 1547</p>%y03/91%"
+ 379  17b8 342031353036  	dc.b	"4 1506</p>%y03/91%"
  380  17ca 793032526562  	dc.b	"y02Reboot</button>"
  381  17dc 3c2f666f726d  	dc.b	"</form><br><br>%y0"
  382  17ee 332f36312579  	dc.b	"3/61%y02Refresh</b"

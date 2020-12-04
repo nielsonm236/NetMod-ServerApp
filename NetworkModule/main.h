@@ -33,6 +33,7 @@
 int main(void);
 void unlock_eeprom(void);
 void check_eeprom_settings(void);
+void check_eeprom_IOpin_settings(void);
 void update_mac_string(void);
 void check_runtime_changes(void);
 void read_input_registers(void);

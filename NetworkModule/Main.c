@@ -345,14 +345,14 @@ int main(void)
 
   clock_init();            // Initialize and enable clocks and timers
   
+  unlock_eeprom();         // unlock the EEPROM so writes can be performed
+  
   gpio_init();             // Initialize and enable gpio pins
   
   spi_init();              // Initialize the SPI bit bang interface to the
                            // ENC28J60 and perform hardware reset on ENC28J60
 
   LEDcontrol(1);           // turn LED on
-  
-  unlock_eeprom();         // unlock the EEPROM so writes can be performed
   
   check_eeprom_settings(); // Check the EEPROM for previously stored Address
                            // and Relay settings. Use defaults (if nothing
@@ -1321,6 +1321,7 @@ void publish_pinstate_all(void)
 void unlock_eeprom(void)
 {
   // Unlock the EEPROM
+  // The EEPROM must be unlocked to allow any writes to it.
   // It appears that there is an errata in the STM8S device in that the
   // specified "unlock" keys need to be written in reverse order from the
   // instructions in the documentation. Another user suggests the following
@@ -1428,53 +1429,11 @@ void check_eeprom_settings(void)
     uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
     uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
 
-    // Check the stored_config_settings bytes for those that upgrade from a
-    // previous version:
-    if (stored_config_settings[0] != '0' && stored_config_settings[0] != '1') {
-      stored_config_settings[0] = '0';
-    }
-    if (stored_config_settings[1] != '0' && stored_config_settings[1] != '1') {
-      stored_config_settings[1] = '0';
-    }
-    if (stored_config_settings[2] != '0' && stored_config_settings[2] != '1' && stored_config_settings[2] != '2') {
-      stored_config_settings[2] = '2';
-    }
-    if (stored_config_settings[3] != '0' && stored_config_settings[3] != '1') {
-      stored_config_settings[3] = '0';
-    }
-    if (stored_config_settings[4] != '0') {
-      stored_config_settings[4] = '0';
-    }
-    if (stored_config_settings[5] != '0') {
-      stored_config_settings[5] = '0';
-    }
-    
+
     // Read and use the Config Setting for Output inversion control.
-    if (stored_config_settings[0] == '0') invert_output = 0x00;
-    else invert_output = 0xff;
-
     // Read and use the Config Setting for Input inversion control.
-    if (stored_config_settings[1] == '0') invert_input = 0x00;
-    else invert_input = 0xff;
-
-    // Read and use the Relay states from EEPROM. This also initializes the
-    // bits that store input pin information. The intialization works
-    // regardless of the IO model (16 outputs, 8out/8in, or 16 inputs).
-    if (stored_config_settings[2] == '0') {
-      // Turn all IO states OFF
-      IO_16to9 = 0x00;
-      IO_8to1 = 0x00;
-    }
-    else if (stored_config_settings[2] == '1') {
-      // Turn all IO states ON
-      IO_16to9 = 0xff;
-      IO_8to1 = 0xff;
-    }
-    else {
-      // Use retained IO states.
-      IO_16to9 = IO_16to9_new1 = IO_16to9_new2 = IO_16to9_sent = stored_IO_16to9;
-      IO_8to1  = IO_8to1_new1  = IO_8to1_new2  = IO_8to1_sent  = stored_IO_8to1;
-    }
+    // Read and use the Relay states from EEPROM.
+    check_eeprom_IOpin_settings();
     
     // Update the relay control registers
     write_output_registers();
@@ -1645,7 +1604,63 @@ void check_eeprom_settings(void)
 }
 
 
-void update_mac_string(void) {
+void check_eeprom_IOpin_settings(void)
+{
+  // This routine will check the EEPROM settings for the config register
+  // and IO pin states
+
+  // Check the stored_config_settings bytes for those that upgrade from a
+  // previous version:
+  if (stored_config_settings[0] != '0' && stored_config_settings[0] != '1') {
+    stored_config_settings[0] = '0';
+  }
+  if (stored_config_settings[1] != '0' && stored_config_settings[1] != '1') {
+    stored_config_settings[1] = '0';
+  }
+  if (stored_config_settings[2] != '0' && stored_config_settings[2] != '1' && stored_config_settings[2] != '2') {
+    stored_config_settings[2] = '2';
+  }
+  if (stored_config_settings[3] != '0' && stored_config_settings[3] != '1') {
+    stored_config_settings[3] = '0';
+  }
+  if (stored_config_settings[4] != '0') {
+    stored_config_settings[4] = '0';
+  }
+  if (stored_config_settings[5] != '0') {
+    stored_config_settings[5] = '0';
+  }
+    
+  // Read and use the Config Setting for Output inversion control.
+  if (stored_config_settings[0] == '0') invert_output = 0x00;
+  else invert_output = 0xff;
+  
+  // Read and use the Config Setting for Input inversion control.
+  if (stored_config_settings[1] == '0') invert_input = 0x00;
+  else invert_input = 0xff;
+
+  // Read and use the Relay states from EEPROM. This also initializes the
+  // bits that store input pin information. The intialization works
+  // regardless of the IO model (16 outputs, 8out/8in, or 16 inputs).
+  if (stored_config_settings[2] == '0') {
+    // Turn all IO states OFF
+    IO_16to9 = 0x00;
+    IO_8to1 = 0x00;
+  }
+  else if (stored_config_settings[2] == '1') {
+    // Turn all IO states ON
+    IO_16to9 = 0xff;
+    IO_8to1 = 0xff;
+  }
+  else {
+    // Use retained IO states.
+    IO_16to9 = IO_16to9_new1 = IO_16to9_new2 = IO_16to9_sent = stored_IO_16to9;
+    IO_8to1  = IO_8to1_new1  = IO_8to1_new2  = IO_8to1_sent  = stored_IO_8to1;
+  }
+}  
+
+
+void update_mac_string(void)
+{
   // Function to turn the uip_ethaddr values into a single string containing
   // the MAC address
   uint8_t i;

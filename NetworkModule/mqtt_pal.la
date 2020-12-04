@@ -4,42 +4,42 @@
    4                     ; Optimizer V4.4.11 - 19 Nov 2019
   68                     ; 137 int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   70                     .text:	section	.text,new
-  71  e494               _mqtt_pal_sendall:
+  71  e4b8               _mqtt_pal_sendall:
   73       fffffffe      OFST: set -2
   76                     ; 171   memcpy(uip_appdata, buf, len);
-  78  e494 bf04          	ldw	c_x,x
-  79  e496 1e03          	ldw	x,(OFST+5,sp)
-  80  e498 270d          	jreq	L6
-  81  e49a               L01:
-  82  e49a 5a            	decw	x
-  83  e49b 92d604        	ld	a,([c_x.w],x)
-  84  e49e 72d70375      	ld	([_uip_appdata.w],x),a
-  85  e4a2 5d            	tnzw	x
-  86  e4a3 26f5          	jrne	L01
-  87  e4a5 1e03          	ldw	x,(OFST+5,sp)
-  88  e4a7               L6:
+  78  e4b8 bf04          	ldw	c_x,x
+  79  e4ba 1e03          	ldw	x,(OFST+5,sp)
+  80  e4bc 270d          	jreq	L6
+  81  e4be               L01:
+  82  e4be 5a            	decw	x
+  83  e4bf 92d604        	ld	a,([c_x.w],x)
+  84  e4c2 72d70375      	ld	([_uip_appdata.w],x),a
+  85  e4c6 5d            	tnzw	x
+  86  e4c7 26f5          	jrne	L01
+  87  e4c9 1e03          	ldw	x,(OFST+5,sp)
+  88  e4cb               L6:
   89                     ; 172   uip_slen = len;
-  91  e4a7 cf02b4        	ldw	_uip_slen,x
+  91  e4cb cf02b4        	ldw	_uip_slen,x
   92                     ; 173   return len; // This return value is only for the MQTT buffer mgmt code. The
-  96  e4aa 81            	ret	
+  96  e4ce 81            	ret	
  139                     ; 177 int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz) {
  140                     .text:	section	.text,new
- 141  e4ab               _mqtt_pal_recvall:
- 143  e4ab 89            	pushw	x
+ 141  e4cf               _mqtt_pal_recvall:
+ 143  e4cf 89            	pushw	x
  144       00000002      OFST:	set	2
  147                     ; 191   rv = -1; // Default to return an error if no data present
- 149  e4ac aeffff        	ldw	x,#65535
- 150  e4af 1f01          	ldw	(OFST-1,sp),x
+ 149  e4d0 aeffff        	ldw	x,#65535
+ 150  e4d3 1f01          	ldw	(OFST-1,sp),x
  152                     ; 192   if (uip_len > 0) {  // Indicates data is present
- 154  e4b1 ce0373        	ldw	x,_uip_len
- 155  e4b4 2702          	jreq	L75
+ 154  e4d5 ce0373        	ldw	x,_uip_len
+ 155  e4d8 2702          	jreq	L75
  156                     ; 193     rv = uip_len; // Return the size of the data. Data begins at pointer
- 158  e4b6 1f01          	ldw	(OFST-1,sp),x
- 160  e4b8               L75:
+ 158  e4da 1f01          	ldw	(OFST-1,sp),x
+ 160  e4dc               L75:
  161                     ; 196   return rv;
- 163  e4b8 1e01          	ldw	x,(OFST-1,sp)
- 166  e4ba 5b02          	addw	sp,#2
- 167  e4bc 81            	ret	
+ 163  e4dc 1e01          	ldw	x,(OFST-1,sp)
+ 166  e4de 5b02          	addw	sp,#2
+ 167  e4e0 81            	ret	
  180                     	xref	_uip_slen
  181                     	xref	_uip_len
  182                     	xref	_uip_appdata

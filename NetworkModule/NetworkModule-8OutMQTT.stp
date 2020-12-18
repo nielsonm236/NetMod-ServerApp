@@ -27,4 +27,4 @@ Count=0
 Count=0
 [PROGRAM MEMORY]
 Count=1
-File0=C:\Users\Mike\Documents\COSMIC\FSE_Compilers\CXSTM8\NetworkModule\NetworkModule-8OutMQTT.sx
+File0=NetworkModule-8OutMQTT.sx

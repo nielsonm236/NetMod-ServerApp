@@ -52,8 +52,9 @@ SOFTWARE.
 
 extern uint32_t second_counter;
 extern uint16_t uip_slen;
-
 uint8_t MQTT_error_status; // Global so GUI can show error status indicator
+uint8_t connack_received;  // Used to communicate CONNECT CONNACK received
+                           // from mqtt.c to main.c
 
 #if DEBUG_SUPPORT != 0
 uint8_t mqtt_sendbuf[200];	      // Buffer to contain MQTT transmit queue
@@ -93,15 +94,14 @@ int16_t mqtt_sync(struct mqtt_client *client)
     /* Call send */
     // mqtt_send() will check the send_buf to see if there are any queued
     // messages to transmit. Since the mqtt_recv() call above will have
-    // cleared out any received messages, the uip_buf is available for
+    // cleared out any received messages the uip_buf is available for
     // transmit messages.
     err = __mqtt_send(client);
     
     // Set global MQTT error flag so GUI can show status
-    if (err == MQTT_OK) {
-      MQTT_error_status = 1;
-    }
+    if (err == MQTT_OK) MQTT_error_status = 1;
     else MQTT_error_status = 0;
+    
     return err;
 }
 
@@ -679,6 +679,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
         // just need to wait for the rest of the data
         return MQTT_OK;
     }
+    
 
     // response was unpacked successfully
 
@@ -710,10 +711,11 @@ int16_t __mqtt_recv(struct mqtt_client *client)
     // MQTT_CONTROL_PINGRESP:
     //     -> release PINGREQ
     switch (response.fixed_header.control_type) {
+    
         case MQTT_CONTROL_CONNACK:
-
             // release associated CONNECT
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_CONNECT, NULL);
+	    connack_received = 1; // Communicate CONNACK received to main.c
             if (msg == NULL) {
                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
@@ -733,6 +735,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
                 break;
             }
             break;
+	    
         case MQTT_CONTROL_PUBLISH:
             // stage response, none if qos==0, PUBACK if qos==1, PUBREC if qos==2
             if (response.decoded.publish.qos_level == 1) {
@@ -756,10 +759,10 @@ int16_t __mqtt_recv(struct mqtt_client *client)
                     break;
                 }
             }
-	    
-            // call publish callback
+            // Call Publish Callback
             client->publish_response_callback(&client->publish_response_callback_state, &response.decoded.publish);
             break;
+	    
         case MQTT_CONTROL_PUBACK:
             // release associated PUBLISH
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBLISH, &response.decoded.puback.packet_id);
@@ -770,6 +773,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
             }
             msg->state = MQTT_QUEUED_COMPLETE;
             break;
+	    
         case MQTT_CONTROL_PUBREC:
             // check if this is a duplicate
             if (mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBREL, &response.decoded.pubrec.packet_id) != NULL) {
@@ -791,6 +795,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
                 break;
             }
             break;
+	    
         case MQTT_CONTROL_PUBREL:
             // release associated PUBREC
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBREC, &response.decoded.pubrel.packet_id);
@@ -808,6 +813,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
                 break;
             }
             break;
+	    
         case MQTT_CONTROL_PUBCOMP:
             // release associated PUBREL
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PUBREL, &response.decoded.pubcomp.packet_id);
@@ -818,6 +824,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
             }
             msg->state = MQTT_QUEUED_COMPLETE;
             break;
+	    
         case MQTT_CONTROL_SUBACK:
             // release associated SUBSCRIBE
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_SUBSCRIBE, &response.decoded.suback.packet_id);
@@ -835,6 +842,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
                 break;
             }
             break;
+	    
         case MQTT_CONTROL_UNSUBACK:
             // release associated UNSUBSCRIBE
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_UNSUBSCRIBE, &response.decoded.unsuback.packet_id);
@@ -845,6 +853,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
             }
             msg->state = MQTT_QUEUED_COMPLETE;
             break;
+	    
         case MQTT_CONTROL_PINGRESP:
             // release associated PINGREQ
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PINGREQ, NULL);
@@ -855,11 +864,13 @@ int16_t __mqtt_recv(struct mqtt_client *client)
             }
             msg->state = MQTT_QUEUED_COMPLETE;
             break;
+	    
         default:
             client->error = MQTT_ERROR_MALFORMED_RESPONSE;
             mqtt_recv_ret = MQTT_ERROR_MALFORMED_RESPONSE;
             break;
     }
+    
     {
         // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

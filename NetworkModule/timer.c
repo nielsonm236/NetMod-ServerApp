@@ -30,14 +30,15 @@
 			// See C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8 directory
 #include <stm8s-005.h>	// Bit location definitions in registers
 			// See C:\Users\Mike\Desktop\STM8S Peripheral Library\en.stsw-stm8069\STM8S_StdPeriph_Lib\Libraries\STM8S_StdPeriph_Driver\inc directory
+#include <main.h>
 
+uint8_t periodic_timer;       // Peroidic_timer counter
+uint8_t mqtt_timer;           // MQTT_timer counter
+uint16_t arp_timer;           // arp_timer counter
+uint8_t mqtt_outbound_timer;  // mqtt_outbound_timer counter
 
-unsigned char arp_timer;  // Arp_timer counter. This counter is incremented by 1 each time the
-                          // 500ms counter expires. It is checked in the arp_timer_expired function
-			  // until a count of 20 is reached (10 seconds) and cleared at that time.
-
-uint8_t second_toggle;    // MQTT timing: Used in developing a 1 second counter
-uint32_t second_counter;  // MQTT timing: 1 second counter
+uint16_t second_toggle;       // MQTT timing: Used in developing a 1 second counter
+uint32_t second_counter;      // MQTT timing: 1 second counter
 
 void clock_init(void)
 {
@@ -134,16 +135,40 @@ void clock_init(void)
   CLK_PCKENR2 &= (uint8_t)(~0x04);	// Disable clock to AWU
 
   // Notes on timers
+  //
   // The TIM1 counter can have a pre-scale value of any integer from 1
   // to 65535, meaning the counter can be set to increment at any rate
   // of 16MHz divided by the pre-scale value. See the TIM1_PSCRH and
   // TIM1_PSCRL registers.
+  //
   // The TIM2 and TIM3 counters can have a pre-scale value of 2 to the
   // X power, where X is 0 to 15. See the TIM2_PSCR and TIM3_PSCR 
   // registers.
+  //
   // The TIM4 counter can have a pre-scale value of 2 to the X power,
   // where X is 0 to 7.
 
+  // Configure TIM1
+  // TIM1 is being used as a simple counter, so most of its registers
+  // are not used. This will configure TIM1 to increment at ~1MHz and
+  // the counter will repeat every 10000 ticks, yielding a period of
+  // ~10ms.
+  //  TIM1_CR1 = 0x00;                      // Make sure TIM1 is disabled
+  //  TIM1_RCR = 0x00;                      // Make sure Repeat counter value is zero
+  //  TIM1_IER = 0x00;                      // Make sure interupts are disabled
+  //  TIM1_CNTRH=0;                         // Make sure timer is zero
+  //  TIM1_CNTRL=0;                         // Make sure timer is zero
+  
+  TIM1_ARRH = (uint8_t)(0x03);  // Timing 1ms; Count to decimal
+  TIM1_ARRL = (uint8_t)(0xE8);  // 1000 (0x03E8)
+  TIM1_PSCRH = (uint8_t)(0x00); // 16MHz / (1+15) = 1MHz
+  TIM1_PSCRL = (uint8_t)(0x0F);
+  TIM1_EGR = (uint8_t)0x01;     // Set UG bit to load the PSCR. The
+                                // bit is auto-cleared by hardware.
+  TIM1_SR1 = (uint8_t)(~0x01);  // Clear the UIF (update interrupt flag)
+  TIM1_CR1 |= 0x01;             // Enable the counter
+
+/*
   // Configure TIM2
   // Configure TIM2 to increment at close to 1000 ticks per second. The
   // below will divide 16MHz by 16384, yielding a 976Hz clock with a
@@ -154,7 +179,7 @@ void clock_init(void)
   TIM2_CR1 = (uint8_t)0x01;
   // Set UG bit to load the PSCR. The bit is auto-cleared by hardware.
   TIM2_EGR = (uint8_t)0x01;
-
+*/
 
   // Configure TIM3
   // Configure TIM3 to increment at close to 1,000,000 ticks per second
@@ -167,59 +192,111 @@ void clock_init(void)
   // Set UG bit to load the PSCR. The bit is auto-cleared by hardware.
   TIM3_EGR = (uint8_t)0x01;
 
-  arp_timer = 0x00;   // Initialize arp timer
-  second_toggle = 0;  // Initialize toggle for seconds counter
-  second_counter = 0; // Initialize seconds counter
+  periodic_timer = 0;      // Initialize periodic timer
+  mqtt_timer = 0;          // Initialize periodic timer
+  arp_timer = 0;           // Initialize arp timer
+  mqtt_outbound_timer = 0; // Initialize 50ms_timer counter
+  second_toggle = 0;       // Initialize toggle for seconds counter
+  second_counter = 0;      // Initialize seconds counter
 }
 
 
-uint8_t
-periodic_timer_expired(void)
+void timer_update(void)
 {
-  // The periodic timer uses TIM2. TIM2 is incrementing at a 1.024ms rate.
+  // This function is called by the main loop to maintain timers. This
+  // function returns a 0 value, however the function increments three
+  // timer counters as follows:
+  //   periodic_timer - increments once per 1ms
+  //   mqtt_timer - increments once per 1ms
+  //   mqtt_outbound_timer - increments once per 1ms
+  //   arp_timer - increments once per 1ms
+  //   second_counter - increments once per second
+  // Functions using these timers will call the following functions to
+  // determine if the designated timeout has occurred:
+  //   periodic_timer_expired
+  //   mqtt_timer_expired
+  //   mqtt_outbound_timer_expired
+  //   arp_timer_expired
+  // If an expiration has occurred the called function will reset the
+  // appropriate timer counter to start the next cycle. The
+  // second_timer runs 'forever' and tracking elapsed time is the
+  // responsibility of the external function using the counter.
   //
-  // This function checks for a count in TIM2 of 98 (0x62) which is a time
-  // of ~100ms.  At this count the timer is reset to a count of zero so that
-  // it can repeat its 1ms uptick to 100ms.
-  //
-  // Each time the periodic timer is reset the arp_timer value is incremented
-  // to create a 10 second count. The arp_timer_expired function will clear
-  // the incremented value.
-  //
-  // Every 10th time the periodic timer is reset the second_counter is
-  // incremented. The second_counter is a 32 bit unsigned integer, so its
-  // lifetime is about 136 years if never power cycled - essentially forever 
-  // in this application.
-  //
-  if ((uint8_t)TIM2_CNTRL > 0x62) {     // Evaluate at 100ms
-    TIM2_CR1 &= (uint8_t)(~0x01);	// Disable counter
-    TIM2_CNTRH = (uint8_t)0x00;		// Clear counter High
-    TIM2_CNTRL = (uint8_t)0x00;		// Clear counter Low
-    TIM2_CR1 |= (uint8_t)0x01;		// Enable counter
+  // The timers use TIM1 to track time. TIM1 increments at 1MHz, and is
+  // configured to provide a UIF flag every 1ms.
+  
+  if (TIM1_SR1 & 0x01) {                // Signals the passage of 1 ms
+    TIM1_SR1 = (uint8_t)(~0x01);        // Clear the UIF (update interrupt flag)
     
-    arp_timer++;			// Increment arp_timer every ~100 ms
+    // Increment the timers every 1ms. Their respective "_expired"
+    // function calls will determine their timeout points.
+    periodic_timer++;
+    mqtt_timer++;
+    mqtt_outbound_timer++;
+    arp_timer++;
     
-    if (second_toggle < 10) {
-      second_toggle++;			// Increment second_toggle every ~100 ms
+    // Update the second_counter. The second_counter is a 32 bit unsigned
+    // integer, so its lifetime is about 136 years if never power cycled - 
+    // essentially forever in this application.
+    if (second_toggle < 1000) {
+      second_toggle++;			// Increment second_toggle every 1ms
     }
     else {
       second_toggle = 0;
-      second_counter++;			// Increment second_counter every ~1000 ms
+      second_counter++;			// Increment second_counter every 1 sec
     }
-    
+  }
+}
+
+
+uint8_t periodic_timer_expired(void)
+{
+  // This function indicates expiration of the periodic timer at a count
+  // indicating that 20ms have passed. If expired the function resets the
+  // periodic_timer counter to zero so that it can repeat its uptick.
+  if (periodic_timer > 19) {
+    periodic_timer = 0;
     return(1);
   }
   else return(0);
 }
 
 
-uint8_t
-arp_timer_expired(void)
+
+uint8_t mqtt_outbound_timer_expired(void)
+{
+  // This function indicates expiration of the mqtt outbound timer at a count
+  // indicating 30ms have passed. If expired the function resets the timer
+  // counter to zero so that it can repeat its uptick.
+  if (mqtt_outbound_timer > 29) {
+    mqtt_outbound_timer = 0;       // Reset timer
+    return(1);
+  }
+  else return(0);
+}
+
+
+
+uint8_t mqtt_timer_expired(void)
+{
+  // This function indicates experation of the mqtt timer at a count
+  // indicating that 100ms have passed. If expired the function resets the
+  // mqtt_timer counter to zero so that it can repeat its uptick.
+  if (mqtt_timer > 99) {
+    mqtt_timer = 0;
+    return(1);
+  }
+  else return(0);
+}
+
+
+
+uint8_t arp_timer_expired(void)
 {
   // This function indicates expiration of the arp timer at a count indicating
   // that 10 seconds have passed. If expired the function resets the arp_timer
-  // counter to zero so that it can repeat its uptick to 10 seconds.
-  if (arp_timer > 99) {
+  // counter to zero so that it can repeat its uptick.
+  if (arp_timer > 9999) {
     arp_timer = 0;       // Reset arp_timer
     return(1);
   }
@@ -227,8 +304,8 @@ arp_timer_expired(void)
 }
 
 
-void
-wait_timer(uint16_t wait)
+
+void wait_timer(uint16_t wait)
 {
   // This function waits for expiration of TIM3 and will not return until the
   // timer expires. Basically a "wait" or "delay" function.

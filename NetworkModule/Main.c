@@ -73,8 +73,8 @@ uint8_t stack_limit2;
 // +seg .vector -b 0x8000 -m 0x8000 -n .vector	# vectors start address
 // -k
 // +seg .const -a .vector -n .const		# constants follow vectors
-// +seg .text -a .const -n .text			# code follow constants
-// +seg .eeprom -b 0x4000 -m 128			# internal eeprom
+// +seg .text -a .const -n .text		# code follow constants
+// +seg .eeprom -b 0x4000 -m 128		# internal eeprom
 // +seg .bsct -b 0 -m 0x100 -n .bsct		# internal ram
 // +seg .ubsct -a .bsct -n .ubsct
 // +seg .bit -a .ubsct -n .bit -id
@@ -129,28 +129,32 @@ uint8_t stack_limit2;
                                         // Byte 83 stored_debug[0]
 #endif // DEBUG_SUPPORT != 0
 
-// 83 bytes used below
+// 82 bytes used below
 // >>> Add new variables HERE <<<
 // Reduce the size of the stored_debug[] array by the number of bytes added
-@eeprom uint8_t stored_config_settings[6]; // Byte 77 Config settings for Invert and Retain
-@eeprom uint8_t stored_IO_16to9;        // Byte 76 States for IO 16 to 9
-@eeprom char stored_mqtt_password[11];  // Byte 65 MQTT Password stored in EEPROM
-@eeprom char stored_mqtt_username[11];  // Byte 54 MQTT Username stored in EEPROM
-@eeprom uint8_t stored_mqttserveraddr[4]; // Bytes 50-53 mqttserveraddr stored in EEPROM 
-@eeprom uint16_t stored_mqttport;	// Bytes 48-49 MQTT Port number stored in EEPROM
-@eeprom uint8_t magic4;			// Byte 47 MSB Magic Number stored in EEPROM
-@eeprom uint8_t magic3;			// Byte 46
-@eeprom uint8_t magic2;			// Byte 45
-@eeprom uint8_t magic1;			// Byte 44 LSB Magic Number
-@eeprom uint8_t stored_hostaddr[4];	// Bytes 40-43 hostaddr stored in EEPROM
-@eeprom uint8_t stored_draddr[4];	// Bytes 36-39 draddr stored in EEPROM
-@eeprom uint8_t stored_netmask[4];	// Bytes 32-35 netmask stored in EEPROM
-@eeprom uint16_t stored_port;		// Bytes 30-31 Port stored in EEPROM
+@eeprom uint8_t stored_config_settings[6]; // Byte 77-82 Config settings for
+                                           //   Invert, Retain, Full/Half
+					   //   Duplex
+@eeprom uint8_t stored_IO_16to9;           // Byte 76 States for IO 16 to 9
+@eeprom char stored_mqtt_password[11];     // Byte 65 MQTT Password
+@eeprom char stored_mqtt_username[11];     // Byte 54 MQTT Username
+@eeprom uint8_t stored_mqttserveraddr[4];  // Bytes 50-53 mqttserveraddr
+@eeprom uint16_t stored_mqttport;	   // Bytes 48-49 MQTT Port number
+@eeprom uint8_t magic4;			   // Byte 47 MSB Magic Number
+@eeprom uint8_t magic3;			   // Byte 46
+@eeprom uint8_t magic2;			   // Byte 45
+@eeprom uint8_t magic1;			   // Byte 44 LSB Magic Number
+@eeprom uint8_t stored_hostaddr[4];	   // Bytes 40-43 hostaddr
+@eeprom uint8_t stored_draddr[4];	   // Bytes 36-39 draddr
+@eeprom uint8_t stored_netmask[4];	   // Bytes 32-35 netmask
+@eeprom uint16_t stored_port;		   // Bytes 30-31 Port
 @eeprom uint8_t stored_uip_ethaddr_oct[6]; // Bytes 24-29 MAC MSB
-@eeprom uint8_t stored_unused2;         // Byte 23 Old stored_IO_16to9 location - DO NOT USE
-@eeprom uint8_t stored_unused1;         // Byte 22 Old stored_IO_8to1 location - DO NOT USE
-@eeprom uint8_t stored_IO_8to1;         // Byte 21 States for IO 8 to 1
-@eeprom uint8_t stored_devicename[20];  // Byte 01 Device name @4000
+@eeprom uint8_t stored_unused2;            // Byte 23 Old stored_IO_16to9
+                                           //   location - DO NOT USE
+@eeprom uint8_t stored_unused1;            // Byte 22 Old stored_IO_8to1
+                                           //   location - DO NOT USE
+@eeprom uint8_t stored_IO_8to1;            // Byte 21 States for IO 8 to 1
+@eeprom uint8_t stored_devicename[20];     // Byte 01 Device name @4000
 /*---------------------------------------------------------------------------*/
 
 
@@ -174,11 +178,14 @@ uint8_t IO_16to9_new1;			// Stores the IO states for debounce
 uint8_t IO_8to1_new1;			// Stores the IO states for debounce
 uint8_t IO_16to9_new2;			// Stores the IO states for debounce
 uint8_t IO_8to1_new2;			// Stores the IO states for debounce
-uint8_t IO_16to9_sent;                  // Stores prior IO states for creating Publish msgs
-uint8_t IO_8to1_sent;                   // Stores prior IO states for creating Publish msgs
+uint8_t IO_16to9_sent;                  // Stores prior IO states for creating
+                                        // Publish msgs
+uint8_t IO_8to1_sent;                   // Stores prior IO states for creating
+                                        // Publish msgs
 uint8_t invert_output;			// Stores the relay pin invert
 uint8_t invert_input;			// Stores the input pin invert
-uint8_t state_request;			// Indicates that a PUBLISH state request was received
+uint8_t state_request;			// Indicates that a PUBLISH state
+                                        // request was received
 
 uint8_t stack_error;			// Stack error flag storage
 
@@ -212,24 +219,26 @@ char mac_string[13];
 uint8_t reboot_request;         // Signals the need for a reboot
 uint8_t user_reboot_request;    // Signals a user request for a reboot
 uint8_t restart_request;        // Signals the need for a restart
-uint8_t restart_reboot_step;    // Tracks steps used in restart and reboot functions
-uint8_t mqtt_close_tcp;         // Signals the need to close the MQTT TCP connection
+uint8_t restart_reboot_step;    // Tracks steps used in restart and reboot
+                                // functions
+uint8_t mqtt_close_tcp;         // Signals the need to close the MQTT TCP
+                                // connection
 uint8_t parse_complete;         // Signals the completion of POST parsing
 uint8_t mqtt_parse_complete;    // Signals the completion of MQTT parsing
 
 uint16_t Port_Httpd;  // HTTP port number
 uip_ipaddr_t IpAddr;
 
-// uint32_t time_mark1;            // Time capture used in MQTT restart
-uint32_t time_mark2;            // Time capture used in reboot
-// uint32_t time_mark3;            // Time capture used in
-// uint32_t time_mark4;            // Time capture used in 
+uint32_t time_mark1;            // Time capture used in reboot
 extern uint32_t second_counter; // Time in seconds
 
 extern uint8_t OctetArray[11];  // Used in emb_itoa conversions
 
-// char *guard_pointer;		// Used to check a guardband between the
-                                // stack and memory allocation
+uint32_t RXERIF_counter;              // Counts RXERIF errors detected by the
+                                      // ENC28J60
+uint32_t TXERIF_counter;              // Counts TXERIF errors detected by the
+                                      // ENC28J60
+uint32_t TRANSMIT_counter;            // Counts any transmit by the ENC28J60
 
 
 #if MQTT_SUPPORT == 1
@@ -261,7 +270,8 @@ uint8_t mqtt_start_ctr1;              // Tracks time for the MQTT startup
 uint8_t mqtt_start_ctr2;              // Tracks time for the MQTT startup
                                       // steps
 uint8_t mqtt_sanity_ctr;              // Tracks time for the MQTT sanity steps
-uint8_t mqtt_start_retry;             // Flag to retry the ARP/TCP Connect
+extern uint8_t connack_received;      // Used to communicate CONNECT CONNACK
+                                      // received from mqtt.c to main.c
 
 extern uint8_t mqtt_sendbuf[200];     // Buffer to contain MQTT transmit queue
 				      // and data.
@@ -283,11 +293,12 @@ static const unsigned char devicetype[] = "NetworkModule/"; // Used in
 unsigned char topic_base[44];         // Used for building connect, subscribe,
                                       // and publish topic strings.
 uint8_t topic_base_len;               // Length of the topic_base
-uint32_t RXERIF_counter;              // Counts RXERIF errors detected by the
-                                      // ENC28J60
-uint32_t TXERIF_counter;              // Counts TXERIF errors detected by the
-                                      // ENC28J60
-uint32_t TRANSMIT_counter;            // Counts any transmit by the ENC28J60
+uint32_t MQTT_resp_tout_counter;      // Counts response timeout events in the
+                                      // mqtt_sanity_check() function
+uint32_t MQTT_not_OK_counter;         // Counts MQTT != OK events in the
+                                      // mqtt_sanity_check() function
+uint32_t MQTT_broker_dis_counter;     // Counts broker disconnect events in
+                                      // the mqtt_sanity_check() function
 
 #endif // MQTT_SUPPORT == 1
 
@@ -303,13 +314,12 @@ int main(void)
   reboot_request = 0;
   user_reboot_request = 0;
   restart_request = 0;
-//  time_mark1 = 0;           // Time capture used in MQTT restart
-  time_mark2 = 0;           // Time capture used in reboot
-//  time_mark3 = 0;           // Time capture used in
-//  time_mark4 = 0;           // Time capture used in 
+  time_mark1 = 0;           // Time capture used in reboot
   restart_reboot_step = RESTART_REBOOT_IDLE;
   mqtt_close_tcp = 0;
   stack_error = 0;
+  
+  init_IWDG(); // Initialize the hardware watchdog
   
 #if MQTT_SUPPORT == 1
   mqtt_start = MQTT_START_TCP_CONNECT;	 // Tracks the MQTT startup steps
@@ -323,7 +333,6 @@ int main(void)
                                          // steps
   mqtt_sanity_ctr = 0;			 // Tracks time for the MQTT sanity
                                          // steps
-  mqtt_start_retry = 0;                  // Flag to retry the ARP/TCP Connect
   MQTT_error_status = 0;                 // For MQTT error status display in
                                          // GUI
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
@@ -337,16 +346,20 @@ int main(void)
                                          // idle
   TXERIF_counter = 0;                    // Initialize the TXERIF error counter
   RXERIF_counter = 0;                    // Initialize the RXERIF error counter
-  TRANSMIT_counter = 0;
+  TRANSMIT_counter = 0;                  // Initialize the TRANSMIT counter
+  MQTT_resp_tout_counter = 0;            // Initialize the MQTT response
+                                         // timeout event counter
+  MQTT_not_OK_counter = 0;               // Initialize the MQTT != OK event
+                                         // counter
+  MQTT_broker_dis_counter = 0;           // Initialize the MQTT broker
+                                         // disconnect event counter
   
 #endif // MQTT_SUPPORT == 1
 
 
 
   clock_init();            // Initialize and enable clocks and timers
-  
-  unlock_eeprom();         // unlock the EEPROM so writes can be performed
-  
+
   gpio_init();             // Initialize and enable gpio pins
   
   spi_init();              // Initialize the SPI bit bang interface to the
@@ -367,10 +380,10 @@ int main(void)
   HttpDInit();             // Initialize listening ports
 
 
-  // The following initializes the stack over-run guardband variables.
-  // These variables are monitored periodically and should never change
-  // unless there is a stack overflow (wherein the stack will over write
-  // the preset content).
+  // The following initializes the stack over-run guardband variables. These
+  // variables are monitored periodically and should never change unless there
+  // is a stack overflow (wherein the stack will over write this preset
+  // content).
   stack_limit1 = 0xaa;
   stack_limit2 = 0x55;
 
@@ -393,11 +406,13 @@ int main(void)
   // during debug it is normal for the RST_SR to have the SWIMF flag set at
   // startup as you typically release the board from a SWIM reset to start
   // it.
+  unlock_eeprom();
   stored_debug[41] = 0;
   stored_debug[42] = 0;
   stored_debug[43] = 0;
   stored_debug[44] = 0;
   stored_debug[45] = 0;
+  lock_eeprom();
 */
   if (RST_SR & 0x1f) {
     // Bit 4 EMCF: EMC reset flag
@@ -495,7 +510,10 @@ int main(void)
     //
     // - If debug is enabled the update_debug_storage() function is called to
     //   store any debug information collected.
-    
+
+    IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing. If the
+                    // processor hangs the IWDG will perform a hardware reset.
+
     uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
 
     if (uip_len > 0) {
@@ -532,31 +550,38 @@ int main(void)
 
 #if MQTT_SUPPORT == 1
     // Perform MQTT startup if 
-    // a) We are not already at start complete
-    // b) We are not currently performing the restart steps
-    // c) We are not currently performing restart_reboot
+    // a) Not already at start complete
+    // b) Not currently performing the restart steps
+    // c) Not currently performing restart_reboot
     if (mqtt_start != MQTT_START_COMPLETE
      && mqtt_restart_step == MQTT_RESTART_IDLE
      && restart_reboot_step == RESTART_REBOOT_IDLE) {
        mqtt_startup();
     }
-    // Perform an MQTT sanity check to see if we need to restart MQTT. First
-    // make sure we are not in a restart_reboot sequence.
-    if (restart_reboot_step == RESTART_REBOOT_IDLE) {
+    
+    // Perform MQTT sanity check if
+    // a) Not currently performing MQTT startup
+    // b) Not currently performing restart_reboot
+    if (mqtt_start == MQTT_START_COMPLETE
+     && restart_reboot_step == RESTART_REBOOT_IDLE) {
       mqtt_sanity_check();
     }
 #endif // MQTT_SUPPORT == 1
 
+    // Update the time keeping function
+    timer_update();
+
     if (periodic_timer_expired()) {
-      // The periodic timer expires every 100ms.
+      // The periodic timer expires every 20ms.
       for(i = 0; i < UIP_CONNS; i++) {
 	uip_periodic(i);
 	// uip_periodic() calls uip_process(UIP_TIMER) for each connection.
 	// uip_process(UIP_TIMER) will check the HTTP and MQTT connections
-	// for any unserviced outbound traffic. HTTP should never need this,
-	// but MQTT can have asynchronous tranmissions that need to be sent.
+	// for any unserviced outbound traffic. HTTP can have pending
+	// transmissions because the web pages can be broken into several
+	// packets. MQTT will always use this function to transmit packets.
 	//
-	// If the above process resulted in data that should be sent out on
+	// If uip_periodic() resulted in data that should be sent out on
 	// the network the global variable uip_len will have been set to a
 	// value > 0.
 	//
@@ -570,33 +595,39 @@ int main(void)
 	// SYN will be sent IF the ARP request was successful.
 	// 
 	if (uip_len > 0) {
-	  uip_arp_out(); // Verifies arp entry in the ARP table and builds LLH
+	  uip_arp_out(); // Verifies arp entry in the ARP table and builds
+	                 // the LLH
           Enc28j60Send(uip_buf, uip_len);
 	}
-#if MQTT_SUPPORT == 1
-        mqtt_start_ctr1++; // Increment the MQTT start loop timer 1. This is
-	                   // used to timeout the MQTT Server ARP request or
-			   // the MQTT Server TCP connection request if the
-			   // server is not responding.
-        mqtt_start_ctr2++; // Increment the MQTT start loop timer 2. This is
-	                   // used to limit the rate at which timeouts occur
-			   // in the MQTT Server connection requests.
-        mqtt_sanity_ctr++; // Increment the MQTT sanity loop timer. This is
-	                   // used to provide timing for the MQTT Sanity
-			   // Check function.
-#endif // MQTT_SUPPORT == 1
       }
-	
+    }
+
+
 #if MQTT_SUPPORT == 1
-      // If MQTT is connected check for Sense Input changes and publish a
-      // message. This is in the periodic_timer_expired loop to give it a
-      // 100ms cadence
+    // If MQTT is connected check for pin state changes and publish a message
+    // at 30ms intervals. publish_outbound only places the message in the
+    // queue. uip_periodic() will cause the actual transmission.
+    if (mqtt_outbound_timer_expired()) {
       if (mqtt_start == MQTT_START_COMPLETE) {
         publish_outbound();
       }
+    }
+    
+    // Increment the MQTT timers every 100ms
+    if (mqtt_timer_expired()) {
+      mqtt_start_ctr1++; // Increment the MQTT start loop timer 1. This is
+                         // used to timeout the MQTT Server ARP request or
+		         // the MQTT Server TCP connection request if the
+		         // server is not responding.
+      mqtt_start_ctr2++; // Increment the MQTT start loop timer 2. This is
+                         // used to limit the rate at which timeouts occur
+		         // in the MQTT Server connection requests.
+      mqtt_sanity_ctr++; // Increment the MQTT sanity loop timer. This is
+                         // used to provide timing for the MQTT Sanity
+		         // Check function.			   
+    }
 #endif // MQTT_SUPPORT == 1
 
-    }
 
     // Call the ARP timer function every 10 seconds.
     if (arp_timer_expired()) {
@@ -645,16 +676,16 @@ int main(void)
 #if MQTT_SUPPORT == 1
 void mqtt_startup(void)
 {
-  // This function walks through the steps needed to get MQTT initialized
-  // and a connection made to the MQTT Server and Broker
+  // This function walks through the steps needed to get MQTT initialized and
+  // a connection made to the MQTT Server and Broker
   // - These steps are run only once at code start, or when restarting the
   //   client.
   // - These steps cannot be run until the user has entered the MQTT settings
   //   in the GUI. The MQTT steps do the following:
   //   - Verifies that the user has provided a MQTT Server IP Address
   //   - Requests a TCP Connection with the MQTT Server. This process will
-  //     also perform an ARP request with the MQTT server. Both requests
-  //     occur via the uip_connect() function, and are executed via the
+  //     also perform an ARP request with the MQTT server. Both requests occur
+  //     via the uip_connect() function, and are executed via the
   //     uip_periodic function.
   //   - Verifies that the ARP request succeeded.
   //   - Verifies that the TCP connection request suceeded.
@@ -676,10 +707,9 @@ void mqtt_startup(void)
       // Server. This is done with uip_connect(). uip_connect() doesn't
       // actually send anything - it just queues the SYN to be sent. The
       // connection request will actually be sent when uip_periodic is
-      // called (it is run at 100ms intervals). uip_periodic will determine
-      // that the connection request is queued, will perform an ARP request
-      // to determine the MAC of the MQTT server, and will then send the
-      // SYN to start the connection process.
+      // called. uip_periodic will determine that the connection request is
+      // queued, will perform an ARP request to determine the MAC of the MQTT
+      // server, and will then send the SYN to start the connection process.
 
       mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, Port_Mqttd);
       if (mqtt_conn != NULL) {
@@ -695,61 +725,59 @@ void mqtt_startup(void)
   }
       
   else if (mqtt_start == MQTT_START_VERIFY_ARP
-        && mqtt_start_ctr2 > 10) {
+        && mqtt_start_ctr2 > 2) {
+    // mqtt_start_ctr2 causes us to wait 300ms before checking to see if the
+    // ARP request completed.
     mqtt_start_ctr2 = 0; // Clear 100ms counter
     // ARP Request and TCP Connection request were sent to the MQTT Server
     // as a result of the uip_connect() in the prior step. Now we loop and
-    // check that the ARP request was successful. The mqtt_start_ctr1
-    // increments at 100ms intervals, but we limit the check interval to
-    // once per second so that we leave time for browser processing. If 15
-    // seconds pass without success we try again with a new uip_connect().
+    // check that the ARP request was successful.
     if (check_mqtt_server_arp_entry() == 1) {
       // ARP Reply received
-      mqtt_start_retry = 0;
       mqtt_start_ctr1 = 0; // Clear 100ms counter
       mqtt_start_status |= MQTT_START_ARP_REQUEST_GOOD;
       mqtt_start = MQTT_START_VERIFY_TCP;
     }
     else if (mqtt_start_ctr1 > 150) {
-      // Timeout without receiving the ARP Reply. We probably have an error
-      // in the MQTT Server IP Address or there is a network problem.
-      mqtt_start_status |= MQTT_START_ARP_REQUEST_ERROR;
+      // mqtt_start_ctr1 allows us to wait up to 15 seconds for the ARP
+      // Reply. If timeout occurs we probably have an error in the MQTT
+      // Server IP Address or there is a network problem. If we timeout
+      // we start over and retry the ARP request.
       mqtt_start = MQTT_START_TCP_CONNECT;
       // Clear the error indicator flags
       mqtt_start_status = MQTT_START_NOT_STARTED;
-      mqtt_start_retry++;
     }
   }
 
   else if (mqtt_start == MQTT_START_VERIFY_TCP
-        && mqtt_start_ctr2 > 10) {
+        && mqtt_start_ctr2 > 2) {
     mqtt_start_ctr2 = 0; // Clear 100ms counter
     // Loop to make sure the TCP connection request was successful. We're
-    // waiting for the SYNACK/ACK process to complete. uip_periodic() runs
-    // every 100ms (each time the periodic_timer expires), but we limit the
-    // check interval to once per second so that we leave time for browser
-    // processing. When uip_periodic() runs it calls the uip_process() to
-    // receive the SYNACK and then send the ACK. We will know the ACK was
-    // sent when we see the UIP_ESTABLISHED state for the mqtt connection.
+    // waiting for the SYNACK/ACK process to complete (checking each 300ms).
+    // uip_periodic() runs frequently (each time the periodic_timer expires).
+    // When uip_periodic() runs it calls the uip_process() to receive the
+    // SYNACK and then send the ACK. We will know the ACK was sent when we
+    // see the UIP_ESTABLISHED state for the mqtt connection.
     if ((mqtt_conn->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED) {
-      mqtt_start_retry = 0;
+      mqtt_start_ctr1 = 0; // Clear 100ms counter
       mqtt_start_status |= MQTT_START_TCP_CONNECT_GOOD;
       mqtt_start = MQTT_START_QUEUE_CONNECT;
     }
     else if (mqtt_start_ctr1 > 150) {
-      // Timeout without TCP connection success. We probably have a network
-      // problem.  Try again with a new uip_connect().
-      mqtt_start_status |= MQTT_START_TCP_CONNECT_ERROR;
+      // Wait up to 15 seconds for the TCP connection to complete. If not
+      // completed we probably have a network problem.  Try again with a
+      // new uip_connect().
       mqtt_start = MQTT_START_TCP_CONNECT;
       // Clear the error indicator flags
       mqtt_start_status = MQTT_START_NOT_STARTED; 
-      mqtt_start_retry++;
     }
   }
       
-  else if (mqtt_start == MQTT_START_QUEUE_CONNECT) {
+  else if (mqtt_start == MQTT_START_QUEUE_CONNECT
+        && mqtt_start_ctr2 > 2) {
     // ARP Reply received from the MQTT Server and TCP Connection established.
-    // We should now be able to message the MQTT Broker.
+    // We should now be able to message the MQTT Broker, but will wait 300ms
+    // to give some start time.
 
     // Queue the mqtt_connect message for transmission to the MQTT Broker. The
     // mqtt_connect function will create the message and put it in the
@@ -782,84 +810,99 @@ void mqtt_startup(void)
                  stored_mqtt_password,   // Password
                  connect_flags,          // Connect flags
                  mqtt_keep_alive);       // Ping interval
-  
-    if (mqttclient.error == MQTT_OK) {
-      mqtt_start_ctr1 = 0; // Clear 100ms counter
-      mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
-      mqtt_start = MQTT_START_QUEUE_SUBSCRIBE1;
+    
+    // When a CONNECT is sent to the broker it should respond with a CONNACK.
+    connack_received = 0;
+    mqtt_start_ctr1 = 0; // Clear 100ms counter
+    mqtt_start = MQTT_START_VERIFY_CONNACK;
+  }
+
+  else if (mqtt_start == MQTT_START_VERIFY_CONNACK) {
+    // Verify that the CONNECT CONNACK was received.
+    // When a CONNECT is sent to the broker it should respond with a CONNACK.
+    // Since the Broker won't send us anything else until this CONNACK occurs
+    // this step waits for the CONNACK, but will timeout after X seconds. A
+    // workaround is implemented with the global variable connack_received so
+    // that the mqtt.c code can tell the main.c code that the CONNECT CONNACK
+    // was received.
+
+    if (mqtt_start_ctr1 < 30) {
+      // Allow up to 15 seconds for CONNACK
+//      if (connack_received == 1 && mqttclient.error == MQTT_OK) {
+      if (connack_received == 1) {
+        mqtt_start_ctr2 = 0; // Clear 100ms counter
+        mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
+        mqtt_start = MQTT_START_QUEUE_SUBSCRIBE1;
+      }
     }
     else {
-      mqtt_start_status |= MQTT_START_MQTT_CONNECT_ERROR;
+      mqtt_start = MQTT_START_TCP_CONNECT;
+      // Clear the error indicator flags
+      mqtt_start_status = MQTT_START_NOT_STARTED; 
     }
   }
 
-  else if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE1) {
+  else if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE1
+        && mqtt_start_ctr2 > 2) {
     // Subscribe
     // Queue the mqtt_subscribe messages for transmission to the MQTT
-    // Broker.
+    // Broker. Wait 300ms before queueing first Subscribe msg.
     //
     // The mqtt_subscribe function will create the message and put it in the
     // transmit queue. uip_periodic() will start the process that will call
-    // mqtt_sync to put the message in the uip_buf. Wait at least 2 seconds
-    // from mqtt_main_connect() execution before sending the first subscribe.
+    // mqtt_sync to put the message in the uip_buf.
       
-    if (mqtt_start_ctr1 > 20) {
-      // Wait 2 seconds before queueing first Subscribe msg
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // I find that I can't queue multiple subscribe messages without them
-      // taking 10's of seconds to complete. Had this same problem with
-      // publish messages. I think something is wrong with the LiamBindle
-      // transmit queueing, or my interface to it. The quickest solution for
-      // now is to queue a message, return to the main loop so it can
-      // transmit, then queue another message.
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // I find that I can't queue multiple subscribe messages without them
+    // taking 10's of seconds to complete. Had this same problem with
+    // publish messages. I think something is wrong with the LiamBindle
+    // transmit queueing, or my interface to it. The quickest solution for
+    // now is to queue a message, return to the main loop so it can
+    // transmit, then queue another message.
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	
-      topic_base[topic_base_len] = '\0';
-      strcat(topic_base, "/on");
-      mqtt_subscribe(&mqttclient, topic_base, 0);
-      mqtt_start_ctr1 = 0; // Clear 100ms counter
-      mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
-    }
+    topic_base[topic_base_len] = '\0';
+    strcat(topic_base, "/on");
+    mqtt_subscribe(&mqttclient, topic_base, 0);
+    mqtt_start_ctr2 = 0; // Clear 100ms counter
+    mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
   }
     
-  else if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE2) {
-    if (mqtt_start_ctr1 > 10) {
-      // Wait 1 second before queuing next Subscribe message
-      // Subscribe
-      topic_base[topic_base_len] = '\0';
-      strcat(topic_base, "/off");
-      mqtt_subscribe(&mqttclient, topic_base, 0);
-      mqtt_start_ctr1 = 0; // Clear 100ms counter
-      mqtt_start = MQTT_START_QUEUE_SUBSCRIBE3;
-    }
+  else if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE2
+        && mqtt_start_ctr2 > 2) {
+    // Wait 300ms before queuing next Subscribe message
+    // Subscribe
+    topic_base[topic_base_len] = '\0';
+    strcat(topic_base, "/off");
+    mqtt_subscribe(&mqttclient, topic_base, 0);
+    mqtt_start_ctr2 = 0; // Clear 100ms counter
+    mqtt_start = MQTT_START_QUEUE_SUBSCRIBE3;
   }
     
-  else if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE3) {
-    if (mqtt_start_ctr1 > 10) {
-      // Wait 1 second before queuing next Subscribe message 
-      // Subscribe
-      topic_base[topic_base_len] = '\0';
-      strcat(topic_base, "/state-req");
-      mqtt_subscribe(&mqttclient, topic_base, 0);
-      mqtt_start_ctr1 = 0; // Clear 100ms counter
-      mqtt_start = MQTT_START_QUEUE_PUBLISH;
-    }
+  else if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE3
+        && mqtt_start_ctr2 > 2) {
+    // Wait 300ms before queuing next Subscribe message 
+    // Subscribe
+    topic_base[topic_base_len] = '\0';
+    strcat(topic_base, "/state-req");
+    mqtt_subscribe(&mqttclient, topic_base, 0);
+    mqtt_start_ctr2 = 0; // Clear 100ms counter
+    mqtt_start = MQTT_START_QUEUE_PUBLISH;
   }
        
-  else if (mqtt_start == MQTT_START_QUEUE_PUBLISH) {
-    if (mqtt_start_ctr1 > 10) {
-      // Wait 1 second before queuing Publish message 
-      // Publish the Status "online" message
-      topic_base[topic_base_len] = '\0';
-      strcat(topic_base, "/status");
-      mqtt_publish(&mqttclient,
-                   topic_base,
-		   "online",
-		   6,
-		   MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-      // Indicate succesful completion
-      mqtt_start = MQTT_START_COMPLETE;
-    }
+  else if (mqtt_start == MQTT_START_QUEUE_PUBLISH
+        && mqtt_start_ctr2 > 2) {
+    // Wait 300ms before queuing Publish message 
+    // Publish the Status "online" message
+    topic_base[topic_base_len] = '\0';
+    strcat(topic_base, "/status");
+    mqtt_publish(&mqttclient,
+                 topic_base,
+                 "online",
+                 6,
+                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+    // Indicate succesful completion
+    mqtt_start = MQTT_START_COMPLETE;
   }
 }
 
@@ -876,7 +919,7 @@ void mqtt_sanity_check(void)
   // Once triggered the sanity_check() function will cause the mqtt_startup()
   // function to be called from the main loop which will reset the backoff if
   // successful.
-  
+
   if (mqtt_restart_step == MQTT_RESTART_IDLE) {
     // Check for a response timeout.
     // response_timeout is typically 30 seconds, and for a sanity check we
@@ -887,14 +930,18 @@ void mqtt_sanity_check(void)
     if (mqttclient.number_of_timeouts > 1) {
       // Reset the timeout counter
       mqttclient.number_of_timeouts = 0;
+      MQTT_resp_tout_counter++;
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
 
-    // Check for a graceful shutdown of the MQTT Broker. If this happens we'll
-    // be in the MQTT_START_COMPLETE state and we'll see a UIP_CLOSED. If this
+    // Check for a graceful shutdown of the MQTT Broker, and/or a disconnect
+    // commanded by the broker (possibly the result of response timeout
+    // caused from this module). If this happens we'll be in the
+    // MQTT_START_COMPLETE state and we'll see a UIP_CLOSED. If this
     // condition occurs it may persist for a long time.
     if (mqtt_start == MQTT_START_COMPLETE
      && mqtt_conn->tcpstateflags == UIP_CLOSED) {
+      MQTT_broker_dis_counter++;
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
   
@@ -903,6 +950,7 @@ void mqtt_sanity_check(void)
     // OK condition can be present prior to mqtt_connect() running.
     if (mqtt_start == MQTT_START_COMPLETE
      && mqttclient.error != MQTT_OK) {
+      MQTT_not_OK_counter++;
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
   }
@@ -995,7 +1043,7 @@ void mqtt_sanity_check(void)
   // socket" to the MQTT Server. This is essentially an ARP request
   // associating the MQTT Server IP Address (which we got from GUI input) with
   // the MQTT Server MAC Address, followed by creating a TCP Connection (via
-  // uip_connect().
+  // uip_connect()).
   //
   // For reference: In the HTTP IO process "opening a socket" occurs in the
   // uip_input and uip_arpin functions. HTTP has the notion that a browser
@@ -1181,11 +1229,12 @@ void publish_outbound(void)
   // The function also checks for a state_request and sends the 2 byte "all
   // pin states" message as a response.
   //
-  // I don't understand this. Queueing multiple PUBLISH messages just doesn't
-  // work. I have to get any Queued PUBLISH message completely transmitted
-  // before I can queue another. On the other hand we are so constrained by
-  // lack of RAM that we couldn't queue more than 3 or 4 publish messages
-  // anyway, so an alternative is necessary.
+  // Something I don't understand and have mentioned elsewhere: Queueing
+  // multiple PUBLISH messages doesn't work. I have to get any PUBLISH
+  // message placed in the queue completely transmitted before I can queue
+  // another. On the other hand we are so constrained by lack of RAM that we
+  // couldn't queue more than 3 or 4 publish messages anyway, so an
+  // alternative is necessary.
   //
   // The workaround implemented is to queue one message, return to the main
   // loop to let it transmit, then come back here and queue the next message.
@@ -1194,7 +1243,7 @@ void publish_outbound(void)
   // the message for one pin at a time, we need to track what was sent.
   //
   // The way the implementation tracks the pin changes that were sent (or not
-  // yet sent) is to xor the IO_16to9 value with what was previously sent.
+  // yet sent) is to xor the IO_XtoX values with what was previously sent.
   // This provides a pin by pin indication of what has changed since the last
   // publish.
   //
@@ -1202,8 +1251,12 @@ void publish_outbound(void)
   // code might not get to the low order bits as often. This is a flaw but
   // may not matter much in this application. The code only checks and sends
   // a message at the periodic_timer_expired(), thus it takes 16 expirations
-  // to get all bits sent, thus frequent changes in higher order bits will
+  // to get all bits sent, and frequent changes in higher order bits will
   // supersede the processing of lower order bits.
+  
+  // Note: This code is only for the MQTT implementation thus the IO_16to9
+  // bits are inputs, and the IO_8to1 bits are outputs.
+  
   
   uint8_t xor_tmp;
 
@@ -1329,38 +1382,18 @@ void unlock_eeprom(void)
   //   This code in effect writes the unlock at least twice, resulting in at
   //   least one correct combo of KEY1/KEY2 and KEY2/KEY1, thus making sure
   //   the EEPROM is unlocked regardless of the errata.
-  uint8_t i;
-  
   while (!(FLASH_IAPSR & 0x08)) {  // Check DUL bit, 0=Protected
     FLASH_DUKR = 0xAE; // MASS key 1
     FLASH_DUKR = 0x56; // MASS key 2
   }
-  
-#if DEBUG_SUPPORT == 1
-  // Clear all debug bytes
-  for (i = 0; i < NUM_DEBUG_BYTES; i++) {
-    debug[i] = 0x00;
-    if (stored_debug[i] != 0x00) stored_debug[i] = 0x00;
-  }
-#endif // DEBUG_SUPPORT == 1
+}
 
-#if DEBUG_SUPPORT == 2
-  // Clear the general debug bytes
-  for (i = 0; i < NUM_DEBUG_BYTES - 5; i++) debug[i] = 0x00;
-  // Recover the "reset" counters
-  for (i = 41; i < 46; i++) debug[i] = stored_debug[i];
-  // Update EEPROM bytes that changed
-  update_debug_storage1();
-#endif // DEBUG_SUPPORT == 2
 
-#if DEBUG_SUPPORT == 3
-  // Clear the general debug bytes
-  for (i = 0; i < NUM_DEBUG_BYTES - 20; i++) debug[i] = 0x00;
-  // Recover the "reset" counters and the "additional" debug bytes
-  for (i = 26; i < 46; i++) debug[i] = stored_debug[i];
-  // Update EEPROM bytes that changed
-  update_debug_storage1();
-#endif // DEBUG_SUPPORT == 3
+void lock_eeprom(void)
+{
+  // Lock the EEPROM
+  // Lock the EEPROM so that it cannot be written. This clears the DUL bit.
+  FLASH_IAPSR &= (uint8_t)(~0x08);
 }
 
 
@@ -1429,6 +1462,31 @@ void check_eeprom_settings(void)
     uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
     uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
 
+    // ----------------------------------------------------------------------//
+    // THIS IS ONLY REQUIRED FOR UPGRADING FROM OLD VERSION
+    // Check the stored_config_settings bytes and convert them to the
+    // "config_settings" method.
+    unlock_eeprom();
+    if (stored_config_settings[0] != '0' && stored_config_settings[0] != '1') {
+      stored_config_settings[0] = '0';
+    }
+    if (stored_config_settings[1] != '0' && stored_config_settings[1] != '1') {
+      stored_config_settings[1] = '0';
+    }
+    if (stored_config_settings[2] != '0' && stored_config_settings[2] != '1' && stored_config_settings[2] != '2') {
+      stored_config_settings[2] = '2';
+    }
+    if (stored_config_settings[3] != '0' && stored_config_settings[3] != '1') {
+      stored_config_settings[3] = '0';
+    }
+    if (stored_config_settings[4] != '0') {
+      stored_config_settings[4] = '0';
+    }
+    if (stored_config_settings[5] != '0') {
+      stored_config_settings[5] = '0';
+    }
+    lock_eeprom();
+    // ----------------------------------------------------------------------//
 
     // Read and use the Config Setting for Output inversion control.
     // Read and use the Config Setting for Input inversion control.
@@ -1443,7 +1501,9 @@ void check_eeprom_settings(void)
     // The magic number didn't match. Use the default IP, Gateway, Netmask,
     // Port, and MAC values and store them in the EEPROM. Turn off all relays
     // and store the off state in EEPROM. Write the magic number.
-    
+
+    unlock_eeprom(); // Make EEPROM writeable
+
     // Default IP Address
     uip_ipaddr(IpAddr, 192,168,1,4);
     uip_sethostaddr(IpAddr);
@@ -1498,7 +1558,7 @@ void check_eeprom_settings(void)
     // Set the "in use" port number to the default
     Port_Httpd = 8080;
 
-    // Write the default MAC address to EEPROM and to the ARP values
+    // Write the default MAC address to EEPROM and to the ARP values.
     // With a bogus Magic Number we have to assume that the Network Module
     // has never been used before. Therefore we need to program a default
     // MAC Address. After this the Magic Number should always be present
@@ -1511,7 +1571,7 @@ void check_eeprom_settings(void)
     // within their networks.
     //
     // Note that the MAC values used by the ARP code are in reverse order
-    // from all the other code.
+    // from that used by all the other code.
     stored_uip_ethaddr_oct[5] = 0xc2;	//MAC MSB
     stored_uip_ethaddr_oct[4] = 0x4d;
     stored_uip_ethaddr_oct[3] = 0x69;
@@ -1561,6 +1621,8 @@ void check_eeprom_settings(void)
     magic3 = 0xee;		//
     magic2 = 0x0f;		//
     magic1 = 0xf0;		// LSB
+    
+    lock_eeprom();
   }
   
   // Since this code is run one time at boot, set the Pending values to the
@@ -1608,28 +1670,7 @@ void check_eeprom_IOpin_settings(void)
 {
   // This routine will check the EEPROM settings for the config register
   // and IO pin states
-
-  // Check the stored_config_settings bytes for those that upgrade from a
-  // previous version:
-  if (stored_config_settings[0] != '0' && stored_config_settings[0] != '1') {
-    stored_config_settings[0] = '0';
-  }
-  if (stored_config_settings[1] != '0' && stored_config_settings[1] != '1') {
-    stored_config_settings[1] = '0';
-  }
-  if (stored_config_settings[2] != '0' && stored_config_settings[2] != '1' && stored_config_settings[2] != '2') {
-    stored_config_settings[2] = '2';
-  }
-  if (stored_config_settings[3] != '0' && stored_config_settings[3] != '1') {
-    stored_config_settings[3] = '0';
-  }
-  if (stored_config_settings[4] != '0') {
-    stored_config_settings[4] = '0';
-  }
-  if (stored_config_settings[5] != '0') {
-    stored_config_settings[5] = '0';
-  }
-    
+  
   // Read and use the Config Setting for Output inversion control.
   if (stored_config_settings[0] == '0') invert_output = 0x00;
   else invert_output = 0xff;
@@ -1691,7 +1732,9 @@ void check_runtime_changes(void)
   // the changes made by the user.
 
   uint8_t i;
-  
+
+  unlock_eeprom();
+
   read_input_registers();
 
   if (parse_complete == 1 || mqtt_parse_complete == 1) {
@@ -1974,6 +2017,8 @@ void check_runtime_changes(void)
     }
   }
   
+  lock_eeprom();
+  
   if (restart_request == 1) {
     // Arm the restart function but first make sure we aren't already
     // performing a restart or reboot so we don't get stuck in a loop.
@@ -2008,10 +2053,12 @@ void check_runtime_changes(void)
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #if DEBUG_SUPPORT == 3
   // Report the stack overflow bit
+  unlock_eeprom();
   if (stack_error == 1) {
     debug[38] |= 0x80;
     update_debug_storage1();
   }
+  lock_eeprom();
 #endif // DEBUG_SUPPORT == 3
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -2031,28 +2078,24 @@ void check_restart_reboot(void)
     // are set in the check_runtime_changes() function if a restart or reboot
     // is needed.
     // The following needs to occur:
-    // 1) If MQTT is enabled we need to run the mqtt_disconnect() function.
-    // 1a) We need to verify that mqtt disconnect was sent to the MQTT server.
-    // 1b) We need to call uip_close() for the MQTT TCP connection.
-    // 2) We need to verify that the close requests completed.
-    // Then we can run either the restart() function or the reboot() function.
+    // 1) If MQTT is enabled run the mqtt_disconnect() function.
+    // 1a) Verify that mqtt disconnect was sent to the MQTT server.
+    // 1b) Call uip_close() for the MQTT TCP connection.
+    // 2) Verify that the close requests completed.
+    // Then run either the restart() function or the reboot() function.
 
     if (restart_reboot_step == RESTART_REBOOT_ARM) {
       // Wait X seconds for anything in the process of being transmitted to
       // fully transmit. Refresh of a page after POST can take a few seconds.
       //
       // Capture time to delay the next step
-      time_mark2 = second_counter;
+      time_mark1 = second_counter;
       restart_reboot_step = RESTART_REBOOT_ARM2;
     }
 
     else if (restart_reboot_step == RESTART_REBOOT_ARM2) {
-      // NOTE: After implementing this code it started to appear to be
-      // unneccesary to wait a full second. The fact that there are two
-      // steps in the ARM process causes a 200ms wait, and that appears
-      // to be sufficient for now. Some code space could be reclaimed if
-      // these steps were completely removed.
-      if (second_counter > time_mark2 + 0 ) {
+      // Wait 1 second
+      if (second_counter > time_mark1 + 1) {
         restart_reboot_step = RESTART_REBOOT_DISCONNECT;
       }
     }
@@ -2065,11 +2108,11 @@ void check_restart_reboot(void)
         mqtt_disconnect(&mqttclient);
       }
       // Capture time to delay the next step
-      time_mark2 = second_counter;
+      time_mark1 = second_counter;
     }
     
     else if (restart_reboot_step == RESTART_REBOOT_DISCONNECTWAIT) {
-      if (second_counter > time_mark2 + 1 ) {
+      if (second_counter > time_mark1 + 1 ) {
         // The mqtt_disconnect() is given 1 second to be communicated
         // before we move on to TCP close
         restart_reboot_step = RESTART_REBOOT_TCPCLOSE;
@@ -2094,7 +2137,7 @@ void check_restart_reboot(void)
       // Signal uip_TcpAppHubCall() to close the MQTT TCP connection
       mqtt_close_tcp = 1;
       // Capture time to delay the next step
-      time_mark2 = second_counter;
+      time_mark1 = second_counter;
       restart_reboot_step = RESTART_REBOOT_TCPWAIT;
     }
     else if (restart_reboot_step == RESTART_REBOOT_TCPWAIT) {
@@ -2102,7 +2145,7 @@ void check_restart_reboot(void)
       // For the moment I'm not sure how to do this, so I will just allow
       // enough time for it to happen. That is probably much faster, but
       // I will allow 1 second.
-      if (second_counter > time_mark2 + 1) {
+      if (second_counter > time_mark1 + 1 ) {
 	mqtt_close_tcp = 0;
         restart_reboot_step = RESTART_REBOOT_FINISH;
       }
@@ -2151,17 +2194,13 @@ void restart(void)
   parse_complete = 0;
   reboot_request = 0;
   restart_request = 0;
-//  time_mark1 = 0;           // Time capture used in MQTT restart
-  time_mark2 = 0;           // Time capture used in reboot
-//  time_mark3 = 0;           // Time capture used in
-//  time_mark4 = 0;           // Time capture used in
+  time_mark1 = 0;           // Time capture used in reboot
   mqtt_close_tcp = 0;
 #if MQTT_SUPPORT == 1
   mqtt_start = MQTT_START_TCP_CONNECT;
   mqtt_start_status = MQTT_START_NOT_STARTED;
   mqtt_start_ctr1 = 0;
   mqtt_sanity_ctr = 0;
-  mqtt_start_retry = 0;
   MQTT_error_status = 0;
   mqtt_restart_step = MQTT_RESTART_IDLE;
   strcpy(topic_base, devicetype);
@@ -2170,7 +2209,6 @@ void restart(void)
   
   spi_init();              // Initialize the SPI bit bang interface to the
                            // ENC28J60 and perform hardware reset on ENC28J60
-  unlock_eeprom();         // unlock the EEPROM so writes can be performed
   check_eeprom_settings(); // Verify EEPROM up to date
   Enc28j60Init();          // Initialize the ENC28J60 ethernet interface
   uip_arp_init();          // Initialize the ARP module
@@ -2210,6 +2248,26 @@ void reboot(void)
   wait_timer((uint16_t)50000);
   wait_timer((uint16_t)50000);
 }
+
+
+void init_IWDG(void)
+{
+  // Function to initialize the IWDG (Independent Watchdog).
+  // The IWDG will perform a hardware reset after 1 second if it is not
+  // serviced with a write to the IWDG_KR register - the main loop needs
+  // to perform the servicing writes.
+  
+  IWDG_KR  = 0xcc;  // Enable the IWDG
+  IWDG_KR  = 0x55;  // Unlock the configuration registers
+  IWDG_PR  = 0x06;  // Divide clock by 256
+  IWDG_RLR = 0xff;  // Countdown reload value. The /2 prescaler plus the
+                    // Divisor pluss the Countdown value create the 1
+		    // second timeout interval
+  IWDG_KR  = 0xaa;  // Start the IWDG. The main loop must write this
+                    // this value before the 1 second timeout occurs
+		    // to prevent the watchdog from performing a
+		    // hardware reset
+  }
 
 
 void read_input_registers(void)
@@ -2501,10 +2559,45 @@ void oneflash(void)
 }
 
 
+void clear_eeprom_debug_bytes(void)
+{
+  // Clear debug bytes in the EEPROM
+  uint8_t i;
+  
+#if DEBUG_SUPPORT == 1
+  // Clear all debug bytes
+  for (i = 0; i < NUM_DEBUG_BYTES; i++) debug[i] = 0x00;
+  // Update EEPROM bytes that changed
+  update_debug_storage1();
+#endif // DEBUG_SUPPORT == 1
+
+#if DEBUG_SUPPORT == 2
+  // Clear the general debug bytes
+  for (i = 0; i < NUM_DEBUG_BYTES - 5; i++) debug[i] = 0x00;
+  // Recover the "reset" counters
+  for (i = 41; i < 46; i++) debug[i] = stored_debug[i];
+  // Update EEPROM bytes that changed
+  update_debug_storage1();
+#endif // DEBUG_SUPPORT == 2
+
+#if DEBUG_SUPPORT == 3
+  // Clear the general debug bytes
+  for (i = 0; i < NUM_DEBUG_BYTES - 20; i++) debug[i] = 0x00;
+  // Recover the "reset" counters and the "additional" debug bytes
+  for (i = 26; i < 46; i++) debug[i] = stored_debug[i];
+  // Update EEPROM bytes that changed
+  update_debug_storage1();
+#endif // DEBUG_SUPPORT == 3
+}
+
+
 #if DEBUG_SUPPORT != 0
 // Note: Make sure there is enough RAM for the debug[] values.
 void update_debug_storage() {
   uint8_t i;
+  
+  unlock_eeprom();
+  
   // To use this function it is intended that you fill the debug[]
   // somewhere in inline code, then call this function to commit
   // them to EEPROM. debug[0] should be 0 until your are ready for
@@ -2519,6 +2612,9 @@ void update_debug_storage() {
     }
     fastflash();
   }
+  
+  lock_eeprom();
+  
 //
 //  while(debug[0] == 0x02);
 //    // This loop can be enabled if you want the program to
@@ -2531,6 +2627,9 @@ void update_debug_storage() {
 // Note: Make sure there is enough RAM for the debug[] values.
 void update_debug_storage1() {
   uint8_t i;
+  
+  unlock_eeprom();
+  
   // This function is nearly identical to update_debug_storage()
   // with the exception that it is intended to be called multiple
   // times as individual debug[] bytes are written in inline
@@ -2544,6 +2643,9 @@ void update_debug_storage1() {
     if (stored_debug[i] != debug[i]) stored_debug[i] = debug[i];
   }
 //  fastflash();
+  
+  lock_eeprom();
+  
 }
 #endif // DEBUG_SUPPORT != 0
 

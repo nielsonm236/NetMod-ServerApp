@@ -135,6 +135,9 @@ extern uint8_t user_reboot_request;       // Communicates the need to reboot bac
                                           // main.c functions
 extern uint8_t restart_reboot_step;       // Indicates whether restart or reboot are
                                           // underway.
+
+extern uint8_t stack_error;               // Flag indicating stack overflow error
+
        
 uint8_t OctetArray[11];		          // Used in conversion of integer values to
 					  // character values
@@ -214,6 +217,9 @@ extern uint8_t MQTT_error_status;         // For MQTT error status display in GU
 extern uint32_t RXERIF_counter;           // Counts RXERIF errors
 extern uint32_t TXERIF_counter;           // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;         // Counts any transmit
+extern uint32_t MQTT_resp_tout_counter;   // Counts response timeout events
+extern uint32_t MQTT_not_OK_counter;      // Counts MQTT != OK events
+extern uint32_t MQTT_broker_dis_counter;  // Counts broker disconnect events
 extern uint32_t second_counter;           // Counts seconds since boot
 #endif // MQTT_SUPPORT == 1
 
@@ -644,7 +650,7 @@ static const char g_HtmlPageConfiguration[] =
   "If you change the highest octet of the MAC you MUST use an even number to<br>"
   "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
   "multicast and will not work.<br>"
-  "Code Revision 20201204 1506</p>"
+  "Code Revision 20201218 2202</p>"
   "%y03/91%y02Reboot</button></form>"
   "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
   "%y03/61%y02Refresh</button></form>"
@@ -827,17 +833,11 @@ static const char g_HtmlPageConfiguration[] =
   "</form>"
   "<p>"
   "See Documentation for help<br>"
-  "Code Revision 20201204 1506</p>"
+  "Code Revision 20201218 2202</p>"
   "%y03/91%y02Reboot</button></form>"
   "<br><br>"
   "%y03/61%y02Refresh</button></form>"
   "%y03/60%y02IO Control</button></form>"
-#if UIP_STATISTICS == 1
-  "%y03/66%y02Network Statistics</button></form>"
-#endif // UIP_STATISTICS == 1
-#if UIP_STATISTICS == 2
-  "%y03/66%y02Error Statistics</button></form>"
-#endif // UIP_STATISTICS == 2
 #if HELP_SUPPORT == 1
   "%y03/63%y02Help</button></form>"
 #endif // HELP_SUPPORT == 1
@@ -1100,6 +1100,10 @@ static const char g_HtmlPageStats[] =
   "<tr><td>RXERIF count %e27</td></tr>"
   "<tr><td>TXERIF count %e28</td></tr>"
   "<tr><td>TRANSMIT count %e29</td></tr>"
+  "<tr><td>Response timeouts %e30</td></tr>"
+  "<tr><td>Not OK events %e31</td></tr>"
+  "<tr><td>Broker Disconnects %e32</td></tr>"
+  "<tr><td>Stack error %e33</td></tr>"
   "</table>"
   "%y03/61' method='GET'><button>Configuration</button></form>"
   "%y03/66' method='GET'><button>Refresh</button></form>"
@@ -1573,12 +1577,12 @@ uint16_t adjust_template_size()
   else if (current_webpage == WEBPAGE_STATS) {
     size = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
 
-    // Account for Statistics fields %e26 to %e29
-    // There are 4 instances of these fields
+    // Account for Statistics fields %e26 to %e32
+    // There are 8 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (4 x (10 - 4));
-    // size = size + (4 x (6));
-    size = size + 24;
+    // size = size + (8 x (10 - 4));
+    // size = size + (8 x (6));
+    size = size + 48;
 
     // Account for IP Address insertion - Configuration Button
     // size = size + (strlen(page_string03) - marker_field_size);
@@ -2171,10 +2175,14 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  {
 	    // Output the second counter and error counters. First convert to 10
 	    // digit Decimal.
-	    case 26:  emb_itoa(second_counter, OctetArray, 10, 10); break;
-	    case 27:  emb_itoa(RXERIF_counter, OctetArray, 10, 10); break;
-	    case 28:  emb_itoa(TXERIF_counter, OctetArray, 10, 10); break;
-	    case 29:  emb_itoa(TRANSMIT_counter, OctetArray, 10, 10); break;
+	    case 26:  emb_itoa(second_counter,          OctetArray, 10, 10); break;
+	    case 27:  emb_itoa(RXERIF_counter,          OctetArray, 10, 10); break;
+	    case 28:  emb_itoa(TXERIF_counter,          OctetArray, 10, 10); break;
+	    case 29:  emb_itoa(TRANSMIT_counter,        OctetArray, 10, 10); break;
+	    case 30:  emb_itoa(MQTT_resp_tout_counter,  OctetArray, 10, 10); break;
+	    case 31:  emb_itoa(MQTT_not_OK_counter,     OctetArray, 10, 10); break;
+	    case 32:  emb_itoa(MQTT_broker_dis_counter, OctetArray, 10, 10); break;
+	    case 33:  emb_itoa(stack_error,             OctetArray, 10, 10); break;
 	  }
 	  for (i=0; i<10; i++) {
             *pBuffer = OctetArray[i];
@@ -2283,7 +2291,7 @@ else if (nParsedMode == 'g') {
 	}
 	
         else if (nParsedMode == 'n') {
-	  // Outputs the MQTT Start Status information as four red/green
+	  // Outputs the MQTT Start Status information as five red/green
 	  // boxes showing Connections available, ARP status, TCP status,
 	  // MQTT Connect status, and MQTT Error status.
 	  no_err = 0;

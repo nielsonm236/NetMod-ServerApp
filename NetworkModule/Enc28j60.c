@@ -55,11 +55,9 @@
 extern uint8_t debug[NUM_DEBUG_BYTES];
 #endif // DEBUG_SUPPORT != 0
 
-#if MQTT_SUPPORT == 1
 extern uint32_t RXERIF_counter;       // Counts RXERIF errors
 extern uint32_t TXERIF_counter;       // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;     // Counts any transmit
-#endif // MQTT_SUPPORT == 1
 
 
 extern uint8_t stored_config_settings[6]; // Config settings stored in EEPROM
@@ -91,6 +89,7 @@ extern uint8_t stored_config_settings[6]; // Config settings stored in EEPROM
 // Registers in BankX: (means: available in each bank)
 #define BANKX_EIE			0x1B
 #define BANKX_EIR			0x1C
+#define BANKX_EIR_RXERIF		0
 #define BANKX_EIR_TXERIF		1
 #define BANKX_EIR_TXIF			3
 #define BANKX_ESTAT			0x1D
@@ -624,13 +623,13 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   uint16_t nBytes;
   uint16_t nNextPacket;
 
-#if MQTT_SUPPORT == 1
   // Check for buffer overflow - RXERIF (bit 0) of EIR register
   // If overflow increment the error counter
   if (Enc28j60ReadReg(BANKX_EIR) & 0x01) {
     RXERIF_counter++;
+    // Clear RXERIF
+    Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_RXERIF));
   }
-#endif // MQTT_SUPPORT == 1
 
   // Check for at least 1 waiting packet in the buffer
   Enc28j60SwitchBank(BANK1);
@@ -769,6 +768,15 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
   // occur, software must clear the ECON1.TXRTS bit to force the transmit state
   // machine into the correct state.
   //
+  // One more concern: In one part of the spec it talks about clearing the
+  // TXERIF and LATECOL bits when an abort occurs, but makes no mention of the
+  // TXABRT bit. In another part of the spec it talks about clearing the TXERIF
+  // and TXABRT bits as necessary when an abort occurs. Below I will also clear
+  // the TXABRT bit whenever the TXERIF bit is cleared just to be sure, but the
+  // spec is not clear on the order in which these events must happen, other
+  // than the errata indicating that TXERIF should be cleared after the TXRTS
+  // reset is complete.
+  //
   // The above errata are handled together in this code. There will be
   // 16 attempts to work around collisions
   {
@@ -798,10 +806,8 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
     // This should never happen as any error should have been handled the last
     // time a transmit occurred. If no error just start the transmission.
     if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) {
-#if UIP_STATISTICS == 2
       // Count TXERIF error
       TXERIF_counter++;
-#endif // UIP_STATISTICS == 2
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -809,18 +815,16 @@ wait_timer(10);  // Wait 10 uS
       Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
       // Clear TXRST
       Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+      // Clear TXABRT
+      Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_ESTAT_TXABRT));
       // Clear TXERIF
       Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXERIF));
       // Clear TXIF
       Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXIF));
     }
 
-#if UIP_STATISTICS == 2
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// Count any transmit
-TRANSMIT_counter++;
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#endif // UIP_STATISTICS == 2
+    // Count any transmit
+    TRANSMIT_counter++;
     
     // Start transmission
     Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
@@ -840,17 +844,23 @@ TRANSMIT_counter++;
     
     // If a TXERIF error is present we need to enter a loop to retry
     if (txerif_temp) {
-#if UIP_STATISTICS == 2
       // Count TXERIF error
       TXERIF_counter++;
-#endif // UIP_STATISTICS == 2
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       
       for (i = 0; i < 16; i++) {
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// We only need to check for a late collision. This is available as the
+// ESTAT.LATECOL bit so reading the TSV is way too much code and complication.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         // Read Transmit Status Vector (TSV)
-	read_TSV();
+//	read_TSV();
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -858,17 +868,17 @@ wait_timer(10);  // Wait 10 uS
         // Bit 29 of the TSV is the Late Collision bit
         // This corresponds to bit 5 of tsv_byte[3]
         late_collision = 0;
-        if (tsv_byte[3] & 0x20) late_collision = 1;
-	else break; // If no error leave the for loop
+//        if (tsv_byte[3] & 0x20) late_collision = 1;
+        // ESTAT.LATECOL is the Late Collision bit
+        if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_ESTAT_LATECOL)) late_collision = 1;
+        else break; // If no Late Collision error leave the for loop
 	
 	// If error was a late collision retry the transmission
-        if (txerif_temp && (late_collision)) {
+        if (txerif_temp && late_collision) {
 	  txerif_temp = 0;
 
-#if UIP_STATISTICS == 2
           // Count TXERIF error
           TXERIF_counter++;
-#endif // UIP_STATISTICS == 2
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -877,6 +887,8 @@ wait_timer(10);  // Wait 10 uS
           Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
           // Clear TXRST
           Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+          // Clear TXABRT
+          Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_ESTAT_TXABRT));
           // Clear TXERIF
           Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXERIF));
           // Clear TXIF
@@ -893,7 +905,7 @@ wait_timer(10);  // Wait 10 uS
           if (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))) {
 	    Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
 	  }
-          // Go back to the start of the for() loop to check TSV status.
+          // Go back to the start of the for() loop to check error status.
         }
       }
     }
@@ -907,10 +919,10 @@ void read_TSV(void)
   uint8_t saved_ERDPTH;
   uint16_t tsv_start;
 
-  // Wait 10us
   // I don't find this in the spec, but from experimentation it seems a
   // few microseconds are needed for the TSV values to be stable
-  wait_timer((uint16_t)10);
+  // wait_timer(10);
+  wait_timer(20);
   
   // Read the Transmit Status Vector
   // Save the current read pointer for restoration later
@@ -940,10 +952,8 @@ void read_TSV(void)
         
   deselect();
 
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      
+
   // Restore the current read pointer
   Enc28j60WriteReg(BANK0_ERDPTL, saved_ERDPTL);
   Enc28j60WriteReg(BANK0_ERDPTH, saved_ERDPTH);

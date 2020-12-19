@@ -632,6 +632,8 @@ void uip_process(uint8_t flag)
   }
 
   // If the packet is not destined for our IP address drop it.
+  // What typically gets dropped here is an IP Broadcast packet (IP
+  // address FF:FF:FF:FF)
   if (!uip_ipaddr_cmp(BUF->destipaddr, uip_hostaddr)) {
     UIP_STAT(++uip_stat.ip.drop);
     goto drop;
@@ -645,7 +647,6 @@ void uip_process(uint8_t flag)
 
   if (BUF->proto == UIP_PROTO_TCP) {
     // Check for TCP packet. If so, proceed with TCP input processing.
-
     goto tcp_input;
   }
 

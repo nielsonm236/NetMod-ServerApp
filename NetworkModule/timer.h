@@ -26,10 +26,12 @@
 #define __TIMER_H__
 
 void clock_init(void);
+void timer_update(void);
 uint8_t periodic_timer_expired(void);
 uint8_t arp_timer_expired(void);
+uint8_t mqtt_timer_expired(void);
+uint8_t mqtt_outbound_timer_expired(void);
 void wait_timer(uint16_t wait);
-
 
 #endif /* __TIMER_H__ */
 

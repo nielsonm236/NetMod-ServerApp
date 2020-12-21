@@ -249,11 +249,11 @@ uint32_t TRANSMIT_counter;            // Counts any transmit by the ENC28J60
 uint8_t connect_flags;                // Used in MQTT setup
 uint16_t mqttport;             	      // MQTT port number
 uint16_t Port_Mqttd;                  // In use MQTT port number
-unsigned char application_message[3]; // Stores the application message,
-                                      // always two characters plus
-				      // terminator. In this application the
-				      // application is always a two digit
-				      // pin number.
+unsigned char application_message[4]; // Stores the application message. In
+                                      // In this application the message is
+				      // always ON or OFF, or is a two byte
+				      // binary value used in response to the
+				      // state-req message.
 uint16_t mqtt_keep_alive;             // Ping interval
 struct mqtt_client mqttclient;        // Declare pointer to the MQTT client
                                       // structure
@@ -290,9 +290,14 @@ uint8_t mqtt_restart_step;            // Step tracker for restarting MQTT
 
 static const unsigned char devicetype[] = "NetworkModule/"; // Used in
                                       // building topic and client id names
-unsigned char topic_base[44];         // Used for building connect, subscribe,
+unsigned char topic_base[47];         // Used for building connect, subscribe,
                                       // and publish topic strings.
-uint8_t topic_base_len;               // Length of the topic_base
+				      // Longest string content:
+				      // NetworkModule/DeviceName123456789/availability
+				      // NetworkModule/DeviceName123456789/output/+/set
+uint8_t topic_base_len;               // Length of the topic_base once it is
+                                      // filled with the devicetype[] and
+				      // devicename[] information.
 uint32_t MQTT_resp_tout_counter;      // Counts response timeout events in the
                                       // mqtt_sanity_check() function
 uint32_t MQTT_not_OK_counter;         // Counts MQTT != OK events in the
@@ -605,7 +610,7 @@ int main(void)
 
 #if MQTT_SUPPORT == 1
     // If MQTT is connected check for pin state changes and publish a message
-    // at 30ms intervals. publish_outbound only places the message in the
+    // at 50ms intervals. publish_outbound only places the message in the
     // queue. uip_periodic() will cause the actual transmission.
     if (mqtt_outbound_timer_expired()) {
       if (mqtt_start == MQTT_START_COMPLETE) {
@@ -798,7 +803,7 @@ void mqtt_startup(void)
  
     // Create will_topic
     topic_base[topic_base_len] = '\0';
-    strcat(topic_base, "/status");
+    strcat(topic_base, "/availability");
 
     // Queue the message
     mqtt_connect(&mqttclient,
@@ -844,7 +849,8 @@ void mqtt_startup(void)
 
   else if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE1
         && mqtt_start_ctr2 > 2) {
-    // Subscribe
+    // Subscribe to the output control messages
+    //
     // Queue the mqtt_subscribe messages for transmission to the MQTT
     // Broker. Wait 300ms before queueing first Subscribe msg.
     //
@@ -862,7 +868,7 @@ void mqtt_startup(void)
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	
     topic_base[topic_base_len] = '\0';
-    strcat(topic_base, "/on");
+    strcat(topic_base, "/output/+/set");
     mqtt_subscribe(&mqttclient, topic_base, 0);
     mqtt_start_ctr2 = 0; // Clear 100ms counter
     mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
@@ -870,37 +876,40 @@ void mqtt_startup(void)
     
   else if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE2
         && mqtt_start_ctr2 > 2) {
-    // Wait 300ms before queuing next Subscribe message
-    // Subscribe
-    topic_base[topic_base_len] = '\0';
-    strcat(topic_base, "/off");
-    mqtt_subscribe(&mqttclient, topic_base, 0);
-    mqtt_start_ctr2 = 0; // Clear 100ms counter
-    mqtt_start = MQTT_START_QUEUE_SUBSCRIBE3;
-  }
-    
-  else if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE3
-        && mqtt_start_ctr2 > 2) {
-    // Wait 300ms before queuing next Subscribe message 
-    // Subscribe
+    // Subscribe to the state-req message
+    //
+    // Wait 300ms before queuing the Subscribe message 
     topic_base[topic_base_len] = '\0';
     strcat(topic_base, "/state-req");
     mqtt_subscribe(&mqttclient, topic_base, 0);
     mqtt_start_ctr2 = 0; // Clear 100ms counter
-    mqtt_start = MQTT_START_QUEUE_PUBLISH;
+    mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
   }
        
-  else if (mqtt_start == MQTT_START_QUEUE_PUBLISH
+  else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_ON
         && mqtt_start_ctr2 > 2) {
     // Wait 300ms before queuing Publish message 
-    // Publish the Status "online" message
+    // Publish the availability "online" message
     topic_base[topic_base_len] = '\0';
-    strcat(topic_base, "/status");
+    strcat(topic_base, "/availability");
     mqtt_publish(&mqttclient,
                  topic_base,
                  "online",
                  6,
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+    // Indicate succesful completion
+    mqtt_start = MQTT_START_QUEUE_PUBLISH_PINS;
+  }
+  
+  else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_PINS
+        && mqtt_start_ctr2 > 0) {
+    // Wait 100ms before starting
+    // Publish the state of all pins one at a time. This is accomplished
+    // by setting IO_16to9_sent and IO_8to1_sent to the inverse of whatever
+    // is currently in IO_16to9 and IO_8to1. This will cause the normal
+    // checks for pin state changes to trigger a transmit for every pin.
+    IO_16to9_sent = (uint8_t)(~IO_16to9);
+    IO_8to1_sent  = (uint8_t)(~IO_8to1);
     // Indicate succesful completion
     mqtt_start = MQTT_START_COMPLETE;
   }
@@ -1086,11 +1095,11 @@ void mqtt_sanity_check(void)
   //
   // Status PUBLISH Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
-  //   Variable Header 50 bytes
-  //     Topic NetworkModule/DeviceName012345678/statusonline 46 bytes
+  //   Variable Header 57 bytes
+  //     Topic NetworkModule/DeviceName123456789/availabilityoffline 53 bytes
   //     Topic Length 2 bytes
   //     Packet ID 2 bytes
-  //   Total: 52 bytes
+  //   Total: 57 bytes
   //   
   // All Subscribe Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
@@ -1132,11 +1141,18 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   //   - First bytes contain the Topic Name. So we should expect:
   //     - "NetworkModule/"
   //     - "Devicename/"
-  //     - "off" or "on" or "state"
-  //   - We are QOS 0 so no Packet ID
+  //     - "output/"
+  //     - "xx/" (output number or 'all')
+  //     - "set"
+  //   OR
+  //     - "NetworkModule/"
+  //     - "Devicename/"
+  //     - "state-req"
   // - Next comes the Payload
-  //   - If "off" or "on" we expect a relay number (01 to 16) or "all"
-  //   - If "state" we expect no payload
+  //   - If "Output/xx/set" we expect a payload of "ON" or "OFF"
+  //   - if "Output/all/set" we expect a payload of "ON" or "OFF"
+  //   - If "state-req" we expect no payload
+  // - We are QOS 0 so no Packet ID
   //
   // Once we collect the above information:
   // - Call the httpd.c function GpioSetPin(relay_num, (int8_t)pin_value);
@@ -1156,32 +1172,35 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   // Skip the Devicename/ text
   pBuffer = pBuffer + strlen(stored_devicename) + 1;
   
-  // Determine if the sub-topic is "off" or "on"
+  // Determine if the sub-topic is "output" or "state-req"
   if (*pBuffer == 'o') {
-    pBuffer++;
-    if (*pBuffer == 'n') {
-      pBuffer++;
-      pin_value = 1;
-    }
-    else if (*pBuffer == 'f') {
-      pBuffer = pBuffer + 2;
-      pin_value = 0;
-    }
-
-    // Check if the payload is "all"
+    // "output" detected
+    // Format can be any of these:
+    //   output/01/setON
+    //   output/01/setOFF
+    //   output/all/setON
+    //   output/all/setOFF
+    //
+    // Skip past the "output/" characters
+    pBuffer+= 7;
+    
+    // Check if output field is "all"
     if (*pBuffer == 'a') {
-      pBuffer++;
-      if (*pBuffer == 'l') {
-        pBuffer++;
-        if (*pBuffer == 'l') {
-	  // Turn on or off all relays
-	  for (i=0; i<8; i++) GpioSetPin(i, (uint8_t)pin_value);
-	}
+      // Determine if payload is ON or OFF
+      pBuffer+=8;
+      if (*pBuffer == 'N') {
+        // Turn all outputs ON
+	for (i=0; i<8; i++) GpioSetPin(i, 1);
+      }
+      if (*pBuffer == 'F') {
+       // Turn all outputs OFF
+	for (i=0; i<8; i++) GpioSetPin(i, 0);
       }
     }
-
-    // Collect the relay number
+    
     else if (*pBuffer == '0' || *pBuffer == '1') {
+      // Output field is a digit
+      // Collect the relay number
       // Parse ten's digit
       ParseNum = (uint8_t)((*pBuffer - '0') * 10);
       pBuffer++;
@@ -1191,8 +1210,16 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       if (ParseNum > 0 && ParseNum < 9) {
         // Adjust Parsenum to match 0 to 7 numbering (instead of 1to8)
         ParseNum--;
-        // Set or clear the appropriate pin
-        GpioSetPin(ParseNum, (uint8_t)pin_value);
+	// Determine if payload is ON or OFF
+	pBuffer+=6;
+	if (*pBuffer == 'N') {
+	  // Turn output ON
+          GpioSetPin(ParseNum, 1);
+	}
+	if (*pBuffer == 'F') {
+	  // Turn output OFF
+          GpioSetPin(ParseNum, 0);
+	}
       }
     }
     // The above code effectively did for MQTT what the POST parsing does for
@@ -1203,6 +1230,9 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   
   // Determine if the sub-topic is "state-req".
   else if (*pBuffer == 's') {
+    // "state-req" detected
+    // Format is:
+    //   state-req
     pBuffer += 8;
     if (*pBuffer == 'q') {
       *pBuffer = '0'; // Destroy 'q' in buffer so subsequent "state"
@@ -1219,6 +1249,8 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       state_request = STATE_REQUEST_RCVD;
     }
   }
+  // Note: if none of the above matched the parsing we just exit without
+  // executing any functionality (the message is effecftively ignored).
 }
 
 
@@ -1301,31 +1333,45 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint8_t value, uint8_t mas
 {
   // This function transmits a change in pin state and updates the "sent"
   // value.
-  application_message[0] = '0';
-  application_message[1] = (uint8_t)(pin);
-  application_message[2] = '\0';
+  
+  uint8_t size;
+  
+  application_message[0] = '\0';
   
   topic_base[topic_base_len] = '\0';
 
-  // Handle Sense Input value
+  // If we are sending an Input message invert the value
+  // if invert_input == 0xff
   if (direction == 'I') {
-    // Before sending the value invert it if invert_input == 0xff
     if (invert_input == 0xff) value = (uint8_t)(~value);
-    if (value & mask) strcat(topic_base, "/in_on");
-    else strcat(topic_base, "/in_off");
+    // Build first part of the topic message
+    strcat(topic_base, "/input/0");
   }
-  // Handle Relay Output value
+  // Else this is an Output message. Build the first part
+  // of the topic message
   else {
-    if (value & mask) strcat(topic_base, "/out_on");
-    else strcat(topic_base, "/out_off");
+    strcat(topic_base, "/output/0");
   }
-  
+    
+  // Add pin number to the topic message
+  topic_base[strlen(topic_base)+1] = '\0';
+  topic_base[strlen(topic_base)] = pin;
+  // Build the application message
+  if (value & mask) {
+    strcpy(application_message, "ON");
+    size = 2;
+  }
+  else {
+    strcpy(application_message, "OFF");
+    size = 3;
+  }
+    
   // Queue publish message
   mqtt_publish(&mqttclient,
                topic_base,
 	       application_message,
-	       2,
-	       MQTT_PUBLISH_QOS_0);
+	       size,
+	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   
   if (direction == 'I') {
     // Update the "sent" pin state information
@@ -1365,7 +1411,7 @@ void publish_pinstate_all(void)
                topic_base,
 	       application_message,
 	       2,
-	       MQTT_PUBLISH_QOS_0);
+	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
 
 #endif // MQTT_SUPPORT == 1
@@ -2096,11 +2142,35 @@ void check_restart_reboot(void)
     else if (restart_reboot_step == RESTART_REBOOT_ARM2) {
       // Wait 1 second
       if (second_counter > time_mark1 + 1) {
-        restart_reboot_step = RESTART_REBOOT_DISCONNECT;
+        restart_reboot_step = RESTART_REBOOT_SENDOFFLINE;
       }
     }
 
 #if MQTT_SUPPORT == 1
+    else if (restart_reboot_step == RESTART_REBOOT_SENDOFFLINE) {
+      restart_reboot_step = RESTART_REBOOT_OFFLINEWAIT;
+      if (mqtt_start == MQTT_START_COMPLETE) {
+        // Publish the availability "offline" message
+        topic_base[topic_base_len] = '\0';
+        strcat(topic_base, "/availability");
+        mqtt_publish(&mqttclient,
+                     topic_base,
+                     "offline",
+                     7,
+                     MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+        // Capture time to delay the next step
+        time_mark1 = second_counter;
+      }
+    }
+    
+    else if (restart_reboot_step == RESTART_REBOOT_OFFLINEWAIT) {
+      if (second_counter > time_mark1 + 1 ) {
+        // The offline publich is given 1 second to be communicated
+        // before we move on to disconnect
+        restart_reboot_step = RESTART_REBOOT_DISCONNECT;
+      }
+    }
+
     else if (restart_reboot_step == RESTART_REBOOT_DISCONNECT) {
       restart_reboot_step = RESTART_REBOOT_DISCONNECTWAIT;
       if (mqtt_start == MQTT_START_COMPLETE) {
@@ -2152,7 +2222,7 @@ void check_restart_reboot(void)
     }
     
 #else
-    else if (restart_reboot_step == RESTART_REBOOT_DISCONNECT) {
+    else if (restart_reboot_step == RESTART_REBOOT_SENDOFFLINE) {
       restart_reboot_step = RESTART_REBOOT_FINISH;
     }
 #endif // MQTT_SUPPORT == 1

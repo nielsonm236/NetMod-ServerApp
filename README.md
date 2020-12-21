@@ -1,4 +1,11 @@
 # NetMod-ServerApp
+
+IMPORTANT NOTE FOR MQTT USERS: The intial release of MQTT has only been out a month, but it
+became necessary to replace the MQTT command set to adhere to Home Assistant standards. Please
+see the documentation for details. This update (beginning with Code Revision 20201220 1321)
+will be much easier to use with Home Assistant. Also note: currently working on Home
+Assistant auto discovery. Should be available soon.
+
 Reprogramming the Web_Relay_Con V2.0 HW-584 Network Module
 Did you buy one (or more) of these Network Modules and then find disappointment in the software
 on the board?

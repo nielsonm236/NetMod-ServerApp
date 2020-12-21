@@ -266,9 +266,13 @@ uint8_t periodic_timer_expired(void)
 uint8_t mqtt_outbound_timer_expired(void)
 {
   // This function indicates expiration of the mqtt outbound timer at a count
-  // indicating 30ms have passed. If expired the function resets the timer
+  // indicating 50ms have passed. If expired the function resets the timer
   // counter to zero so that it can repeat its uptick.
-  if (mqtt_outbound_timer > 29) {
+  // Performance note: At some point between a setting of 40ms and 50ms the
+  // outbound messaging begins to loose messages, particularly when commands
+  // to set all outputs on or off are used. I recommend this setting not be
+  // made smaller than 50ms.
+  if (mqtt_outbound_timer > 49) {
     mqtt_outbound_timer = 0;       // Reset timer
     return(1);
   }

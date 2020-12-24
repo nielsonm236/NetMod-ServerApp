@@ -328,50 +328,6 @@ extern uint32_t second_counter;           // Counts seconds since boot
 #define WEBPAGE_IOCONTROL		0
 #define PARSEBYTES_IOCONTROL		101
 #define PARSEBYTES_IOCONTROL_ADDL	0
-static const unsigned char checked[] = "checked";
-static const char g_HtmlPageIOControl[] =
-  "%y04%y05%y06"
-  "<title>IO Control</title>"
-  "</head>"
-  "<body>"
-  "<h1>IO Control</h1>"
-  "<form method='POST' action='/'>"
-  "<table>"
-  "<tr><td class='t1'>Name:</td><td class='t2'>%a00</td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'></td><td class='t3'></td><td class='t1'>SET</td></tr>"
-  "<tr><td class='t1'>Relay01</td><td class='s%i00'></td><td class='t1'><input type='radio' id='01on' name='o00' value='1' %o00><label for='01on'>ON</label><input type='radio' id='01off' name='o00' value='0' %p00><label for='01off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay02</td><td class='s%i01'></td><td class='t1'><input type='radio' id='02on' name='o01' value='1' %o01><label for='02on'>ON</label><input type='radio' id='02off' name='o01' value='0' %p01><label for='02off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay03</td><td class='s%i02'></td><td class='t1'><input type='radio' id='03on' name='o02' value='1' %o02><label for='03on'>ON</label><input type='radio' id='03off' name='o02' value='0' %p02><label for='03off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay04</td><td class='s%i03'></td><td class='t1'><input type='radio' id='04on' name='o03' value='1' %o03><label for='04on'>ON</label><input type='radio' id='04off' name='o03' value='0' %p03><label for='04off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay05</td><td class='s%i04'></td><td class='t1'><input type='radio' id='05on' name='o04' value='1' %o04><label for='05on'>ON</label><input type='radio' id='05off' name='o04' value='0' %p04><label for='05off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay06</td><td class='s%i05'></td><td class='t1'><input type='radio' id='06on' name='o05' value='1' %o05><label for='06on'>ON</label><input type='radio' id='06off' name='o05' value='0' %p05><label for='06off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay07</td><td class='s%i06'></td><td class='t1'><input type='radio' id='07on' name='o06' value='1' %o06><label for='07on'>ON</label><input type='radio' id='07off' name='o06' value='0' %p06><label for='07off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay08</td><td class='s%i07'></td><td class='t1'><input type='radio' id='08on' name='o07' value='1' %o07><label for='08on'>ON</label><input type='radio' id='08off' name='o07' value='0' %p07><label for='08off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay09</td><td class='s%i08'></td><td class='t1'><input type='radio' id='09on' name='o08' value='1' %o08><label for='09on'>ON</label><input type='radio' id='09off' name='o08' value='0' %p08><label for='09off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay10</td><td class='s%i09'></td><td class='t1'><input type='radio' id='10on' name='o09' value='1' %o09><label for='10on'>ON</label><input type='radio' id='10off' name='o09' value='0' %p09><label for='10off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay11</td><td class='s%i10'></td><td class='t1'><input type='radio' id='11on' name='o10' value='1' %o10><label for='11on'>ON</label><input type='radio' id='11off' name='o10' value='0' %p10><label for='11off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay12</td><td class='s%i11'></td><td class='t1'><input type='radio' id='12on' name='o11' value='1' %o11><label for='12on'>ON</label><input type='radio' id='12off' name='o11' value='0' %p11><label for='12off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay13</td><td class='s%i12'></td><td class='t1'><input type='radio' id='13on' name='o12' value='1' %o12><label for='13on'>ON</label><input type='radio' id='13off' name='o12' value='0' %p12><label for='13off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay14</td><td class='s%i13'></td><td class='t1'><input type='radio' id='14on' name='o13' value='1' %o13><label for='14on'>ON</label><input type='radio' id='14off' name='o13' value='0' %p13><label for='14off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay15</td><td class='s%i14'></td><td class='t1'><input type='radio' id='15on' name='o14' value='1' %o14><label for='15on'>ON</label><input type='radio' id='15off' name='o14' value='0' %p14><label for='15off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Relay16</td><td class='s%i15'></td><td class='t1'><input type='radio' id='16on' name='o15' value='1' %o15><label for='16on'>ON</label><input type='radio' id='16off' name='o15' value='0' %p15><label for='16off'>OFF</label></td></tr>"
-  "</table>"
-  "<input type='hidden' name='z00' value='0'>"
-  "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
-  "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
-  "</form>"
-  "%y03/60%y02Refresh</button></form>"
-  "%y03/61%y02Configuration</button></form>"
-#if UIP_STATISTICS == 1
-  "%y03/66%y02Network Statistics</button></form>"
-#endif // UIP_STATISTICS == 1
-#if HELP_SUPPORT == 1
-  "%y03/63%y02Help</button></form>"
-#endif // HELP_SUPPORT == 1
-  "</body>"
-  "</html>";
 #endif // GPIO_SUPPORT == 1
 
 
@@ -406,53 +362,6 @@ static const char g_HtmlPageIOControl[] =
 #define WEBPAGE_IOCONTROL		0
 #define PARSEBYTES_IOCONTROL		53
 #define PARSEBYTES_IOCONTROL_ADDL	0
-static const unsigned char checked[] = "checked";
-static const char g_HtmlPageIOControl[] =
-  "%y04%y05%y06"
-  "<title>IO Control</title>"
-  "</head>"
-  "<body>"
-  "<h1>IO Control</h1>"
-  "<form method='POST' action='/'>"
-  "<table>"
-  "<tr><td class='t1'>Name:</td><td class='t2'>%a00</td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'></td><td class='t3'></td><td class='t1'>SET</td></tr>"
-  "<tr><td class='t1'>Output01</td><td class='s%i00'></td><td class='t1'><input type='radio' id='01on' name='o00' value='1' %o00><label for='01on'>ON</label><input type='radio' id='01off' name='o00' value='0' %p00><label for='01off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Output02</td><td class='s%i01'></td><td class='t1'><input type='radio' id='02on' name='o01' value='1' %o01><label for='02on'>ON</label><input type='radio' id='02off' name='o01' value='0' %p01><label for='02off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Output03</td><td class='s%i02'></td><td class='t1'><input type='radio' id='03on' name='o02' value='1' %o02><label for='03on'>ON</label><input type='radio' id='03off' name='o02' value='0' %p02><label for='03off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Output04</td><td class='s%i03'></td><td class='t1'><input type='radio' id='04on' name='o03' value='1' %o03><label for='04on'>ON</label><input type='radio' id='04off' name='o03' value='0' %p03><label for='04off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Output05</td><td class='s%i04'></td><td class='t1'><input type='radio' id='05on' name='o04' value='1' %o04><label for='05on'>ON</label><input type='radio' id='05off' name='o04' value='0' %p04><label for='05off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Output06</td><td class='s%i05'></td><td class='t1'><input type='radio' id='06on' name='o05' value='1' %o05><label for='06on'>ON</label><input type='radio' id='06off' name='o05' value='0' %p05><label for='06off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Output07</td><td class='s%i06'></td><td class='t1'><input type='radio' id='07on' name='o06' value='1' %o06><label for='07on'>ON</label><input type='radio' id='07off' name='o06' value='0' %p06><label for='07off'>OFF</label></td></tr>"
-  "<tr><td class='t1'>Output08</td><td class='s%i07'></td><td class='t1'><input type='radio' id='08on' name='o07' value='1' %o07><label for='08on'>ON</label><input type='radio' id='08off' name='o07' value='0' %p07><label for='08off'>OFF</label></td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>Input01</td><td class='s%i08'></td></tr>"
-  "<tr><td class='t1'>Input02</td><td class='s%i09'></td></tr>"
-  "<tr><td class='t1'>Input03</td><td class='s%i10'></td></tr>"
-  "<tr><td class='t1'>Input04</td><td class='s%i11'></td></tr>"
-  "<tr><td class='t1'>Input05</td><td class='s%i12'></td></tr>"
-  "<tr><td class='t1'>Input06</td><td class='s%i13'></td></tr>"
-  "<tr><td class='t1'>Input07</td><td class='s%i14'></td></tr>"
-  "<tr><td class='t1'>Input08</td><td class='s%i15'></td></tr>"
-  "</table>"
-  "<input type='hidden' name='z00' value='0'>"
-  "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
-  "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
-  "</form>"
-  "%y03/60%y02Refresh</button></form>"
-  "%y03/61%y02Configuration</button></form>"
-#if UIP_STATISTICS == 1
-  "%y03/66%y02Network Statistics</button></form>"
-#endif // UIP_STATISTICS == 1
-#if HELP_SUPPORT == 1
-  "%y03/63%y02Help</button></form>"
-#endif // HELP_SUPPORT == 1
-  "</body>"
-  "</html>";
-
 #endif // GPIO_SUPPORT == 2
 
 
@@ -478,50 +387,49 @@ static const char g_HtmlPageIOControl[] =
 #define WEBPAGE_IOCONTROL		0
 #define PARSEBYTES_IOCONTROL		5
 #define PARSEBYTES_IOCONTROL_ADDL	0
-static const unsigned char checked[] = "checked";
+#endif // GPIO_SUPPORT == 3
+
+
+
+// The following builds the IOControl webpage using javascript. It will return
+// the POST entries described above. The number of outputs, number of inputs,
+// output states and input states are inserted on-the-fly in the %p00, %p01,
+// %p02, and %p03 placeholders by the CopyHttpData() function.
 static const char g_HtmlPageIOControl[] =
-  "%y04%y05%y06"
-  "<title>IO Control</title>"
-  "</head>"
-  "<body>"
-  "<h1>IO Control</h1>"
-  "<form method='POST' action='/'>"
-  "<table>"
-  "<tr><td class='t1'>Name:</td><td class='t2'>%a00</td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>Input01</td><td class='s%i00'></td></tr>"
-  "<tr><td class='t1'>Input02</td><td class='s%i01'></td></tr>"
-  "<tr><td class='t1'>Input03</td><td class='s%i02'></td></tr>"
-  "<tr><td class='t1'>Input04</td><td class='s%i03'></td></tr>"
-  "<tr><td class='t1'>Input05</td><td class='s%i04'></td></tr>"
-  "<tr><td class='t1'>Input06</td><td class='s%i05'></td></tr>"
-  "<tr><td class='t1'>Input07</td><td class='s%i06'></td></tr>"
-  "<tr><td class='t1'>Input08</td><td class='s%i07'></td></tr>"
-  "<tr><td class='t1'>Input09</td><td class='s%i08'></td></tr>"
-  "<tr><td class='t1'>Input10</td><td class='s%i09'></td></tr>"
-  "<tr><td class='t1'>Input11</td><td class='s%i10'></td></tr>"
-  "<tr><td class='t1'>Input12</td><td class='s%i11'></td></tr>"
-  "<tr><td class='t1'>Input13</td><td class='s%i12'></td></tr>"
-  "<tr><td class='t1'>Input14</td><td class='s%i13'></td></tr>"
-  "<tr><td class='t1'>Input15</td><td class='s%i14'></td></tr>"
-  "<tr><td class='t1'>Input16</td><td class='s%i15'></td></tr>"
-  "</table>"
-  "<input type='hidden' name='z00' value='0'>"
-  "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
-  "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
-  "</form>"
-  "%y03/60%y02Refresh</button></form>"
-  "%y03/61%y02Configuration</button></form>"
+"%y04%y05"
+      "<title>IO Control</title>"
+   "</head>"
+   "<body>"
+      "<h1>IO Control</h1>"
+      "<form method=POST action='/'>"
+         "<table>"
+            "<tr><th>Name:</th><td colspan=2 style='text-align: left'>%a00</td></tr>"
+            "<script>"
+            "var nO=%p00,nI=%p01,dO=%p02,dI=%p03,"
+            "dw=(v)=>{document.write(v)};"
+            "pad=(i)=>{return(''+i).padStart(2,'0')},"
+            "mI=(t,j,s)=>{var m=t?'on':'off';return`<input type=radio id=${j}${m} name=o${j} value=${t} ${s==t?'checked':''}/><label for=${j}${m}>${m.toUpperCase()}</label>`},"
+            "mR=(n,d,_f)=>{for(i=0;i<n;i++){dw(_f(d&(1<<i)?1:0,pad(i),pad(i+1)))}};"
+            "dw(`<tr><th></th><th class=t3></th>${nO>0?'<th class=c>SET</th>':''}</tr>`);"
+            "mR(nO,dO,(s,j,k)=>{return`<tr><td>Output ${k}</td><td class=s${s}></td><td class=c>${mI(1,j,s)}${mI(0,j,s)}</td></tr>`});"
+            "mR(nI,dI,(s,j,k)=>{return`<tr><td>Input ${k}</td><td class=s${s}></td></tr>`});"
+            "</script>"
+         "</table>"
+         "<script>"
+           "nO&&dw(`<button type=submit title='Saves your changes then restarts the Network Module'>Save</button><button type=reset title='Un-does any changes that have not been saved'>Undo All</button>`)"
+         "</script>"
+         "<input type=hidden name=z00 value=0>"
+      "</form>"
+      "%y03/60%y02Refresh</button></form>"
+      "%y03/61%y02Configuration</button></form>"
 #if UIP_STATISTICS == 1
-  "%y03/66%y02Network Statistics</button></form>"
+      "%y03/66%y02Network Statistics</button></form>"
 #endif // UIP_STATISTICS == 1
 #if HELP_SUPPORT == 1
-  "%y03/63%y02Help</button></form>"
+      "%y03/63%y02Help</button></form>"
 #endif // HELP_SUPPORT == 1
-  "</body>"
-  "</html>";
-#endif // GPIO_SUPPORT == 3
+   "</body>"
+"</html>";
 
 
 #if MQTT_SUPPORT == 0
@@ -597,72 +505,6 @@ static const char g_HtmlPageIOControl[] =
 #define WEBPAGE_CONFIGURATION		1
 #define PARSEBYTES_CONFIGURATION	188
 #define PARSEBYTES_CONFIGURATION_ADDL	0
-static const char g_HtmlPageConfiguration[] =
-  "%y04%y05%y06"
-  "<title>Configuration</title>"
-  "</head>"
-  "<body>"
-  "<h1>Configuration</h1>"
-  "<form method='POST' action='/'>"
-  "<table>"
-  "<tr><td class='t1'>Name:</td><td><input name='a00' class='t2' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'></td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>Config</td><td><input name='g00' class='t5' value='%g00' pattern='[0-9a-zA-Z]{6}' title='6 characters required. See Documentation' maxlength='6'></td></tr>"
-  "</table>"
-  "<p></p>"
-  "<table>"
-  "<tr><td class='t1'>IP Addr</td><td><input name='b00' class='t6' value='%b00' %y00"
-                                 "<td><input name='b01' class='t6' value='%b01' %y00"
-                                 "<td><input name='b02' class='t6' value='%b02' %y00"
-	                         "<td><input name='b03' class='t6' value='%b03' %y00</tr>"
-  "<tr><td class='t1'>Gateway</td><td><input name='b04' class='t6' value='%b04' %y00"
-                                 "<td><input name='b05' class='t6' value='%b05' %y00"
-                                 "<td><input name='b06' class='t6' value='%b06' %y00"
-                                 "<td><input name='b07' class='t6' value='%b07' %y00</tr>"
-  "<tr><td class='t1'>Netmask</td><td><input name='b08' class='t6' value='%b08' %y00"
-                                 "<td><input name='b09' class='t6' value='%b09' %y00"
-                                 "<td><input name='b10' class='t6' value='%b10' %y00"
-                                 "<td><input name='b11' class='t6' value='%b11' %y00</tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>Port</td><td><input name='c00' class='t8' value='%c00' pattern='[0-9]{5}' title='Enter 00010 to 65535' maxlength='5'></td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>MAC Address</td><td><input name='d00' class='t7' value='%d00' %y01"
-                                     "<td><input name='d01' class='t7' value='%d01' %y01"
-                                     "<td><input name='d02' class='t7' value='%d02' %y01"
-                                     "<td><input name='d03' class='t7' value='%d03' %y01"
-                                     "<td><input name='d04' class='t7' value='%d04' %y01"
-                                     "<td><input name='d05' class='t7' value='%d05' %y01</tr>"
-  "</table>"
-  "<p></p>"
-  "<input type='hidden' name='z00' value='1'>"
-  "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
-  "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
-  "</form>"
-  "<p>"
-  "Use caution when changing the above. If you make a mistake you may have to<br>"
-  "restore factory defaults by holding down the reset button for 10 seconds.<br><br>"
-  "Make sure the MAC you assign is unique to your local network. Recommended<br>"
-  "is that you just increment the lowest octet and then label your devices for<br>"
-  "future reference.<br><br>"
-  "If you change the highest octet of the MAC you MUST use an even number to<br>"
-  "form a unicast address. 00, 02, ... fc, fe etc work fine. 01, 03 ... fd, ff are for<br>"
-  "multicast and will not work.<br>"
-  "Code Revision 20201220 1321</p>"
-  "%y03/91%y02Reboot</button></form>"
-  "&nbsp&nbspNOTE: Reboot may cause the relays to cycle.<br><br>"
-  "%y03/61%y02Refresh</button></form>"
-  "%y03/60%y02IO Control</button></form>"
-#if UIP_STATISTICS == 1
-  "%y03/66%y02Network Statistics</button></form>"
-#endif // UIP_STATISTICS == 1
-#if HELP_SUPPORT == 1
-  "%y03/63%y02Help</button></form>"
-#endif // HELP_SUPPORT == 1
-  "</body>"
-  "</html>";
 #endif // MQTT_SUPPORT == 0
 
 
@@ -770,81 +612,126 @@ static const char g_HtmlPageConfiguration[] =
 #define WEBPAGE_CONFIGURATION		1
 #define PARSEBYTES_CONFIGURATION	236
 #define PARSEBYTES_CONFIGURATION_ADDL	24
-static const char g_HtmlPageConfiguration[] =
-  "%y04%y05%y06"
-  "<title>Configuration</title>"
-  "</head>"
-  "<body>"
-  "<h1>Configuration</h1>"
-  "<form method='POST' action='/'>"
-  "<table>"
-  "<tr><td class='t1'>Name:</td><td><input name='a00' class='t2' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'></td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>Config</td><td><input name='g00' class='t5' value='%g00' pattern='[0-9a-zA-Z]{6}' title='6 characters required. See Documentation' maxlength='6'></td></tr>"
-  "</table>"
-  "<p></p>"
-  "<table>"
-  "<tr><td class='t1'>IP Address</td><td><input name='b00' class='t6' value='%b00' %y00"
-                                 "<td><input name='b01' class='t6' value='%b01' %y00"
-                                 "<td><input name='b02' class='t6' value='%b02' %y00"
-	                         "<td><input name='b03' class='t6' value='%b03' %y00</tr>"
-  "<tr><td class='t1'>Gateway</td><td><input name='b04' class='t6' value='%b04' %y00"
-                                 "<td><input name='b05' class='t6' value='%b05' %y00"
-                                 "<td><input name='b06' class='t6' value='%b06' %y00"
-                                 "<td><input name='b07' class='t6' value='%b07' %y00</tr>"
-  "<tr><td class='t1'>Netmask</td><td><input name='b08' class='t6' value='%b08' %y00"
-                                 "<td><input name='b09' class='t6' value='%b09' %y00"
-                                 "<td><input name='b10' class='t6' value='%b10' %y00"
-                                 "<td><input name='b11' class='t6' value='%b11' %y00</tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>Port</td><td><input name='c00' class='t8' value='%c00' pattern='[0-9]{5}' title='Enter 00010 to 65535' maxlength='5'></td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>MAC Address</td><td><input name='d00' class='t7' value='%d00' %y01"
-                                     "<td><input name='d01' class='t7' value='%d01' %y01"
-                                     "<td><input name='d02' class='t7' value='%d02' %y01"
-                                     "<td><input name='d03' class='t7' value='%d03' %y01"
-                                     "<td><input name='d04' class='t7' value='%d04' %y01"
-                                     "<td><input name='d05' class='t7' value='%d05' %y01</tr>"
-  "</table>"
-  "<p></p>"
-  "<table>"
-  "<tr><td class='t1'>MQTT Server</td><td><input name='b12' class='t6' value='%b12' %y00"
-                                     "<td><input name='b13' class='t6' value='%b13' %y00"
-                                     "<td><input name='b14' class='t6' value='%b14' %y00"
-	                             "<td><input name='b15' class='t6' value='%b15' %y00</tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>MQTT Port</td><td><input name='c01' class='t8' value='%c01' pattern='[0-9]{5}' title='Enter 00010 to 65535' maxlength='5'></td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>MQTT Username</td><td><input name='l00' class='t1' value='%l00' pattern='[0-9a-zA-Z-_*.]{0,10}' title='0 to 10 letters, numbers, and -_*. no spaces. Use none for no entry.' maxlength='10'></td></tr>"
-  "<tr><td class='t1'>MQTT Password</td><td><input name='m00' class='t1' value='%m00' pattern='[0-9a-zA-Z-_*.]{0,10}' title='0 to 10 letters, numbers, and -_*. no spaces. Use none for no entry.' maxlength='10'></td></tr>"
-  "</table>"
-  "<table>"
-  "<tr><td class='t1'>MQTT Status  </td><td class='s%n00'></td><td class='s%n01'></td><td class='s%n02'></td><td class='s%n03'></td><td class='s%n04'></td></tr>"
-  "</table>"
-  "<p></p>"
-  "<input type='hidden' name='z00' value='1'>"
-  "<button type='submit'>Save</button>"
-  "<button type='reset'>Undo All</button>"
-  "</form>"
-  "<p>"
-  "See Documentation for help<br>"
-  "Code Revision 20201220 1321</p>"
-  "%y03/91%y02Reboot</button></form>"
-  "<br><br>"
-  "%y03/61%y02Refresh</button></form>"
-  "%y03/60%y02IO Control</button></form>"
-#if HELP_SUPPORT == 1
-  "%y03/63%y02Help</button></form>"
-#endif // HELP_SUPPORT == 1
-  "</body>"
-  "</html>";
 #endif // MQTT_SUPPORT == 1
 
+
+static const char g_HtmlPageConfiguration[] =
+"%y04%y05"
+      "<title>Configuration</title>"
+   "</head>"
+   "<body>"
+      "<h1>Configuration</h1>"
+      "<form method='POST' action='/'>"
+         "<table>"
+            "<tr>"
+               "<td>Name</td>"
+               "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>Config</td>"
+               "<td><input name='g00' value='%g00' pattern='[0-9a-zA-Z]{6}' title='6 characters required. See Documentation' maxlength='6'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>IP Address</td>"
+               "<td class='ip'>"
+                 "<input name='b00' value='%b00'>"
+                 "<input name='b01' value='%b01'>"
+                 "<input name='b02' value='%b02'>"
+                 "<input name='b03' value='%b03'>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Gateway</td>"
+               "<td class='ip'>"
+                 "<input name='b04' value='%b04'>"
+                 "<input name='b05' value='%b05'>"
+                 "<input name='b06' value='%b06'>"
+                 "<input name='b07' value='%b07'>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Netmask</td>"
+               "<td class='ip'>"
+                 "<input name='b08' value='%b08'>"
+                 "<input name='b09' value='%b09'>"
+                 "<input name='b10' value='%b10'>"
+                 "<input name='b11' value='%b11'>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Port</td>"
+               "<td><input name='c00' class='t8' value='%c00' pattern='[0-9]{5}' title='Enter 00010 to 65535' maxlength='5'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>MAC Address</td>"
+               "<td class='mac'>"
+                 "<input name='d00' value='%d00'>"
+                 "<input name='d01' value='%d01'>"
+                 "<input name='d02' value='%d02'>"
+                 "<input name='d03' value='%d03'>"
+                 "<input name='d04' value='%d04'>"
+                 "<input name='d05' value='%d05'>"
+               "</td>"
+            "</tr>"
+#if MQTT_SUPPORT == 1
+            "<tr>"
+               "<td>MQTT Server</td>"
+               "<td class='ip'>"
+                 "<input name='b12' value='%b12'>"
+                 "<input name='b13' value='%b13'>"
+                 "<input name='b14' value='%b14'>"
+                 "<input name='b15' value='%b15'>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>MQTT Port</td>"
+               "<td><input name='c01' class='t8' value='%c01' pattern='[0-9]{5}' title='Enter 00010 to 65535' maxlength='5'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>MQTT Username</td>"
+               "<td class='up'><input name='l00' value='%l00'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>MQTT Password</td>"
+               "<td class='up'><input name='m00' value='%m00'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>MQTT Status</td>"
+               "<td class='s'>"
+                 "<div class='s%n00'></div>"
+                 "<div class='s%n01'></div>"
+                 "<div class='s%n02'></div>"
+                 "<div class='s%n03'></div>"
+                 "<div class='s%n04'></div>"
+               "</td>"
+            "</tr>"
+#endif // MQTT_SUPPORT == 1
+         "</table>"
+         "<script>"
+           "fe=(q,f)=>{for (const e of document.querySelectorAll(q)) {f(e)}};"
+           "sa=(e,d)=>{for (const [k, v] of Object.entries(d)){ e.setAttribute(k,v);}}"
+           "fe('.ip input',(e)=>{sa(e,{'title':'Enter 000 to 255', 'maxlength':3, 'pattern':'[0-9]{3}'});});"
+           "fe('.mac input',(e)=>{sa(e,{'title':'Enter 00 to ff', 'maxlength':2, 'pattern':'[0-9a-f]{2}'});});"
+           "fe('.mac input',(e)=>{sa(e,{'title':'0 to 10 letters, numbers, and -_*. no spaces. Use none for no entry.', 'maxlength':10, 'pattern':'[0-9a-zA-Z-_*.]{0,10}'});});"
+         "</script>"
+         "<p></p>"
+         "<input type='hidden' name='z00' value='1'>"
+         "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
+         "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
+      "</form>"
+      "<p>See Documentation for help<br>Code Revision 20201224 0120</p>"
+      "%y03/91%y02Reboot</button></form>"
+      "<br><br>"
+      "%y03/61%y02Refresh</button></form>"
+      "%y03/60%y02IO Control</button></form>"
+#if UIP_STATISTICS == 1
+  "%y03/66%y02Network Statistics</button></form>"
+#endif // UIP_STATISTICS == 1
+#if HELP_SUPPORT == 1
+      "%y03/63%y02Help</button></form>"
+#endif // HELP_SUPPORT == 1
+   "</body>"
+"</html>";
 
 
 #if HELP_SUPPORT == 1
@@ -1175,7 +1062,7 @@ static const uint8_t page_string03_len = 38;
 static const uint8_t page_string03_len_less4 = 34;
 
 // String for %y04 replacement in web page templates. When used this
-// string is always followed by the %y05 and %y06 strings
+// string is always followed by the %y05 string
 static const char page_string04[] =
   "<!DOCTYPE html>"
   "<html lang='en-US'>"
@@ -1185,29 +1072,21 @@ static const uint8_t page_string04_len = 71;
 static const uint8_t page_string04_len_less4 = 67;
 
 // String for %y05 replacement in web page templates. When used this
-// string is always follows the %y04 string, and is always followed
-// by the %y06 string.
+// string is always follows the %y04 string.
 static const char page_string05[] =
   "<style>"
-  ".s0 { background-color: red; width: 30px; }"
-  ".s1 { background-color: green; width: 30px; }"
-  ".t1 { width: 120px; }"
-  ".t2 { width: 148px; }"
-  ".t3 { width: 30px; }"
-  ".t5 { width: 60px; }"
-  ".t6 { width: 25px; }"
-  ".t7 { width: 18px; }"
-  ".t8 { width: 40px; }";
-static const uint8_t page_string05_len = 237;
-static const uint8_t page_string05_len_less4 = 233;
-
-// String for %y06 replacement in web page templates. When used this
-// string always follows the %y04 and %y05 strings.
-static const char page_string06[] =
-  "td { text-align: center; border: 1px black solid; }"
+  ".s0{background: red;}"
+  ".s1{background: green;}"
+  "table{border-spacing: 8px 2px}"
+  ".t3{width: 30px;}"
+  ".t8{width: 40px;}"
+  ".c{text-align: center;}"
+  ".ip input{width: 27px;}"
+  ".mac input{width: 14px;}"
+  ".s div{width: 13px; height: 13px; display:inline-block;}"
   "</style>";
-static const uint8_t page_string06_len = 59;
-static const uint8_t page_string06_len_less4 = 55;
+static const uint8_t page_string05_len = 249;
+static const uint8_t page_string05_len_less4 = 245;
 
 // .........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6
 
@@ -1249,43 +1128,23 @@ uint16_t adjust_template_size()
   if (current_webpage == WEBPAGE_IOCONTROL) {
     size = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
 
-    // Account for header replacement strings %y04 %y05 %y06
+    // Account for header replacement strings %y04 %y05
     size = size + page_string04_len_less4
-                + page_string05_len_less4
-		+ page_string06_len_less4;
+                + page_string05_len_less4;
 
     // Account for Device Name field %a00
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
     size = size + strlen(stored_devicename) - 4 ;
 
-    // Account for red/green state boxes %i00
-    // There are always 16 boxes, one for each input/output
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (1 - 4));
-    // size = size + (16 x (-3));
-    size = size - 48;
-
-    // Account for Relay on/off radio buttons %o00 and %p00
-    // The number of instances depends on the GPIO_SUPPORT value (16 outputs,
-    // 8 outputs, or 0 outputs). There is a %o00 and a %p00 for each output,
-    // but only one of those two fields will be replaced with a value (the
-    // value being the 7 byte string "checked").
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (7 - (2 x 4)));
-    // size = size + (#instances x (-1));
-#if GPIO_SUPPORT == 1
-    // size = size + (16 x (-1));
-    size = size - 16;
-#endif // GPIO_SUPPORT == 1
-#if GPIO_SUPPORT == 2
-    // size = size + (8 x (-1));
-    size = size - 8;
-#endif // GPIO_SUPPORT == 2
-#if GPIO_SUPPORT == 3
-    // size = size + (0 x (-1));
-    // size = size - 0;
-#endif // GPIO_SUPPORT == 3
+    // Account for pin state parameters
+    // Note that the substractions and additions cancel out
+    // %p00 is replaced by two characters
+    // %p01 is replaced by two characters
+    // size = size - 4;
+    // %p02 is replaced by six characters
+    // %p03 is replaced by six characters
+    // size = size + 4;
 
     // Account for IP Address insertion %y03 - Refresh Button
     // size = size + (strlen(page_string03) - marker_field_size);
@@ -1345,10 +1204,9 @@ uint16_t adjust_template_size()
   else if (current_webpage == WEBPAGE_CONFIGURATION) {
     size = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
 
-    // Account for header replacement strings %y04 %y05 %y06
+    // Account for header replacement strings %y04 %y05
     size = size + page_string04_len_less4
-                + page_string05_len_less4
-		+ page_string06_len_less4;
+                + page_string05_len_less4;
 
     // Account for Device Name field %a00
     // This can be variable in size during run time so we have to calculate it
@@ -1875,14 +1733,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
         // Search for '%' symbol in the data stream. The symbol indicates the
 	// start of one of these special fields:
-        // %i - Pin state - shows the current state of the GPIO pins. Output
-	//      only.
-        // %o - "ON" radio button to control the state of a GPIO pin. In this
-        //      application the GPIO pins are used to control relays. Input
-	//      and output.
-        // %p - "OFF" radio button to control the state of a GPIO pin. In this
-        //      application the GPIO pins are used to control relays. Input
-	//      and output.
         // %a - A user entered text field with a device name. Used for GUI
 	//      display so the user can easily tell what device they are
 	//      connected to. Also used as part of the MQTT Topic name. Input
@@ -1906,6 +1756,9 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         // %n - MQTT Status - Displays red or green boxes to indicate startup
 	//      status for MQTT (Connection Available, ARP OK, TCP OK, Connect
 	//      OK, MQTT_OK). Output only.
+        // %p - Used to insert number of output pins, number of input pins,
+	//      output pin states, and input pin states into the javascript
+	//      for the IOControl page.
         // %y - Indicates the need to insert one of several commonly occuring
 	//      HTML strings. This is to aid in compressing the web page
 	//      templates stored in flash memory.
@@ -1947,70 +1800,144 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         // NOW insert information in the transmit stream based on the nParsedMode
 	// and nParsedNum just collected. Anything inserted in the transmit stream
 	// is in ascii / UTF-8 form.
-	// Note that the data is displayed in two forms. When we parse for 'i' we
-	// are displaying the pin state as a green or red square. When we parse for
-	// 'o' or 'p' we are displaying radio buttons that indicate the ON/OFF
-	// state of the pin. So in all cases GpioGetPin is called to determine the
-	// current pin state.
-	
-        if (nParsedMode == 'i') {
-	  // This is pin state information.
-	  // For output pins display what is returned by GpioGetPin()
-	  // For input pins if invert_input != 0 the GPIO pin state needs to be
-	  // inverted before displaying.
-	  // If the result is 0 output a "0" for a red square
-	  // If the result is 1 output a "1" for a green square
+
+        if (nParsedMode == 'p') {
+	  // Pin state display parameters
+          // %p00 - number of outputs 1 to 16
+          // %p01 - number of inputs  1 to 16
+          // %p02 - two bytes representing 16 output pin states
+          //        if no outputs all bits are zero
+          //        if 8 outputs are used the upper byte is always 0
+          //        if 16 outputs both bytes are used with output 16 on the left
+          // %p03 - two bytes representing 16 input pin states
+          //        if no inputs all bits are zero
+          //        if 8 inputs the upper byte is always 0
+          //        if 16 inputs both bytes are used with input 16 on the left
+          if (nParsedNum == 0) {
+	    // Set number of outputs based on GPIO_SUPPORT
 #if GPIO_SUPPORT == 1
-          // Display Output Pin state
-	  *pBuffer = (uint8_t)(GpioGetPin(nParsedNum) + '0');
-          pBuffer++;
-          nBytes++;
+            // 16 outputs
+	    *pBuffer = '1'; pBuffer++;
+	    *pBuffer = '6'; pBuffer++;
+            nBytes += 2;
 #endif // GPIO_SUPPORT == 1
 #if GPIO_SUPPORT == 2
-          if (nParsedNum > 7) {
-            // Display Input Pin state
-	    i = GpioGetPin(nParsedNum);
-	    if (invert_input == 0x00) *pBuffer = (uint8_t)(i + '0');
-	    else {
-	      if (i == 0) *pBuffer = (uint8_t)('1');
-	      else *pBuffer = (uint8_t)('0');
-	    }
-            pBuffer++;
-            nBytes++;
-	  }
-	  else {
-	    // Display Output Pin State
-	    *pBuffer = (uint8_t)(GpioGetPin(nParsedNum) + '0');
-            pBuffer++;
-            nBytes++;
-	  }
+            // 8 outputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '8'; pBuffer++;
+            nBytes += 2;
 #endif // GPIO_SUPPORT == 2
 #if GPIO_SUPPORT == 3
-          // Display Input Pin State
-	  i = GpioGetPin(nParsedNum);
-	  if (invert_input == 0x00) {
-	    *pBuffer = (uint8_t)(i + '0');
-	  }
-	  else {
-	    if (i == 0) *pBuffer = (uint8_t)('1');
-	    else *pBuffer = (uint8_t)('0');
-	  }
-          pBuffer++;
-          nBytes++;
+            // 0 outputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+            nBytes += 2;
 #endif // GPIO_SUPPORT == 3
-	}
-
-        else if ((nParsedMode == 'o' && ((uint8_t)(GpioGetPin(nParsedNum) == 1)))
-	      || (nParsedMode == 'p' && ((uint8_t)(GpioGetPin(nParsedNum) == 0)))) { 
-	  // 'o' An "ON" radio buttion is displayed and is shown in the checked
-	  // state if the pin state is 1.
-	  // 'p' An "OFF" radio buttion is displayed and is shown in the checked
-	  // state if the pin state is 0.
-          for(i=0; i<7; i++) {
-            *pBuffer = checked[i];
-            pBuffer++;
           }
-	  nBytes += 7;
+	  
+          if (nParsedNum == 1) {
+	    // Set number of inputs based on GPIO_SUPPORT
+#if GPIO_SUPPORT == 1
+            // 0 inputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+            nBytes += 2;
+#endif // GPIO_SUPPORT == 1
+#if GPIO_SUPPORT == 2
+            // 8 inputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '8'; pBuffer++;
+            nBytes += 2;
+#endif // GPIO_SUPPORT == 2
+#if GPIO_SUPPORT == 3
+            // 16 inputs
+	    *pBuffer = '1'; pBuffer++;
+	    *pBuffer = '6'; pBuffer++;
+            nBytes += 2;
+#endif // GPIO_SUPPORT == 3
+          }
+	  
+          if (nParsedNum == 2) {
+	    // Set output pin states based on GPIO_SUPPORT
+#if GPIO_SUPPORT == 1
+            // 16 outputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = 'x'; pBuffer++;
+	    // Convert the MSB value to 2 digit hex
+	    emb_itoa(IO_16to9, OctetArray, 16, 2);
+	    *pBuffer = OctetArray[0]; pBuffer++;
+	    *pBuffer = OctetArray[1]; pBuffer++;
+	    // Convert the LSB value to 2 digit hex
+	    emb_itoa(IO_8to1, OctetArray, 16, 2);
+	    *pBuffer = OctetArray[0]; pBuffer++;
+	    *pBuffer = OctetArray[1]; pBuffer++;
+            nBytes += 6;
+#endif // GPIO_SUPPORT == 1
+#if GPIO_SUPPORT == 2
+            // 8 outputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = 'x'; pBuffer++;
+	    // MSB is zero
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+	    // Convert the LSB value to 2 digit hex
+	    emb_itoa(IO_8to1, OctetArray, 16, 2);
+	    *pBuffer = OctetArray[0]; pBuffer++;
+	    *pBuffer = OctetArray[1]; pBuffer++;
+            nBytes += 6;
+#endif // GPIO_SUPPORT == 2
+#if GPIO_SUPPORT == 3
+            // 0 outputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = 'x'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+            nBytes += 6;
+#endif // GPIO_SUPPORT == 3
+          }
+
+          if (nParsedNum == 3) {
+	    // Set input pin states based on GPIO_SUPPORT
+#if GPIO_SUPPORT == 1
+            // 0 inputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = 'x'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+            nBytes += 6;
+#endif // GPIO_SUPPORT == 1
+#if GPIO_SUPPORT == 2
+            // 8 inputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = 'x'; pBuffer++;
+	    // MSB is zero
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = '0'; pBuffer++;
+	    // Convert the LSB value to 2 digit hex
+	    emb_itoa(IO_16to9, OctetArray, 16, 2);
+	    *pBuffer = OctetArray[0]; pBuffer++;
+	    *pBuffer = OctetArray[1]; pBuffer++;
+            nBytes += 6;
+#endif // GPIO_SUPPORT == 2
+#if GPIO_SUPPORT == 3
+            // 16 inputs
+	    *pBuffer = '0'; pBuffer++;
+	    *pBuffer = 'x'; pBuffer++;
+	    // Convert the MSB value to 2 digit hex
+	    emb_itoa(IO_16to9, OctetArray, 16, 2);
+	    *pBuffer = OctetArray[0]; pBuffer++;
+	    *pBuffer = OctetArray[1]; pBuffer++;
+	    // Convert the LSB value to 2 digit hex
+	    emb_itoa(IO_8to1, OctetArray, 16, 2);
+	    *pBuffer = OctetArray[0]; pBuffer++;
+	    *pBuffer = OctetArray[1]; pBuffer++;
+            nBytes += 6;
+#endif // GPIO_SUPPORT == 3
+          }
         }
 
         else if (nParsedMode == 'a') {
@@ -2417,12 +2344,6 @@ else if (nParsedMode == 'g') {
               *pBuffer = (uint8_t)page_string05[i];
 	      insertion_flag[0]++;
 	      if (insertion_flag[0] == page_string05_len) insertion_flag[0] = 0;
-	      break;
-	    case 6:
-	      // %y06 replaced with third header string 
-              *pBuffer = (uint8_t)page_string06[i];
-	      insertion_flag[0]++;
-	      if (insertion_flag[0] == page_string06_len) insertion_flag[0] = 0;
 	      break;
 	    default: break;
 	  }

@@ -50,8 +50,10 @@ SOFTWARE.
 #include <uip_arp.h>
 #include "main.h"
 
-extern uint16_t uip_slen;
-
+extern uint16_t uip_slen;                 // Send Length for packets
+extern const char code_revision[];        // Code Revision
+extern uint8_t stored_devicename[20];     // Device name stored in EEPROM
+extern char mac_string[13];               // MAC formatted as string
 
 // Implements mqtt_pal_sendall and mqtt_pal_recvall and any platform-specific 
 // helpers you'd like.
@@ -135,6 +137,18 @@ extern uint16_t uip_slen;
 
 
 int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
+  
+  char* pBuffer;
+  char* mBuffer;
+  char temp_buf[6];
+  char temp[35];
+  uint16_t payload_size;
+  uint8_t devicename_size;
+  uint8_t mac_string_size;
+  uint8_t i;
+  
+  payload_size = 0;
+  
   // This function will copy MQTT data to the uip_buf for transmission to the
   // MQTT Server.
   // The return value is the number of bytes sent.
@@ -167,13 +181,233 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   // return from that UIP_APPCALL data will be transmitted if uip_slen is
   // greater than zero.
   //
-  // So, copy the data into the uip_buf, set the uip_slen value, and return.
-  memcpy(uip_appdata, buf, len);
-  uip_slen = len;
+
+  /*-------------------------------------------------------------------------*/
+  // Two types of MQTT transmissions are handled here. One is the normal
+  // MQTT packet. The other is an Auto Discovery packet. Because the MQTT
+  // packet buffer is very small in this application it cannot hold an entire
+  // Auto Discovery packet. So this function checks to determine if the
+  // application is trying to send an Auto Discovery packet. If yes, the
+  // function will generate the Auto Discovery packet here. If no, it is
+  // assummed that the packet was generated external to this function and
+  // is already present in the MQTT transmit buffer.
+  //
+  // main.c needs to create a publish message like the following. It includes
+  // a message placeholder and the length of that placeholder.
+  // This message triggers an Output discovery message. "xx" is the output
+  // number.
+  //    mqtt_publish(&mqttclient,
+  //                 topic_base,
+  //                 "%Oxx",
+  //                 4,
+  //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+  // This message triggers an Input discovery message. "xx" is the input
+  // number.
+  //    mqtt_publish(&mqttclient,
+  //                 topic_base,
+  //                 "%Ixx",
+  //                 4,
+  //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+  //
+  // Seek the placeholder in the current message in the transmit buffer. The
+  // marker will always start in buf[2].
+  //
+  // Copy the first 6 characters of the MQTT buf to temp_buf
+  
+  mBuffer = buf;
+  temp_buf[0] = *mBuffer;
+  mBuffer++;
+  temp_buf[1] = *mBuffer;
+  mBuffer++;
+  temp_buf[2] = *mBuffer;
+  mBuffer++;
+  temp_buf[3] = *mBuffer;
+  mBuffer++;
+  temp_buf[4] = *mBuffer;
+  mBuffer++;
+  temp_buf[5] = *mBuffer;
+  mBuffer++;
+  
+  if (temp_buf[2] == '%') {
+    // Found a marker - replace the existing payload with an auto discovery
+    // message.
+    // Set pointer to uip_appdata
+    pBuffer = uip_appdata;
+    // Copy the Fixed Header Byte 1 to the uip_buf
+    *pBuffer = temp_buf[0];
+    pBuffer++;
+    // Initialize string length values used in later code
+    devicename_size = (uint8_t)strlen(stored_devicename);
+    mac_string_size = (uint8_t)strlen(mac_string);
+    
+    // Calculate the payload size
+    if (temp_buf[3] == 'O') {
+      // This is an Output auto discovery message
+      payload_size = 266; // Payload without devicename
+    }
+    if (temp_buf[3] == 'I') {
+      // This is an Input auto discovery message
+      payload_size = 237; // Payload without devicename
+    }
+    payload_size += (3 * devicename_size);
+    
+    // Calculate the new "remaining length" bytes and put them in the uip_buf.
+    // Since we're always encoding a remaining count that is > 128 and < 384,
+    // and since we are always QOS = 0 (thus no variable header), the resulting
+    // "remaining count" can be calculated from the following.  We are
+    // expecting values from 240 to 323. This calculation has to be much more
+    // complex for a general case.
+    if (payload_size < 256) {
+      *pBuffer = (uint8_t)(payload_size - 128);
+      pBuffer++;
+      *pBuffer = 1;
+      pBuffer++;
+    }
+    else {
+      *pBuffer = (uint8_t)(payload_size - 128);
+      pBuffer++;
+      *pBuffer = 2;
+      pBuffer++;
+    }
+    
+    // Build the discovery payload and copy it to the uip_buf
+    // Since we only fill the buffer with one packet at a time, we know the
+    // packet we are replacing starts at buf[0]. Only buf[0] is to be kept as is
+    // and will be written to the uip_buf as is. The next two bytes are the
+    // remaining count as determined above. Then we build one of the payloads
+    // shown here, replacing fields as needed. While building the payload it is
+    // copied to the uip_buf.
+    //
+    // output payload
+    // {                                        // 1
+    // "uniq_id":"aabbccddeeff_output_01",      // 35
+    // "name":"devicename123456789 output 01",  // 21-39
+    // "~":"NetworkModule/devicename123456789", // 22-40
+    // "avty_t":"~/availability",               // 26
+    // "stat_t":"~/output/01",                  // 23
+    // "cmd_t":"~/output/01/set",               // 26
+    // "dev":{                                  // 7
+    // "ids":["NetworkModule","aabbccddeeff"],  // 39
+    // "mdl":"HW-584",                          // 15
+    // "mf":"NetworkModule",                    // 21
+    // "name":"devicename123456789",            // 11-29
+    // "sw":"20201220 1322"                     // 20
+    // }                                        // 1
+    // }                                        // 1
+    //                                          // 269 - 323
+    //                                          // or 266 plus 3 x devicename
+    //
+    // input payload
+    // {                                        // 1
+    // "uniq_id":"aabbccddeeff_input_01",       // 34
+    // "name":"devicename123456789 input 01",   // 20-38
+    // "~":"NetworkModule/devicename123456789", // 22-40
+    // "avty_t":"~/availability",               // 26
+    // "stat_t":"~/input/01",                   // 22
+    // "dev":{                                  // 7
+    // "ids":["NetworkModule","aabbccddeeff"],  // 39
+    // "mdl":"HW-584",                          // 15
+    // "mf":"NetworkModule",                    // 21
+    // "name":"devicename123456789",            // 11-29
+    // "sw":"20201220 1322"                     // 20
+    // }                                        // 1
+    // }                                        // 1
+    //                                          // 240 - 294
+    //                                          // or 237 plus 3 x devicename
+    //
+    // .........1.........2.........3.........4
+
+    // The string "temp" is used to construct pieces of the payload then
+    // those pieces are copied to the uip_buf using the pBuffer pointer.
+    // "temp" is a maximum of 35 characters.
+    strcpy(temp, "{\"uniq_id\":\"");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    for (i=0; i<mac_string_size; i++) { *pBuffer = mac_string[i]; pBuffer++; }
+   
+    if (temp_buf[3] == 'O') strcpy(temp, "\"_output_01\",\"name\":\"");
+    if (temp_buf[3] == 'I') strcpy(temp, "\"_input_01\",\"name\":\"");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
+    
+    if (temp_buf[3] == 'O') strcpy(temp, " output 01\",\"~\":\"NetworkModule/");
+    if (temp_buf[3] == 'I') strcpy(temp, " input 01\",\"~\":\"NetworkModule/");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
+    
+    strcpy(temp, "\",\"avty_t\":\"~/availability\",");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    if (temp_buf[3] == 'O') strcpy(temp, "\"stat_t\":\"~/output/");
+    if (temp_buf[3] == 'I') strcpy(temp, "\"stat_t\":\"~/input/");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    *pBuffer = temp_buf[4];  // Input or Output number
+    pBuffer++;
+    *pBuffer = temp_buf[5];
+    pBuffer++;
+
+    strcpy(temp, "\",");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+
+    if (temp_buf[3] == 'O') {
+      strcpy(temp, "\"cmd_t\":\"~/output/");
+      for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+      *pBuffer = temp_buf[4];  // Input or Output number
+      pBuffer++;
+      *pBuffer = temp_buf[5];
+      pBuffer++;
+
+      strcpy(temp, "/set\",");
+      for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    }
+
+    strcpy(temp, "\"dev\":{\"ids\":[\"NetworkModule\",\"");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    for (i=0; i<mac_string_size; i++) { *pBuffer = mac_string[i]; pBuffer++; }
+    
+    strcpy(temp, "\"],\"mdl\":\"HW-584\",");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    strcpy(temp, "\"mf\":\"NetworkModule\",\"name\":\"");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
+    
+    strcpy(temp, "\",\"sw\":\"");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    for (i=0; i<1; i++) { *pBuffer = code_revision[i]; pBuffer++; }
+    
+    strcpy(temp, "\"}}");
+    for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+    
+    // Increment the payload_size to account for the control byte and the
+    // remaining size bytes and put this in uip_slen to drive the uip code.
+    uip_slen = payload_size + 3;
+    // The MQTT code is only aware of the shorter "fake" packet that triggered
+    // the Auto Discovery packet generation. So this function needs to return
+    // a len value that indicates the the fake packet was consumed. The fake
+    // Auto Discovery packet always has a len of 6 (command byte, remaining
+    // length byte, and 4 payload bytes).
+    len = 6;
+  }
+  
+  else {
+    // The payload wasn't an Auto Discovery payload, so copy the payload data
+    // into the uip_buf, set the uip_slen value, and return.
+    memcpy(uip_appdata, buf, len);
+    uip_slen = len;
+  }
   return len; // This return value is only for the MQTT buffer mgmt code. The
               // UIP code uses the uip_slen value.
 }
 
+  
 int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz) {
   // This function will check if there is any data in the receive buffer and
   // report the size of that data to the MQTT calling process.

@@ -138,6 +138,7 @@ extern uint8_t restart_reboot_step;       // Indicates whether restart or reboot
 
 extern uint8_t stack_error;               // Flag indicating stack overflow error
 
+extern const char code_revision[];        // Code Revision
        
 uint8_t OctetArray[11];		          // Used in conversion of integer values to
 					  // character values
@@ -403,10 +404,12 @@ static const char g_HtmlPageIOControl[] =
       "<h1>IO Control</h1>"
       "<form method=POST action='/'>"
          "<table>"
-            "<tr><th>Name:</th><td colspan=2 style='text-align: left'>%a00</td></tr>"
+            "<tr><th>Name:</th><td style='text-align: left'>%a00</td></tr>"
+         "</table>"
+         "<table>"
             "<script>"
             "var nO=%p00,nI=%p01,dO=%p02,dI=%p03,"
-            "dw=(v)=>{document.write(v)};"
+            "dw=(v)=>{document.write(v)},"
             "pad=(i)=>{return(''+i).padStart(2,'0')},"
             "mI=(t,j,s)=>{var m=t?'on':'off';return`<input type=radio id=${j}${m} name=o${j} value=${t} ${s==t?'checked':''}/><label for=${j}${m}>${m.toUpperCase()}</label>`},"
             "mR=(n,d,_f)=>{for(i=0;i<n;i++){dw(_f(d&(1<<i)?1:0,pad(i),pad(i+1)))}};"
@@ -616,7 +619,7 @@ static const char g_HtmlPageIOControl[] =
 
 
 static const char g_HtmlPageConfiguration[] =
-"%y04%y05"
+  "%y04%y05"
       "<title>Configuration</title>"
    "</head>"
    "<body>"
@@ -634,27 +637,27 @@ static const char g_HtmlPageConfiguration[] =
             "<tr>"
                "<td>IP Address</td>"
                "<td class='ip'>"
-                 "<input name='b00' value='%b00'>"
-                 "<input name='b01' value='%b01'>"
-                 "<input name='b02' value='%b02'>"
+                 "<input name='b00' value='%b00'> "
+                 "<input name='b01' value='%b01'> "
+                 "<input name='b02' value='%b02'> "
                  "<input name='b03' value='%b03'>"
                "</td>"
             "</tr>"
             "<tr>"
                "<td>Gateway</td>"
                "<td class='ip'>"
-                 "<input name='b04' value='%b04'>"
-                 "<input name='b05' value='%b05'>"
-                 "<input name='b06' value='%b06'>"
+                 "<input name='b04' value='%b04'> "
+                 "<input name='b05' value='%b05'> "
+                 "<input name='b06' value='%b06'> "
                  "<input name='b07' value='%b07'>"
                "</td>"
             "</tr>"
             "<tr>"
                "<td>Netmask</td>"
                "<td class='ip'>"
-                 "<input name='b08' value='%b08'>"
-                 "<input name='b09' value='%b09'>"
-                 "<input name='b10' value='%b10'>"
+                 "<input name='b08' value='%b08'> "
+                 "<input name='b09' value='%b09'> "
+                 "<input name='b10' value='%b10'> "
                  "<input name='b11' value='%b11'>"
                "</td>"
             "</tr>"
@@ -665,11 +668,11 @@ static const char g_HtmlPageConfiguration[] =
             "<tr>"
                "<td>MAC Address</td>"
                "<td class='mac'>"
-                 "<input name='d00' value='%d00'>"
-                 "<input name='d01' value='%d01'>"
-                 "<input name='d02' value='%d02'>"
-                 "<input name='d03' value='%d03'>"
-                 "<input name='d04' value='%d04'>"
+                 "<input name='d00' value='%d00'> "
+                 "<input name='d01' value='%d01'> "
+                 "<input name='d02' value='%d02'> "
+                 "<input name='d03' value='%d03'> "
+                 "<input name='d04' value='%d04'> "
                  "<input name='d05' value='%d05'>"
                "</td>"
             "</tr>"
@@ -677,9 +680,9 @@ static const char g_HtmlPageConfiguration[] =
             "<tr>"
                "<td>MQTT Server</td>"
                "<td class='ip'>"
-                 "<input name='b12' value='%b12'>"
-                 "<input name='b13' value='%b13'>"
-                 "<input name='b14' value='%b14'>"
+                 "<input name='b12' value='%b12'> "
+                 "<input name='b13' value='%b13'> "
+                 "<input name='b14' value='%b14'> "
                  "<input name='b15' value='%b15'>"
                "</td>"
             "</tr>"
@@ -698,10 +701,10 @@ static const char g_HtmlPageConfiguration[] =
             "<tr>"
                "<td>MQTT Status</td>"
                "<td class='s'>"
-                 "<div class='s%n00'></div>"
-                 "<div class='s%n01'></div>"
-                 "<div class='s%n02'></div>"
-                 "<div class='s%n03'></div>"
+                 "<div class='s%n00'></div> "
+                 "<div class='s%n01'></div> "
+                 "<div class='s%n02'></div> "
+                 "<div class='s%n03'></div> "
                  "<div class='s%n04'></div>"
                "</td>"
             "</tr>"
@@ -709,17 +712,17 @@ static const char g_HtmlPageConfiguration[] =
          "</table>"
          "<script>"
            "fe=(q,f)=>{for (const e of document.querySelectorAll(q)) {f(e)}};"
-           "sa=(e,d)=>{for (const [k, v] of Object.entries(d)){ e.setAttribute(k,v);}}"
+           "sa=(e,d)=>{for (const [k, v] of Object.entries(d)){ e.setAttribute(k,v);}};"
            "fe('.ip input',(e)=>{sa(e,{'title':'Enter 000 to 255', 'maxlength':3, 'pattern':'[0-9]{3}'});});"
            "fe('.mac input',(e)=>{sa(e,{'title':'Enter 00 to ff', 'maxlength':2, 'pattern':'[0-9a-f]{2}'});});"
-           "fe('.mac input',(e)=>{sa(e,{'title':'0 to 10 letters, numbers, and -_*. no spaces. Use none for no entry.', 'maxlength':10, 'pattern':'[0-9a-zA-Z-_*.]{0,10}'});});"
+           "fe('.up input',(e)=>{sa(e,{'title':'0 to 10 letters, numbers, and -_*. no spaces. Use none for no entry.', 'maxlength':10, 'pattern':'[0-9a-zA-Z-_*.]{0,10}'});});"
          "</script>"
          "<p></p>"
          "<input type='hidden' name='z00' value='1'>"
          "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
          "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
       "</form>"
-      "<p>See Documentation for help<br>Code Revision 20201224 0120</p>"
+      "<p>See Documentation for help<br>Code Revision %w00</p>"
       "%y03/91%y02Reboot</button></form>"
       "<br><br>"
       "%y03/61%y02Refresh</button></form>"
@@ -1067,26 +1070,28 @@ static const char page_string04[] =
   "<!DOCTYPE html>"
   "<html lang='en-US'>"
   "<head>"
-  "<link rel='icon' href='data:,'>";
-static const uint8_t page_string04_len = 71;
-static const uint8_t page_string04_len_less4 = 67;
+  "<link rel='icon' href='data:,'>"
+  "<style>"
+  ".s0{background: red;}"
+  ".s1{background: green;}";
+static const uint8_t page_string04_len = 122;
+static const uint8_t page_string04_len_less4 = 118;
 
 // String for %y05 replacement in web page templates. When used this
 // string is always follows the %y04 string.
 static const char page_string05[] =
-  "<style>"
-  ".s0{background: red;}"
-  ".s1{background: green;}"
   "table{border-spacing: 8px 2px}"
   ".t3{width: 30px;}"
   ".t8{width: 40px;}"
   ".c{text-align: center;}"
   ".ip input{width: 27px;}"
   ".mac input{width: 14px;}"
+  ".up input(width: 76px;)"
   ".s div{width: 13px; height: 13px; display:inline-block;}"
+  ".hs{height: 9px;}"
   "</style>";
-static const uint8_t page_string05_len = 249;
-static const uint8_t page_string05_len_less4 = 245;
+static const uint8_t page_string05_len = 238;
+static const uint8_t page_string05_len_less4 = 234;
 
 // .........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6
 
@@ -1250,7 +1255,7 @@ uint16_t adjust_template_size()
     // size = size + (4 x (-1));
     size = size - 4;
 
-    // Account for MQTT Port field %k00
+    // Account for MQTT Port field %c01
     // There is 1 instance of this field
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (1 x (5 - 4));
@@ -1274,6 +1279,12 @@ uint16_t adjust_template_size()
     // size = size + (5 x (-3));
     size = size - 15;
 #endif // MQTT_SUPPORT == 1
+
+    // Account for Code Revision insertion %w00
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (13 - 4));
+    // size = size + (1 x 9);
+    size = size + 9;
 
     // Account for IP Address insertion %y03 - Reboot Button
     // size = size + (strlen(page_string03) - marker_field_size);
@@ -1315,7 +1326,7 @@ uint16_t adjust_template_size()
     // size = size + (#instances) x ((strlen(page_string00) - 4);
     // size = size + (12) x (57 - 4);
     // size = size + (12) x (53);
-    size = size + (12 * (page_string00_len_less4));
+//    size = size + (12 * (page_string00_len_less4));
 #if MQTT_SUPPORT == 1
     // String for %y00 in web page templates
     // There are 4 more instances (one for each 3 character field)
@@ -1324,7 +1335,7 @@ uint16_t adjust_template_size()
     // size = size + (#instances) x ((strlen(page_string00) - 4);
     // size = size + (4) x (57 - 4);
     // size = size + (4) x (53);
-    size = size + (4 * (page_string00_len_less4));
+//    size = size + (4 * (page_string00_len_less4));
 #endif // MQTT_SUPPORT == 1
 
     // String for %y01 in web page templates
@@ -1334,7 +1345,7 @@ uint16_t adjust_template_size()
     // size = size + (6) x ((strlen(page_string01) - 4);
     // size = size + (6) x (58 - 4);
     // size = size + (6) x (54);
-    size = size + (6 * (page_string01_len_less4));
+//    size = size + (6 * (page_string01_len_less4));
         
     // String for %y02 in web page templates
     // There are 3 instances (Reboot, Refresh, and IO Control buttons)
@@ -1759,6 +1770,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         // %p - Used to insert number of output pins, number of input pins,
 	//      output pin states, and input pin states into the javascript
 	//      for the IOControl page.
+	// %w - Code Revision. Output only.
         // %y - Indicates the need to insert one of several commonly occuring
 	//      HTML strings. This is to aid in compressing the web page
 	//      templates stored in flash memory.
@@ -2254,6 +2266,16 @@ else if (nParsedMode == 'g') {
 	}
 #endif // MQTT_SUPPORT == 1
 
+        else if (nParsedMode == 'w') {
+	  // This is Code Revision information (13 characters)
+	  // Display Code Revision
+          for(i=0; i<13; i++) {
+              *pBuffer = code_revision[i];
+              pBuffer++;
+              nBytes++;
+	  }
+	}
+	
         else if (nParsedMode == 'y') {
           // Indicates the need to insert one of several commonly occuring HTML
           // strings. These strings were created to aid in compressing the web

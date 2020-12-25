@@ -42,6 +42,15 @@
 #include "uip_TcpAppHub.h"
 #include "uipopt.h"
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+const char code_revision[] = "20201224 2104";
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+
 #if MQTT_SUPPORT == 1
 #include "mqtt.h"
 #endif // MQTT_SUPPORT == 1
@@ -290,14 +299,12 @@ uint8_t mqtt_restart_step;            // Step tracker for restarting MQTT
 
 static const unsigned char devicetype[] = "NetworkModule/"; // Used in
                                       // building topic and client id names
-unsigned char topic_base[47];         // Used for building connect, subscribe,
+unsigned char topic_base[51];         // Used for building connect, subscribe,
                                       // and publish topic strings.
 				      // Longest string content:
 				      // NetworkModule/DeviceName123456789/availability
 				      // NetworkModule/DeviceName123456789/output/+/set
-uint8_t topic_base_len;               // Length of the topic_base once it is
-                                      // filled with the devicetype[] and
-				      // devicename[] information.
+				      // homeassistant/binary_sensor/macaddressxx/01/config
 uint32_t MQTT_resp_tout_counter;      // Counts response timeout events in the
                                       // mqtt_sanity_check() function
 uint32_t MQTT_not_OK_counter;         // Counts MQTT != OK events in the
@@ -341,12 +348,6 @@ int main(void)
   MQTT_error_status = 0;                 // For MQTT error status display in
                                          // GUI
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
-  strcpy(topic_base, devicetype);        // Initial content of the topic_base.
-                                         // The device_name will be
-					 // contatenated later, and then
-					 // sub-topics will be concatenated
-					 // as required by the connect,
-					 // subscribe, and publish messages.
   state_request = STATE_REQUEST_IDLE;    // Set the state request received to
                                          // idle
   TXERIF_counter = 0;                    // Initialize the TXERIF error counter
@@ -383,7 +384,6 @@ int main(void)
   uip_init();              // Initialize uIP Web Server
   
   HttpDInit();             // Initialize listening ports
-
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless there
@@ -802,7 +802,8 @@ void mqtt_startup(void)
     connect_flags = MQTT_CONNECT_CLEAN_SESSION;
  
     // Create will_topic
-    topic_base[topic_base_len] = '\0';
+    strcpy(topic_base, devicetype);
+    strcat(topic_base, stored_devicename);
     strcat(topic_base, "/availability");
 
     // Queue the message
@@ -867,7 +868,8 @@ void mqtt_startup(void)
     // transmit, then queue another message.
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	
-    topic_base[topic_base_len] = '\0';
+    strcpy(topic_base, devicetype);
+    strcat(topic_base, stored_devicename);
     strcat(topic_base, "/output/+/set");
     mqtt_subscribe(&mqttclient, topic_base, 0);
     mqtt_start_ctr2 = 0; // Clear 100ms counter
@@ -879,7 +881,8 @@ void mqtt_startup(void)
     // Subscribe to the state-req message
     //
     // Wait 300ms before queuing the Subscribe message 
-    topic_base[topic_base_len] = '\0';
+    strcpy(topic_base, devicetype);
+    strcat(topic_base, stored_devicename);
     strcat(topic_base, "/state-req");
     mqtt_subscribe(&mqttclient, topic_base, 0);
     mqtt_start_ctr2 = 0; // Clear 100ms counter
@@ -890,7 +893,8 @@ void mqtt_startup(void)
         && mqtt_start_ctr2 > 2) {
     // Wait 300ms before queuing Publish message 
     // Publish the availability "online" message
-    topic_base[topic_base_len] = '\0';
+    strcpy(topic_base, devicetype);
+    strcat(topic_base, stored_devicename);
     strcat(topic_base, "/availability");
     mqtt_publish(&mqttclient,
                  topic_base,
@@ -913,6 +917,92 @@ void mqtt_startup(void)
     // Indicate succesful completion
     mqtt_start = MQTT_START_COMPLETE;
   }
+  
+ /* 
+  else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_AUTO
+        && mqtt_start_ctr2 > 2) {
+    // Publish Auto Discovery messages
+    // This code will create a placeholder publish message. The code
+    // in the mqtt_pal.c file will convert the placeholder into the
+    // actual Auto Discovery Publish message when it detects the
+    // application_message inserted below. This complication is
+    // necessary because the MQTT transmit buffer is not large enough
+    // to contain an entire Auto Discovery message, so it is
+    // constructed on-the-fly into the uip_buf transmit buffer by the
+    // mqtt_pal.c code.
+    //    mqtt_publish(&mqttclient,
+    //                 topic_base,
+    //                 "%Oxx",
+    //                 4,
+    //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+    // This message triggers an Input discovery message. "xx" is the input
+    // number.
+    //    mqtt_publish(&mqttclient,
+    //                 topic_base,
+    //                 "%Ixx",
+    //                 4,
+    //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+
+    if (out_num < 8) {
+      // Queue publish message
+      // Topic: homeassistant/switch/macaddressxx/01/config
+      strcat(topic_base, "homeassistant/switch/";
+      strcat(topic_base, mac_string);
+      strcat(topic_base, "/");
+      strcat(topic_base, out_num);
+      strcat(topic_base, "/config"
+      
+      // Convert out_num to the $Oxx string format
+      emb_itoa(outnum, OctetArray, 10, 2); break;
+      application_message[0] = '%';
+      application_message[1] = 'O';
+      application_message[2] = OctetArray[0];
+      application_message[3] = OctetArray[1];
+      application_message[4] = '\0';
+
+      mqtt_publish(&mqttclient,
+                   topic_base,
+	           application_message,
+	           4,
+	           MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+
+  out_num++;
+  if (out_num == 8) out_num = 0;
+
+
+
+// Topic: homeassistant/binary_sensor/aabbccddeeff/01/config
+  strcat(topic_base, "homeassistant/binary-sensor/";
+  strcat(topic_base, mac_string);
+  strcat(topic_base, "/");
+  strcat(topic_base, IO_num);
+  strcat(topic_base, "/config"
+  
+  mqtt_publish(&mqttclient,
+               topic_base,
+	       "%I01",
+	       size,
+	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+
+  mqtt_publish(&mqttclient,
+               topic_base,
+	       "%I08",
+	       size,
+	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+
+
+
+  }
+  
+  
+*/  
+  
+  
+  
+  
+  
+  
+  
 }
 
 
@@ -1338,7 +1428,8 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint8_t value, uint8_t mas
   
   application_message[0] = '\0';
   
-  topic_base[topic_base_len] = '\0';
+  strcpy(topic_base, devicetype);
+  strcat(topic_base, stored_devicename);
 
   // If we are sending an Input message invert the value
   // if invert_input == 0xff
@@ -1403,7 +1494,8 @@ void publish_pinstate_all(void)
   application_message[1] = k;
   application_message[2] = '\0';
 
-  topic_base[topic_base_len] = '\0';
+  strcpy(topic_base, devicetype);
+  strcat(topic_base, stored_devicename);
   strcat(topic_base, "/state");
 
   // Queue publish message
@@ -1699,11 +1791,6 @@ void check_eeprom_settings(void)
     Pending_mqtt_username[i] = stored_mqtt_username[i];
     Pending_mqtt_password[i] = stored_mqtt_password[i];
   }
-  // Add the device name to the topic_base string
-  strcat(topic_base, stored_devicename);
-  // Save the topic_base strlen. This must be updated any time the
-  // stored_devicename changes.
-  topic_base_len = (uint8_t)strlen(topic_base);
 #endif // MQTT_SUPPORT == 1 
   
   // Update the MAC string
@@ -2004,11 +2091,6 @@ void check_runtime_changes(void)
     }
 
 #if MQTT_SUPPORT == 1 
-    // Update the topic_base and strlen
-    strcpy(topic_base, devicetype);
-    strcat(topic_base, stored_devicename);
-    topic_base_len = (uint8_t)strlen(topic_base);
-		
     // Check for changes in the MQTT Server IP Address
     if (stored_mqttserveraddr[3] != Pending_mqttserveraddr[3] ||
         stored_mqttserveraddr[2] != Pending_mqttserveraddr[2] ||
@@ -2151,7 +2233,8 @@ void check_restart_reboot(void)
       restart_reboot_step = RESTART_REBOOT_OFFLINEWAIT;
       if (mqtt_start == MQTT_START_COMPLETE) {
         // Publish the availability "offline" message
-        topic_base[topic_base_len] = '\0';
+        strcpy(topic_base, devicetype);
+        strcat(topic_base, stored_devicename);
         strcat(topic_base, "/availability");
         mqtt_publish(&mqttclient,
                      topic_base,
@@ -2273,7 +2356,6 @@ void restart(void)
   mqtt_sanity_ctr = 0;
   MQTT_error_status = 0;
   mqtt_restart_step = MQTT_RESTART_IDLE;
-  strcpy(topic_base, devicetype);
   state_request = STATE_REQUEST_IDLE;
 #endif // MQTT_SUPPORT == 1
   

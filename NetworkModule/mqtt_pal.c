@@ -55,6 +55,12 @@ extern const char code_revision[];        // Code Revision
 extern uint8_t stored_devicename[20];     // Device name stored in EEPROM
 extern char mac_string[13];               // MAC formatted as string
 
+#if DEBUG_SUPPORT != 0
+// Variables used to store debug information
+extern uint8_t debug[NUM_DEBUG_BYTES];
+extern uint8_t stored_debug[NUM_DEBUG_BYTES];
+#endif // DEBUG_SUPPORT != 0
+
 // Implements mqtt_pal_sendall and mqtt_pal_recvall and any platform-specific 
 // helpers you'd like.
 
@@ -192,8 +198,10 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   // assummed that the packet was generated external to this function and
   // is already present in the MQTT transmit buffer.
   //
-  // main.c needs to create a publish message like the following. It includes
-  // a message placeholder and the length of that placeholder.
+  // For Auto Discovery Publish messages main.c needs to create a publish
+  // message like the following. It includes a message placeholder and the
+  // length of that placeholder.
+  // 
   // This message triggers an Output discovery message. "xx" is the output
   // number.
   //    mqtt_publish(&mqttclient,
@@ -213,7 +221,15 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   // marker will always start in buf[2].
   //
   // Copy the first 6 characters of the MQTT buf to temp_buf
-  
+  // After copy (if this is an Auto Discovery message)
+  //   temp_buf[0] = Control byte
+  //   temp_buf[1] = Remaining length
+  //   temp_buf[2] = %
+  //   temp_buf[3] = I or O
+  //   temp_buf[4] = MSB input or output number
+  //   temp_buf[5] = LSB input or output number
+
+/*
   mBuffer = buf;
   temp_buf[0] = *mBuffer;
   mBuffer++;
@@ -228,6 +244,16 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   temp_buf[5] = *mBuffer;
   mBuffer++;
   
+debug[0] = temp_buf[0];
+debug[1] = temp_buf[1];
+debug[2] = temp_buf[2];
+debug[3] = temp_buf[3];
+debug[4] = temp_buf[4];
+debug[5] = temp_buf[5];
+fastflash();
+update_debug_storage1();
+while (debug[0]=='0');
+
   if (temp_buf[2] == '%') {
     // Found a marker - replace the existing payload with an auto discovery
     // message.
@@ -405,6 +431,15 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   }
   return len; // This return value is only for the MQTT buffer mgmt code. The
               // UIP code uses the uip_slen value.
+*/
+
+
+  memcpy(uip_appdata, buf, len);
+  uip_slen = len;
+  return len; // This return value is only for the MQTT buffer mgmt code. The
+              // UIP code uses the uip_slen value.
+
+
 }
 
   

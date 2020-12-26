@@ -1086,12 +1086,11 @@ static const char page_string05[] =
   ".c{text-align: center;}"
   ".ip input{width: 27px;}"
   ".mac input{width: 14px;}"
-  ".up input(width: 76px;)"
   ".s div{width: 13px; height: 13px; display:inline-block;}"
   ".hs{height: 9px;}"
   "</style>";
-static const uint8_t page_string05_len = 238;
-static const uint8_t page_string05_len_less4 = 234;
+static const uint8_t page_string05_len = 215;
+static const uint8_t page_string05_len_less4 = 211;
 
 // .........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6
 
@@ -1141,15 +1140,6 @@ uint16_t adjust_template_size()
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
     size = size + strlen(stored_devicename) - 4 ;
-
-    // Account for pin state parameters
-    // Note that the substractions and additions cancel out
-    // %p00 is replaced by two characters
-    // %p01 is replaced by two characters
-    // size = size - 4;
-    // %p02 is replaced by six characters
-    // %p03 is replaced by six characters
-    // size = size + 4;
 
     // Account for IP Address insertion %y03 - Refresh Button
     // size = size + (strlen(page_string03) - marker_field_size);
@@ -1299,12 +1289,12 @@ uint16_t adjust_template_size()
     // size = size + (strlen(page_string03) - 4);
     size = size + (3 * page_string03_len_less4);
 
-#if UIP_STATISTICS == 1 || UIP_STATISTICS == 2
+#if UIP_STATISTICS == 1
     // Account for IP Address insertion %y03 - Network Statistics Button
     // size = size + (strlen(page_string03) - marker_field_size);
     // size = size + (strlen(page_string03) - 4);
     size = size + page_string03_len_less4;
-#endif // UIP_STATISTICS == 1 || UIP_STATISTICS == 2
+#endif // UIP_STATISTICS == 1
 
 #if HELP_SUPPORT == 1
     // Account for IP Address insertion %y03 - Help Button
@@ -1319,34 +1309,6 @@ uint16_t adjust_template_size()
     // are inserted on the fly when the web page is sent to the browser, so
     // they have to be accounted for in the size of the web page.
     
-    // String for %y00 in web page templates
-    // There are 12 instances (one for each 3 character field)
-    // page_string00[] = "pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'"; 57 bytes
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances) x ((strlen(page_string00) - 4);
-    // size = size + (12) x (57 - 4);
-    // size = size + (12) x (53);
-//    size = size + (12 * (page_string00_len_less4));
-#if MQTT_SUPPORT == 1
-    // String for %y00 in web page templates
-    // There are 4 more instances (one for each 3 character field)
-    // page_string00[] = "pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'"; 57 bytes
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances) x ((strlen(page_string00) - 4);
-    // size = size + (4) x (57 - 4);
-    // size = size + (4) x (53);
-//    size = size + (4 * (page_string00_len_less4));
-#endif // MQTT_SUPPORT == 1
-
-    // String for %y01 in web page templates
-    // There are 6 instances (one for each 2 character field)
-    // page_string01[] = "pattern='[0-9a-f]{2}' title='Enter 00 to ff' maxlength='2'"; 58 bytes
-    // size = size + (#instances) x ((strlen(page_string01) - marker_field_size);
-    // size = size + (6) x ((strlen(page_string01) - 4);
-    // size = size + (6) x (58 - 4);
-    // size = size + (6) x (54);
-//    size = size + (6 * (page_string01_len_less4));
-        
     // String for %y02 in web page templates
     // There are 3 instances (Reboot, Refresh, and IO Control buttons)
     // page_string02[] = "<button title='Save first! This button will not save your changes'>"; 67 bytes
@@ -1363,14 +1325,6 @@ uint16_t adjust_template_size()
     // size = size + (1) x (63);
     size = size + page_string02_len_less4;
 #endif // UIP_STATISTICS == 1
-
-#if UIP_STATISTICS == 2
-    // There is 1 more %y02 instance (Statistics button)
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (1) x (67 - 4);
-    // size = size + (1) x (63);
-    size = size + page_string02_len_less4;
-#endif // UIP_STATISTICS == 2
 
 #if HELP_SUPPORT == 1
     // There is 1 more %y02 instance (Help button)

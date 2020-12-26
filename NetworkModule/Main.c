@@ -45,7 +45,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-const char code_revision[] = "20201224 2104";
+const char code_revision[] = "20201226 1220";
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -311,6 +311,10 @@ uint32_t MQTT_not_OK_counter;         // Counts MQTT != OK events in the
                                       // mqtt_sanity_check() function
 uint32_t MQTT_broker_dis_counter;     // Counts broker disconnect events in
                                       // the mqtt_sanity_check() function
+uint8_t out_num = 1;                  // Initialize output number counter
+                                      // for Home Assistant Auto Discovery
+uint8_t in_num = 1;                   // Initialize input number counter
+                                      // for Home Assistant Auto Discovery
 
 #endif // MQTT_SUPPORT == 1
 
@@ -359,7 +363,11 @@ int main(void)
                                          // counter
   MQTT_broker_dis_counter = 0;           // Initialize the MQTT broker
                                          // disconnect event counter
-  
+  out_num = 1;                           // Initialize output number counter
+                                         // for Home Assistant Auto Discovery
+  in_num = 1;                            // Initialize input number counter
+                                         // for Home Assistant Auto Discovery
+
 #endif // MQTT_SUPPORT == 1
 
 
@@ -886,9 +894,110 @@ void mqtt_startup(void)
     strcat(topic_base, "/state-req");
     mqtt_subscribe(&mqttclient, topic_base, 0);
     mqtt_start_ctr2 = 0; // Clear 100ms counter
+#if HOME_ASSISTANT_SUPPORT == 1
+    mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
+    out_num = 1;
+    in_num = 1;
+    mqtt_start_ctr2 = 0;
+#else
     mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+#endif // HOME_ASSISTANT_SUPPORT == 1
   }
-       
+
+
+#if HOME_ASSISTANT_SUPPORT == 1
+  else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_AUTO
+        && mqtt_start_ctr2 > 2) {
+    // Publish Auto Discovery messages
+    // This code will create a placeholder publish message. The code
+    // in the mqtt_pal.c file will convert the placeholder into the
+    // actual Auto Discovery Publish message when it detects the
+    // application_message inserted below. This complication is
+    // necessary because the MQTT transmit buffer is not large enough
+    // to contain an entire Auto Discovery message, so it is
+    // constructed on-the-fly into the uip_buf transmit buffer by the
+    // mqtt_pal.c code.
+    //    mqtt_publish(&mqttclient,
+    //                 topic_base,
+    //                 "%Oxx",
+    //                 4,
+    //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+    // This message triggers an Input discovery message. "xx" is the input
+    // number.
+    //    mqtt_publish(&mqttclient,
+    //                 topic_base,
+    //                 "%Ixx",
+    //                 4,
+    //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+
+    if (out_num < 9) {
+      // Queue publish message
+      // Topic: homeassistant/switch/macaddressxx/01/config
+      //
+      // Convert out_num to alphanumeric char
+      emb_itoa(out_num, OctetArray, 10, 2);
+
+      strcpy(topic_base, "homeassistant/switch/");
+      strcat(topic_base, mac_string);
+      strcat(topic_base, "/");
+      strcat(topic_base, OctetArray);
+      strcat(topic_base, "/config");
+      
+      // Convert out_num to the $Oxx string format
+      application_message[0] = '%';
+      application_message[1] = 'O';
+      application_message[2] = OctetArray[0];
+      application_message[3] = OctetArray[1];
+      application_message[4] = '\0';
+
+      mqtt_publish(&mqttclient,
+                   topic_base,
+	           application_message,
+	           4,
+	           MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+
+      out_num++;
+      mqtt_start_ctr2 = 0;
+    }
+    
+    else if (in_num < 9) {
+      // Queue publish message
+      // Topic: homeassistant/binary_sensor/aabbccddeeff/01/config
+      //
+      // Convert in_num to alphanumeric char
+      emb_itoa(in_num, OctetArray, 10, 2);
+
+      strcpy(topic_base, "homeassistant/binary-sensor/");
+      strcat(topic_base, mac_string);
+      strcat(topic_base, "/");
+      strcat(topic_base, OctetArray);
+      strcat(topic_base, "/config");
+      
+      // Convert in_num to the $Ixx string format
+      application_message[0] = '%';
+      application_message[1] = 'I';
+      application_message[2] = OctetArray[0];
+      application_message[3] = OctetArray[1];
+      application_message[4] = '\0';
+
+      mqtt_publish(&mqttclient,
+                   topic_base,
+	           application_message,
+	           4,
+	           MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+
+      in_num++;
+      mqtt_start_ctr2 = 0;
+      if (in_num == 9) {
+        out_num = 1;
+        in_num = 1;
+        mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+      }
+    }
+  }
+#endif // HOME_ASSISTANT_SUPPORT == 1
+
+
   else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_ON
         && mqtt_start_ctr2 > 2) {
     // Wait 300ms before queuing Publish message 
@@ -916,93 +1025,7 @@ void mqtt_startup(void)
     IO_8to1_sent  = (uint8_t)(~IO_8to1);
     // Indicate succesful completion
     mqtt_start = MQTT_START_COMPLETE;
-  }
-  
- /* 
-  else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_AUTO
-        && mqtt_start_ctr2 > 2) {
-    // Publish Auto Discovery messages
-    // This code will create a placeholder publish message. The code
-    // in the mqtt_pal.c file will convert the placeholder into the
-    // actual Auto Discovery Publish message when it detects the
-    // application_message inserted below. This complication is
-    // necessary because the MQTT transmit buffer is not large enough
-    // to contain an entire Auto Discovery message, so it is
-    // constructed on-the-fly into the uip_buf transmit buffer by the
-    // mqtt_pal.c code.
-    //    mqtt_publish(&mqttclient,
-    //                 topic_base,
-    //                 "%Oxx",
-    //                 4,
-    //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-    // This message triggers an Input discovery message. "xx" is the input
-    // number.
-    //    mqtt_publish(&mqttclient,
-    //                 topic_base,
-    //                 "%Ixx",
-    //                 4,
-    //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-
-    if (out_num < 8) {
-      // Queue publish message
-      // Topic: homeassistant/switch/macaddressxx/01/config
-      strcat(topic_base, "homeassistant/switch/";
-      strcat(topic_base, mac_string);
-      strcat(topic_base, "/");
-      strcat(topic_base, out_num);
-      strcat(topic_base, "/config"
-      
-      // Convert out_num to the $Oxx string format
-      emb_itoa(outnum, OctetArray, 10, 2); break;
-      application_message[0] = '%';
-      application_message[1] = 'O';
-      application_message[2] = OctetArray[0];
-      application_message[3] = OctetArray[1];
-      application_message[4] = '\0';
-
-      mqtt_publish(&mqttclient,
-                   topic_base,
-	           application_message,
-	           4,
-	           MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-
-  out_num++;
-  if (out_num == 8) out_num = 0;
-
-
-
-// Topic: homeassistant/binary_sensor/aabbccddeeff/01/config
-  strcat(topic_base, "homeassistant/binary-sensor/";
-  strcat(topic_base, mac_string);
-  strcat(topic_base, "/");
-  strcat(topic_base, IO_num);
-  strcat(topic_base, "/config"
-  
-  mqtt_publish(&mqttclient,
-               topic_base,
-	       "%I01",
-	       size,
-	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-
-  mqtt_publish(&mqttclient,
-               topic_base,
-	       "%I08",
-	       size,
-	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-
-
-
-  }
-  
-  
-*/  
-  
-  
-  
-  
-  
-  
-  
+  }  
 }
 
 

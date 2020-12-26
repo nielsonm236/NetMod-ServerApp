@@ -247,6 +247,15 @@
 #define MQTT_SUPPORT 1
 
 
+// Determines if Home Assistant support is compiled in.
+// IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
+//   Requires MQTT_SUPPORT (also see MQTT_SUPPORT requirements)
+// 
+// 0 = disable
+// 1 = enable
+#define HOME_ASSISTANT_SUPPORT 0
+
+
 // Determines if DEBUG code is compiled in
 // IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
 // DEBUG requires a lot of RAM and EEPROM - about 55 bytes depending on the number

@@ -45,7 +45,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-const char code_revision[] = "20201226 1220";
+const char code_revision[] = "20201228 1654";
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -258,11 +258,9 @@ uint32_t TRANSMIT_counter;            // Counts any transmit by the ENC28J60
 uint8_t connect_flags;                // Used in MQTT setup
 uint16_t mqttport;             	      // MQTT port number
 uint16_t Port_Mqttd;                  // In use MQTT port number
-unsigned char application_message[4]; // Stores the application message. In
-                                      // In this application the message is
-				      // always ON or OFF, or is a two byte
-				      // binary value used in response to the
-				      // state-req message.
+unsigned char app_message[5];         // Stores the application message (the
+                                      // payload) that will be sent in an
+				      // MQTT message.
 uint16_t mqtt_keep_alive;             // Ping interval
 struct mqtt_client mqttclient;        // Declare pointer to the MQTT client
                                       // structure
@@ -335,7 +333,9 @@ int main(void)
   mqtt_close_tcp = 0;
   stack_error = 0;
   
+#if IWDG_ENABLE == 1
   init_IWDG(); // Initialize the hardware watchdog
+#endif // IWDG_ENABLE == 1
   
 #if MQTT_SUPPORT == 1
   mqtt_start = MQTT_START_TCP_CONNECT;	 // Tracks the MQTT startup steps
@@ -888,7 +888,7 @@ void mqtt_startup(void)
         && mqtt_start_ctr2 > 2) {
     // Subscribe to the state-req message
     //
-    // Wait 300ms before queuing the Subscribe message 
+    // Wait 100ms before queuing the Subscribe message 
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
     strcat(topic_base, "/state-req");
@@ -896,9 +896,9 @@ void mqtt_startup(void)
     mqtt_start_ctr2 = 0; // Clear 100ms counter
 #if HOME_ASSISTANT_SUPPORT == 1
     mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
+//    mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
     out_num = 1;
     in_num = 1;
-    mqtt_start_ctr2 = 0;
 #else
     mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
 #endif // HOME_ASSISTANT_SUPPORT == 1
@@ -907,12 +907,12 @@ void mqtt_startup(void)
 
 #if HOME_ASSISTANT_SUPPORT == 1
   else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_AUTO
-        && mqtt_start_ctr2 > 2) {
+        && mqtt_start_ctr2 > 0) {
     // Publish Auto Discovery messages
     // This code will create a placeholder publish message. The code
     // in the mqtt_pal.c file will convert the placeholder into the
     // actual Auto Discovery Publish message when it detects the
-    // application_message inserted below. This complication is
+    // app_message inserted below. This complication is
     // necessary because the MQTT transmit buffer is not large enough
     // to contain an entire Auto Discovery message, so it is
     // constructed on-the-fly into the uip_buf transmit buffer by the
@@ -944,15 +944,15 @@ void mqtt_startup(void)
       strcat(topic_base, "/config");
       
       // Convert out_num to the $Oxx string format
-      application_message[0] = '%';
-      application_message[1] = 'O';
-      application_message[2] = OctetArray[0];
-      application_message[3] = OctetArray[1];
-      application_message[4] = '\0';
-
+      app_message[0] = '%';
+      app_message[1] = 'O';
+      app_message[2] = OctetArray[0];
+      app_message[3] = OctetArray[1];
+      app_message[4] = '\0';
       mqtt_publish(&mqttclient,
                    topic_base,
-	           application_message,
+	           app_message,
+//	           "%O00",
 	           4,
 	           MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 
@@ -967,22 +967,23 @@ void mqtt_startup(void)
       // Convert in_num to alphanumeric char
       emb_itoa(in_num, OctetArray, 10, 2);
 
-      strcpy(topic_base, "homeassistant/binary-sensor/");
+      strcpy(topic_base, "homeassistant/binary_sensor/");
       strcat(topic_base, mac_string);
       strcat(topic_base, "/");
       strcat(topic_base, OctetArray);
       strcat(topic_base, "/config");
       
       // Convert in_num to the $Ixx string format
-      application_message[0] = '%';
-      application_message[1] = 'I';
-      application_message[2] = OctetArray[0];
-      application_message[3] = OctetArray[1];
-      application_message[4] = '\0';
+      app_message[0] = '%';
+      app_message[1] = 'I';
+      app_message[2] = OctetArray[0];
+      app_message[3] = OctetArray[1];
+      app_message[4] = '\0';
 
       mqtt_publish(&mqttclient,
                    topic_base,
-	           application_message,
+	           app_message,
+//		   "%I00",
 	           4,
 	           MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 
@@ -1011,12 +1012,13 @@ void mqtt_startup(void)
                  6,
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
     // Indicate succesful completion
+    mqtt_start_ctr2 = 0;
     mqtt_start = MQTT_START_QUEUE_PUBLISH_PINS;
   }
   
   else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_PINS
-        && mqtt_start_ctr2 > 0) {
-    // Wait 100ms before starting
+        && mqtt_start_ctr2 > 2) {
+    // Wait 300ms before starting
     // Publish the state of all pins one at a time. This is accomplished
     // by setting IO_16to9_sent and IO_8to1_sent to the inverse of whatever
     // is currently in IO_16to9 and IO_8to1. This will cause the normal
@@ -1449,7 +1451,7 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint8_t value, uint8_t mas
   
   uint8_t size;
   
-  application_message[0] = '\0';
+  app_message[0] = '\0';
   
   strcpy(topic_base, devicetype);
   strcat(topic_base, stored_devicename);
@@ -1472,18 +1474,18 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint8_t value, uint8_t mas
   topic_base[strlen(topic_base)] = pin;
   // Build the application message
   if (value & mask) {
-    strcpy(application_message, "ON");
+    strcpy(app_message, "ON");
     size = 2;
   }
   else {
-    strcpy(application_message, "OFF");
+    strcpy(app_message, "OFF");
     size = 3;
   }
     
   // Queue publish message
   mqtt_publish(&mqttclient,
                topic_base,
-	       application_message,
+	       app_message,
 	       size,
 	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   
@@ -1513,9 +1515,9 @@ void publish_pinstate_all(void)
   // Invert Input values if invert_input == 0xff
   if (invert_input == 0xff) j = (uint8_t)(~j);
   
-  application_message[0] = j;
-  application_message[1] = k;
-  application_message[2] = '\0';
+  app_message[0] = j;
+  app_message[1] = k;
+  app_message[2] = '\0';
 
   strcpy(topic_base, devicetype);
   strcat(topic_base, stored_devicename);
@@ -1524,7 +1526,7 @@ void publish_pinstate_all(void)
   // Queue publish message
   mqtt_publish(&mqttclient,
                topic_base,
-	       application_message,
+	       app_message,
 	       2,
 	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }

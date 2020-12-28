@@ -253,7 +253,7 @@
 // 
 // 0 = disable
 // 1 = enable
-#define HOME_ASSISTANT_SUPPORT 0
+#define HOME_ASSISTANT_SUPPORT 1
 
 
 // Determines if DEBUG code is compiled in
@@ -271,6 +271,19 @@
 // 2 = enable with "reset source" data collection
 // 3 = enable with "reset source" and "additional" data collection
 #define DEBUG_SUPPORT 0
+
+
+// Determines if the Independent Watchdog is to be enable
+// For production code this should me enabled. It turns on the IWDG to cause a
+// hardware reset after 1 second of the code failing to reset the watchdog,
+// which implies some kind of fatal error occurred. The reset will re-enable
+// access to the Network Module.
+// For development it may be necessary to prevent the IDWG from operating as it
+// may interfere with debug code.
+// 0 = disable
+// 1 = enable
+#define IWDG_ENABLE 1
+
 
 
 /*------------------------------------------------------------------------------*/

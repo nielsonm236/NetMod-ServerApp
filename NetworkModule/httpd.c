@@ -749,6 +749,7 @@ static const char g_HtmlPageHelp[] =
   "<head>"
   "<title>Help Page</title>"
   "<link rel='icon' href='data:,'>"
+  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
   "<style>"
   "td { width: 140px; padding: 0px; }"
   "</style>"
@@ -801,6 +802,7 @@ static const char g_HtmlPageHelp[] =
   "<head>"
   "<title>Help Page</title>"
   "<link rel='icon' href='data:,'>"
+  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
   "<style>"
   "td { width: 140px; padding: 0px; }"
   "</style>"
@@ -853,6 +855,7 @@ static const char g_HtmlPageHelp[] =
   "<head>"
   "<title>Help Page</title>"
   "<link rel='icon' href='data:,'>"
+  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
   "<style>"
   "td { width: 140px; padding: 0px; }"
   "</style>"
@@ -894,6 +897,7 @@ static const char g_HtmlPageHelp2[] =
   "<html lang='en-US'>"
   "<head>"
   "<link rel='icon' href='data:,'>"
+  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
   "<title>Help Page 2</title>"
   "</head>"
   "<body>"
@@ -934,6 +938,7 @@ static const char g_HtmlPageStats[] =
   "<head>"
   "<title>Network Statistics</title>"
   "<link rel='icon' href='data:,'>"
+  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
   "<style>"
   ".t1 { width: 100px; }"
   ".t2 { width: 450px; }"
@@ -967,8 +972,9 @@ static const char g_HtmlPageStats[] =
   "<tr><td class='t1'>%e20</td><td class='t2'>Dropped SYNs due to too few connections avaliable</td></tr>"
   "<tr><td class='t1'>%e21</td><td class='t2'>SYNs for closed ports, triggering a RST</td></tr>"
   "</table>"
-  "%y03/60' method='GET'><button title='Go to IO Control Page'>IO Control</button></form>"
-  "%y03/67' method='GET'><button title='Clear Statistics'>Clear Statistics</button></form>"
+  "%y03/61' method='GET'><button>Configuration</button></form>"
+  "%y03/66' method='GET'><button>Refresh</button></form>"
+  "%y03/67' method='GET'><button>Clear Statistics</button></form>"
   "</body>"
   "</html>";
 #endif /* UIP_STATISTICS == 1 */
@@ -983,6 +989,7 @@ static const char g_HtmlPageStats[] =
   "<html lang='en-US'>"
   "<head>"
   "<link rel='icon' href='data:,'>"
+  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
   "</head>"
   "<body>"
   "<table>"
@@ -1043,26 +1050,42 @@ static const char g_HtmlPageSstate[] =
 // String for %y00 replacement in web page templates
 static const char page_string00[] =
   "pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'></td>";
-static const uint8_t page_string00_len = 63;
-static const uint8_t page_string00_len_less4 = 59;
-  
+static const uint8_t page_string00_len = sizeof(page_string00) - 1;
+static const uint8_t page_string00_len_less4 = sizeof(page_string00) - 5;
+// STRING LENGTH MUST BE LESS THAN 256
+#if (page_string00_len > 255)
+  #error "page_string00 is too big"
+#endif
+
 // String for %y01 replacement in web page templates
 static const char page_string01[] =
   "pattern='[0-9a-f]{2}' title='Enter 00 to ff' maxlength='2'></td>";
-static const uint8_t page_string01_len = 64;
-static const uint8_t page_string01_len_less4 = 60;
+static const uint8_t page_string01_len = sizeof(page_string01) - 1;
+static const uint8_t page_string01_len_less4 = sizeof(page_string01) - 5;
+// STRING LENGTH MUST BE LESS THAN 256
+#if (page_string01_len > 255)
+  #error "page_string01 is too big"
+#endif
   
 // String for %y02 replacement in web page templates
 static const char page_string02[] =
   "' method='GET'><button title='Save first! This button will not save your changes'>";
-static const uint8_t page_string02_len = 82;
-static const uint8_t page_string02_len_less4 = 78;
+static const uint8_t page_string02_len = sizeof(page_string02) - 1;
+static const uint8_t page_string02_len_less4 = sizeof(page_string02) - 5;
+// STRING LENGTH MUST BE LESS THAN 256
+#if (page_string02_len > 255)
+  #error "page_string02 is too big"
+#endif
 
 // String for %y03 replacement in web page templates.
 static const char page_string03[] =
   "<form style='display: inline' action='";
-static const uint8_t page_string03_len = 38;
-static const uint8_t page_string03_len_less4 = 34;
+static const uint8_t page_string03_len = sizeof(page_string03) - 1;
+static const uint8_t page_string03_len_less4 = sizeof(page_string03) - 5;
+// STRING LENGTH MUST BE LESS THAN 256
+#if (page_string03_len > 255)
+  #error "page_string03 is too big"
+#endif
 
 // String for %y04 replacement in web page templates. When used this
 // string is always followed by the %y05 string
@@ -1071,11 +1094,17 @@ static const char page_string04[] =
   "<html lang='en-US'>"
   "<head>"
   "<link rel='icon' href='data:,'>"
+  "<meta name='viewport' content='user-scalable=no,"
+  "initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
   "<style>"
   ".s0{background: red;}"
   ".s1{background: green;}";
-static const uint8_t page_string04_len = 122;
-static const uint8_t page_string04_len_less4 = 118;
+static const uint8_t page_string04_len = sizeof(page_string04) - 1;
+static const uint8_t page_string04_len_less4 = sizeof(page_string04) - 5;
+// STRING LENGTH MUST BE LESS THAN 256
+#if (page_string04_len > 255)
+  #error "page_string04 is too big"
+#endif
 
 // String for %y05 replacement in web page templates. When used this
 // string is always follows the %y04 string.
@@ -1089,8 +1118,12 @@ static const char page_string05[] =
   ".s div{width: 13px; height: 13px; display:inline-block;}"
   ".hs{height: 9px;}"
   "</style>";
-static const uint8_t page_string05_len = 215;
-static const uint8_t page_string05_len_less4 = 211;
+static const uint8_t page_string05_len = sizeof(page_string05) - 1;
+static const uint8_t page_string05_len_less4 = sizeof(page_string05) - 5;
+// STRING LENGTH MUST BE LESS THAN 256
+#if (page_string05_len > 255)
+  #error "page_string05 is too big"
+#endif
 
 // .........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6
 

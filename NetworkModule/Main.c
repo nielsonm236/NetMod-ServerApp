@@ -45,7 +45,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-const char code_revision[] = "20201228 1654";
+const char code_revision[] = "20201230 0411";
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -143,7 +143,8 @@ uint8_t stack_limit2;
 // Reduce the size of the stored_debug[] array by the number of bytes added
 @eeprom uint8_t stored_config_settings[6]; // Byte 77-82 Config settings for
                                            //   Invert, Retain, Full/Half
-					   //   Duplex
+					   //   Duplex, Home Assistant Auto
+					   //   Discovery
 @eeprom uint8_t stored_IO_16to9;           // Byte 76 States for IO 16 to 9
 @eeprom char stored_mqtt_password[11];     // Byte 65 MQTT Password
 @eeprom char stored_mqtt_username[11];     // Byte 54 MQTT Username
@@ -894,18 +895,17 @@ void mqtt_startup(void)
     strcat(topic_base, "/state-req");
     mqtt_subscribe(&mqttclient, topic_base, 0);
     mqtt_start_ctr2 = 0; // Clear 100ms counter
-#if HOME_ASSISTANT_SUPPORT == 1
-    mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
-//    mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
-    out_num = 1;
-    in_num = 1;
-#else
-    mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
-#endif // HOME_ASSISTANT_SUPPORT == 1
+    if (stored_config_settings[4] == '1') {
+      // Home Assistant Auto Discovery enabled
+      mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
+      out_num = 1;
+      in_num = 1;
+    }
+    else {
+      mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+    }
   }
 
-
-#if HOME_ASSISTANT_SUPPORT == 1
   else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_AUTO
         && mqtt_start_ctr2 > 0) {
     // Publish Auto Discovery messages
@@ -952,7 +952,6 @@ void mqtt_startup(void)
       mqtt_publish(&mqttclient,
                    topic_base,
 	           app_message,
-//	           "%O00",
 	           4,
 	           MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 
@@ -983,7 +982,6 @@ void mqtt_startup(void)
       mqtt_publish(&mqttclient,
                    topic_base,
 	           app_message,
-//		   "%I00",
 	           4,
 	           MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 
@@ -996,7 +994,6 @@ void mqtt_startup(void)
       }
     }
   }
-#endif // HOME_ASSISTANT_SUPPORT == 1
 
 
   else if (mqtt_start == MQTT_START_QUEUE_PUBLISH_ON
@@ -1642,9 +1639,13 @@ void check_eeprom_settings(void)
     if (stored_config_settings[3] != '0' && stored_config_settings[3] != '1') {
       stored_config_settings[3] = '0';
     }
-    if (stored_config_settings[4] != '0') {
+    if (stored_config_settings[4] != '0' && stored_config_settings[4] != '1') {
       stored_config_settings[4] = '0';
     }
+#if MQTT_SUPPORT == 0
+    // If this is not an MQTT build stored_config_settings[4] must be zero
+    stored_config_settings[4] = '0';
+#endif MQTT_SUPPORT == 0
     if (stored_config_settings[5] != '0') {
       stored_config_settings[5] = '0';
     }
@@ -1771,7 +1772,7 @@ void check_eeprom_settings(void)
     stored_config_settings[1] = '0'; // Set to Invert Input Off
     stored_config_settings[2] = '2'; // Set to Retain pin states
     stored_config_settings[3] = '0'; // Set to Half Duplex
-    stored_config_settings[4] = '0'; // undefined
+    stored_config_settings[4] = '0'; // Set to HA Auto Discovery disabled
     stored_config_settings[5] = '0'; // undefined
     invert_output = 0x00;			// Turn off output invert bit
     invert_input = 0x00;			// Turn off output invert bit
@@ -2051,6 +2052,7 @@ void check_runtime_changes(void)
       // Write the config_settings Retain value to the EEPROM
       stored_config_settings[2] = Pending_config_settings[2];
     }
+    
     // Check for changes in the Full/Half Duplex byte of the Config
     // setting
     if (Pending_config_settings[3] != stored_config_settings[3]) {
@@ -2060,8 +2062,22 @@ void check_runtime_changes(void)
       // If this setting changes a reboot is required
       user_reboot_request = 1;
     }
+    
+    // Check for changes in the Home Assistant Auto Discovery byte
+    // of the Config setting
+    if (Pending_config_settings[4] != stored_config_settings[4]) {
+#if MQTT_SUPPORT == 0
+      // If this is not an MQTT build stored_config_settings[4] must be zero
+      stored_config_settings[4] = '0';
+#endif MQTT_SUPPORT == 0
+      // Write the config_settings Home Assistant Auto Discovery
+      // value to the EEPROM
+      stored_config_settings[4] = Pending_config_settings[4];
+      // If this setting changes a reboot is required
+      user_reboot_request = 1;
+    }
+    
     // Write the undefined config settings to the EEPROM
-    stored_config_settings[4] = Pending_config_settings[4];
     stored_config_settings[5] = Pending_config_settings[5];
 
     // Check for changes in the IP Address
@@ -2635,6 +2651,7 @@ void check_reset_button(void)
     // Reset Button pressed
     for (i=0; i<100; i++) {
       wait_timer(50000); // wait 50ms
+      IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
       if ((PA_IDR & 0x02) == 1) { // check Reset Button again. If released
                                   // exit.
         return;
@@ -2643,13 +2660,13 @@ void check_reset_button(void)
     // If we got here the button remained pressed for 5 seconds
     // Turn off the LED, clear the magic number, and reset the device
     LEDcontrol(0);  // turn LED off
-    while((PA_IDR & 0x02) == 0) {  // Wait for button release
-    }
-
     magic4 = 0x00;
     magic3 = 0x00;
     magic2 = 0x00;
     magic1 = 0x00;
+
+    while((PA_IDR & 0x02) == 0) {  // Wait for button release
+    }
 
     WWDG_WR = (uint8_t)0x7f;       // Window register reset
     WWDG_CR = (uint8_t)0xff;       // Set watchdog to timeout in 49ms
@@ -2682,8 +2699,12 @@ void debugflash(void)
   LEDcontrol(0);     // turn LED off
   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
   
+  IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
+  
   LEDcontrol(1);     // turn LED on
   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
+  
+  IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
 }
 
 
@@ -2709,6 +2730,8 @@ void fastflash(void)
   
     LEDcontrol(1);     // turn LED on
     wait_timer((uint16_t)50000); // wait 50ms
+    
+    IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
 }
 

@@ -189,18 +189,11 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   // greater than zero.
   //
 
-// mBuffer = buf;
-// temp_buf[0] = *mBuffer;
-// if ((temp_buf[0] & 0xf0) == 0x30) oneflash();
-// if ((temp_buf[0] & 0xf0) == 0x30) fastflash();
-
-
-#if HOME_ASSISTANT_SUPPORT == 1
   /*-------------------------------------------------------------------------*/
   // Two types of MQTT transmissions are handled here. One is the normal
-  // MQTT packet. The other is an Auto Discovery packet. Because the MQTT
-  // packet buffer is very small in this application it cannot hold an entire
-  // Auto Discovery packet. So this function checks to determine if the
+  // MQTT packet. The other is a Home Assistant Auto Discovery packet. Because
+  // the MQTT packet buffer is very small in this application it cannot hold
+  // an entire Auto Discovery packet. So this function checks if the
   // application is trying to send an Auto Discovery packet. If yes, the
   // function will generate the Auto Discovery packet here. If no, it is
   // assummed that the packet was generated external to this function and
@@ -247,7 +240,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   temp_buf[1] = *mBuffer;
   mBuffer++;
 
-// Check if Publish message
+  // Check if Publish message
   if ((temp_buf[0] & 0xf0) == 0x30) {
     // This is a Publish message
     // Extract remaining length
@@ -271,45 +264,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
       temp_buf[5] = *mBuffer;
       mBuffer++;        
 
-
-
-/*
-{
-  uint8_t i;
-  char* pBuffer2;
-  // This function was written specifically to capture the mqtt_sendbuf.
-  // debug[0] is used to make sure a single capture occurs.
-  if (debug[0] == 0x00) {
-    // debug[1] and debug[2] are used for capture tags
-    pBuffer2 = mBuffer - 4;
-    for (i = 3; i < NUM_DEBUG_BYTES; i++) {
-      debug[i] = *pBuffer2;
-      pBuffer2++;
-      if (debug[i] == '%') debug[0] = 0x01; // Signal a capture
-    }
-    if (debug[0] == 0x01) {
-      update_debug_storage1(); // Write to EEPROM
-    }
-  }
-}
-*/
-
-
-/*
-debug[0] = temp_buf[0];
-debug[1] = temp_buf[1];
-debug[2] = temp_buf[2];
-debug[3] = temp_buf[3];
-debug[4] = temp_buf[4];
-debug[5] = temp_buf[5];
-fastflash();
-update_debug_storage1();
-while (debug[0]=='0');
-*/
-
-
       if (temp_buf[2] == '%') {
-// fastflash();
         // Found a marker - replace the existing payload with an auto
 	// discovery message.
 	auto_found = 1;
@@ -365,7 +320,9 @@ while (debug[0]=='0');
 	uip_slen = payload_size + 3;
 	// Calculate len (it will be used later). It is the old remaining length
 	// value plus 2 (for the control byte and the remaining length byte).
-	len = temp_buf[1] + 2;
+	// THIS IS NOT NECESSARY. len IS ALWAYS THE len PROVIDED IN THE CALL TO
+	// THIS FUNCTION.
+//	len = temp_buf[1] + 2;
 	// Now encode the new remaining length and store in the first two bytes
 	// of temp_buf for now. The scheme here is simplified since we always
 	// have more than 127 and less than 512 bytes to send. A more general
@@ -538,21 +495,13 @@ while (debug[0]=='0');
     uip_slen = len;
   }
 
-  // The MQTT code is only aware of the shorter "fake" packet that triggered
-  // the Auto Discovery packet generation. So this function needs to return a
-  // len value to the MQTT code that indicates the the fake packet was
-  // "consumed". len was calculated earlier in the function.
+  // Regardless of whether this was an Auto Discovery packet or not the MQTT
+  // code needs to be told that the entire packet it provided to this function
+  // was "consumed". This function always returns the len value that was
+  // provided to it in the function call.
   
   return len; // This return value is only for the MQTT buffer mgmt code. The
               // UIP code uses the uip_slen value.
-#else
-
-  memcpy(uip_appdata, buf, len);
-  uip_slen = len;
-  return len; // This return value is only for the MQTT buffer mgmt code. The
-              // UIP code uses the uip_slen value.
-	      
-#endif // HOME_ASSISTANT_SUPPORT == 1  	
 }
 
   

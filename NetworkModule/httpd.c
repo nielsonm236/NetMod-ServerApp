@@ -2176,7 +2176,7 @@ else if (nParsedMode == 'g') {
 	  // Character 2: Input Invert, can be 0 or 1
 	  // Character 3: Retain, can be 0, 1, or 2
 	  // Character 4: Full/Half Duplex, can be 0 or 1
-	  // Character 5: Undefined, 0 only
+	  // Character 5: Home Assistant Auto Discovery, can be 0 or 1
 	  // Character 6: Undefined, 0 only
 	  // The config_settings string is NOT null terminated
 	  // There is only 1 'g' ID so we don't need to check the nParsedNum.
@@ -3148,12 +3148,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    if (alpha[1] != '0' && alpha[1] != '1') alpha[1] = '0';
 	    if (alpha[2] != '0' && alpha[2] != '1' && alpha[2] != '2') alpha[2] = '2';
 	    if (alpha[3] != '0' && alpha[3] != '1') alpha[3] = '0';
+	    if (alpha[4] != '0' && alpha[4] != '1') alpha[4] = '0';
 	    
 	    Pending_config_settings[0] = (uint8_t)alpha[0];
             Pending_config_settings[1] = (uint8_t)alpha[1];
             Pending_config_settings[2] = (uint8_t)alpha[2];
             Pending_config_settings[3] = (uint8_t)alpha[3];
-            Pending_config_settings[4] = '0';
+            Pending_config_settings[4] = (uint8_t)alpha[4];
             Pending_config_settings[5] = '0';
 	    
             if (nBytes == 0) {

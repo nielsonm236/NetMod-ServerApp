@@ -3,8 +3,9 @@
 IMPORTANT NOTE FOR MQTT USERS: The intial release of MQTT has only been out a month, but it
 became necessary to replace the MQTT command set to adhere to Home Assistant standards. Please
 see the documentation for details. This update (beginning with Code Revision 20201220 1321)
-will be much easier to use with Home Assistant. Also note: currently working on Home
-Assistant auto discovery. Should be available soon.
+will be much easier to use with Home Assistant.
+Dec 30 2020 release now include Home Assistant Auto Discovery (Code Revision 20201230 0411).
+With this release Internet Explorer is no longer supported.
 
 Reprogramming the Web_Relay_Con V2.0 HW-584 Network Module
 Did you buy one (or more) of these Network Modules and then find disappointment in the software
@@ -65,10 +66,10 @@ Tested with:
 - Firefox 82.0.3 64bit
 - Chrome 87.0.4280.66 64bit
 - Edge 86.0.622.69 64bit
-- Internet Explorer 11.630.19041.0
 - Mosquitto
 - Node-Red
 - Chrome MQTTLens
+- Home Assistant
 
 IMPORTANT NOTE: The software provided in this project only works with the “Web_Relays_Con V2.0
 HW-584” which is based on the STM8S-005 processor and ENC28J60 ethernet controller. I haven't 

@@ -45,7 +45,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-const char code_revision[] = "20201230 0411";
+const char code_revision[] = "20201231 0623";
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -880,7 +880,7 @@ void mqtt_startup(void)
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
     strcat(topic_base, "/output/+/set");
-    mqtt_subscribe(&mqttclient, topic_base, 0);
+    mqtt_subscribe(&mqttclient, topic_base);
     mqtt_start_ctr2 = 0; // Clear 100ms counter
     mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
   }
@@ -893,7 +893,7 @@ void mqtt_startup(void)
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
     strcat(topic_base, "/state-req");
-    mqtt_subscribe(&mqttclient, topic_base, 0);
+    mqtt_subscribe(&mqttclient, topic_base);
     mqtt_start_ctr2 = 0; // Clear 100ms counter
     if (stored_config_settings[4] == '1') {
       // Home Assistant Auto Discovery enabled

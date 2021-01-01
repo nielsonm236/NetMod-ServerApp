@@ -1,5 +1,3 @@
-//#if MQTT_SUPPORT == 1
-
 #ifndef __MQTT_PAL_H__
 #define __MQTT_PAL_H__
 
@@ -64,10 +62,8 @@ SOFTWARE.
  *  - Types:
  *      - int8_t, int16_t, int32_t
  *      - uint8_t, uint16_t, uint32_t
- *      - va_list
  *  - Functions:
  *      - memcpy, strlen
- *      - va_start, va_arg, va_end
  *  - Constants:
  *      - INT_MIN
  * 
@@ -81,31 +77,20 @@ SOFTWARE.
 
 #include <limits.h>
 #include <string.h>
-#include <stdarg.h> // Used for va_list items
 #include <stdint.h>
 
-
-
-/**
- * Sends all the bytes in a buffer.
- * 
- * @param[in] buf A pointer to the first byte in the buffer to send.
- * @param[in] len The number of bytes to send (starting at buf).
- * 
- * @returns The number of bytes sent if successful, an MQTTErrors otherwise.
- */
+// Sends all the bytes in a buffer.
+// buf - A pointer to the first byte in the buffer to send.
+// len - The number of bytes to send (starting at buf).
+// returns - The number of bytes sent if successful, an MQTTErrors otherwise.
 int16_t mqtt_pal_sendall(const void* buf, uint16_t len);
 
-/**
- * Non-blocking receive all the byte available.
- * 
- * @param[in] buf A pointer to the receive buffer.
- * @param[in] bufsz The max number of bytes that can be put into buf.
- * 
- * @returns The number of bytes received if successful, an MQTTErrors otherwise.
- */
+
+// Non-blocking receive all the byte available.
+// buf - A pointer to the receive buffer.
+// bufsz - The max number of bytes that can be put into buf.
+// returns - The number of bytes received if successful, an MQTTErrors otherwise.
 int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz);
 
 #endif // define __MQTT_PAL_H__
 
-//#endif // MQTT_SUPPORT == 1

@@ -125,11 +125,8 @@ uip_ipaddr_t uip_hostaddr;
 uip_ipaddr_t uip_draddr;
 /* The Netmask */
 uip_ipaddr_t uip_netmask;
-
-//#if MQTT_SUPPORT == 1
 /* The IP address of the MQTT Server. */
 uip_ipaddr_t uip_mqttserveraddr;
-//#endif // MQTT_SUPPORT == 1
 
 
 // This structure defines the MAC (aka ethaddr) in the struct format the ARP
@@ -348,7 +345,6 @@ void uip_init(void)
 
 
 /*---------------------------------------------------------------------------*/
-#if MQTT_SUPPORT == 1
 // uip_connect added to allow the MQTT client to make TCP connection requests
 // to a remote host (aka the MQTT Broker). In the original UIP code this was
 // included if UIP_ACTIVE_OPEN == 1. In this application uip_connect is only
@@ -397,7 +393,6 @@ uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
   uip_ipaddr_copy(&conn->ripaddr, ripaddr);
   return conn;
 }
-#endif // MQTT_SUPPORT == 1
 
 
 /*---------------------------------------------------------------------------*/
@@ -561,12 +556,11 @@ void uip_process(uint8_t flag)
               // In the SYN_RCVD state, we should retransmit our SYNACK.
               goto tcp_send_synack;
 
-#if MQTT_SUPPORT == 1
 	    case UIP_SYN_SENT:
-	      // In the SYN_SENT state, we retransmit the SYN.
+	      // In the SYN_SENT state, we retransmit the SYN. Required for
+	      // MQTT.
 	      BUF->flags = 0;
 	      goto tcp_send_syn;
-#endif // MQTT_SUPPORT == 1
 
             case UIP_ESTABLISHED:
               // In the ESTABLISHED state, we call upon the application to do
@@ -875,18 +869,15 @@ void uip_process(uint8_t flag)
   }
 
   
-  // Our response will be a SYNACK.
-#if MQTT_SUPPORT == 1
+  // Our response will be a SYNACK. Required for MQTT.
   tcp_send_synack:
   BUF->flags = TCP_ACK;
   
   tcp_send_syn:
   BUF->flags |= TCP_SYN;
   
-#else // MQTT_SUPPORT == 1
-  tcp_send_synack:
-  BUF->flags = TCP_SYN | TCP_ACK;
-#endif // MQTT_SUPPORT == 1
+//  tcp_send_synack:
+//  BUF->flags = TCP_SYN | TCP_ACK;
 
 
   // We send out the TCP Maximum Segment Size option with our SYNACK.
@@ -1014,7 +1005,6 @@ void uip_process(uint8_t flag)
       goto drop;
 
 
-#if MQTT_SUPPORT == 1
     case UIP_SYN_SENT:
       // In SYN_SENT, we wait for a SYNACK that is sent in response to our
       // SYN. The rcv_nxt is set to sequence number in the SYNACK plus one,
@@ -1084,7 +1074,6 @@ void uip_process(uint8_t flag)
       // The connection is closed after we send the RST
       uip_conn->tcpstateflags = UIP_CLOSED;
       goto reset;
-#endif // MQTT_SUPPORT == 1
 
 
     case UIP_ESTABLISHED:

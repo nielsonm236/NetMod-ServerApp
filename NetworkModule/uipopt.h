@@ -232,19 +232,7 @@
 // 1 = 16 relay outputs
 // 2 = 8 relay outputs / 8 sense inputs
 // 3 = 16 sense inputs
-#define GPIO_SUPPORT  2
-
-
-// Determines if MQTT support is compiled in.
-// IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
-//   MQTT requires a lot of code space. For this reason if MQTT is enabled:
-//     HELP_SUPPORT *MUST* be set to 0 (OFF)
-//     UIP_STATISTICS *MUST* be set to 2 (error statistics only)
-//     GPIO_SUPPORT *MUST* be set to 2 (8out/8in)
-// 
-// 0 = disable
-// 1 = enable
-#define MQTT_SUPPORT 1
+#define GPIO_SUPPORT  1
 
 
 // Determines if DEBUG code is compiled in

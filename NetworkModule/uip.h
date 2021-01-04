@@ -153,14 +153,12 @@ typedef uip_ip4addr_t uip_ipaddr_t;
  */
 #define uip_getnetmask(addr) uip_ipaddr_copy((addr), uip_netmask)
 
-//#if MQTT_SUPPORT == 1
 /**
  * Set the MQTT Server IP Address.
  * addr - A pointer to a uip_ipaddr_t variable containing the IP address of
  * the MQTT Server.
  */
 #define uip_setmqttserveraddr(addr) uip_ipaddr_copy(uip_mqttserveraddr, (addr))
-//#endif // MQTT_SUPPORT == 1
 
 
 /*---------------------------------------------------------------------------*/
@@ -405,7 +403,7 @@ void uip_unlisten(uint16_t port);
  *
  * \note This function is avaliable only if support for active open
  * has been configured by defining UIP_ACTIVE_OPEN to 1 in uipopt.h.
- * CHANGED THIS TO MAKE THIS FUNCTION AVAILABLE ONLY FOR MQTT_SUPPORT == 1
+ * CHANGED THIS TO MAKE THIS FUNCTION AVAILABLE ONLY FOR MQTT SUPPORT
  *
  * \note Since this function requires the port number to be in network
  * byte order, a conversion using HTONS() or htons() is necessary.
@@ -1106,10 +1104,7 @@ struct uip_icmpip_hdr {
 
 
 extern uip_ipaddr_t uip_hostaddr, uip_netmask, uip_draddr;
-
-// #if MQTT_SUPPORT == 1
 extern uip_ipaddr_t uip_mqttserveraddr;
-// #endif // MQTT_SUPPORT == 1
 
 
 /**

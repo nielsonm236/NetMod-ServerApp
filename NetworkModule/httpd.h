@@ -71,12 +71,14 @@ static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen);
 static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pDataLeft, uint16_t nMaxBytes);
 
 void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad);
+int hex2int(char ch);
 
 void HttpDInit(void);
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);
 void parse_POST_string(uint8_t curr_ParseCmd, uint8_t num_chars);
 void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
 void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
+void parse_POST_MAC(uint8_t curr_ParseCmd);
 
 int8_t intercept_code(void);
 int8_t extract_octets(void);
@@ -88,6 +90,6 @@ void GpioSetPin(uint8_t nGpio, uint8_t nState);
 void clear_saved_postpartial_all(void);
 void clear_saved_postpartial_data(void);
 void clear_saved_postpartial_previous(void);
-void SetMAC(uint8_t nGpio, uint8_t nState1, uint8_t nState2);
+// void SetMAC(uint8_t nGpio, uint8_t nState1, uint8_t nState2);
 
 #endif /*HTTPD_H_*/

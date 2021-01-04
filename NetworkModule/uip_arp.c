@@ -411,67 +411,6 @@ uip_arp_out(void)
 }
 
 
-#if MQTT_SUPPORT == 1
-/*
-void
-uip_get_mqtt_server_mac(uip_ipaddr_t uip_mqttserveraddr)
-{
-  struct arp_entry *tabptr;
-  
-  // Send an ARP Request for a specific MQTT Server IP address
-  // Steps:
-  // - If the IP address is already in the ARP Table delete it
-  // - Construct the Ethernet header
-  // - If the destination IP address isn't on the local network use the
-  //   default router's IP address instead.
-
-  // Check if the MQTT Server IP address is on the local network
-  if(!uip_ipaddr_maskcmp(uip_mqttserveraddr, uip_hostaddr, uip_netmask)) {
-    // MQTT Server IP address was not on the local network, so we need to
-    // use the default router's IP address instead of the destination
-    // address when determining the MAC address.
-    uip_ipaddr_copy(ipaddr, uip_draddr);
-  }
-  else {
-    // Else, we use the MQTT Server IP address.
-    uip_ipaddr_copy(ipaddr, uip_mqttserveraddr);
-  }
-      
-  for(i = 0; i < UIP_ARPTAB_SIZE; ++i) {
-    // See if the IP address is in the ARP table - it wont be
-    // there if we just powered up or came out of reboot
-    tabptr = &arp_table[i];
-    if(uip_ipaddr_cmp(ipaddr, tabptr->ipaddr)) {
-      // Found the IP address in the ARP table - delete it so we
-      // can be sure to get a new IP/MAC association
-      memset(arp_table[i].ipaddr, 0, 4);
-      break;
-    }
-  }
-
-  // Generate an ARP Request for the MQTT Server IP Address
-      
-  memset(BUF->ethhdr.dest.addr, 0xff, 6);
-  memset(BUF->dhwaddr.addr, 0x00, 6);
-  memcpy(BUF->ethhdr.src.addr, uip_ethaddr.addr, 6);
-  memcpy(BUF->shwaddr.addr, uip_ethaddr.addr, 6);
-    
-  uip_ipaddr_copy(BUF->dipaddr, ipaddr);
-  uip_ipaddr_copy(BUF->sipaddr, uip_hostaddr);
-  BUF->opcode = HTONS(ARP_REQUEST); // ARP request.
-  BUF->hwtype = HTONS(ARP_HWTYPE_ETH);
-  BUF->protocol = HTONS(UIP_ETHTYPE_IP);
-  BUF->hwlen = 6;
-  BUF->protolen = 4;
-  BUF->ethhdr.type = HTONS(UIP_ETHTYPE_ARP);
-
-  uip_appdata = &uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN];
-   
-  uip_len = sizeof(struct arp_hdr);
-}
-*/
-
-
 int check_mqtt_server_arp_entry(void)
 {
   struct arp_entry *tabptr;
@@ -500,12 +439,4 @@ int check_mqtt_server_arp_entry(void)
   }
   return (uint8_t)0;
 }
-#endif // MQTT_SUPPORT == 1
-
-
-
-
-
-
-
 

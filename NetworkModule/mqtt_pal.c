@@ -1,5 +1,3 @@
-//#if MQTT_SUPPORT == 1
-
 /*
 MIT License
 
@@ -527,4 +525,3 @@ int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz) {
   return rv;
 }
 
-//#endif // MQTT_SUPPORT == 1

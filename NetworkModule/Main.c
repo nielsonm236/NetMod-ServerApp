@@ -41,19 +41,16 @@
 #include "uip_arch.h"
 #include "uip_TcpAppHub.h"
 #include "uipopt.h"
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-const char code_revision[] = "20201231 0623";
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-
-#if MQTT_SUPPORT == 1
 #include "mqtt.h"
-#endif // MQTT_SUPPORT == 1
+
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+const char code_revision[] = "20210103 2037";
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 // Stack overflow detection
@@ -205,13 +202,6 @@ uint8_t stack_error;			// Stack error flag storage
 // "pending" values to determine if any changes occurred, and if so code will
 // update the "in use" values and will restart the firmware if needed.
 
-#if MQTT_SUPPORT == 1
-uint8_t Pending_mqttserveraddr[4];
-uint16_t Pending_mqttport;
-char Pending_mqtt_username[11];
-char Pending_mqtt_password[11];
-#endif // MQTT_SUPPORT == 1
-
 uint8_t Pending_hostaddr[4];
 uint8_t Pending_draddr[4];
 uint8_t Pending_netmask[4];
@@ -251,11 +241,18 @@ uint32_t TXERIF_counter;              // Counts TXERIF errors detected by the
 uint32_t TRANSMIT_counter;            // Counts any transmit by the ENC28J60
 
 
-#if MQTT_SUPPORT == 1
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// It may be more appropriate for some of these values to be defined in a
-// different area of this module or in a different module. They are here
-// until that is determined.
+// MQTT variables
+uint8_t mqtt_enabled;                 // Used to signal use of MQTT functions
+                                      // Initialized to 'disabled', but any
+				      // non-zero MQTT Server IP Adddress will
+				      // cause it to be 'enabled'
+uint8_t Pending_mqttserveraddr[4];    // Holds a new user entered MQTT Server
+                                      // IP address
+uint16_t Pending_mqttport;            // Holds a new user entered MQTT Port
+                                      // number
+char Pending_mqtt_username[11];       // Holds a new user entered MQTT username
+char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
+
 uint8_t connect_flags;                // Used in MQTT setup
 uint16_t mqttport;             	      // MQTT port number
 uint16_t Port_Mqttd;                  // In use MQTT port number
@@ -310,12 +307,11 @@ uint32_t MQTT_not_OK_counter;         // Counts MQTT != OK events in the
                                       // mqtt_sanity_check() function
 uint32_t MQTT_broker_dis_counter;     // Counts broker disconnect events in
                                       // the mqtt_sanity_check() function
-uint8_t out_num = 1;                  // Initialize output number counter
+uint8_t out_num;                      // Initialize output number counter
                                       // for Home Assistant Auto Discovery
-uint8_t in_num = 1;                   // Initialize input number counter
+uint8_t in_num;                       // Initialize input number counter
                                       // for Home Assistant Auto Discovery
 
-#endif // MQTT_SUPPORT == 1
 
 
 /*---------------------------------------------------------------------------*/
@@ -338,12 +334,14 @@ int main(void)
   init_IWDG(); // Initialize the hardware watchdog
 #endif // IWDG_ENABLE == 1
   
-#if MQTT_SUPPORT == 1
+// MQTT variables
+  mqtt_enabled = 0;                      // Initialized to 'disabled', but any
+				         // non-zero MQTT Server IP Adddress will
+				         // cause it to be 'enabled'
   mqtt_start = MQTT_START_TCP_CONNECT;	 // Tracks the MQTT startup steps
   mqtt_start_status = MQTT_START_NOT_STARTED; // Tracks error states during
                                          // startup
   mqtt_keep_alive = 60;                  // Ping interval in seconds
-//  mqtt_keep_alive = 10;                  // Ping interval in seconds
   mqtt_start_ctr1 = 0;			 // Tracks time for the MQTT startup
                                          // steps
   mqtt_start_ctr2 = 0;			 // Tracks time for the MQTT startup
@@ -369,8 +367,6 @@ int main(void)
   in_num = 1;                            // Initialize input number counter
                                          // for Home Assistant Auto Discovery
 
-#endif // MQTT_SUPPORT == 1
-
 
 
   clock_init();            // Initialize and enable clocks and timers
@@ -394,6 +390,10 @@ int main(void)
   
   HttpDInit();             // Initialize listening ports
 
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+//  clear_eeprom_debug_bytes();
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless there
   // is a stack overflow (wherein the stack will over write this preset
@@ -401,16 +401,13 @@ int main(void)
   stack_limit1 = 0xaa;
   stack_limit2 = 0x55;
 
-
-#if MQTT_SUPPORT == 1
   // Initialize mqtt client
   mqtt_init(&mqttclient,
             mqtt_sendbuf,
-	    sizeof(mqtt_sendbuf),
-	    &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
-	    UIP_APPDATA_SIZE,
-	    publish_callback);
-#endif // MQTT_SUPPORT == 1
+            sizeof(mqtt_sendbuf),
+            &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
+            UIP_APPDATA_SIZE,
+            publish_callback);
 
 
 #if DEBUG_SUPPORT == 2 || DEBUG_SUPPORT == 3
@@ -562,25 +559,27 @@ int main(void)
       }
     }
 
-#if MQTT_SUPPORT == 1
     // Perform MQTT startup if 
-    // a) Not already at start complete
-    // b) Not currently performing the restart steps
-    // c) Not currently performing restart_reboot
-    if (mqtt_start != MQTT_START_COMPLETE
+    // a) MQTT is enabled
+    // b) Not already at start complete
+    // c) Not currently performing the restart steps
+    // d) Not currently performing restart_reboot
+    if (mqtt_enabled == 1
+     && mqtt_start != MQTT_START_COMPLETE
      && mqtt_restart_step == MQTT_RESTART_IDLE
      && restart_reboot_step == RESTART_REBOOT_IDLE) {
        mqtt_startup();
     }
     
     // Perform MQTT sanity check if
-    // a) Not currently performing MQTT startup
-    // b) Not currently performing restart_reboot
-    if (mqtt_start == MQTT_START_COMPLETE
+    // a) MQTT is enabled
+    // b) Not currently performing MQTT startup
+    // c) Not currently performing restart_reboot
+    if (mqtt_enabled == 1
+     && mqtt_start == MQTT_START_COMPLETE
      && restart_reboot_step == RESTART_REBOOT_IDLE) {
       mqtt_sanity_check();
     }
-#endif // MQTT_SUPPORT == 1
 
     // Update the time keeping function
     timer_update();
@@ -617,18 +616,18 @@ int main(void)
     }
 
 
-#if MQTT_SUPPORT == 1
-    // If MQTT is connected check for pin state changes and publish a message
-    // at 50ms intervals. publish_outbound only places the message in the
-    // queue. uip_periodic() will cause the actual transmission.
-    if (mqtt_outbound_timer_expired()) {
+    // If MQTT is enabled and connected check for pin state changes and
+    // publish a message at 50ms intervals. publish_outbound only places
+    // the message in the queue. uip_periodic() will cause the actual
+    // transmission.
+    if (mqtt_enabled == 1 && mqtt_outbound_timer_expired()) {
       if (mqtt_start == MQTT_START_COMPLETE) {
         publish_outbound();
       }
     }
     
-    // Increment the MQTT timers every 100ms
-    if (mqtt_timer_expired()) {
+    // If MQTT is enabled increment the MQTT timers every 100ms
+    if (mqtt_enabled == 1 && mqtt_timer_expired()) {
       mqtt_start_ctr1++; // Increment the MQTT start loop timer 1. This is
                          // used to timeout the MQTT Server ARP request or
 		         // the MQTT Server TCP connection request if the
@@ -640,7 +639,6 @@ int main(void)
                          // used to provide timing for the MQTT Sanity
 		         // Check function.			   
     }
-#endif // MQTT_SUPPORT == 1
 
 
     // Call the ARP timer function every 10 seconds.
@@ -687,7 +685,6 @@ int main(void)
 // defaults".
 
 
-#if MQTT_SUPPORT == 1
 void mqtt_startup(void)
 {
   // This function walks through the steps needed to get MQTT initialized and
@@ -706,35 +703,33 @@ void mqtt_startup(void)
   //   - Initializes communication with the MQTT Broker.
   
   if (mqtt_start == MQTT_START_TCP_CONNECT) {
-    if (stored_mqttserveraddr[3] != 0) {
-      // When first powering up or on a reboot we need to initialize the
-      // MQTT processes.
-      //
-      // A brand new device won't have a MQTT Server IP Address defined
-      // (as indicated by an all zeroes address). So these steps won't be
-      // executed unless a non-zero MQTT Server address is found. The user
-      // can input a MQTT Server IP Address and Port number via the GUI. A
-      // restart will automatically take place when the values are submitted
-      // in the GUI.
-      //
-      // The first step is to create a TCP Connection Request to the MQTT
-      // Server. This is done with uip_connect(). uip_connect() doesn't
-      // actually send anything - it just queues the SYN to be sent. The
-      // connection request will actually be sent when uip_periodic is
-      // called. uip_periodic will determine that the connection request is
-      // queued, will perform an ARP request to determine the MAC of the MQTT
-      // server, and will then send the SYN to start the connection process.
-
-      mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, Port_Mqttd);
-      if (mqtt_conn != NULL) {
-        mqtt_start_ctr1 = 0; // Clear 100ms counter
-        mqtt_start_ctr2 = 0; // Clear 100ms counter
-        mqtt_start_status = MQTT_START_CONNECTIONS_GOOD;
-        mqtt_start = MQTT_START_VERIFY_ARP;
-      }
-      else {
-        mqtt_start_status |= MQTT_START_CONNECTIONS_ERROR;
-      }
+    // When first powering up or on a reboot we need to initialize the
+    // MQTT processes.
+    //
+    // A brand new device won't have a MQTT Server IP Address defined
+    // (as indicated by an all zeroes address). So these steps won't be
+    // executed unless a non-zero MQTT Server address is found. The user
+    // can input a MQTT Server IP Address and Port number via the GUI. A
+    // restart will automatically take place when the values are submitted
+    // in the GUI.
+    //
+    // The first step is to create a TCP Connection Request to the MQTT
+    // Server. This is done with uip_connect(). uip_connect() doesn't
+    // actually send anything - it just queues the SYN to be sent. The
+    // connection request will actually be sent when uip_periodic is
+    // called. uip_periodic will determine that the connection request is
+    // queued, will perform an ARP request to determine the MAC of the MQTT
+    // server, and will then send the SYN to start the connection process.
+    mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, Port_Mqttd);
+    
+    if (mqtt_conn != NULL) {
+      mqtt_start_ctr1 = 0; // Clear 100ms counter
+      mqtt_start_ctr2 = 0; // Clear 100ms counter
+      mqtt_start_status = MQTT_START_CONNECTIONS_GOOD;
+      mqtt_start = MQTT_START_VERIFY_ARP;
+    }
+    else {
+      mqtt_start_status |= MQTT_START_CONNECTIONS_ERROR;
     }
   }
       
@@ -1528,8 +1523,6 @@ void publish_pinstate_all(void)
 	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
 
-#endif // MQTT_SUPPORT == 1
-
 
 void unlock_eeprom(void)
 {
@@ -1574,11 +1567,15 @@ void check_eeprom_settings(void)
       (magic3 == 0xee) && 
       (magic2 == 0x0f) && 
       (magic1 == 0xf0)) {
-    // Magic number is present. Use the values in the EEPROM for the Relays
+    // MAGIC NUMBER IS PRESENT. Use the values in the EEPROM for the Relays
     // States, IP, Gateway, Netmask, MAC and Port Number.
     
     // Read and use the IP Address from EEPROM
-    uip_ipaddr(IpAddr, stored_hostaddr[3], stored_hostaddr[2], stored_hostaddr[1], stored_hostaddr[0]);
+    uip_ipaddr(IpAddr,
+               stored_hostaddr[3],
+	       stored_hostaddr[2],
+	       stored_hostaddr[1],
+	       stored_hostaddr[0]);
     uip_sethostaddr(IpAddr);
     
     // Read and use the Gateway Address from EEPROM
@@ -1597,7 +1594,6 @@ void check_eeprom_settings(void)
 	       stored_netmask[0]);
     uip_setnetmask(IpAddr);
 
-#if MQTT_SUPPORT == 1
     // Read and use the MQTT Server IP Address from EEPROM
     uip_ipaddr(IpAddr,
                stored_mqttserveraddr[3],
@@ -1605,9 +1601,16 @@ void check_eeprom_settings(void)
 	       stored_mqttserveraddr[1],
 	       stored_mqttserveraddr[0]);
     uip_setmqttserveraddr(IpAddr);
+    
+    // If the MQTT Server address is non-zero set the mqtt_enabled
+    // byte.
+    if (stored_mqttserveraddr[3] != 0
+     || stored_mqttserveraddr[2] != 0
+     || stored_mqttserveraddr[1] != 0
+     || stored_mqttserveraddr[0] != 0) mqtt_enabled = 1;
+    
     // Read and use the MQTT Port from EEPROM
     Port_Mqttd = stored_mqttport;
-#endif // MQTT_SUPPORT == 1
 
     // Read and use the Port from EEPROM
     Port_Httpd = stored_port;
@@ -1642,11 +1645,11 @@ void check_eeprom_settings(void)
     if (stored_config_settings[4] != '0' && stored_config_settings[4] != '1') {
       stored_config_settings[4] = '0';
     }
-#if MQTT_SUPPORT == 0
-    // If this is not an MQTT build stored_config_settings[4] must be zero
-    stored_config_settings[4] = '0';
-#endif MQTT_SUPPORT == 0
+    if (stored_config_settings[5] != '0' && stored_config_settings[5] != '1') {
+      stored_config_settings[5] = '0';
+    }
     if (stored_config_settings[5] != '0') {
+      // Zero out the unused setting
       stored_config_settings[5] = '0';
     }
     lock_eeprom();
@@ -1695,7 +1698,6 @@ void check_eeprom_settings(void)
     stored_netmask[1] = 255;	//
     stored_netmask[0] = 0;	// LSB
 
-#if MQTT_SUPPORT == 1
     // Initial MQTT Server IP Address
     uip_ipaddr(IpAddr, 0,0,0,0);
     uip_setmqttserveraddr(IpAddr);
@@ -1715,8 +1717,6 @@ void check_eeprom_settings(void)
     for(i=0; i<11; i++) { stored_mqtt_username[i] = '\0'; }
     for(i=0; i<11; i++) { stored_mqtt_password[i] = '\0'; }
     
-#endif // MQTT_SUPPORT == 1
-
     // Write the default Port number to EEPROM
     stored_port = 8080;
     // Set the "in use" port number to the default
@@ -1808,7 +1808,6 @@ void check_eeprom_settings(void)
     Pending_uip_ethaddr_oct[i] = stored_uip_ethaddr_oct[i];
   }
 
-#if MQTT_SUPPORT == 1
   for (i=0; i<4; i++) {
     Pending_mqttserveraddr[i] = stored_mqttserveraddr[i];
   }
@@ -1817,7 +1816,6 @@ void check_eeprom_settings(void)
     Pending_mqtt_username[i] = stored_mqtt_username[i];
     Pending_mqtt_password[i] = stored_mqtt_password[i];
   }
-#endif // MQTT_SUPPORT == 1 
   
   // Update the MAC string
   update_mac_string();
@@ -2012,11 +2010,11 @@ void check_runtime_changes(void)
       if (stored_config_settings[1] == '0') invert_input = 0x00;
       else invert_input = 0xff;
       
-#if MQTT_SUPPORT == 1
-      // Restart so input inversion is reported to MQTT
-      restart_request = 1;
-#endif // MQTT_SUPPORT == 1
-
+      if (mqtt_enabled == 1) {
+        // If MQTT is enabled restart so input inversion is reported to
+        // the MQTT server
+        restart_request = 1;
+      }
     }
 #endif // GPIO_SUPPORT == 2
 
@@ -2038,11 +2036,11 @@ void check_runtime_changes(void)
       if (stored_config_settings[1] == '0') invert_input = 0x00;
       else invert_input = 0xff;
       
-#if MQTT_SUPPORT == 1
-      // Restart so input inversion is reported to MQTT
-      restart_request = 1;
-#endif // MQTT_SUPPORT == 1
-
+      if (mqtt_enabled == 1) {
+        // If MQTT is enabled restart so input inversion is reported to
+        // the MQTT server
+        restart_request = 1;
+      }
     }
 #endif // GPIO_SUPPORT == 3
 
@@ -2052,7 +2050,6 @@ void check_runtime_changes(void)
       // Write the config_settings Retain value to the EEPROM
       stored_config_settings[2] = Pending_config_settings[2];
     }
-    
     // Check for changes in the Full/Half Duplex byte of the Config
     // setting
     if (Pending_config_settings[3] != stored_config_settings[3]) {
@@ -2066,15 +2063,12 @@ void check_runtime_changes(void)
     // Check for changes in the Home Assistant Auto Discovery byte
     // of the Config setting
     if (Pending_config_settings[4] != stored_config_settings[4]) {
-#if MQTT_SUPPORT == 0
-      // If this is not an MQTT build stored_config_settings[4] must be zero
-      stored_config_settings[4] = '0';
-#endif MQTT_SUPPORT == 0
       // Write the config_settings Home Assistant Auto Discovery
       // value to the EEPROM
       stored_config_settings[4] = Pending_config_settings[4];
-      // If this setting changes a reboot is required
-      user_reboot_request = 1;
+      // If this setting changes and MQTT is enabled a reboot is
+      // required
+      if (mqtt_enabled == 1) user_reboot_request = 1;
     }
     
     // Write the undefined config settings to the EEPROM
@@ -2087,6 +2081,7 @@ void check_runtime_changes(void)
         stored_hostaddr[0] != Pending_hostaddr[0]) {
       // Write the new IP address octets to the EEPROM
       for (i=0; i<4; i++) stored_hostaddr[i] = Pending_hostaddr[i];
+      restart_request = 1;
     }
   
     // Check for changes in the Gateway Address
@@ -2123,15 +2118,14 @@ void check_runtime_changes(void)
         stored_devicename[i] = Pending_devicename[i];
         // No restart is required in non-MQTT applications as this does not
 	// affect Ethernet operation.
-#if MQTT_SUPPORT == 1 
-        // Restart is required in MQTT applications as this affects the MQTT
-	// topic name.
-        restart_request = 1;
-#endif // MQTT_SUPPORT == 1
+        if (mqtt_enabled == 1) {
+          // If MQTT is enabled a restart is required as this affects the MQTT
+  	  // topic name.
+          restart_request = 1;
+	}
       }
     }
 
-#if MQTT_SUPPORT == 1 
     // Check for changes in the MQTT Server IP Address
     if (stored_mqttserveraddr[3] != Pending_mqttserveraddr[3] ||
         stored_mqttserveraddr[2] != Pending_mqttserveraddr[2] ||
@@ -2142,6 +2136,15 @@ void check_runtime_changes(void)
       // A firmware restart will occur to cause this change to take effect
       restart_request = 1;
     }
+    
+    // Update mqtt_enabled based on the MQTT Server IP Address
+    if (stored_mqttserveraddr[3] != 0 ||
+        stored_mqttserveraddr[2] != 0 ||
+        stored_mqttserveraddr[1] != 0 ||
+        stored_mqttserveraddr[0] != 0) {
+      mqtt_enabled = 1;
+    }
+    else mqtt_enabled = 0;
     
     // Check for changes in the MQTT Port number
     if (stored_mqttport != Pending_mqttport) {
@@ -2168,7 +2171,6 @@ void check_runtime_changes(void)
         restart_request = 1;
       }
     }
-#endif // MQTT_SUPPORT == 1
 
     // Check for changes in the MAC
     if (stored_uip_ethaddr_oct[0] != Pending_uip_ethaddr_oct[0] ||
@@ -2269,8 +2271,8 @@ void check_restart_reboot(void)
       }
     }
 
-#if MQTT_SUPPORT == 1
-    else if (restart_reboot_step == RESTART_REBOOT_SENDOFFLINE) {
+    else if (mqtt_enabled == 1
+      && restart_reboot_step == RESTART_REBOOT_SENDOFFLINE) {
       restart_reboot_step = RESTART_REBOOT_OFFLINEWAIT;
       if (mqtt_start == MQTT_START_COMPLETE) {
         // Publish the availability "offline" message
@@ -2287,7 +2289,8 @@ void check_restart_reboot(void)
       }
     }
     
-    else if (restart_reboot_step == RESTART_REBOOT_OFFLINEWAIT) {
+    else if (mqtt_enabled == 1
+      && restart_reboot_step == RESTART_REBOOT_OFFLINEWAIT) {
       if (second_counter > time_mark1 + 1 ) {
         // The offline publich is given 1 second to be communicated
         // before we move on to disconnect
@@ -2295,7 +2298,8 @@ void check_restart_reboot(void)
       }
     }
 
-    else if (restart_reboot_step == RESTART_REBOOT_DISCONNECT) {
+    else if (mqtt_enabled == 1
+      && restart_reboot_step == RESTART_REBOOT_DISCONNECT) {
       restart_reboot_step = RESTART_REBOOT_DISCONNECTWAIT;
       if (mqtt_start == MQTT_START_COMPLETE) {
         // Disconnect the MQTT client
@@ -2305,7 +2309,8 @@ void check_restart_reboot(void)
       time_mark1 = second_counter;
     }
     
-    else if (restart_reboot_step == RESTART_REBOOT_DISCONNECTWAIT) {
+    else if (mqtt_enabled == 1
+      && restart_reboot_step == RESTART_REBOOT_DISCONNECTWAIT) {
       if (second_counter > time_mark1 + 1 ) {
         // The mqtt_disconnect() is given 1 second to be communicated
         // before we move on to TCP close
@@ -2313,7 +2318,8 @@ void check_restart_reboot(void)
       }
     }
 
-    else if (restart_reboot_step == RESTART_REBOOT_TCPCLOSE) {
+    else if (mqtt_enabled == 1
+      && restart_reboot_step == RESTART_REBOOT_TCPCLOSE) {
       // The way a TCP connection close SHOULD work:
       // 1) A uip_periodic() runs and uip_process(UIP_TIMER) is called
       // 2) If a connection is in the ESTABLISHED state (meaning a TCP
@@ -2334,7 +2340,9 @@ void check_restart_reboot(void)
       time_mark1 = second_counter;
       restart_reboot_step = RESTART_REBOOT_TCPWAIT;
     }
-    else if (restart_reboot_step == RESTART_REBOOT_TCPWAIT) {
+      
+    else if (mqtt_enabled == 1
+      && restart_reboot_step == RESTART_REBOOT_TCPWAIT) {
       // Verify closed ... how?
       // For the moment I'm not sure how to do this, so I will just allow
       // enough time for it to happen. That is probably much faster, but
@@ -2345,12 +2353,11 @@ void check_restart_reboot(void)
       }
     }
     
-#else
-    else if (restart_reboot_step == RESTART_REBOOT_SENDOFFLINE) {
+    else if (mqtt_enabled == 0
+          && restart_reboot_step == RESTART_REBOOT_SENDOFFLINE) {
       restart_reboot_step = RESTART_REBOOT_FINISH;
     }
-#endif // MQTT_SUPPORT == 1
-    
+
     else if (restart_reboot_step == RESTART_REBOOT_FINISH) {
       if (reboot_request == 1) {
         restart_reboot_step = RESTART_REBOOT_IDLE;
@@ -2390,7 +2397,7 @@ void restart(void)
   restart_request = 0;
   time_mark1 = 0;           // Time capture used in reboot
   mqtt_close_tcp = 0;
-#if MQTT_SUPPORT == 1
+  
   mqtt_start = MQTT_START_TCP_CONNECT;
   mqtt_start_status = MQTT_START_NOT_STARTED;
   mqtt_start_ctr1 = 0;
@@ -2398,7 +2405,6 @@ void restart(void)
   MQTT_error_status = 0;
   mqtt_restart_step = MQTT_RESTART_IDLE;
   state_request = STATE_REQUEST_IDLE;
-#endif // MQTT_SUPPORT == 1
   
   spi_init();              // Initialize the SPI bit bang interface to the
                            // ENC28J60 and perform hardware reset on ENC28J60
@@ -2408,15 +2414,13 @@ void restart(void)
   uip_init();              // Initialize uIP
   HttpDInit();             // Initialize httpd; sets up listening ports
 
-#if MQTT_SUPPORT == 1
   // Initialize mqtt client
   mqtt_init(&mqttclient,
             mqtt_sendbuf,
-	    sizeof(mqtt_sendbuf),
-	    &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
-	    UIP_APPDATA_SIZE,
-	    publish_callback);
-#endif // MQTT_SUPPORT == 1
+            sizeof(mqtt_sendbuf),
+            &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
+            UIP_APPDATA_SIZE,
+            publish_callback);
 
   LEDcontrol(1); // Turn LED on
   // From here we return to the main loop and should start running with
@@ -2660,10 +2664,12 @@ void check_reset_button(void)
     // If we got here the button remained pressed for 5 seconds
     // Turn off the LED, clear the magic number, and reset the device
     LEDcontrol(0);  // turn LED off
+    unlock_eeprom();
     magic4 = 0x00;
     magic3 = 0x00;
     magic2 = 0x00;
     magic1 = 0x00;
+    lock_eeprom();
 
     while((PA_IDR & 0x02) == 0) {  // Wait for button release
     }
@@ -2896,7 +2902,6 @@ void capture_uip_buf_transmit()
 
 
 #if DEBUG_SUPPORT != 0
-#if MQTT_SUPPORT == 1
 void capture_mqtt_sendbuf()
 {
   uint8_t i;
@@ -2913,7 +2918,6 @@ void capture_mqtt_sendbuf()
     update_debug_storage(); // Write to EEPROM
   }
 }
-#endif // MQTT_SUPPORT == 1
 #endif // DEBUG_SUPPORT != 0
 
 

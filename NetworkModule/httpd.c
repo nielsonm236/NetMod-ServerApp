@@ -54,6 +54,7 @@
 
 // #include "stdlib.h"
 #include "string.h"
+#include <ctype.h>
 
 #define STATE_CONNECTED		0	// Client has just connected
 #define STATE_GET_G		1	// G
@@ -197,11 +198,12 @@ uint8_t* tmp_pBuffer;         // Used to return the pBuffer value from parsing s
 uint16_t tmp_nBytes;          // Used to return the nBytes value from parsing sub-functions
 uint8_t tmp_nParseLeft;       // Used to pass the nParseLeft value to parsing sub-functions
 uint8_t break_while;          // Used to indicate that a parsing "while loop" break is required
-uint8_t alpha[6];             // Used in parsing of multi-digit values
+uint8_t alpha[12];            // Used in parsing of multi-digit values
 
 uint8_t current_webpage;      // Tracks the web page that is currently displayed
 
-#if MQTT_SUPPORT == 1
+// MQTT variables
+extern uint8_t mqtt_enabled;              // Signals if MQTT has been enabled
 extern uint8_t stored_mqttserveraddr[4];  // mqttserveraddr stored in EEPROM
 extern uint16_t stored_mqttport;	  // MQTT Port number  stored in EEPROM
 extern char stored_mqtt_username[11];     // MQTT Username  stored in EEPROM
@@ -222,7 +224,6 @@ extern uint32_t MQTT_resp_tout_counter;   // Counts response timeout events
 extern uint32_t MQTT_not_OK_counter;      // Counts MQTT != OK events
 extern uint32_t MQTT_broker_dis_counter;  // Counts broker disconnect events
 extern uint32_t second_counter;           // Counts seconds since boot
-#endif // MQTT_SUPPORT == 1
 
 
 /*---------------------------------------------------------------------------*/
@@ -302,10 +303,11 @@ extern uint32_t second_counter;           // Counts seconds since boot
 // IO Control Template
 //
 // PARSE_BYTES calculation:
-// The form contained in this webpage will generate several data update
-// replies. These replies need to be parsed to extract the data from them. We
-// need to stop parsing the reply POST data after all update bytes are parsed.
-// The formula for determining the stop value is as follows:
+/*---------------------------------------------------------------------------*/
+// The form contained in this webpage will generate POST replies. These
+// replies need to be parsed to extract the data from them, and the parser
+// needs to know apriori the length of the POST reply.
+// The formula for determining the PARSE_BYTES value is as follows:
 //   For 16 of the replies (relay items):
 //   POST consists of a ParseCmd (an "o" in this case) in 1 byte
 //     Followed by the ParseNum in 2 bytes
@@ -435,7 +437,6 @@ static const char g_HtmlPageIOControl[] =
 "</html>";
 
 
-#if MQTT_SUPPORT == 0
 // Configuration webpage Template
 //
 // PARSE_BYTES calculation:
@@ -450,102 +451,25 @@ static const char g_HtmlPageIOControl[] =
 //     Followed by a device name in 1 to 19 bytes
 //     Followed by a parse delimiter in 1 byte
 //   PLUS
-//   For 12 of the replies (IP, Gateway, and Netmask fields):
-//   POST consists of a ParseCmd (a "b" in this case) in 1 byte
-//     Followed by the ParseNum in 2 bytes
-//     Followed by an equal sign in 1 byte
-//     Followed by a state value in 3 bytes (for 16 of the replies)
-//     Followed by a parse delimiter in 1 byte
-//   PLUS
-//   For 1 of the replies (Port number):
-//   POST consists of a ParseCmd (a "c" in this case) in 1 byte
-//     Followed by the ParseNum in 2 bytes
-//     Followed by an equal sign in 1 byte
-//     Followed by a port value in 5 bytes (for 1 of the replies)
-//     Followed by a parse delimiter in 1 byte
-//   PLUS
-//   For 6 of the replies (MAC fields):
-//   POST consists of a ParseCmd (a "d" in this case) in 1 byte
-//     Followed by the ParseNum in 2 bytes
-//     Followed by an equal sign in 1 byte
-//     Followed by a state value in 2 bytes (for 6 of the replies)
-//     Followed by a parse delimiter in 1 byte
-//   PLUS
-//   For 1 of the replies (config):
-//   POST consists of a ParseCmd (a "g" in this case) in 1 byte
-//     Followed by the ParseNum in 2 bytes
-//     Followed by an equal sign in 1 byte
-//     Followed by a string value in 6 bytes
-//     Followed by a parse delimiter in 1 byte
-//   PLUS
-//   For 1 of the replies (hidden):
-//   POST consists of a ParseCmd (a "z" in this case) in 1 byte
-//     Followed by the ParseNum in 2 bytes
-//     Followed by an equal sign in 1 byte
-//     Followed by a state value in 1 byte
-//     Followed by a parse delimiter in 1 byte
-// THUS
-// For 1 of the replies there are 24 bytes in the reply
-// For 12 of the replies there are 8 bytes per reply
-// For 1 of the replies there are 10 bytes in the reply
-// For 6 of the replies there are 7 bytes per reply
-// For 1 of the replies there are 11 bytes in the reply
-// For 1 of the replies there are 6 bytes per reply
-// The formula in this case is PARSEBYTES = (24 x 1)
-//                                        + (12 x 8)
-//                                        + (1 x 10)
-//                                        + (6 x 7)
-//                                        + (1 x 11)
-//                                        + (1 x 6) - 1
-//                             PARSEBYTES =  24
-//                                        +  96
-//                                        +  10
-//                                        +  42
-//                                        +  11
-//                                        + 6   - 1 = 188
-// Note: PARSEBYTES_X and PARSEBYTES_X_ADDL must each be less than 255 and
-// the sum of the two must not exceed 482.
-#define WEBPAGE_CONFIGURATION		1
-#define PARSEBYTES_CONFIGURATION	188
-#define PARSEBYTES_CONFIGURATION_ADDL	0
-#endif // MQTT_SUPPORT == 0
-
-
-
-#if MQTT_SUPPORT == 1
-// Configuration webpage Template
-//
-// PARSE_BYTES calculation:
-// The form contained in this webpage will generate several data update
-// replies. These replies need to be parsed to extract the data from them. We
-// need to stop parsing the reply POST data after all update bytes are parsed.
-// The formula for determining the stop value is as follows:
-//   For 1 of the replies (device name):
-//   POST consists of a ParseCmd (an "a" in this case) in 1 byte
-//     Followed by the ParseNum in 2 bytes
-//     Followed by an equal sign in 1 byte
-//     Followed by a device name in 1 to 19 bytes
-//     Followed by a parse delimiter in 1 byte
-//   PLUS
-//   For 12 of the replies (IP, Gateway, and Netmask fields):
+//   For 3 of the replies (IP, Gateway, and Netmask fields):
 //   POST consists of a ParseCmd/ParseNum (a "b" in this case) in 1 byte
-//     Followed by the ParseNum ("00" to "11") in 2 bytes
+//     Followed by the ParseNum ("00" "04" or "08") in 2 bytes
 //     Followed by an equal sign in 1 byte
-//     Followed by a state value in 3 bytes
+//     Followed by a value in 8 bytes
 //     Followed by a parse delimiter in 1 byte
 //   PLUS
 //   For 1 of the replies (Port number):
 //   POST consists of a ParseCmd/ParseNum (a "c" in this case) in 1 byte
 //     Followed by the ParseNum (a "00" in this case) in 2 bytes
 //     Followed by an equal sign in 1 byte
-//     Followed by a port value in 5 bytes
+//     Followed by a port value in 4 bytes
 //     Followed by a parse delimiter in 1 byte
 //   PLUS
-//   For 6 of the replies (MAC fields):
+//   For 1 of the replies (MAC):
 //   POST consists of a ParseCmd (a "d" in this case) in 1 byte
 //     Followed by the ParseNum in 2 bytes
 //     Followed by an equal sign in 1 byte
-//     Followed by a state value in 2 bytes
+//     Followed by a value in 12 bytes
 //     Followed by a parse delimiter in 1 byte
 //   PLUS
 //   For 1 of the replies (config):
@@ -555,25 +479,25 @@ static const char g_HtmlPageIOControl[] =
 //     Followed by a string value in 6 bytes
 //     Followed by a parse delimiter in 1 byte
 //   PLUS
-//   For 4 of the replies (MQTT IP fields):
+//   For 1 of the replies (MQTT IP):
 //   POST consists of a ParseCmd/ParseNum (a "b" in this case) in 1 byte
-//     Followed by the ParseNum (a "12" to "15" in this case) in 2 bytes
+//     Followed by the ParseNum (a "12" in this case) in 2 bytes
 //     Followed by an equal sign in 1 byte
-//     Followed by a state value in 3 bytes
+//     Followed by a value in 8 bytes
 //     Followed by a parse delimiter in 1 byte
 //   PLUS
-//   For 1 of the replies (MQTT Port field):
+//   For 1 of the replies (MQTT Port):
 //   POST consists of a ParseCmd/ParseNum (a "c" in this case) in 1 byte
 //     Followed by the ParseNum (a "01" in this case) in 2 bytes
 //     Followed by an equal sign in 1 byte
-//     Followed by a port value in 5 bytes
+//     Followed by a port value in 4 bytes
 //     Followed by a parse delimiter in 1 byte
 //   PLUS
 //   For 2 of the replies (MQTT Username and Password):
 //   POST consists of a ParseCmd (a "l" or "m" in this case) in 1 byte
 //     Followed by the ParseNum in 2 bytes
 //     Followed by an equal sign in 1 byte
-//     Followed by a name in 10 bytes
+//     Followed by a name in 0 to 10 bytes
 //     Followed by a parse delimiter in 1 byte
 //   PLUS
 //   For 1 of the replies (hidden):
@@ -584,111 +508,95 @@ static const char g_HtmlPageIOControl[] =
 //     Followed by a parse delimiter in 1 byte
 // THUS
 // For 1 of the replies there are 24 bytes in the reply
-// For 12 of the replies there are 8 bytes per reply
-// For 1 of the replies there are 10 bytes in the reply
-// For 6 of the replies there are 7 bytes per reply
+// For 3 of the replies there are 13 bytes per reply
+// For 1 of the replies there are 9 bytes in the reply
+// For 1 of the replies there are 17 bytes per reply
 // For 1 of the replies there are 11 bytes in the reply
-// For 4 of the replies there are 8 bytes per reply
-// For 1 of the replies there are 10 bytes per reply
+// For 1 of the replies there are 13 bytes per reply
+// For 1 of the replies there are 9 bytes per reply
+// For 2 of the replies there are 15 bytes per reply
 // For 1 of the replies there are 6 bytes per reply
 // The formula in this case is
-//     PARSEBYTES = (24 x 1)
-//                + (12 x 8) 
-//                + (1 x 10) 
-//                + (6 x 7) 
+//     PARSEBYTES = (1 x 24)
+//                + (3 x 13) 
+//                + (1 x 9) 
+//                + (1 x 17) 
 //                + (1 x 11) 
-//                + (4 x 8) 
-//                + (1 x 10)
+//                + (1 x 13) 
+//                + (1 x 9)
 //                + (2 x 15)
 //                + (1 x 6) - 1
 //     PARSEBYTES = 24
-//                + 96
-//                + 10
-//                + 42
+//                + 36
+//                + 9
+//                + 17
 //                + 11
-//                + 32
-//                + 10
+//                + 13
+//                + 9
 //                + 30
-//                + 6 - 1 = 236
+//                + 6 - 1 = 154
 // Note: PARSEBYTES_X and PARSEBYTES_X_ADDL must each be less than 255 and
 // the sum of the two must not exceed 482.
 #define WEBPAGE_CONFIGURATION		1
-#define PARSEBYTES_CONFIGURATION	236
-#define PARSEBYTES_CONFIGURATION_ADDL	24
-#endif // MQTT_SUPPORT == 1
-
+#define PARSEBYTES_CONFIGURATION	154
+#define PARSEBYTES_CONFIGURATION_ADDL	0
 
 static const char g_HtmlPageConfiguration[] =
   "%y04%y05"
       "<title>Configuration</title>"
+      "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
    "</head>"
    "<body>"
       "<h1>Configuration</h1>"
-      "<form method='POST' action='/'>"
+      "<form>"
          "<table>"
             "<tr>"
                "<td>Name</td>"
-               "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'></td>"
+               "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'/></td>"
             "</tr>"
             "<tr>"
                "<td>Config</td>"
-               "<td><input name='g00' value='%g00' pattern='[0-9a-zA-Z]{6}' title='6 characters required. See Documentation' maxlength='6'></td>"
+               "<td><input name='g00' value='%g00' pattern='[0-9a-zA-Z]{6}' title='6 characters required. See Documentation' maxlength=6/></td>"
             "</tr>"
+            "<tr class='hs'/>"
             "<tr>"
                "<td>IP Address</td>"
-               "<td class='ip'>"
-                 "<input name='b00' value='%b00'> "
-                 "<input name='b01' value='%b01'> "
-                 "<input name='b02' value='%b02'> "
-                 "<input name='b03' value='%b03'>"
+               "<td>"
+                 "<input name='b00' class='ip'/>"
                "</td>"
             "</tr>"
             "<tr>"
                "<td>Gateway</td>"
-               "<td class='ip'>"
-                 "<input name='b04' value='%b04'> "
-                 "<input name='b05' value='%b05'> "
-                 "<input name='b06' value='%b06'> "
-                 "<input name='b07' value='%b07'>"
+               "<td>"
+                 "<input name='b04' class='ip'/>"
                "</td>"
             "</tr>"
             "<tr>"
                "<td>Netmask</td>"
-               "<td class='ip'>"
-                 "<input name='b08' value='%b08'> "
-                 "<input name='b09' value='%b09'> "
-                 "<input name='b10' value='%b10'> "
-                 "<input name='b11' value='%b11'>"
+               "<td>"
+                 "<input name='b08' class='ip'/>"
                "</td>"
             "</tr>"
             "<tr>"
                "<td>Port</td>"
-               "<td><input name='c00' class='t8' value='%c00' pattern='[0-9]{5}' title='Enter 00010 to 65535' maxlength='5'></td>"
+               "<td><input name='c00' class='t8 port'></td>"
             "</tr>"
             "<tr>"
                "<td>MAC Address</td>"
-               "<td class='mac'>"
-                 "<input name='d00' value='%d00'> "
-                 "<input name='d01' value='%d01'> "
-                 "<input name='d02' value='%d02'> "
-                 "<input name='d03' value='%d03'> "
-                 "<input name='d04' value='%d04'> "
-                 "<input name='d05' value='%d05'>"
+               "<td>"
+                 "<input name='d00' value='%d00' pattern='([0-9a-fA-F]{2}){5}([0-9a-fA-F]{2})' title='aabbccddeeff format' maxlength=12/>"
                "</td>"
             "</tr>"
-#if MQTT_SUPPORT == 1
+            "<tr class='hs'/>"
             "<tr>"
                "<td>MQTT Server</td>"
-               "<td class='ip'>"
-                 "<input name='b12' value='%b12'> "
-                 "<input name='b13' value='%b13'> "
-                 "<input name='b14' value='%b14'> "
-                 "<input name='b15' value='%b15'>"
+               "<td>"
+                 "<input name='b12' class='ip'/>"
                "</td>"
             "</tr>"
             "<tr>"
                "<td>MQTT Port</td>"
-               "<td><input name='c01' class='t8' value='%c01' pattern='[0-9]{5}' title='Enter 00010 to 65535' maxlength='5'></td>"
+               "<td><input name='c01' class='t8 port'></td>"
             "</tr>"
             "<tr>"
                "<td>MQTT Username</td>"
@@ -698,6 +606,7 @@ static const char g_HtmlPageConfiguration[] =
                "<td>MQTT Password</td>"
                "<td class='up'><input name='m00' value='%m00'></td>"
             "</tr>"
+            "<tr class='hs'/>"
             "<tr>"
                "<td>MQTT Status</td>"
                "<td class='s'>"
@@ -708,19 +617,50 @@ static const char g_HtmlPageConfiguration[] =
                  "<div class='s%n04'></div>"
                "</td>"
             "</tr>"
-#endif // MQTT_SUPPORT == 1
          "</table>"
          "<script>"
-           "fe=(q,f)=>{for (const e of document.querySelectorAll(q)) {f(e)}};"
-           "sa=(e,d)=>{for (const [k, v] of Object.entries(d)){ e.setAttribute(k,v);}};"
-           "fe('.ip input',(e)=>{sa(e,{'title':'Enter 000 to 255', 'maxlength':3, 'pattern':'[0-9]{3}'});});"
-           "fe('.mac input',(e)=>{sa(e,{'title':'Enter 00 to ff', 'maxlength':2, 'pattern':'[0-9a-f]{2}'});});"
-           "fe('.up input',(e)=>{sa(e,{'title':'0 to 10 letters, numbers, and -_*. no spaces. Use none for no entry.', 'maxlength':10, 'pattern':'[0-9a-zA-Z-_*.]{0,10}'});});"
+           "const d={"
+             "b00:'%b00',"
+             "b04:'%b04',"
+             "b08:'%b08',"
+             "c00:'%c00',"
+             "b12:'%b12',"
+             "c01:'%c01'"
+           "},"
+           "il=['b00','b04','b08','b12'],"
+           "pl=['c00','c01'],"
+           "q=(n)=>document.querySelector(`input[name=${n}]`),"
+           "s=(n,v)=>q(n).value=v,"
+           "pp=(s,l)=>parseInt(s).toString(16).padStart(l,'0'),"
+           "th=(v)=>v.map(p=>pp(p,2)).join(''),"
+           "fh=(v)=>v.match(/.{2}/g).map(p=>parseInt(p,16)),"
+           "fe=(q,f)=>{for (const e of document.querySelectorAll(q)) {f(e)}},"
+           "sa=(e,d)=>{for (const [k, v] of Object.entries(d)){ e.setAttribute(k,v);}},"
+           "f=document.querySelector('form'),"
+           "ef=(v)=>encodeURIComponent(v);"
+           
+           "fe('.ip',(e)=>{sa(e,{title:'Enter valid', pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'});});"
+           "fe('.port',(e)=>{sa(e,{title:'Enter 10 to 65535', pattern:'[0-9]{2,5}', maxlength:5});});"
+           "fe('.up input',(e)=>{sa(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Use none for no entry.', maxlength:10, pattern:'[0-9a-zA-Z-_*.]{0,10}'});});"
+
+           "il.forEach((n)=>s(n, fh(d[n]).join('.')));"
+           "pl.forEach((n)=>s(n, parseInt(d[n], 16)));"
+           
+           "f.addEventListener('submit', function (e) {"
+              "e.preventDefault();"
+              "const fd = new FormData(f);"
+              "il.forEach((n)=>fd.set(n, th(fd.get(n).split('.'))));"
+              "pl.forEach((n)=>fd.set(n, pp(fd.get(n),4)));"
+	      
+           "var r=new XMLHttpRequest(),"
+           "d=Array.from(fd.entries(), ([k, v]) => `${ef(k)}=${ef(v)}`).join('&');"
+           "r.open('POST', '/', false);"
+           "r.send(d);"
+           "location.reload();"
+	   "});"
          "</script>"
-         "<p></p>"
-         "<input type='hidden' name='z00' value='1'>"
-         "<button type='submit' title='Saves your changes then restarts the Network Module'>Save</button>"
-         "<button type='reset' title='Un-does any changes that have not been saved'>Undo All</button>"
+         "<p/>"
+         "<input type='hidden' name='z00' value='1'><button type='submit'>Save</button>"
       "</form>"
       "<p>See Documentation for help<br>Code Revision %w00</p>"
       "%y03/91%y02Reboot</button></form>"
@@ -934,6 +874,7 @@ static const char g_HtmlPageHelp2[] =
 #define WEBPAGE_STATS		5
 static const char g_HtmlPageStats[] =
   "<!DOCTYPE html>"
+// .........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6
   "<html lang='en-US'>"
   "<head>"
   "<title>Network Statistics</title>"
@@ -1241,26 +1182,26 @@ uint16_t adjust_template_size()
     // each time we display the web page.
     size = size + strlen(stored_devicename) - 4 ;
 
-    // Account for IP Address, Gateway Address, and Netmask fields %b00 to %b11
-    // There are 12 instances of these fields
+    // Account for IP Address, Gateway Address, and Netmask fields %b00, %b04, %b08
+    // There are 3 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (12 x (3 - 4));
-    // size = size + (12 x (-1));
-    size = size - 12;
+    // size = size + (3 x (8 - 4));
+    // size = size + (3 x (4));
+    size = size + 12;
 
     // Account for Port field %c00
     // There is 1 instance of this field
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (1 x (5 - 4));
-    // size = size + (1 x (1));
-    size = size + 1;
+    // size = size + (1 x (4 - 4));
+    // size = size + (1 x (0));
+    // size = size + 0;
 
-    // Account for MAC fields %d00 to %d05
-    // There are 6 instances of these fields
+    // Account for MAC field %d00
+    // There is 1 instance of this field
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (6 x (2 - 4));
-    // size = size + (6 x (- 2));
-    size = size - 12;
+    // size = size + (1 x (12 - 4));
+    // size = size + (1 x (8));
+    size = size + 8;
 
     // Account for Config string %g00
     // There is 1 instance
@@ -1270,20 +1211,19 @@ uint16_t adjust_template_size()
     // size = size + (1 x (2));
     size = size + 2;
 
-#if MQTT_SUPPORT == 1
-    // Account for MQTT Server IP Address fields %b12 to %b15
-    // There are 4 instances of these fields
+    // Account for MQTT Server IP Address field %b12
+    // There is 1 instance of this field
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (4 x (3 - 4));
-    // size = size + (4 x (-1));
-    size = size - 4;
+    // size = size + (1 x (8 - 4));
+    // size = size + (1 x (4));
+    size = size + 4;
 
     // Account for MQTT Port field %c01
     // There is 1 instance of this field
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (1 x (5 - 4));
-    // size = size + (1 x (1));
-    size = size + 1;
+    // size = size + (1 x (4 - 4));
+    // size = size + (1 x (0));
+    // size = size + 0;
     
     // Account for Username field %l00
     // This can be variable in size during run time so we have to calculate it
@@ -1301,7 +1241,6 @@ uint16_t adjust_template_size()
     // size = size + (#instances x (1 - 4));
     // size = size + (5 x (-3));
     size = size - 15;
-#endif // MQTT_SUPPORT == 1
 
     // Account for Code Revision insertion %w00
     // size = size + (#instances x (value_size - marker_field_size));
@@ -1492,6 +1431,22 @@ void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
   //   Up to 10 digits (32 bits),
   //   Includes leading 0 pad,
   //   Converts base 2 (binary), 8 (nibbles), 10 (decimal), 16 (hex)
+  //     base 2 example
+  //       emb_itoa(number, OctetArray, 2, 8);
+  //       where number is a uint8_t containing the value 0xac
+  //       output string in OctetArray is 10101100
+  //     base 8 example
+  //       emb_itoa(number, OctetArray, 2, 4);
+  //       where number is a uint8_t containing the value 0xac
+  //       output string in OctetArray is 0254
+  //     base 10 example
+  //       emb_itoa(number, OctetArray, 2, 5);
+  //       where number is a uint8_t containing the value 0xac
+  //       output string in OctetArray is 00172
+  //     base 16 example
+  //       emb_itoa(number, OctetArray, 2, 8);
+  //       where number is a uint32_t containing the value 0xc0a80004
+  //       output string in OctetArray is c0a80004
 
   uint8_t i;
   uint8_t rem;
@@ -1530,6 +1485,17 @@ void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
       end--;
     }
   }
+}
+
+
+int hex2int(char ch)
+{
+  // Convert a single hex character to an integer (a nibble)
+  // If the character is not hex -1 is returned
+    if (ch >= '0' && ch <= '9') return ch - '0';
+    if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+    if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+    return -1;
 }
 
 
@@ -1952,40 +1918,49 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	}
 	
         else if (nParsedMode == 'b') {
-	  // This data is the IP Address, Gateway Address, and Netmask information
-	  // (3 characters per octet). We need to get a single 8 bit integer from
-	  // storage but put it in the transmission buffer as three alpha characters.
-	  
-          switch (nParsedNum)
+	  // This data is the IP Address, Gateway Address, and Netmask information.
+	  // We need to get the 32 bit values for IP Address, Gateway Address, and
+	  // Netmask and send them as text strings of hex characters (8 characters
+	  // for a 32 bit number, for example "c0a80004").	  
 	  {
-	    // Convert the value to 3 digit Decimal
-	    case 0:  emb_itoa(stored_hostaddr[3], OctetArray, 10, 3); break;
-	    case 1:  emb_itoa(stored_hostaddr[2], OctetArray, 10, 3); break;
-	    case 2:  emb_itoa(stored_hostaddr[1], OctetArray, 10, 3); break;
-	    case 3:  emb_itoa(stored_hostaddr[0], OctetArray, 10, 3); break;
-	    case 4:  emb_itoa(stored_draddr[3],   OctetArray, 10, 3); break;
-	    case 5:  emb_itoa(stored_draddr[2],   OctetArray, 10, 3); break;
-	    case 6:  emb_itoa(stored_draddr[1],   OctetArray, 10, 3); break;
-	    case 7:  emb_itoa(stored_draddr[0],   OctetArray, 10, 3); break;
-	    case 8:  emb_itoa(stored_netmask[3],  OctetArray, 10, 3); break;
-	    case 9:  emb_itoa(stored_netmask[2],  OctetArray, 10, 3); break;
-	    case 10: emb_itoa(stored_netmask[1],  OctetArray, 10, 3); break;
-	    case 11: emb_itoa(stored_netmask[0],  OctetArray, 10, 3); break;
-#if MQTT_SUPPORT == 1
-	    case 12: emb_itoa(stored_mqttserveraddr[3], OctetArray, 10, 3); break;
-	    case 13: emb_itoa(stored_mqttserveraddr[2], OctetArray, 10, 3); break;
-	    case 14: emb_itoa(stored_mqttserveraddr[1], OctetArray, 10, 3); break;
-	    case 15: emb_itoa(stored_mqttserveraddr[0], OctetArray, 10, 3); break;
-#endif // MQTT_SUPPORT == 1
-	    default: break;
-	  }
+	    uint32_t temp32;
+            switch (nParsedNum)
+	    {
+	      // Convert the value to an 8 digit hex string
+	      case 0:
+	        temp32 = uip_hostaddr[0];
+		temp32 = temp32<<16;
+		temp32 = temp32 | uip_hostaddr[1];
+	        emb_itoa(temp32, OctetArray, 16, 8);
+	        break;
+	      case 4:
+	        temp32 = uip_draddr[0];
+		temp32 = temp32<<16;
+		temp32 = temp32 | uip_draddr[1];
+	        emb_itoa(temp32, OctetArray, 16, 8);
+	        break;
+	      case 8:
+	        temp32 = uip_netmask[0];
+		temp32 = temp32<<16;
+		temp32 = temp32 | uip_netmask[1];
+	        emb_itoa(temp32, OctetArray, 16, 8);
+	        break;
+	      case 12:
+	        temp32 = uip_mqttserveraddr[0];
+		temp32 = temp32<<16;
+		temp32 = temp32 | uip_mqttserveraddr[1];
+	        emb_itoa(temp32, OctetArray, 16, 8);
+	        break;
+	      default: break;
+            }
 	  
-	  // Copy OctetArray characters to output. Advance pointers.
-	  for(i=0; i<3; i++) {
-	    *pBuffer = (uint8_t)OctetArray[i];
-            pBuffer++;
+ 	    // Copy OctetArray characters to output. Advance pointers.
+	    for(i=0; i<8; i++) {
+	      *pBuffer = (uint8_t)OctetArray[i];
+              pBuffer++;
+	    }
+	    nBytes += 8;
 	  }
-	  nBytes += 3;
 	}
 	
         else if (nParsedMode == 'c') {
@@ -1994,41 +1969,30 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // If nParsedNum == 1 this is the Port number (5 characters) for the
 	  // MQTT Server.
 	  // In both cases we need to get a single 16 bit integer from storage
-	  // but put it in the transmission buffer as five alpha characters.
+	  // but put it in the transmission buffer as 4 alpha characters in
+	  // hex format.
 
-	  // Write the 5 digit Port value
-	  if (nParsedNum == 0) emb_itoa(stored_port, OctetArray, 10, 5);
-#if MQTT_SUPPORT == 1
-	  else emb_itoa(stored_mqttport, OctetArray, 10, 5);
-#endif // MQTT_SUPPORT == 1
+	  // Write the 4 digit Port value in hex
+	  if (nParsedNum == 0) emb_itoa(stored_port, OctetArray, 16, 4);
+	  else emb_itoa(stored_mqttport, OctetArray, 16, 4);
 	    
 	  // Copy OctetArray characters to output. Advance pointers.
-	  for(i=0; i<5; i++) {
+	  for(i=0; i<4; i++) {
             *pBuffer = (uint8_t)OctetArray[i];
             pBuffer++;
 	  }
-	  nBytes += 5;
+	  nBytes += 4;
         }
 	
         else if (nParsedMode == 'd') {
-	  // This is the MAC adddress information (2 characters per octet). We copy
-	  // from the mac_string (rather than from the uip_ethaddr bytes) as the
-	  // mac_string is already in alphanumeric format.
-
-	  if (nParsedNum == 0) { OctetArray[0] = mac_string[0]; OctetArray[1] = mac_string[1]; }
-	  if (nParsedNum == 1) { OctetArray[0] = mac_string[2]; OctetArray[1] = mac_string[3]; }
-	  if (nParsedNum == 2) { OctetArray[0] = mac_string[4]; OctetArray[1] = mac_string[5]; }
-	  if (nParsedNum == 3) { OctetArray[0] = mac_string[6]; OctetArray[1] = mac_string[7]; }
-	  if (nParsedNum == 4) { OctetArray[0] = mac_string[8]; OctetArray[1] = mac_string[9]; }
-	  if (nParsedNum == 5) { OctetArray[0] = mac_string[10]; OctetArray[1] = mac_string[11]; }
-
-          *pBuffer = OctetArray[0];
-          pBuffer++;
-          nBytes++;
-	    
-          *pBuffer = OctetArray[1];
-          pBuffer++;
-          nBytes++;
+	  // This is the MAC adddress information (2 characters per octet). We send
+	  // the 12 characters in the mac_string (rather than from the uip_ethaddr
+	  // bytes) as the mac_string is already in alphanumeric format.
+          for (i=0; i<12; i++) {
+            *pBuffer = mac_string[i];
+            pBuffer++;
+            nBytes++;
+	  }
 	}
 
 #if UIP_STATISTICS == 1
@@ -2105,7 +2069,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    case 27:  emb_itoa(RXERIF_counter,          OctetArray, 10, 10); break;
 	    case 28:  emb_itoa(TXERIF_counter,          OctetArray, 10, 10); break;
 	    case 29:  emb_itoa(TRANSMIT_counter,        OctetArray, 10, 10); break;
-	    case 30:  emb_itoa(MQTT_resp_tout_counter,  OctetArray, 10, 10); break;
+//	    case 30:  emb_itoa(MQTT_resp_tout_counter,  OctetArray, 10, 10); break;
 	    case 31:  emb_itoa(MQTT_not_OK_counter,     OctetArray, 10, 10); break;
 	    case 32:  emb_itoa(MQTT_broker_dis_counter, OctetArray, 10, 10); break;
 	    case 33:  emb_itoa(stack_error,             OctetArray, 10, 10); break;
@@ -2189,10 +2153,9 @@ else if (nParsedMode == 'g') {
           nBytes += 6;
 	}
 	
-#if MQTT_SUPPORT == 1
         else if (nParsedMode == 'l') {
 	  // This is Username information (0 to 10 characters)
-	  // Display Username
+	  // Display Username if MQTT is enabled
           for(i=0; i<10; i++) {
 	    if (stored_mqtt_username[i] != '\0') {
               *pBuffer = (uint8_t)(stored_mqtt_username[i]);
@@ -2205,7 +2168,7 @@ else if (nParsedMode == 'g') {
 	
         else if (nParsedMode == 'm') {
 	  // This is Password information (0 to 10 characters)
-	  // Display Password
+	  // Display Password if MQTT is enabled
           for(i=0; i<10; i++) {
 	    if (stored_mqtt_password[i] != '\0') {
               *pBuffer = (uint8_t)(stored_mqtt_password[i]);
@@ -2216,10 +2179,10 @@ else if (nParsedMode == 'g') {
 	  }
 	}
 	
-        else if (nParsedMode == 'n') {
-	  // Outputs the MQTT Start Status information as five red/green
-	  // boxes showing Connections available, ARP status, TCP status,
-	  // MQTT Connect status, and MQTT Error status.
+        else if (nParsedMode == 'n' && mqtt_enabled == 1) {
+	  // If MQTT is enabled this outputs the MQTT Start Status information
+	  // as five red/green boxes showing Connections available, ARP status,
+	  // TCP status, MQTT Connect status, and MQTT Error status.
 	  no_err = 0;
           switch (nParsedNum)
 	  {
@@ -2251,7 +2214,6 @@ else if (nParsedMode == 'g') {
           pBuffer++;
           nBytes++;
 	}
-#endif // MQTT_SUPPORT == 1
 
         else if (nParsedMode == 'w') {
 	  // This is Code Revision information (13 characters)
@@ -2942,9 +2904,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // Netmask, and MQTT Host IP address which will then cause the
 	    // main.c functions to restart the software.
             // The value following the 'bxx=' ParseCmd and ParseNum consists
-            // of three alpha digits. The function call collects the alpha
-	    // digits, validates them, and converts them to the numeric value
-	    // used by the other firmware functions.
+            // of eight alpha digits representing the value in hex. The
+	    // function call collects the alpha digits, validates them, and
+	    // converts them to the numeric value used by the other firmware
+	    // functions.
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
 	                     // occurs.
             tmp_pBuffer = pBuffer;
@@ -2979,8 +2942,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // ParseNum == 0 indicates the HTTP Port number.
 	    // ParseNum == 1 indicates the MQTT Port number.
 	    // The value following the 'cxx=' ParseCmd & ParseNum consists
-            // of five alpha digits. The function call collects the digits,
-	    // validates them, and passes the value to the SetPort function.
+            // of four alpha digits with the port number in hex form. The
+	    // function call collects the digits, validates them, and updates
+	    // the pending port number.
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
 	                     // occurs.
             tmp_pBuffer = pBuffer;
@@ -3008,71 +2972,37 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  
 	  // Parse 'd' ------------------------------------------------------//
           else if (pSocket->ParseCmd == 'd') {
-            // This code updates the MAC address which will then cause the
-	    // main.c functions to restart the software.
+            // This code updates the "pending" MAC address which will then
+	    // cause the main.c functions to restart the software.
 	    // The value following the 'dxx=' ParseCmd and ParseNum consists
-	    // of two alpha digits in hex form ('0' to '9' and 'a' to 'f').
-	    // This code passes the digits to the SetMAC function.
-	    alpha[0] = '-';
-	    alpha[1] = '-';
+	    // of twelve alpha digits in hex form ('0' to '9' and 'a' to 'f').
+            // The function call collects the digits, validates them, and
+	    // updates the pending MAC number.
 	    
-	    if (saved_postpartial_previous[0] == 'd') {
-	      // Clear the saved_postpartial_prevous[0] byte (the ParseCmd
-	      // byte) as it should only get used once on processing a given
-	      // TCP Fragment.
-	      saved_postpartial_previous[0] = '\0';
-	      // We are re-assembling a fragment that occurred during this
-	      // command. The ParseCmd and ParseNum values are already
-	      // restored. We need to determine where in this command the
-	      // fragmentation break occurred and continue from there.
-	      // Check alphas
-	      if (saved_postpartial_previous[4] != '\0') alpha[0] = saved_postpartial_previous[4];
-	      if (saved_postpartial_previous[5] != '\0') alpha[1] = saved_postpartial_previous[5];
+	    break_while = 0; // Clear the break switch in case a TCP Fragment
+	                     // occurs.
+            tmp_pBuffer = pBuffer;
+            tmp_nBytes = nBytes;
+	    tmp_nParseLeft = pSocket->nParseLeft;
+            parse_POST_MAC(pSocket->ParseCmd);
+            pBuffer = tmp_pBuffer;
+            nBytes = tmp_nBytes;
+	    pSocket->nParseLeft = tmp_nParseLeft;
+            if (break_while == 1) {
+	      // Hit end of TCP Fragment but still have characters to collect.
+	      // Break out of while() loop.
+              pSocket->ParseState = saved_parsestate = PARSE_VAL;
+	      break;
 	    }
-	    
-	    else {
-	      // We are not doing a reassembly. Clear the data part of the
-	      // saved_postpartial values in case a fragment break occurs
-	      // during this parse
-              clear_saved_postpartial_data(); // Clear [4] and higher
-	    }
-	    
-            if (alpha[0] == '-') {
-	      alpha[0] = (uint8_t)(*pBuffer);
-              saved_postpartial[4] = *pBuffer;
-              pSocket->nParseLeft--;
-              saved_nparseleft = pSocket->nParseLeft;
-              pBuffer++;
-	      nBytes--;
-              if (nBytes == 0) break; // Hit end of fragment. Break out of
-	                              // while() loop.
-	    }
-	      
-            if (alpha[1] == '-') {
-	      alpha[1] = (uint8_t)(*pBuffer);
-              saved_postpartial[5] = *pBuffer;
-              pSocket->nParseLeft--;
-              saved_nparseleft = pSocket->nParseLeft;
-              pBuffer++;
-	      nBytes--;
-	    }
-
-	    // If we get this far we no longer need the saved_postpartial
-	    // values and must clear them to prevent interference with
-	    // subsequent restores.
-            clear_saved_postpartial_all();
-
-            SetMAC(pSocket->ParseNum, alpha[0], alpha[1]);
-
-            if (nBytes == 0) {
-	      // Hit end of TCP Fragment. Break out of while() loop. The
-	      // first character in the next packet will be an & delimiter.
-	      pSocket->ParseState = saved_parsestate = PARSE_DELIM;
+            if (break_while == 2) {
+	      // Hit end of TCP Fragment just before &. Break out of while()
+	      // loop.
+              pSocket->ParseState = saved_parsestate = PARSE_DELIM;
 	      break;
 	    }
 	    // Else we didn't hit the end of a TCP Fragment so we fall through
 	    // to the PARSE_DELIM state
-	  }
+          }
 	  
 	  // Parse 'g' ------------------------------------------------------//
 	  else if (pSocket->ParseCmd == 'g') {
@@ -3998,7 +3928,6 @@ char tmp_Pending[20];
     for (i=0; i<num_chars; i++) Pending_devicename[i] = tmp_Pending[i];
   }
 
-#if MQTT_SUPPORT == 1
   // Update the MQTT Username field
   else if (curr_ParseCmd == 'l') {
     for (i=0; i<num_chars; i++) Pending_mqtt_username[i] = tmp_Pending[i];
@@ -4008,7 +3937,6 @@ char tmp_Pending[20];
   else if (curr_ParseCmd == 'm') {
     for (i=0; i<num_chars; i++) Pending_mqtt_password[i] = tmp_Pending[i];
   }
-#endif // MQTT_SUPPORT == 1
 }
 
 
@@ -4016,10 +3944,7 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
 {
   uint8_t i;
   
-  alpha[0] = '-';
-  alpha[1] = '-';
-  alpha[2] = '-';
-
+  for (i=0; i<8; i++) alpha[i] = '-';
 
   if (saved_postpartial_previous[0] == curr_ParseCmd) {
     // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
@@ -4031,9 +3956,9 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     // from there.
     //
     // Check for alphas found in prior TCP Fragment
-    if (saved_postpartial_previous[4] != '\0') alpha[0] = saved_postpartial_previous[4];
-    if (saved_postpartial_previous[5] != '\0') alpha[1] = saved_postpartial_previous[5];
-    if (saved_postpartial_previous[6] != '\0') alpha[2] = saved_postpartial_previous[6];
+    for (i=0; i<8; i++) {
+      if (saved_postpartial_previous[i+4] != '\0')  alpha[i] = saved_postpartial_previous[i+4];
+    }
   }
   else {
     // We are not doing a reassembly. Clear the data part of the
@@ -4042,7 +3967,7 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     clear_saved_postpartial_data(); // Clear [4] and higher
   }
 
-  for (i=0; i<3; i++) {
+  for (i=0; i<8; i++) {
     // Examine each 'alpha' character to see if it was already found
     // in a prior TCP Fragment. If not collect it now.
     // If collecting characters from the POST break the while() loop
@@ -4055,7 +3980,7 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
       saved_nparseleft = tmp_nParseLeft;
       tmp_pBuffer++;
       tmp_nBytes--;
-      if (i != 2 && tmp_nBytes == 0) {
+      if (i != 7 && tmp_nBytes == 0) {
         break_while = 1; // Hit end of fragment but still have characters to
                          // collect in the next packet. Set break_while to 1
                          // so that we'll break out of the while() loop on
@@ -4073,45 +3998,45 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
   {
     // The following updates the IP address, Gateway address, NetMask, and MQTT
     // IP Address based on GUI input.
-    // This code converts the three alpha fields captured above with decimal
-    // alphas ('0' to '9') into a single uint8_t numeric representation of the
-    // new setting. The code must validate that the alpha characters passed to
-    // it are within valid ranges.
-
-    // Create a uint8_t from the three alpha characters.
-    uint8_t temp;
+    // The code converts eight alpha fields with hex alphas ('0' to 'f') into
+    // 4 octets representing the new setting.
+    uint16_t temp;
     uint8_t invalid;
+    uint8_t j;
+    
     invalid = 0;
-    // Validate user entry max 255
-    temp = (uint8_t)(       (alpha[2] - '0'));
-    temp = (uint8_t)(temp + (alpha[1] - '0') * 10);
-    if (temp > 55 && alpha[0] > '1') invalid = 1;
-    else temp = (uint8_t)(temp + (alpha[0] - '0') * 100);
+    j = 0;
+
+    // Validate each character in the string as a hex character
+    for (i=0; i<8; i++) {
+      if (!(isxdigit(alpha[i]))) invalid = 1;
+    }
+    
     if (invalid == 0) { // Make change only if valid entry
-      switch(curr_ParseNum)
-      {
-        case 0:  Pending_hostaddr[3] = (uint8_t)temp; break;
-        case 1:  Pending_hostaddr[2] = (uint8_t)temp; break;
-        case 2:  Pending_hostaddr[1] = (uint8_t)temp; break;
-        case 3:  Pending_hostaddr[0] = (uint8_t)temp; break;
-        case 4:  Pending_draddr[3] = (uint8_t)temp; break;
-        case 5:  Pending_draddr[2] = (uint8_t)temp; break;
-        case 6:  Pending_draddr[1] = (uint8_t)temp; break;
-        case 7:  Pending_draddr[0] = (uint8_t)temp; break;
-        case 8:  Pending_netmask[3] = (uint8_t)temp; break;
-        case 9:  Pending_netmask[2] = (uint8_t)temp; break;
-        case 10: Pending_netmask[1] = (uint8_t)temp; break;
-        case 11: Pending_netmask[0] = (uint8_t)temp; break;
-#if MQTT_SUPPORT == 1
-        case 12: {
-	  Pending_mqttserveraddr[3] = (uint8_t)temp;
-	  break;
-	}
-        case 13: Pending_mqttserveraddr[2] = (uint8_t)temp; break;
-        case 14: Pending_mqttserveraddr[1] = (uint8_t)temp; break;
-        case 15: Pending_mqttserveraddr[0] = (uint8_t)temp; break;
-#endif // MQTT_SUPPORT == 1
-        default: break;
+      // Convert characters of the hex string to numbers two characters
+      // at a time and store the result.
+      temp = 0;
+      i = 0;
+      while (i < 8) {
+        // Create a number from two hex characters
+        temp = hex2int(alpha[i]);
+        temp = temp<<4;
+        i++;
+        temp = temp | hex2int(alpha[i]);
+	i++;
+
+        if (i == 2) j = 3;
+        if (i == 4) j = 2;
+        if (i == 6) j = 1;
+        if (i == 8) j = 0;
+        switch(curr_ParseNum)
+        {
+          case 0: Pending_hostaddr[j] = (uint8_t)temp; break;
+	  case 4: Pending_draddr[j] = (uint8_t)temp; break;
+          case 8: Pending_netmask[j] = (uint8_t)temp; break;
+          case 12: Pending_mqttserveraddr[j] = (uint8_t)temp; break;
+          default: break;
+        }
       }
     }
   }
@@ -4131,7 +4056,7 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
 {
   uint8_t i;
 
-  for (i=0; i<5; i++) alpha[i] = '-';
+  for (i=0; i<4; i++) alpha[i] = '-';
 
   if (saved_postpartial_previous[0] == curr_ParseCmd) {
     // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
@@ -4143,7 +4068,7 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     // from there.
     //
     // Check for alphas found in prior TCP Fragment
-    for (i=0; i<5; i++) {
+    for (i=0; i<4; i++) {
       if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
     }
   }
@@ -4156,7 +4081,7 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
 
   {
     uint8_t i;
-    for (i=0; i<5; i++) {
+    for (i=0; i<4; i++) {
       // Examine each 'alpha' character to see if it was already found
       // in a prior TCP Fragment. If not collect it now.
       // If collecting characters from the POST break the while() loop
@@ -4169,7 +4094,7 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
         saved_nparseleft = tmp_nParseLeft;
         tmp_pBuffer++;
         tmp_nBytes--;
-        if (i != 4 && tmp_nBytes == 0) {
+        if (i != 3 && tmp_nBytes == 0) {
           break_while = 1; // Hit end of fragment but still have characters to
 	                   // collect in the next packet. Set break_while to 1
 			   // so that we'll break out of the while() loop on
@@ -4187,25 +4112,151 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
 
   {
     // Code to update the Port number based on GUI input.
-    // The code converts five alpha fields with decimal alphas ('0' to '9')
-    // into a single uint16_t numeric representation of the new setting. The
-    // code also validates that the setting is within a valid range.
+    // The code converts four alpha fields with hex alphas ('0' to 'f')
+    // into a 16 bit number, and validates that the number is within the
+    // valid range.
+    uint16_t temp;
+    uint16_t nibble;
+    uint8_t invalid;
+    invalid = 0;
+
+    // Validate each character in the string as a hex character
+    for (i=0; i<4; i++) {
+      if (!(isxdigit(alpha[i]))) invalid = 1;
+    }
+
+    // Convert string to integer
+    temp = 0;
+    nibble = 0;
+    for (i=0; i<4; i++) {
+      nibble = hex2int(alpha[i]);
+      if (i == 0) nibble = nibble<<12;
+      if (i == 1) nibble = nibble<<8;
+      if (i == 2) nibble = nibble<<4;
+      temp = temp | nibble;
+    }
+
+    if (invalid == 0) { // Next step of validation
+      // Validate that the value is in the range 10 to 65535. Since we
+      // already verified that the incoming characters were valid hex
+      // characters we only need to verify that the number is not less
+      // than 10.
+      if (temp < 10) invalid = 1;
+    }
+    
+    if (invalid == 0) { // Make change only if valid entry
+      if (curr_ParseNum == 0) Pending_port = (uint16_t)temp;
+      else Pending_mqttport = (uint16_t)temp;
+    }
+  }
+
+  if (tmp_nBytes == 0) {
+    // Hit end of fragment. Break out of while() loop. The first character
+    // of the next packet will be '&' so we need to set PARSE_DELIM.
+    break_while = 2; // Hit end of fragment. Set break_while to 2 so that
+                     // we'll break out of the while() loop on return from
+                     // this function AND go to the PARSE_DELIM state.
+    return;
+  }
+}
+
+
+void parse_POST_MAC(uint8_t curr_ParseCmd)
+{
+  uint8_t i;
+
+  for (i=0; i<12; i++) alpha[i] = '-';
+
+  if (saved_postpartial_previous[0] == curr_ParseCmd) {
+    // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
+    // should only get used once on processing a given TCP Fragment.
+    saved_postpartial_previous[0] = '\0';
+    // We are re-assembling a fragment that occurred during this command. The
+    // ParseCmd and ParseNum values are already restored. We need to determine
+    // where in this command the fragmentation break occurred and continue
+    // from there.
+    //
+    // Check for alphas found in prior TCP Fragment
+    for (i=0; i<12; i++) {
+      if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
+    }
+  }
+  else {
+    // We are not doing a reassembly. Clear the data part of the
+    // saved_postpartial values in case a fragment break occurs during this
+    // parse.
+    clear_saved_postpartial_data(); // Clear [4] and higher
+  }
+
+  {
+    uint8_t i;
+    for (i=0; i<12; i++) {
+      // Examine each 'alpha' character to see if it was already found
+      // in a prior TCP Fragment. If not collect it now.
+      // If collecting characters from the POST break the while() loop
+      // if a TCP Fragment boundary is found unless the character
+      // collected is the last 'alpha'.
+      if (alpha[i] == '-') {
+        alpha[i] = (uint8_t)(*tmp_pBuffer);
+        saved_postpartial[i+4] = *tmp_pBuffer;
+        tmp_nParseLeft--;
+        saved_nparseleft = tmp_nParseLeft;
+        tmp_pBuffer++;
+        tmp_nBytes--;
+        if (i != 11 && tmp_nBytes == 0) {
+          break_while = 1; // Hit end of fragment but still have characters to
+	                   // collect in the next packet. Set break_while to 1
+			   // so that we'll break out of the while() loop on
+			   // return from this function.
+   	break; // Break out of for() loop.
+        }
+      }
+    }
+    if (break_while == 1) return; // Hit end of fragment. Break out of while() loop.
+  }
+
+  // If we get this far we no longer need the saved_postpartial values and
+  // must clear them to prevent interference with subsequent restores.
+  clear_saved_postpartial_all();
+
+  {
+    // Code to update the MAC number based on GUI input.
+    // The code converts twelve alpha fields with hex alphas ('0' to 'f')
+    // into 6 octets representing the new setting.
     uint16_t temp;
     uint8_t invalid;
     invalid = 0;
-    // Validate user entry min 10 max 65535
-    temp = (uint16_t)(       (alpha[4] - '0'));
-    temp = (uint16_t)(temp + (alpha[3] - '0') * 10);
-    temp = (uint16_t)(temp + (alpha[2] - '0') * 100);
-    temp = (uint16_t)(temp + (alpha[1] - '0') * 1000);
-    if (temp > 5535 && alpha[0] > '5') invalid = 1;
-    else temp = (uint16_t)(temp + (alpha[0] - '0') * 10000);
-    if (temp < 10) invalid = 1;
-    if (invalid == 0) {
-      if (curr_ParseNum == 0) Pending_port = (uint16_t)temp;
-#if MQTT_SUPPORT == 1
-      else Pending_mqttport = (uint16_t)temp;
-#endif // MQTT_SUPPORT == 1
+
+    // Validate each character in the string as a hex character
+    for (i=0; i<12; i++) {
+      if (!(isxdigit(alpha[i]))) invalid = 1;
+    }
+    
+    if (invalid == 0) { // Make change only if valid entry
+      // Convert characters of the hex string to numbers two
+      // at a time and store the result.
+      i = 0;
+      while (i < 12) {
+        temp = 0;
+        // Create a number from two hex characters
+        temp = hex2int(alpha[i]);
+        temp = temp<<4;
+        i++;
+        temp = temp | hex2int(alpha[i]);
+	i++;
+    
+        switch(i) {
+	  // Store result in Pending_uip_ethaddr_oct. Note that order is
+	  // reversed in this variable.
+          case 2: Pending_uip_ethaddr_oct[5] = (uint8_t)temp; break;
+          case 4: Pending_uip_ethaddr_oct[4] = (uint8_t)temp; break;
+          case 6: Pending_uip_ethaddr_oct[3] = (uint8_t)temp; break;
+          case 8: Pending_uip_ethaddr_oct[2] = (uint8_t)temp; break;
+          case 10: Pending_uip_ethaddr_oct[1] = (uint8_t)temp; break;
+          case 12: Pending_uip_ethaddr_oct[0] = (uint8_t)temp; break;
+          default: break;
+        }
+      }
     }
   }
 
@@ -4328,46 +4379,3 @@ void GpioSetPin(uint8_t nGpio, uint8_t nState)
   // No SetPin support - all pins are inputs
 }
 #endif // GPIO_SUPPORT == 3
-
-
-void SetMAC(uint8_t itemnum, uint8_t alpha1, uint8_t alpha2)
-{
-  // This function updates the MAC based on GUI input.
-  //
-  // The function is called and is passed two alpha fields in hex form ('0' to
-  // '9' and 'a' to 'f') that represent the new setting. This function has to
-  // construct a single uint8_t numeric representation of the two alpha fields.
-  // The function must validate that the alpha characters passed to it are
-  // within valid ranges.
-  //
-  // alpha1 and alpha2 are characters, not a digits
-
-  uint16_t temp;
-  uint8_t invalid;
-  
-  temp = 0;
-  invalid = 0;
-
-  // Create a single digit from the two alpha characters. Check validity.
-  if (alpha1 >= '0' && alpha1 <= '9') alpha1 = (uint8_t)(alpha1 - '0');
-  else if (alpha1 >= 'a' && alpha1 <= 'f') alpha1 = (uint8_t)(alpha1 - 87);
-  else invalid = 1; // If an invalid entry set indicator
-  
-  if (alpha2 >= '0' && alpha2 <= '9') alpha2 = (uint8_t)(alpha2 - '0');
-  else if (alpha2 >= 'a' && alpha2 <= 'f') alpha2 = (uint8_t)(alpha2 - 87);
-  else invalid = 1; // If an invalid entry set indicator
-    
-  if (invalid == 0) { // Change value only if valid entry
-    temp = (uint8_t)((alpha1<<4) + alpha2); // Convert to single digit
-    switch(itemnum)
-    {
-    case 0: Pending_uip_ethaddr_oct[5] = (uint8_t)temp; break;
-    case 1: Pending_uip_ethaddr_oct[4] = (uint8_t)temp; break;
-    case 2: Pending_uip_ethaddr_oct[3] = (uint8_t)temp; break;
-    case 3: Pending_uip_ethaddr_oct[2] = (uint8_t)temp; break;
-    case 4: Pending_uip_ethaddr_oct[1] = (uint8_t)temp; break;
-    case 5: Pending_uip_ethaddr_oct[0] = (uint8_t)temp; break;
-    default: break;
-    }
-  }
-}

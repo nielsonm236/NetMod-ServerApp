@@ -28,18 +28,19 @@
 // IMPORTANT: Be sure to update this define if the number of debug bytes
 // available changes. A change is typically caused by adding variables
 // to EEPROM storage, thus reducing what can be used for debug.
-#define NUM_DEBUG_BYTES 46
+#define NUM_DEBUG_BYTES 30
 
 int main(void);
 void init_IWDG(void);
 void unlock_eeprom(void);
 void lock_eeprom(void);
+void upgrade_EEPROM(void);
 void check_eeprom_settings(void);
 void check_eeprom_IOpin_settings(void);
 void update_mac_string(void);
 void check_runtime_changes(void);
-void read_input_registers(void);
-void write_output_registers(void);
+void read_input_pins(void);
+void write_output_pins(void);
 void check_reset_button(void);
 void check_restart_reboot(void);
 void restart(void);
@@ -59,7 +60,7 @@ void mqtt_startup(void);
 void mqtt_sanity_check(void);
 void publish_callback(void** unused, struct mqtt_response_publish *published);
 void publish_outbound(void);
-void publish_pinstate(uint8_t direction, uint8_t pin, uint8_t value, uint8_t mask);
+void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t mask);
 void publish_pinstate_all(void);
 int8_t reverse_bit_order(uint8_t k);
 
@@ -98,13 +99,12 @@ int8_t reverse_bit_order(uint8_t k);
 #define RESTART_REBOOT_IDLE		0
 #define RESTART_REBOOT_ARM		1
 #define RESTART_REBOOT_ARM2		2
-#define RESTART_REBOOT_SENDOFFLINE	3
-#define RESTART_REBOOT_OFFLINEWAIT	4
+// #define RESTART_REBOOT_DELETE_PIN_LOOP  3
+#define RESTART_REBOOT_SENDOFFLINE	4
 #define RESTART_REBOOT_DISCONNECT	5
-#define RESTART_REBOOT_DISCONNECTWAIT	6
-#define RESTART_REBOOT_TCPCLOSE		7
-#define RESTART_REBOOT_TCPWAIT		8
-#define RESTART_REBOOT_FINISH		9
+#define RESTART_REBOOT_TCPCLOSE		6
+#define RESTART_REBOOT_TCPWAIT		7
+#define RESTART_REBOOT_FINISH		8
 
 #define STATE_REQUEST_IDLE		0
 #define STATE_REQUEST_RCVD		1

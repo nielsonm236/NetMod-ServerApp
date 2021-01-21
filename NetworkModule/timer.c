@@ -36,6 +36,7 @@ uint8_t periodic_timer;       // Peroidic_timer counter
 uint8_t mqtt_timer;           // MQTT_timer counter
 uint16_t arp_timer;           // arp_timer counter
 uint8_t mqtt_outbound_timer;  // mqtt_outbound_timer counter
+uint8_t t100ms_timer;         // MQTT_timer counter
 
 uint16_t second_toggle;       // MQTT timing: Used in developing a 1 second counter
 uint32_t second_counter;      // MQTT timing: 1 second counter
@@ -193,7 +194,8 @@ void clock_init(void)
   TIM3_EGR = (uint8_t)0x01;
 
   periodic_timer = 0;      // Initialize periodic timer
-  mqtt_timer = 0;          // Initialize periodic timer
+  mqtt_timer = 0;          // Initialize mqtt timer
+  t100ms_timer = 0;         // Initialize 100ms timer
   arp_timer = 0;           // Initialize arp timer
   mqtt_outbound_timer = 0; // Initialize 50ms_timer counter
   second_toggle = 0;       // Initialize toggle for seconds counter
@@ -234,6 +236,7 @@ void timer_update(void)
     mqtt_timer++;
     mqtt_outbound_timer++;
     arp_timer++;
+    t100ms_timer++;
     
     // Update the second_counter. The second_counter is a 32 bit unsigned
     // integer, so its lifetime is about 136 years if never power cycled - 
@@ -288,6 +291,20 @@ uint8_t mqtt_timer_expired(void)
   // mqtt_timer counter to zero so that it can repeat its uptick.
   if (mqtt_timer > 99) {
     mqtt_timer = 0;
+    return(1);
+  }
+  else return(0);
+}
+
+
+
+uint8_t t100ms_timer_expired(void)
+{
+  // This function indicates experation of the 100ms timer at a count
+  // indicating that 100ms have passed. If expired the function resets the
+  // 100ms_timer counter to zero so that it can repeat its uptick.
+  if (t100ms_timer > 99) {
+    t100ms_timer = 0;
     return(1);
   }
   else return(0);

@@ -80,16 +80,15 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
 void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
 void parse_POST_MAC(uint8_t curr_ParseCmd);
 
-int8_t intercept_code(void);
-int8_t extract_octets(void);
-int8_t extract_mac_digits(void);
+void encode_16bit_registers(void);
+void update_pin_control_bytes(void);
 
 uint8_t GpioGetPin(uint8_t nGpio);
 void GpioSetPin(uint8_t nGpio, uint8_t nState);
+void update_ON_OFF(uint8_t i, uint8_t j);
 
 void clear_saved_postpartial_all(void);
 void clear_saved_postpartial_data(void);
 void clear_saved_postpartial_previous(void);
-// void SetMAC(uint8_t nGpio, uint8_t nState1, uint8_t nState2);
 
 #endif /*HTTPD_H_*/

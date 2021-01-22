@@ -244,7 +244,7 @@
 // may interfere with debug code.
 // 0 = disable
 // 1 = enable
-#define IWDG_ENABLE 0
+#define IWDG_ENABLE 1
 
 
 

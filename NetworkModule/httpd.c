@@ -296,8 +296,8 @@ extern uint32_t second_counter;           // Counts seconds since boot
 //   tells the application exactly how much data will be returned in a POST
 //   form submittal arriving from the remote host. Note that a form submittal
 //   always returns the exact same amount of information even if no fields
-//   were changed on the form (with the exception of the devicename field
-//   which can be variable in length).
+//   were changed on the form (with the exception of the devicename, username,
+//   and password fields which can be variable in length).
 //
 
 
@@ -792,26 +792,21 @@ static const char g_HtmlPageStats[] =
 // Statistics page Template
 #define WEBPAGE_STATS		5
 static const char g_HtmlPageStats[] =
-//  "<!DOCTYPE html>"
-//  "<html lang='en-US'>"
-  "<html>"
-  "<head>"
-  "<link rel='icon' href='data:,'>"
-  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
+"%y04%y05"
   "</head>"
   "<body>"
   "<table>"
-  "<tr><td>Seconds since boot %e26</td></tr>"
-  "<tr><td>RXERIF count %e27</td></tr>"
-  "<tr><td>TXERIF count %e28</td></tr>"
-  "<tr><td>TRANSMIT count %e29</td></tr>"
-  "<tr><td>Response timeouts %e30</td></tr>"
-  "<tr><td>Not OK events %e31</td></tr>"
-  "<tr><td>Broker Disconnects %e32</td></tr>"
+  "<tr><td>Runtime %e26</td></tr>"
+  "<tr><td>RXERIF %e27</td></tr>"
+  "<tr><td>TXERIF %e28</td></tr>"
+  "<tr><td>TRANSMIT %e29</td></tr>"
+  "<tr><td>R timeouts %e30</td></tr>"
+  "<tr><td>Not OK %e31</td></tr>"
+  "<tr><td>Disconnects %e32</td></tr>"
   "<tr><td>Stack error %e33</td></tr>"
   "</table>"
-  "%y03/61' method='GET'><button>Configuration</button></form>"
-  "%y03/66' method='GET'><button>Refresh</button></form>"
+  "<button onclick='location=`/61`'>Configuration</button>"
+  "<button onclick='location=`/66`'>Refresh</button>"
   "</body>"
   "</html>";
 #endif // UIP_STATISTICS == 2
@@ -1183,19 +1178,16 @@ size = size - 1;
   else if (current_webpage == WEBPAGE_STATS) {
     size = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
 
+    // Account for header replacement strings %y04 %y05
+    size = size + page_string04_len_less4
+                + page_string05_len_less4;
+
     // Account for Statistics fields %e26 to %e32
     // There are 8 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (8 x (10 - 4));
     // size = size + (8 x (6));
     size = size + 48;
-
-    // Account for IP Address insertion - Configuration Button
-    // AND
-    // Account for IP Address insertion - Refresh Button
-    // size = size + (strlen(page_string03) - marker_field_size);
-    // size = size + (strlen(page_string03) - 4);
-    size = size + (2 * page_string03_len_less4);
   }
 #endif // UIP_STATISTICS == 2
 

@@ -34,7 +34,6 @@
 # Compiled STM8
 *.sbx
 *.ls
-*.sx
 *.obl
 *.sm8
 *.map

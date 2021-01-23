@@ -8,8 +8,11 @@ Did you buy one (or more) of these Network Modules and then find disappointment 
 I was disappointed enough that I decided to reprogram the device to provide a web server interface that let's you change the IP Address, Gateway (Default Router) Address, Netmask, Port number (a REAL port number), and MAC Address. I also added the ability for the device to remember all these settings through a power cycle. Any Relay settings you make are also saved through a power cycle. In addition the Network Module can be operated as a generic MQTT device or as a Home Assistant device with Auto Discovery.
 
 Short summary of release history:
+
 June 13, 2020 - A simple Browser Only interface was developed with the primary focus being retention of all user settings through reboot and power cycles. The release only supported 16 output pins This release was last updated in August 6, 2020 and was retired at that time but is still available in a zip file named "20200806_retired_release.zip".
+
 August 13, 2020 - Added the ability to support 16 outputs, OR 8 outputs / 8 inputs, OR 16 inputs in three separate builds. Over time MQTT was added to the code, resulting in a 4th separate build of 8 outputs / 8 inputs supporting MQTT, and by December the code also supported Home Assistant with a crude form of Home Assistant Auto Discovery. The last update to this build occurred on December 30, 2020. It has now been retired, but it is still available in a zip file named "20201230_0411_retired".
+
 January 23, 2021 - Latest release series. Provides a much improved Browser interface with the ability to define each pin as an Input or Output, each pin has its own Invert checkbox, and each pin can be individually set to power up as ON, OFF, or with its state prior to a power loss. As a result there is now only 1 pre-built firmware to handle all pinout configurations and MQTT (no longer need 4 separate builds!). In addition the Home Assistant interface is greatly improved with automatic reconfiguration of pin controls in Home Assistant when a user changes the Network Module configuration in its Browser.
 
 Unfortunately with the new release Help is no longer built into the Network Module firmware. Instead the Configuration page includes a link to the Wiki page on this site. The Network Statistics were also removed from the firmware due to lack of memory.

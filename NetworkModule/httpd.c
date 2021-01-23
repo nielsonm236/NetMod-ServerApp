@@ -582,31 +582,32 @@ static const char g_HtmlPageConfiguration[] =
               "<th>Boot state</th>"
             "</tr>"
          "<script>"
-	 
-         "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},"
-	 "r={retain:8,on:16,off:0},a=document,c=a.querySelector.bind(a),s=c('form'),l=Object.entries,p=pa"
-	 "rseInt,d=(t,e)=>p(t).toString(16).padStart(e,'0'),i=t=>t.map(t=>d(t,2)).join(''),u=t=>t.match(/"
-	 ".{2}/g).map(t=>p(t,16)),$=t=>encodeURIComponent(t),m=(t,e)=>(t=>c(`input[name=${t}]`))(t).value"
-	 "=e,b=(t,e)=>{for(const n of a.querySelectorAll(t))e(n)},f=(t,e)=>{for(const[n,o]of l(e))t.setAt"
-	 "tribute(n,o)},g=(t,e)=>l(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>${t[0]}</opt"
-	 "ion>`).join(''),h=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&e)==e?'chec"
-	 "ked':''}>${o}`,A=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},E=()=>location."
-	 "reload(),y=()=>{a.body.innerText='Wait 5s...',setTimeout(E,5e3)},T=u(t.g00)[0];return b('.ip',t"
-	 "=>{f(t,{title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}"
-	 "),b('.port',t=>{f(t,{title:'Enter 10 to 65535',pattern:'[0-9]{2,5}',maxlength:5})}),b('.up inpu"
-	 "t',t=>{f(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',maxlength"
-	 ":10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>m(e,u(t[e]).join('.'))),n.forEach(e=>m(e,"
-	 "p(t[e],16))),m('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),u(t.h00).forEach((t,e)=>{const n"
-	 "=1&t?h('p'+e,4,t):'',c=3==(3&t)?`<select name='p${e}'>${g(r,24&t)}</select>`:'';(t=>a.write(t))"
-	 "(`<tr><td>#${e+1}</td><td><select name='p${e}'>${g(o,3&t)}</select></td><td>${n}</td><td>${c}</"
-	 "td><td>${t}</td></tr>`)}),c('.f').innerHTML=Array.from(l({'Full Duplex':1,'HA Auto':6,MQTT:4}),"
-	 "([t,e])=>h('g00',e,T,t)).join('</br>'),{r:()=>{A('GET','/91'),y()},s:o=>{o.preventDefault();con"
-	 "st r=Array.from((()=>{const o=new FormData(s),r=t=>o.getAll(t).map(t=>p(t)).reduce((t,e)=>t|e,0"
-	 ");return e.forEach(t=>o.set(t,i(o.get(t).split('.')))),n.forEach(t=>o.set(t,d(o.get(t),4))),o.s"
-	 "et('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',i(u(t.h00).map((t,e)=>{con"
-	 "st n='p'+e,a=r(n);return o.delete(n),a}))),o.set('g00',i([r('g00')])),o})().entries(),([t,e])=>"
-	 "`${$(t)}=${$(e)}`).join('&');A('POST','/',r+'&z00=0'),y()},l:E}})({b00:'%b00',b04:'%b04',b08:'%"
-	 "b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00'});"
+
+	 "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},"
+	 "r={retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),l=s('form'),p=Object.e"
+	 "ntries,d=parseInt,i=(t,e)=>d(t).toString(16).padStart(e,'0'),u=t=>t.map(t=>i(t,2)).join(''),$=t"
+	 "=>t.match(/.{2}/g).map(t=>d(t,16)),m=t=>encodeURIComponent(t),b=(t,e)=>(t=>s(`input[name=${t}]`"
+	 "))(t).value=e,f=(t,e)=>{for(const n of a.querySelectorAll(t))e(n)},h=(t,e)=>{for(const[n,o]of p"
+	 "(e))t.setAttribute(n,o)},g=(t,e)=>p(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>$"
+	 "{t[0]}</option>`).join(''),A=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&"
+	 "e)==e?'checked':''}>${o}`,E=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},y=()"
+	 "=>c.reload(),T=()=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0];return f('.i"
+	 "p',t=>{h(t,{title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}"
+	 "'})}),f('.port',t=>{h(t,{title:'Enter 10 to 65535',pattern:'[0-9]{2,5}',maxlength:5})}),f('.up "
+	 "input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',maxle"
+	 "ngth:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e]).join('.'))),n.forEach(e=>"
+	 "b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$(t.h00).forEach((t,e)=>{con"
+	 "st n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)}</select>`:'',l='#d'==c.h"
+	 "ash?`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><select name='p${e}'>${g(o,3&t)"
+	 "}</select></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerHTML=Array.from(p({'Full Du"
+	 "plex':1,'HA Auto':6,MQTT:4}),([t,e])=>A('g00',e,j,t)).join('</br>'),{r:()=>{E('GET','/91'),T()}"
+	 ",s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormData(l),r=t=>o.getAll(t).map"
+	 "(t=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t).split('.')))),n.forEach(t"
+	 "=>o.set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h0"
+	 "0',u($(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')"
+	 "])),o})().entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/',r+'&z00=0'),T()},l:y}})("
+	 "{b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%"
+	 "g00'});"
 	 
             "%y01"
       "<p>Code Revision %w00<br/>"
@@ -638,6 +639,7 @@ const m = (data => {
         pin_types = { "disabled": 0, "input": 1, "output": 3 },
         boot_state = { "retain": 8, "on": 16, "off": 0 },
         doc=document,
+        loc=location,
         selector=doc.querySelector.bind(doc),
         form=selector('form'),
         get_entries=Object.entries,
@@ -677,7 +679,7 @@ const m = (data => {
           request.open(method, url, false);
           request.send(data);
         },
-        reload_page = () => location.reload(),
+        reload_page = () => loc.reload(),
         wait_reboot = () => {
           doc.body.innerText = "Wait 5s...";
           setTimeout(reload_page, 5000);
@@ -704,8 +706,9 @@ const m = (data => {
 
     convert_from_hex(data.h00).forEach((n, i) => {
         const checkbox = n & 1 ? make_checkbox('p'+i, 4, n) : '',
-            make_select = (n & 3) == 3 ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '';
-        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${checkbox}</td><td>${make_select}</td><td>${n}</td></tr>`);
+            make_select = (n & 3) == 3 ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '',
+            debug_column = (loc.hash == '#d'?`<td>${n}</td>`:'');
+        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
     });
     
     selector(".f").innerHTML = Array.from(
@@ -726,8 +729,6 @@ const m = (data => {
     h00: '%h00',
     g00: '%g00'
 });
-
-
 
 */
 

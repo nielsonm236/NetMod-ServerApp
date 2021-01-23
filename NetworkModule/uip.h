@@ -83,7 +83,7 @@ typedef uint16_t uip_ip6addr_t[8];
 typedef uip_ip4addr_t uip_ipaddr_t;
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /**
  * The uIP configuration functions are used for setting run-time parameters
  * in uIP such as IP addresses.
@@ -153,17 +153,15 @@ typedef uip_ip4addr_t uip_ipaddr_t;
  */
 #define uip_getnetmask(addr) uip_ipaddr_copy((addr), uip_netmask)
 
-//#if MQTT_SUPPORT == 1
 /**
  * Set the MQTT Server IP Address.
  * addr - A pointer to a uip_ipaddr_t variable containing the IP address of
  * the MQTT Server.
  */
 #define uip_setmqttserveraddr(addr) uip_ipaddr_copy(uip_mqttserveraddr, (addr))
-//#endif // MQTT_SUPPORT == 1
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /**
  * uIP initialization functions
  * The uIP initialization functions are used for booting uIP.
@@ -187,7 +185,7 @@ void uip_init_stats(void);
 void uip_setipid(uint16_t id);
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /**
  * uIP device driver functions
  * These functions are used by a network device driver for interacting with uIP.
@@ -353,7 +351,7 @@ void uip_setipid(uint16_t id);
 extern uint8_t uip_buf[UIP_BUFSIZE+2];
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /* Functions that are used by the uIP application program. Opening and closing
  * connections, sending and receiving data, etc. are all handled by the
  * functions below.
@@ -405,7 +403,7 @@ void uip_unlisten(uint16_t port);
  *
  * \note This function is avaliable only if support for active open
  * has been configured by defining UIP_ACTIVE_OPEN to 1 in uipopt.h.
- * CHANGED THIS TO MAKE THIS FUNCTION AVAILABLE ONLY FOR MQTT_SUPPORT == 1
+ * CHANGED THIS TO MAKE THIS FUNCTION AVAILABLE ONLY FOR MQTT SUPPORT
  *
  * \note Since this function requires the port number to be in network
  * byte order, a conversion using HTONS() or htons() is necessary.
@@ -510,7 +508,7 @@ void uip_send(const char *data, int len);
                               } while(0)
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /* uIP tests that can be made to determine in what state the current
  * connection is, and what the application function should do.
  */
@@ -601,7 +599,7 @@ void uip_send(const char *data, int len);
 #define uip_mss()             (uip_conn->mss)
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /* uIP convenience and converting functions. */
 
 /**
@@ -839,7 +837,7 @@ uint16_t htons(uint16_t val);
 extern char *uip_appdata;
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /**
  * Variables used in uIP device drivers
  * uIP has a few global variables that are used in device drivers for uIP.
@@ -948,7 +946,7 @@ struct uip_stats {
 extern struct uip_stats uip_stat;
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /* All the stuff below this point is internal to uIP and should not be used
  *directly by an application or by a device driver.
  */
@@ -1106,10 +1104,7 @@ struct uip_icmpip_hdr {
 
 
 extern uip_ipaddr_t uip_hostaddr, uip_netmask, uip_draddr;
-
-// #if MQTT_SUPPORT == 1
 extern uip_ipaddr_t uip_mqttserveraddr;
-// #endif // MQTT_SUPPORT == 1
 
 
 /**

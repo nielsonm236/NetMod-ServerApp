@@ -52,19 +52,13 @@
 #include "uip_TcpAppHub.h"
 #include "uip.h"
 #include "main.h"
-
-#if MQTT_SUPPORT == 1
 #include "mqtt.h"
-#endif // MQTT_SUPPORT == 1
 
 extern uint16_t Port_Httpd;
-
-#if MQTT_SUPPORT == 1
 extern uint16_t Port_Mqttd;
 extern struct mqtt_client mqttclient; // Pointer to MQTT client declared in main.c
 extern uint8_t mqtt_start;
 extern uint8_t mqtt_close_tcp;
-#endif // MQTT_SUPPORT == 1
 
 void uip_TcpAppHubCall(void)
 // We get here via UIP_APPCALL in the uip.c code
@@ -80,7 +74,6 @@ void uip_TcpAppHubCall(void)
     HttpDCall(uip_appdata, uip_datalen(), &uip_conn->appstate.HttpDSocket);
   }
 
-#if MQTT_SUPPORT == 1
   else if(uip_conn->lport == htons(Port_Mqttd)) {
     // This code is called if incoming traffic is MQTT. mqtt_sync will read
     // the incoming data (if any) from the uip_buf, then create any needed
@@ -98,6 +91,4 @@ void uip_TcpAppHubCall(void)
       if (mqtt_close_tcp == 1) uip_close();
     }
   }
-#endif // MQTT_SUPPORT == 1
-
 }

@@ -1,5 +1,3 @@
-//#if MQTT_SUPPORT == 1
-
 /*
 MIT License
 
@@ -87,15 +85,15 @@ extern uint8_t stored_debug[NUM_DEBUG_BYTES];
 // sourcing incoming traffic there is a "broker". And the application can
 // send traffic to a broker asynchronously based on some stimulus in the
 // application (the stimulus perhaps being a sense input change). Likewise the
-// broker can send traffic to the application asynchronously (perhaps a relay
+// broker can send traffic to the application asynchronously (perhaps an output
 // state change command). The broker might send a whole series of asynchronous
-// relay state change commands while the application is trying to send a whole
+// output state change commands while the application is trying to send a whole
 // series of sense input changes.
 //
 // The web server application uses a single receive/transmit buffer since it
 // does not expect to receive numerous incoming browser requests while trying
 // to send numerous outgoing responses. Although I suppose it can handle that,
-// I haven't tested it that way because the application is a simple relay
+// I haven't tested it that way because the application is a simple output
 // controller / sense input reporter. And I believe the ENC28J60 will buffer
 // incoming traffic until the application can come around to receiving it, as
 // long as the application doesn't take too long to get to it (causing an
@@ -189,7 +187,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   // greater than zero.
   //
 
-  /*-------------------------------------------------------------------------*/
+  //---------------------------------------------------------------------------//
   // Two types of MQTT transmissions are handled here. One is the normal
   // MQTT packet. The other is a Home Assistant Auto Discovery packet. Because
   // the MQTT packet buffer is very small in this application it cannot hold
@@ -527,4 +525,3 @@ int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz) {
   return rv;
 }
 
-//#endif // MQTT_SUPPORT == 1

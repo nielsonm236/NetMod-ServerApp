@@ -54,15 +54,9 @@ uint8_t MQTT_error_status; // Global so GUI can show error status indicator
 uint8_t connack_received;  // Used to communicate CONNECT CONNACK received
                            // from mqtt.c to main.c
 
-#if DEBUG_SUPPORT != 0
 uint8_t mqtt_sendbuf[200];	      // Buffer to contain MQTT transmit queue
 				      // and data. Restrict to 200 bytes if
 				      // debug is enabled.
-#else
-uint8_t mqtt_sendbuf[300];	      // Buffer to contain MQTT transmit queue
-				      // and data. Increase size to 300 bytes
-				      // as precaution if debug is not enabled.
-#endif // DEBUG_SUPPORT != 0
 
 #if DEBUG_SUPPORT != 0
 extern uint8_t debug[NUM_DEBUG_BYTES];

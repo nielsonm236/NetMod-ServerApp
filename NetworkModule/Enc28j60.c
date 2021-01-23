@@ -60,7 +60,7 @@ extern uint32_t TXERIF_counter;       // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;     // Counts any transmit
 
 
-extern uint8_t stored_config_settings[6]; // Config settings stored in EEPROM
+extern uint8_t stored_config_settings; // Config settings stored in EEPROM
 
 
 // SPI Opcodes
@@ -420,15 +420,15 @@ void Enc28j60Init(void)
   // Wait for PHY reset completion
   while (Enc28j60ReadPhy(PHY_PHCON1) & (uint16_t)(1<<PHY_PHCON1_PRST)) nop();
   
-  /*---------------------------------------------------------------------------*/
+  //---------------------------------------------------------------------------//
   // Do PHY initializations
-  if (stored_config_settings[3] == '1') {
+  if (stored_config_settings & 0x01) {
     // Full duplex
     // Set the PHCON1.PDPXMD bit to 1 to over-ride any LED driven configuration.
     Enc28j60WritePhy(PHY_PHCON1, (uint16_t)(1<<PHY_PHCON1_PDPXMD));
   }  
     
-  /*---------------------------------------------------------------------------*/
+  //---------------------------------------------------------------------------//
   // Do bank 0 initializations
   Enc28j60SwitchBank(BANK0);
 
@@ -450,7 +450,7 @@ void Enc28j60Init(void)
   Enc28j60WriteReg(BANK0_ETXSTH, (uint8_t) (ENC28J60_TXSTART >> 8));
 
 
-  /*---------------------------------------------------------------------------*/
+  //---------------------------------------------------------------------------//
   // Bank 1 initializations
   Enc28j60SwitchBank(BANK1);
 
@@ -516,14 +516,14 @@ void Enc28j60Init(void)
 						     // FF-FF Packets rejected
 
 
-  /*---------------------------------------------------------------------------*/
+  //---------------------------------------------------------------------------//
   // Bank 2 initializations
   Enc28j60SwitchBank(BANK2);
 
   // MAC RX Enable
   Enc28j60WriteReg(BANK2_MACON1, (1<<BANK2_MACON1_MARXEN));
   
-  // if (stored_config_settings[3] == '1') {
+  // if (stored_config_settings & 0x01) {
   //   Full duplex: Set MACON1.TXPAUS and MACON1.RXPAUS to allow flow control.
   //   Note: This does not appear to be needed, at least with Cisco switches. More
   //   code would be needed to handle receive over-runs.
@@ -544,14 +544,14 @@ void Enc28j60Init(void)
   // HFRMEN = 0 = Frames bigger than MAMXFL will be aborted when transmitted or
   //   received
   // FULDPX = 0 = MAC will operate in half-duplex. PHCON1.PDPXMD must also be clear.
-  if (stored_config_settings[3] == '0') {
-    // Half duplex
-    Enc28j60SetMaskReg(BANK2_MACON3, (1<<BANK2_MACON3_TXCRCEN)|(1<<BANK2_MACON3_PADCFG0)|(1<<BANK2_MACON3_FRMLNEN));
-  }
-  if (stored_config_settings[3] == '1') {
+  if (stored_config_settings & 0x01) {
     // Full duplex
     // Set BANK2 MACON3.PADCFG, MACON3.TXCRCEN, MACON3.FRMLNEN and MACON3.FULDPX
     Enc28j60SetMaskReg(BANK2_MACON3, (1<<BANK2_MACON3_TXCRCEN) | (1<<BANK2_MACON3_PADCFG0) | (1<<BANK2_MACON3_FRMLNEN) | (1<<BANK2_MACON3_FULDPX));
+  }
+  else {
+    // Half duplex
+    Enc28j60SetMaskReg(BANK2_MACON3, (1<<BANK2_MACON3_TXCRCEN)|(1<<BANK2_MACON3_PADCFG0)|(1<<BANK2_MACON3_FRMLNEN));
   }
 
   // "For IEEE802.3 compliance"
@@ -565,7 +565,7 @@ void Enc28j60Init(void)
   // Non-back to back-Inter-Packet-Delay-Gap. (datasheet recommendation)
   Enc28j60WriteReg(BANK2_MAIPGL, 0x12);
 
-  if (stored_config_settings[3] == '0') {
+  if (!(stored_config_settings & 0x01)) {
     // Datasheet recommendation for half-duplex
     Enc28j60WriteReg(BANK2_MAIPGH, 0x0C);
     // Spec says: If half-duplex program the BANK2 MAIPGH with 0Ch. What about
@@ -574,16 +574,16 @@ void Enc28j60Init(void)
   }
 
   // Back to back-Inter-Packet-Delay-Gap. (datasheet recommendation)
-  if (stored_config_settings[3] == '0') {
-    // Half duplex: Program the BANK2 MABBIPG with 12h
-    Enc28j60WriteReg(BANK2_MABBIPG, 0x12);
-  }
-  if (stored_config_settings[3] == '1') {
+  if (stored_config_settings & 0x01) {
     // Full duplex: Program the BANK2 MABBIPG with 15h
     Enc28j60WriteReg(BANK2_MABBIPG, 0x15);
   }
+  else {
+    // Half duplex: Program the BANK2 MABBIPG with 12h
+    Enc28j60WriteReg(BANK2_MABBIPG, 0x12);
+  }
 
-  /*---------------------------------------------------------------------------*/
+  //---------------------------------------------------------------------------//
   // Bank 3 initializations
   Enc28j60SwitchBank(BANK3);
 
@@ -605,7 +605,7 @@ void Enc28j60Init(void)
     (ENC28J60_LEDA<<PHY_PHLCON_LACFG0)|
     (1<<PHY_PHLCON_STRCH)|0x3000);
 
-  if (stored_config_settings[3] == '0') {
+  if (!(stored_config_settings & 0x01)) {
     // Half duplex
     // Errata Workaround: Because the LED-Polarity detection circuit does not
     // function properly we clear the FullDuplex Bit ourself. MACON3.FULDPX is

@@ -34,66 +34,100 @@ extern uint8_t magic4;			// MSB Magic Number stored in EEPROM
 extern uint8_t magic3;			// 
 extern uint8_t magic2;			// 
 extern uint8_t magic1;			// LSB Magic Number
+extern uint8_t stored_pin_control[16];  // Per pin control settings stored in
+                                        // EEPROM
 
 
-#if GPIO_SUPPORT == 1
 void gpio_init(void)
 {
+  uint8_t temp;
+
   // GPIO Definitions for 16 outputs
   //
-  // Assumption is that power-on reset has set all GPIO to default
-  // states. This function will set the GPIO registers to states for
-  // the specific application (Network Module). Only the GPIO bits
-  // that are attached to pins are manipulated here.
+  // Assumption is that power-on reset has set all GPIO to the 
+  // default states of the chip hardware (see STM8 manuals).
+  //
+  // This function will set the GPIO registers to states for this
+  // specific application (Network Module). Only the GPIO bits that
+  // are attached to pins are manipulated here.
   //
   // The STM8S is mostly used as a GPIO driver device. Most outputs
-  // drive Relay controls. The SPI interface to the ENC28J60 chip
-  // is also GPIO "bit bang" driven.
+  // drive devices such as relays. The SPI interface to the ENC28J60
+  // chip is GPIO "bit bang" driven.
   //
   // Any pins that are "not used" are set as pulled up inputs.
 
-  // To reduce the incidence of output pin "chatter" the ODR (Output
-  // Data Register) for each output pin is pre-written to the state
-  // stored in EEPROM if the Magic Number indicates there is data
-  // stored in the EEPROM. When the device is rebooted the output
-  // pins briefly become floating input pins (effectively tri-state),
-  // but when their configuration are asserted as outputs the ODR is
-  // already set to the previous state of the output.
+  // To reduce the incidence of output pin "chatter" during a reboor
+  // (no power loss) the ODR (Output Data Register) for each output
+  // pin is pre-written to the ON/OFFvstate stored in EEPROM if the
+  // Magic Number indicates there is data stored in the EEPROM. When
+  // the device is rebooted the output pins briefly become floating
+  // input pins (effectively tri-state), but when their configurations
+  // are asserted as outputs this code will make sure the ODR is
+  // already set to the previous state of the output. Doing this in
+  // the gpio.c module reduces the time that the pins are in a
+  // tri-state condition.
   if ((magic4 == 0x55) && 
       (magic3 == 0xee) && 
       (magic2 == 0x0f) && 
       (magic1 == 0xf0)) {
 
-    // Read and use the Config Setting for Output inversion control.
-    // Read and use the Config Setting for Input inversion control.
-    // Read and use the Relay states from EEPROM.
-    check_eeprom_IOpin_settings();
+    // Create 16bit versions of the pin control information
+    encode_16bit_registers();
     
-    // Update the relay control registers
-    write_output_registers();
+    // Update the output pins
+    write_output_pins(); // Initializes the ODR bits
   }
 
+  // Any IO pin can be an input or output as defined in the
+  // stored_pin_control bytes (and the associated 16 bit registers).
+  // As each IO pin is encountered in the initialization below
+  // the stored_pin_control bytes are checked to determine how to
+  // set up that pin.
+
   // Port A
   // Pinout map:
   // Bit 7 - Not attached to pin
   // Bit 6 - Pin 12 - Input  PU - Not used?
-  // Bit 5 - Pin 11 - Output PP - Relay 2 control
-  // Bit 4 - Pin 10 - Output PP - Relay 9 control
-  // Bit 3 - Pin 09 - Output PP - Relay 1 control
+  // Bit 5 - Pin 11 - IO 2 control
+  // Bit 4 - Pin 10 - IO 9 control
+  // Bit 3 - Pin 09 - IO 1 control
   // Bit 2 - Pin 03 - Output PP - LED
   // Bit 1 - Pin 02 - Input  PU - -RstButton
   // Bit 0 - Not attached to pin
-  // PA_ODR for relay pins has been pre-set by code above. PA_ODR for
+  // PA_ODR for output pins has been pre-set by code above. PA_ODR for
   // all other output pins is assumed to be zero from power on or reset
-  PA_DDR = (uint8_t)0x3c; // 0b0011 1100
-                          //   Pins 3, 9, 10, 11 are outputs
-  PA_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output pins 3, 9, 10, 11 are Push-Pull
-			  //   Inputs are Pull-Up
-  PA_CR2 = (uint8_t)0x00; // 0b0000 0000
-                          //   Outputs are 2MHz
-			  //   Inputs are Interrupt Disabled
   
+  // Determine PA_DDR settings
+  temp = 0;
+  // PA_DDR = 0; // Initialize to 0 in case this is a restart (not power on)
+  // Bit 7 - no change (unused)
+  // Bit 6 - no change (defaults to Input)
+  // Bit 5 - IO 2 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[1] & 0x02) temp |= 0x20; // Set as output, else remains as input
+  // Bit 4 - IO 9 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[8] & 0x02) temp |= 0x10; // Set as output, else remains as input
+  // Bit 3 - IO 1 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[0] & 0x02) temp |= 0x08; // Set as output, else remains as input
+  // Bit 2 - LED - Set as output
+  temp |= 0x04; // Set as output
+  // Bit 1 - -RstButton - no change (defaults to Input)
+  // Bit 0 - no change (unused)
+  PA_DDR = (uint8_t)temp;
+  
+  // Determine PA_CR1 settings
+  // All bits are set to 1 so that:
+  //   All output pins are Push-Pull
+  //   All input pins are Pull-Up
+  PA_CR1 = (uint8_t)0xff;
+  
+  // Determine PA_CR2 settings
+  // All bits are set to 0 so that:
+  //   All outputs are 2MHz
+  //   All inputs are Interrupt Disabled
+  PA_CR2 = (uint8_t)0x00;
+
+
   // Port B
   // Pinout map:
   // Bit 7 - Pin 15 - Input  PU - Not used?
@@ -104,80 +138,163 @@ void gpio_init(void)
   // Bit 2 - Pin 20 - Input  PU - Not used?
   // Bit 1 - Pin 21 - Input  PU - Not used?
   // Bit 0 - Pin 22 - Input  PU - Not used?
-  // PB_ODR for relay pins has been pre-set by code above. PB_ODR for
+  // PB_ODR for IO output pins has been pre-set by code above. PB_ODR for
   // all other output pins is assumed to be zero from power on or reset
-  PB_DDR = (uint8_t)0x00; // 0b0000 0000
-                          //   All pins are inputs
-  PB_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Inputs are Pull-Up
-  PB_CR2 = (uint8_t)0x00; // 0b0000 0000
-			  //   Inputs are Interrupt Disabled
+
+  // Determine PB_DDR settings
+  // All bits are set to 0 so that:
+  //   All pins are inputs
+  PB_DDR = (uint8_t)0x00;
   
+  // Determine PB_CR1 settings
+  // All bits are set to 1 so that:
+  //   All output pins are Push-Pull
+  //   All input pins are Pull-Up
+  PB_CR1 = (uint8_t)0xff;
+  
+  // Determine PB_CR2 settings
+  // All bits are set to 0 so that:
+  //   All outputs are 2MHz
+  //   All inputs are Interrupt Disabled
+  PB_CR2 = (uint8_t)0x00;
+
+
   // Port C
   // Pinout map:
-  // Bit 7 - Pin 34 - Output PP - Relay 8 control
-  // Bit 6 - Pin 33 - Output PP - Relay 16 control
+  // Bit 7 - Pin 34 - Output PP - IO 8 control
+  // Bit 6 - Pin 33 - Output PP - IO 16 control
   // Bit 5 - Pin 30 - Input  PU - ENC28J60 -INT
   // Bit 4 - Pin 29 - Input  PU - ENC28J60 SO (SPI SI)
   // Bit 3 - Pin 28 - Output PP - ENC28J60 SI (SPI SO)
   // Bit 2 - Pin 27 - Output PP - ENC28J60 SCK
   // Bit 1 - Pin 26 - Output PP - ENC28J60 -CS
   // Bit 0 - Not attached to pin
-  // PC_ODR for relay pins has been pre-set by code above. PC_ODR for
+  // PC_ODR for IO output pins has been pre-set by code above. PC_ODR for
   // all other output pins is assumed to be zero from power on or reset
-  PC_DDR = (uint8_t)0xce; // 0b1100 1110
-                          //   Pins 26, 27, 28, 33, 34 are outputs
-  PC_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output Pins 26, 27, 28, 33, 34 are Push-Pull
-			  //   Inputs are Pull-up
-  PC_CR2 = (uint8_t)0x0e; // 0b0000 1110
-                          //   Output Pins 33, 34 are 2MHz
-                          //   Output Pins 26, 27, 28 are 10MHz/Fast Mode
-			  //   Inputs are Interrupt Disabled
+  
+  // Determine PC_DDR settings
+  temp = 0;
+  // PC_DDR = 0; // Initialize to 0 in case this is a restart (not power on)
+  // Bit 7 - IO 8 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[7] & 0x02) temp |= 0x80; // Set as output, else remains as input
+  // Bit 6 - IO 16 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[15] & 0x02) temp |= 0x40; // Set as output, else remains as input
+  // Bit 5 - ENC28J60 -INT - no change, leave as input
+  // Bit 4 - ENC28J60 SO (SPI SI) - no change, leave as input
+  // Bit 3 - ENC28J60 SI (SPI SO) - set as output
+  temp |= 0x08;
+  // Bit 2 - ENC28J60 SCK - set as output
+  temp |= 0x04;
+  // Bit 1 - ENC28J60 -CS - set as output
+  temp |= 0x02;
+  // Bit 0 - no change (unused)
+  PC_DDR = (uint8_t)temp;
+			  
+  // Determine PB_CR1 settings
+  // All bits are set to 1 so that:
+  //   All output pins are Push-Pull
+  //   All input pins are Pull-Up
+  PC_CR1 = (uint8_t)0xff;
+			  
+  // Determine PC_CR2 settings
+  // All bits are set to 0 so that:
+  //   Output Pins 33, 34 are 2MHz
+  //   All inputs are Interrupt Disabled
+  //   Output Pins 26, 27, 28 are 10MHz/Fast Mode
+  PC_CR2 = (uint8_t)0x0e;
+
 
   // Port D
   // Pinout map:
-  // Bit 7 - Pin 48 - Output PP - Relay 10 control
-  // Bit 6 - Pin 47 - Output PP - Relay 3 control
-  // Bit 5 - Pin 46 - Output PP - Relay 11 control
-  // Bit 4 - Pin 45 - Output PP - Relay 4 control
-  // Bit 3 - Pin 44 - Output PP - Relay 12 control
-  // Bit 2 - Pin 43 - Output PP - Relay 5 control
+  // Bit 7 - Pin 48 - IO 10 control
+  // Bit 6 - Pin 47 - IO 3 control
+  // Bit 5 - Pin 46 - IO 11 control
+  // Bit 4 - Pin 45 - IO 4 control
+  // Bit 3 - Pin 44 - IO 12 control
+  // Bit 2 - Pin 43 - IO 5 control
   // Bit 1 - Pin 42 - Alternate - SWIM
-  // Bit 0 - Pin 41 - Output PP - Relay 13 control
-  // PD_ODR for relay pins has been pre-set by code above. PD_ODR for
+  // Bit 0 - Pin 41 - IO 13 control
+  // PD_ODR for IO output pins has been pre-set by code above. PD_ODR for
   // all other output pins is assumed to be zero from power on or reset
-  PD_DDR = (uint8_t)0xfd; // 0b1111 1101
-                          //   Pins 41, 43, 44, 45, 46, 47, 48 are outputs
-                          //   Note that the SWIM pin is not affected by these settings
-  PD_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output Pins 41, 43, 44, 45, 46, 47, 48 are Push Pull
-  PD_CR2 = (uint8_t)0x00; // 0b0000 0000
-                          //   Outputs are 2MHz
   
+  // Determine PD_DDR settings
+  temp = 0;
+  // PD_DDR = 0; // Initialize to 0 in case this is a restart (not power on)
+  // Bit 7 - IO 10 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[9] & 0x02) temp |= 0x80; // Set as output, else remains as input
+  // Bit 6 - IO 3 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[2] & 0x02) temp |= 0x40; // Set as output, else remains as input
+  // Bit 5 - IO 11 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[10] & 0x02) temp |= 0x20; // Set as output, else remains as input
+  // Bit 4 - IO 4 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[3] & 0x02) temp |= 0x10; // Set as output, else remains as input
+  // Bit 3 - IO 12 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[11] & 0x02) temp |= 0x08; // Set as output, else remains as input
+  // Bit 2 - IO 5 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[4] & 0x02) temp |= 0x04; // Set as output, else remains as input
+  // Bit 1 - SWIM - no change (not affected by settings)
+  // Bit 0 - IO 13 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[12] & 0x02) temp |= 0x01; // Set as output, else remains as input
+  PD_DDR = (uint8_t)temp;
+  
+  // Determine PD_CR1 settings
+  // All bits are set to 1 so that:
+  //   All output pins are Push-Pull
+  //   All input pins are Pull-Up
+  PD_CR1 = (uint8_t)0xff;
+  
+  // Determine PD_CR2 settings
+  // All bits are set to 0 so that:
+  //   All outputs are 2MHz
+  //   All inputs are Interrupt Disabled
+  PD_CR2 = (uint8_t)0x00;
+
+
   // Port E
   // Pinout map:
   // Bit 7 - Pin 23 - Input  PU - Not used?
   // Bit 6 - Pin 24 - Input  PU - Not used?
   // Bit 5 - Pin 25 - Output PP - ENC28J60 -RESET
   // Bit 4 - Not attached to pin
-  // Bit 3 - Pin 37 - Output OD - Relay 14 control
+  // Bit 3 - Pin 37 - Output OD - IO 14 control
   // Bit 2 - Pin 38 - Input  PU - Not used?
   // Bit 1 - Pin 39 - Input  PU - Not used?
-  // Bit 0 - Pin 40 - Output PP - Relay 6 control
-  // PE_ODR for relay pins has been pre-set by code above. PE_ODR for
+  // Bit 0 - Pin 40 - Output PP - IO 6 control
+  // PE_ODR for IO output pins has been pre-set by code above. PE_ODR for
   // all other output pins is assumed to be zero from power on or reset
-  PE_DDR = (uint8_t)0x29; // 0b0010 1001
-                          //   Pins 25, 37, 40 are outputs
-  PE_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output Pins 25, 37, 40 are Push-Pull
-			  //   Inputs are Pull-Up
-  PE_CR2 = (uint8_t)0x20; // 0b0010 0000
-                          //   Output Pin 25 is 10MHz/Fast Mode
-			  //   Output Pins 37, 40 are 2MHz
-			  //   Inputs are Interrupt Disabled
   
+  // Determine PE_DDR settings
+  temp = 0;
+  // PE_DDR = 0; // Initialize to 0 in case this is a restart (not power on)
+  // Bit 7 - no change (not used)
+  // Bit 6 - no change (not used)
+  // Bit 5 - ENC28J60 -RESET
+  temp |= 0x20; // Set as output
+  // Bit 4 - no change (not used)
+  // Bit 3 - IO 14 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[13] & 0x02) temp |= 0x08; // Set as output, else remains as input
+  // Bit 2 - no change (not used)
+  // Bit 1 - no change (not used)
+  // Bit 0 - IO 6 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[5] & 0x02) temp |= 0x01; // Set as output, else remains as input
+  PE_DDR = (uint8_t)temp;
+			  
+  // Determine PE_CR1 settings
+  // All bits are set to 1 so that:
+  //   All output pins are Push-Pull
+  //   All input pins are Pull-Up
+  PE_CR1 = (uint8_t)0xff;
+  
+  // Determine PE_CR2 settings
+  // Bits are set so that:
+  //   Output Pins 37, 40 are 2MHz
+  //   All inputs are Interrupt Disabled
+  //   Output Pin 25 is 10MHz/Fast Mode
+  PE_CR2 = (uint8_t)0x20;
+
+
   // Port F: Not attached to pins
+
 
   // Port G:
   // Pinout map:
@@ -187,330 +304,61 @@ void gpio_init(void)
   // Bit 4 - Not attached to pin
   // Bit 3 - Not attached to pin
   // Bit 2 - Not attached to pin
-  // Bit 1 - Pin 36 - Output PP - Relay 7 control
-  // Bit 0 - Pin 35 - Output PP - Relay 15 control
-  // PG_ODR for relay pins has been pre-set by code above. PG_ODR for
+  // Bit 1 - Pin 36 - Output PP - IO 7 control
+  // Bit 0 - Pin 35 - Output PP - IO 15 control
+  // PG_ODR for IO output pins has been pre-set by code above. PG_ODR for
   // all other output pins is assumed to be zero from power on or reset
-  PG_DDR = (uint8_t)0x03; // 0b0000 0011
-                          //   Pins 35, 36 are outputs
-  PG_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Outputs are Push Pull
-  PG_CR2 = (uint8_t)0x00; // 0b0000 0000
-                          //   Outputs are 2MHz
+  
+  // Determine PG_DDR settings
+  temp = 0;
+  // PG_DDR = 0; // Initialize to 0 in case this is a restart (not power on)
+  // Bit 7 - no change (not used)
+  // Bit 6 - no change (not used)
+  // Bit 5 - no change (not used)
+  // Bit 4 - no change (not used)
+  // Bit 3 - no change (not used)
+  // Bit 2 - no change (not used)
+  // Bit 1 - IO 7 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[6] & 0x02) temp |= 0x02; // Set as output, else remains as input
+  // Bit 0 - IO 15 - Determine setting from stored_pin_control byte
+  if (stored_pin_control[14] & 0x02) temp |= 0x01; // Set as output, else remains as input
+  PG_DDR = (uint8_t)temp;
+  
+  // Determine PG_CR1 settings
+  // All bits are set to 1 so that:
+  //   All output pins are Push-Pull
+  //   All input pins are Pull-Up
+  PG_CR1 = (uint8_t)0xff;
+			  
+  // Determine PG_CR2 settings
+  // All bits are set to 0 so that:
+  //   All output pins are 2MHz
+  //   All inputs are Interrupt Disabled
+  PG_CR2 = (uint8_t)0x00;
 }
-#endif // GPIO_SUPPORT == 1
-
-
-#if GPIO_SUPPORT == 2
-void gpio_init(void)
-{
-  // GPIO Definitions for 8 outputs / 8 inputs
-  //
-  // Assumption is that power-on reset has set all GPIO to default
-  // states. This function will set the GPIO registers to states for
-  // the specific application (Network Module). Only the GPIO bits
-  // that are attached to pins are manipulated here.
-  //
-  // In this application the STM8S is used to drive 8 GPIO pins as
-  // output drivers for Relays. Another 8 pins are used as general
-  // purpose inputs.
-  // 
-  // The SPI interface to the ENC28J60 chip is GPIO "bit bang" driven.
-  //
-  // Any pins that are "not used" are set as pulled up inputs.
-
-
-  // To reduce the incidence of output pin "chatter" the ODR (Output
-  // Data Register) for each output pin is pre-written to the state
-  // stored in EEPROM if the Magic Number indicates there is data
-  // stored in the EEPROM. When the device is rebooted the output
-  // pins briefly become floating input pins (effectively tri-state),
-  // but when their configuration are asserted as outputs the ODR is
-  // already set to the previous state of the output.
-  if ((magic4 == 0x55) && 
-      (magic3 == 0xee) && 
-      (magic2 == 0x0f) && 
-      (magic1 == 0xf0)) {
-
-    // Read and use the Config Setting for Output inversion control.
-    // Read and use the Config Setting for Input inversion control.
-    // Read and use the Relay states from EEPROM.
-    check_eeprom_IOpin_settings();
-    
-    // Update the relay control registers
-    write_output_registers();
-  }
-
-  
-  // Port A
-  // Pinout map:
-  // Bit 7 - Not attached to pin
-  // Bit 6 - Pin 12 - Input  PU - Not used?
-  // Bit 5 - Pin 11 - Output PP - Relay 2 control
-  // Bit 4 - Pin 10 - Input  PU - Input 1
-  // Bit 3 - Pin 09 - Output PP - Relay 1 control
-  // Bit 2 - Pin 03 - Output PP - LED
-  // Bit 1 - Pin 02 - Input  PU - -RstButton
-  // Bit 0 - Not attached to pin
-  // PA_ODR for relay pins has been pre-set by code above. PA_ODR for
-  // all other output pins is assumed to be zero from power on or reset
-  PA_DDR = (uint8_t)0x2c; // 0b0010 1100
-                          //   Pins 3, 9, 11 are outputs
-  PA_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output pins 3, 9, 11 are Push-Pull
-			  //   Inputs are Pull-Up
-  PA_CR2 = (uint8_t)0x00; // 0b0000 0000
-                          //   Outputs are 2MHz
-			  //   Inputs are Interrupt Disabled
-  
-  // Port B
-  // Pinout map:
-  // Bit 7 - Pin 15 - Input  PU - Not used?
-  // Bit 6 - Pin 16 - Input  PU - Not used?
-  // Bit 5 - Pin 17 - Input  PU - Not used?
-  // Bit 4 - Pin 18 - Input  PU - Not used?
-  // Bit 3 - Pin 19 - Input  PU - Not used?
-  // Bit 2 - Pin 20 - Input  PU - Not used?
-  // Bit 1 - Pin 21 - Input  PU - Not used?
-  // Bit 0 - Pin 22 - Input  PU - Not used?
-  // PB_ODR for relay pins has been pre-set by code above. PB_ODR for
-  // all other output pins is assumed to be zero from power on or reset
-  PB_DDR = (uint8_t)0x00; // 0b0000 0000
-                          //   All pins are inputs
-  PB_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Inputs are Pull-Up
-  PB_CR2 = (uint8_t)0x00; // 0b0000 0000
-			  //   Inputs are Interrupt Disabled
-  
-  // Port C
-  // Pinout map:
-  // Bit 7 - Pin 34 - Output PP - Relay 8 control
-  // Bit 6 - Pin 33 - Input  PU - Input 8
-  // Bit 5 - Pin 30 - Input  PU - ENC28J60 -INT
-  // Bit 4 - Pin 29 - Input  PU - ENC28J60 SO (SPI SI)
-  // Bit 3 - Pin 28 - Output PP - ENC28J60 SI (SPI SO)
-  // Bit 2 - Pin 27 - Output PP - ENC28J60 SCK
-  // Bit 1 - Pin 26 - Output PP - ENC28J60 -CS
-  // Bit 0 - Not attached to pin
-  // PC_ODR for relay pins has been pre-set by code above. PC_ODR for
-  // all other output pins is assumed to be zero from power on or reset
-  PC_DDR = (uint8_t)0x8e; // 0b1000 1110
-                          //   Pins 26, 27, 28, 34 are outputs
-  PC_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output Pins 26, 27, 28, 34 are Push-Pull
-			  //   Inputs are Pull-up
-  PC_CR2 = (uint8_t)0x0e; // 0b0000 1110
-                          //   Output Pin 34 is 2MHz
-                          //   Output Pins 26, 27, 28 are 10MHz/Fast Mode
-			  //   Inputs are Interrupt Disabled
-
-  // Port D
-  // Pinout map:
-  // Bit 7 - Pin 48 - Input  PU - Input 2
-  // Bit 6 - Pin 47 - Output PP - Relay 3 control
-  // Bit 5 - Pin 46 - Input  PU - Input 3
-  // Bit 4 - Pin 45 - Output PP - Relay 4 control
-  // Bit 3 - Pin 44 - Input  PU - Input 4
-  // Bit 2 - Pin 43 - Output PP - Relay 5 control
-  // Bit 1 - Pin 42 - Alternate - SWIM
-  // Bit 0 - Pin 41 - Input  PU - Input 5
-  // PD_ODR for relay pins has been pre-set by code above. PD_ODR for
-  // all other output pins is assumed to be zero from power on or reset
-  PD_DDR = (uint8_t)0x54; // 0b0101 0100
-                          //   Pins 43, 45, 47 are outputs
-                          //   Note that the SWIM pin is not affected by these settings
-  PD_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output Pins 43, 45, 47 are Push Pull
-			  //   Inputs are Pull-up
-  PD_CR2 = (uint8_t)0x00; // 0b0000 0000
-                          //   Outputs are 2MHz
-			  //   Inputs are Interrupt Disabled
-  
-  // Port E
-  // Pinout map:
-  // Bit 7 - Pin 23 - Input  PU - Not used?
-  // Bit 6 - Pin 24 - Input  PU - Not used?
-  // Bit 5 - Pin 25 - Output PP - ENC28J60 -RESET
-  // Bit 4 - Not attached to pin
-  // Bit 3 - Pin 37 - Input  PU - Input 6
-  // Bit 2 - Pin 38 - Input  PU - Not used?
-  // Bit 1 - Pin 39 - Input  PU - Not used?
-  // Bit 0 - Pin 40 - Output PP - Relay 6 control
-  // PE_ODR for relay pins has been pre-set by code above. PE_ODR for
-  // all other output pins is assumed to be zero from power on or reset
-  PE_DDR = (uint8_t)0x21; // 0b0010 0001
-                          //   Pins 25, 40 are outputs
-  PE_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output Pins 25, 40 are Push-Pull
-			  //   Inputs are Pull-Up
-  PE_CR2 = (uint8_t)0x20; // 0b0010 0000
-                          //   Output Pin 25 is 10MHz/Fast Mode
-			  //   Output Pin 40 is 2MHz
-			  //   Inputs are Interrupt Disabled
-  
-  // Port F: Not attached to pins
-
-  // Port G:
-  // Pinout map:
-  // Bit 7 - Not attached to pin
-  // Bit 6 - Not attached to pin
-  // Bit 5 - Not attached to pin
-  // Bit 4 - Not attached to pin
-  // Bit 3 - Not attached to pin
-  // Bit 2 - Not attached to pin
-  // Bit 1 - Pin 36 - Output PP - Relay 7 control
-  // Bit 0 - Pin 35 - Input  PU - Input 7
-  // PG_ODR for relay pins has been pre-set by code above. PG_ODR for
-  // all other output pins is assumed to be zero from power on or reset
-  PG_DDR = (uint8_t)0x02; // 0b0000 0010
-                          //   Pin 36 is output
-  PG_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Outputs are Push Pull
-  PG_CR2 = (uint8_t)0x00; // 0b0000 0000
-                          //   Outputs are 2MHz
-			  //   Inputs are Interrupt Disabled
-}
-#endif // GPIO_SUPPORT == 2
-
-
-#if GPIO_SUPPORT == 3
-void gpio_init(void)
-{
-  // GPIO Definitions for 16 inputs
-  //
-  // Assumption is that power-on reset has set all GPIO to default
-  // states. This function will set the GPIO registers to states for
-  // the specific application (Network Module). Only the GPIO bits
-  // that are attached to pins are manipulated here.
-  //
-  // In this application the STM8S is 16 pins as general purpose inputs.
-  // 
-  // The SPI interface to the ENC28J60 chip is GPIO "bit bang" driven.
-  //
-  // Any pins that are "not used" are set as pulled up inputs.
-  
-  // Port A
-  // Pinout map:
-  // Bit 7 - Not attached to pin
-  // Bit 6 - Pin 12 - Input  PU - Not used?
-  // Bit 5 - Pin 11 - Input  PU - Input 2
-  // Bit 4 - Pin 10 - Input  PU - Input 9
-  // Bit 3 - Pin 09 - Input  PU - Input 1
-  // Bit 2 - Pin 03 - Output PP - LED
-  // Bit 1 - Pin 02 - Input  PU - -RstButton
-  // Bit 0 - Not attached to pin
-  // PA_ODR is assumed to be all zero from power on reset
-  PA_DDR = (uint8_t)0x04; // 0b0000 0100
-                          //   Pins 3 is output
-  PA_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output pin 3 is Push-Pull
-			  //   Inputs are Pull-Up
-  PA_CR2 = (uint8_t)0x00; // 0b0000 0000
-                          //   Outputs are 2MHz
-			  //   Inputs are Interrupt Disabled
-  
-  // Port B
-  // Pinout map:
-  // Bit 7 - Pin 15 - Input  PU - Not used?
-  // Bit 6 - Pin 16 - Input  PU - Not used?
-  // Bit 5 - Pin 17 - Input  PU - Not used?
-  // Bit 4 - Pin 18 - Input  PU - Not used?
-  // Bit 3 - Pin 19 - Input  PU - Not used?
-  // Bit 2 - Pin 20 - Input  PU - Not used?
-  // Bit 1 - Pin 21 - Input  PU - Not used?
-  // Bit 0 - Pin 22 - Input  PU - Not used?
-  // PB_ODR is assumed to be all zero from power on reset
-  PB_DDR = (uint8_t)0x00; // 0b0000 0000
-                          //   All pins are inputs
-  PB_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Inputs are Pull-Up
-  PB_CR2 = (uint8_t)0x00; // 0b0000 0000
-			  //   Inputs are Interrupt Disabled
-  
-  // Port C
-  // Pinout map:
-  // Bit 7 - Pin 34 - Input  PU - Input 8
-  // Bit 6 - Pin 33 - Input  PU - Input 16
-  // Bit 5 - Pin 30 - Input  PU - ENC28J60 -INT
-  // Bit 4 - Pin 29 - Input  PU - ENC28J60 SO (SPI SI)
-  // Bit 3 - Pin 28 - Output PP - ENC28J60 SI (SPI SO)
-  // Bit 2 - Pin 27 - Output PP - ENC28J60 SCK
-  // Bit 1 - Pin 26 - Output PP - ENC28J60 -CS
-  // Bit 0 - Not attached to pin
-  // PC_ODR is assumed to be all zero from power on reset
-  PC_DDR = (uint8_t)0x0e; // 0b0000 1110
-                          //   Pins 26, 27, 28 are outputs
-  PC_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output Pins 26, 27, 28 are Push-Pull
-			  //   Inputs are Pull-up
-  PC_CR2 = (uint8_t)0x0e; // 0b0000 1110
-                          //   Output Pins 28, 27, 26 are 10MHz/Fast Mode
-			  //   Inputs are Interrupt Disabled
-
-  // Port D
-  // Pinout map:
-  // Bit 7 - Pin 48 - Input  PU - Input 10
-  // Bit 6 - Pin 47 - Input  PU - Input 3
-  // Bit 5 - Pin 46 - Input  PU - Input 11
-  // Bit 4 - Pin 45 - Input  PU - Input 4
-  // Bit 3 - Pin 44 - Input  PU - Input 12
-  // Bit 2 - Pin 43 - Input  PU - Input 5
-  // Bit 1 - Pin 42 - Alternate - SWIM
-  // Bit 0 - Pin 41 - Input  PU - Input 13
-  // PD_ODR is assumed to be all zero from power on reset
-  PD_DDR = (uint8_t)0x00; // 0b0000 0000
-                          //   No pins are outputs
-                          //   Note that the SWIM pin is not affected by these settings
-  PD_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Inputs are Pull-up
-  PD_CR2 = (uint8_t)0x00; // 0b0000 0000
-  			  //   Inputs are Interrupt Disabled
-
-  // Port E
-  // Pinout map:
-  // Bit 7 - Pin 23 - Input  PU - Not used?
-  // Bit 6 - Pin 24 - Input  PU - Not used?
-  // Bit 5 - Pin 25 - Output PP - ENC28J60 -RESET
-  // Bit 4 - Not attached to pin
-  // Bit 3 - Pin 37 - Input  PU - Input 14
-  // Bit 2 - Pin 38 - Input  PU - Not used?
-  // Bit 1 - Pin 39 - Input  PU - Not used?
-  // Bit 0 - Pin 40 - Input  PU - Input 6
-  // PE_ODR is assumed to be all zero from power on reset
-  PE_DDR = (uint8_t)0x20; // 0b0010 0000
-                          //   Pin 25 is output
-  PE_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Output Pin 25 is Push-Pull
-			  //   Inputs are Pull-Up
-  PE_CR2 = (uint8_t)0x20; // 0b0010 0000
-                          //   Output Pin 25 is 10MHz/Fast Mode
-			  //   Inputs are Interrupt Disabled
-  
-  // Port F: Not attached to pins
-
-  // Port G:
-  // Pinout map:
-  // Bit 7 - Not attached to pin
-  // Bit 6 - Not attached to pin
-  // Bit 5 - Not attached to pin
-  // Bit 4 - Not attached to pin
-  // Bit 3 - Not attached to pin
-  // Bit 2 - Not attached to pin
-  // Bit 1 - Pin 36 - Input  PU - Input 7
-  // Bit 0 - Pin 35 - Input  PU - Input 15
-  // PG_ODR is assumed to be all zero from power on reset
-  PG_DDR = (uint8_t)0x00; // 0b0000 0000
-                          //   No pins are output
-  PG_CR1 = (uint8_t)0xff; // 0b1111 1111
-                          //   Inputs are Pull-Up
-  PG_CR2 = (uint8_t)0x00; // 0b0000 0000
-			  //   Inputs are Interrupt Disabled
-}
-#endif // GPIO_SUPPORT == 3
 
 
 void LEDcontrol(uint8_t state)
 {
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// temp code until initialization is figured out
+//  // Bit 2 - LED - Set as output
+ PA_DDR |= 0x04;
+ PA_CR1 = (uint8_t)0xff;
+ PA_CR2 = (uint8_t)0x00;
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
   // state = 1 turns LED on (output high)
   if (state == 1) PA_ODR |= (uint8_t)0x04;
   // state = 0 turns LED off (output low)

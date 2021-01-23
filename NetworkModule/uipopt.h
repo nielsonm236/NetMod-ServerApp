@@ -81,38 +81,38 @@
 #include "uip_TcpAppHub.h"
 
 
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 // IP configuration options
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
  
 // The IP TTL (time to live) of IP packets sent by uIP.
 // This should normally not be changed.
 #define UIP_TTL         64
 
 
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 // TCP configuration options
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 
 // The maximum number of simultaneously open TCP connections. Since the TCP
 // connections are statically allocated, turning this configuration knob down
-// results in less RAM used. Each TCP connection requires approximately 30 bytes
-// of memory.
+// results in less RAM used. Each TCP connection requires approximately 30
+// bytes of memory.
 //
-// Comment MN: Experiment shows actual RAM consumption per connection to be 40
-// bytes.
+// Comment MN: Experiment shows actual RAM consumption per connection to be
+// 40 bytes.
 #define UIP_CONNS       4
 
 
-// The maximum number of simultaneously listening TCP ports. Each listening TCP
-// port requires 2 bytes of memory.
+// The maximum number of simultaneously listening TCP ports. Each listening
+// TCP port requires 2 bytes of memory.
 //
 // Comment MN: Experiment shows the 2 bytes of RAM estimate to be correct.
-// Comment MN: In order to allow multiple browsers on >different< IP addresses
-// to work UIP_LISTENPORTS had to be the same value as UIP_CONNS, even though
-// only the MQTT port was set to 1883 and the HTTP port was set to 80, which I
-// would think would only require 2 listen ports. Examining the uip.c code did
-// not explain why this is the case.
+// Comment MN: In order to allow multiple browsers on >different< IP
+// addresses to work UIP_LISTENPORTS had to be the same value as UIP_CONNS,
+// even though only the MQTT port was set to 1883 and the HTTP port was set
+// to 80, which I would think would only require 2 listen ports. Examining
+// the uip.c code did not explain why this is the case.
 #define UIP_LISTENPORTS 4
 
 
@@ -151,9 +151,9 @@
 #define UIP_TIME_WAIT_TIMEOUT 120
 
 
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 // ARP configuration options
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 
 // The size of the ARP table. This option should be set to a larger value if
 // this uIP node will have many connections from the local network.
@@ -166,9 +166,9 @@
 #define UIP_ARP_MAXAGE 120
 
 
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 // General configuration options
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 
 // The size of the uIP packet buffer. The uIP packet buffer should not be smaller
 // than 60 bytes, and does not need to be larger than 1500 bytes. Lower size
@@ -192,7 +192,7 @@
 #define UIP_BYTE_ORDER     UIP_BIG_ENDIAN
 
 
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 // Application specific compile controls
 //
 // Controls whether the options for code compile. For instance:
@@ -215,36 +215,7 @@
 // 0 = disabled
 // 1 = full statistics page for non-MQTT builds
 // 2 = error statistics page for MQTT builds
-#define UIP_STATISTICS  2
-
-
-// Determines if help support should be compiled in. If you are modifying the
-// project and need more program space eliminating the help pages and processes
-// will free up considerable space.
-// 0 = disable
-// 1 = enable
-#define HELP_SUPPORT  0
-
-
-// Determines how many GPIO pins are relay control outputs and how many are
-// sense inputs. Due to flash space limitations this can't be a run time option.
-// It must be a build time option.
-// 1 = 16 relay outputs
-// 2 = 8 relay outputs / 8 sense inputs
-// 3 = 16 sense inputs
-#define GPIO_SUPPORT  2
-
-
-// Determines if MQTT support is compiled in.
-// IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
-//   MQTT requires a lot of code space. For this reason if MQTT is enabled:
-//     HELP_SUPPORT *MUST* be set to 0 (OFF)
-//     UIP_STATISTICS *MUST* be set to 2 (error statistics only)
-//     GPIO_SUPPORT *MUST* be set to 2 (8out/8in)
-// 
-// 0 = disable
-// 1 = enable
-#define MQTT_SUPPORT 1
+#define UIP_STATISTICS  0
 
 
 // Determines if DEBUG code is compiled in
@@ -277,7 +248,7 @@
 
 
 
-/*------------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /**
  * Appication specific configurations
  *

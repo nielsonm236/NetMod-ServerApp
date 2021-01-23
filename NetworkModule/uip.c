@@ -109,7 +109,7 @@
 
 #include <string.h>
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 /* Variable definitions. */
 
 #if DEBUG_SUPPORT != 0
@@ -125,11 +125,8 @@ uip_ipaddr_t uip_hostaddr;
 uip_ipaddr_t uip_draddr;
 /* The Netmask */
 uip_ipaddr_t uip_netmask;
-
-//#if MQTT_SUPPORT == 1
 /* The IP address of the MQTT Server. */
 uip_ipaddr_t uip_mqttserveraddr;
-//#endif // MQTT_SUPPORT == 1
 
 
 // This structure defines the MAC (aka ethaddr) in the struct format the ARP
@@ -256,7 +253,7 @@ void uip_add32(uint8_t *op32, uint16_t op16)
 
 
 #if ! UIP_ARCH_CHKSUM
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 static uint16_t chksum(uint16_t sum, const uint8_t *data, uint16_t len)
 {
   uint16_t t;
@@ -283,14 +280,14 @@ static uint16_t chksum(uint16_t sum, const uint8_t *data, uint16_t len)
 }
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 uint16_t uip_chksum(uint16_t *data, uint16_t len)
 {
   return htons(chksum(0, (uint8_t *)data, len));
 }
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 #ifndef UIP_ARCH_IPCHKSUM
 uint16_t uip_ipchksum(void)
 {
@@ -303,7 +300,7 @@ uint16_t uip_ipchksum(void)
 #endif
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 static uint16_t upper_layer_chksum(uint8_t proto)
 {
   uint16_t upper_layer_len;
@@ -325,7 +322,7 @@ static uint16_t upper_layer_chksum(uint8_t proto)
 }
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 uint16_t uip_tcpchksum(void)
 {
   return upper_layer_chksum(UIP_PROTO_TCP);
@@ -333,7 +330,7 @@ uint16_t uip_tcpchksum(void)
 #endif /* UIP_ARCH_CHKSUM */
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 void uip_init(void)
 {
   for (c = 0; c < UIP_LISTENPORTS; ++c) uip_listenports[c] = 0;
@@ -347,8 +344,7 @@ void uip_init(void)
 }
 
 
-/*---------------------------------------------------------------------------*/
-#if MQTT_SUPPORT == 1
+//---------------------------------------------------------------------------//
 // uip_connect added to allow the MQTT client to make TCP connection requests
 // to a remote host (aka the MQTT Broker). In the original UIP code this was
 // included if UIP_ACTIVE_OPEN == 1. In this application uip_connect is only
@@ -397,10 +393,9 @@ uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
   uip_ipaddr_copy(&conn->ripaddr, ripaddr);
   return conn;
 }
-#endif // MQTT_SUPPORT == 1
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 void uip_init_stats(void)
 {
 #if UIP_STATISTICS == 1
@@ -431,7 +426,7 @@ void uip_init_stats(void)
 }
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 void uip_unlisten(uint16_t port)
 {
   for (c = 0; c < UIP_LISTENPORTS; ++c) {
@@ -443,7 +438,7 @@ void uip_unlisten(uint16_t port)
 }
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 void uip_listen(uint16_t port)
 {
   for (c = 0; c < UIP_LISTENPORTS; ++c) {
@@ -455,7 +450,7 @@ void uip_listen(uint16_t port)
 }
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 static void uip_add_rcv_nxt(uint16_t n)
 {
   uip_add32(uip_conn->rcv_nxt, n);
@@ -466,7 +461,7 @@ static void uip_add_rcv_nxt(uint16_t n)
 }
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 void uip_process(uint8_t flag)
 {
   register struct uip_conn *uip_connr = uip_conn;
@@ -561,12 +556,11 @@ void uip_process(uint8_t flag)
               // In the SYN_RCVD state, we should retransmit our SYNACK.
               goto tcp_send_synack;
 
-#if MQTT_SUPPORT == 1
 	    case UIP_SYN_SENT:
-	      // In the SYN_SENT state, we retransmit the SYN.
+	      // In the SYN_SENT state, we retransmit the SYN. Required for
+	      // MQTT.
 	      BUF->flags = 0;
 	      goto tcp_send_syn;
-#endif // MQTT_SUPPORT == 1
 
             case UIP_ESTABLISHED:
               // In the ESTABLISHED state, we call upon the application to do
@@ -599,7 +593,7 @@ void uip_process(uint8_t flag)
   }
 
 
-  // ----------------------------------------------------------------------- //
+  //---------------------------------------------------------------------------//
   // This is where the input processing starts. We fall through to this point
   // if the call was uip_process(UIP_DATA)
   UIP_STAT(++uip_stat.ip.recv);
@@ -875,18 +869,15 @@ void uip_process(uint8_t flag)
   }
 
   
-  // Our response will be a SYNACK.
-#if MQTT_SUPPORT == 1
+  // Our response will be a SYNACK. Required for MQTT.
   tcp_send_synack:
   BUF->flags = TCP_ACK;
   
   tcp_send_syn:
   BUF->flags |= TCP_SYN;
   
-#else // MQTT_SUPPORT == 1
-  tcp_send_synack:
-  BUF->flags = TCP_SYN | TCP_ACK;
-#endif // MQTT_SUPPORT == 1
+//  tcp_send_synack:
+//  BUF->flags = TCP_SYN | TCP_ACK;
 
 
   // We send out the TCP Maximum Segment Size option with our SYNACK.
@@ -1014,7 +1005,6 @@ void uip_process(uint8_t flag)
       goto drop;
 
 
-#if MQTT_SUPPORT == 1
     case UIP_SYN_SENT:
       // In SYN_SENT, we wait for a SYNACK that is sent in response to our
       // SYN. The rcv_nxt is set to sequence number in the SYNACK plus one,
@@ -1084,7 +1074,6 @@ void uip_process(uint8_t flag)
       // The connection is closed after we send the RST
       uip_conn->tcpstateflags = UIP_CLOSED;
       goto reset;
-#endif // MQTT_SUPPORT == 1
 
 
     case UIP_ESTABLISHED:
@@ -1435,14 +1424,14 @@ void uip_process(uint8_t flag)
 }
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 uint16_t htons(uint16_t val)
 {
   return HTONS(val);
 }
 
 
-/*---------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------//
 //void uip_send(const void *data, int len)
 void uip_send(const char *data, int len)
 {

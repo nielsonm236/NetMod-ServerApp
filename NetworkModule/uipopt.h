@@ -230,8 +230,7 @@
 // CHANGE AT ANY TIME. 'DISABLE' IS THE RECOMMENED SETTING FOR MOST NORMAL BUILDS.
 // 0 = disable
 // 1 = enable
-// 2 = enable with "reset source" data collection
-// 3 = enable with "reset source" and "additional" data collection
+// 2 = enable with "Reset Status Register" data collection
 #define DEBUG_SUPPORT 0
 
 

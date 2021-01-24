@@ -813,26 +813,6 @@ static const char g_HtmlPageStats[] =
 #endif // UIP_STATISTICS == 2
 
 
-/*
-// Shortened IO state page Template
-// Mimics original Network Module IO state report
-// 134 bytes; sizeof reports 135
-#define WEBPAGE_RSTATE		6
-static const char g_HtmlPageRstate[] =
-//  "<!DOCTYPE html>"
-//  "<html lang='en-US'>"
-  "<html>"
-  "<head>"
-  "<title>Short Form</title>"
-  "<link rel='icon' href='data:,'>"
-  "</head>"
-  "<body>"
-  "<p>%f00</p>"
-  "</body>"
-  "</html>";
-*/
-
-
 // Very Short IO state page Template
 // Only responds with a TCP payload that contains the 16 alphanumeric
 // characters representing the IO pins states. The response is not
@@ -841,21 +821,6 @@ static const char g_HtmlPageRstate[] =
 #define WEBPAGE_SSTATE		7
 static const char g_HtmlPageSstate[] =
   "%f00";
-
-/*
-// Rebooting Page
-// This page is dislayed when the user click "Save" on the IOControl
-// or Configuration page. It displays a rebooting message, then will
-// return to the Configuration page after a 5 second timeout.
-#define WEBPAGE_REBOOTING1	8
-static const char g_HtmlPageRebooting1[] =
-  "<head>"
-    "<meta http-equiv='refresh'content='5;URL=/61'/>"
-  "</head>"
-  "<body>"
-    "<p>Rebooting</p>"
-  "</body>";
-*/
 
 
 // Commonly used strings in the HTML pages. These strings are inserted in
@@ -1193,21 +1158,6 @@ size = size - 1;
 #endif // UIP_STATISTICS == 2
 
 
-/*
-  //---------------------------------------------------------------------------//
-  // Adjust the size reported by the WEBPAGE_RSTATE template
-  //
-  else if (current_webpage == WEBPAGE_RSTATE) {
-    size = (uint16_t)(sizeof(g_HtmlPageRstate) - 1);
-    
-    // Account for Short Form IO Settings field (%f00)
-    // size = size + (value size - marker_field_size)
-    // size = size + (16 - 4);
-    size = size + 12;
-  }
-*/
-
-
   //---------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_SSTATE template
   //
@@ -1219,15 +1169,6 @@ size = size - 1;
     // size = size + (16 - 4);
     size = size + 12;
   }
-
-/*
-  //---------------------------------------------------------------------------//
-  // Adjust the size reported by the WEBPAGE_REBOOTING1 template
-  //
-  else if (current_webpage == WEBPAGE_REBOOTING1) {
-    size = (uint16_t)(sizeof(g_HtmlPageRebooting1) - 1);
-  }
-*/
 
   return size;
 }
@@ -2073,24 +2014,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     }
 #endif // UIP_STATISTICS == 1 || UIP_STATISTICS == 2
 
-/*
-    else if (current_webpage == WEBPAGE_RSTATE) {
-      pSocket->pData = g_HtmlPageRstate;
-      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRstate) - 1);
-    }
-*/
 
     else if (current_webpage == WEBPAGE_SSTATE) {
       pSocket->pData = g_HtmlPageSstate;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
     }
-
-/*
-    else if (current_webpage == WEBPAGE_REBOOTING1) {
-      pSocket->pData = g_HtmlPageRebooting1;
-      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRebooting1) - 1);
-    }
-*/
 
     pSocket->nState = STATE_CONNECTED;
     pSocket->nPrevBytes = 0xFFFF;
@@ -3281,17 +3209,15 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      uip_init_stats();
 	      
 #if DEBUG_SUPPORT == 2
-	      // Clear the "reset" counters
+	      // Clear the "Reset Status Register" counters. Important:
+	      // The actual debug bytes used need to be in sync with
+	      // the debug bytes used to capture the data (in the main.c
+	      // routine) and with the display processes in httpd.c.
+	      // The bytes used may change if the number of bytes
+	      // available to the debug area changes.
 	      for (i = 41; i < 46; i++) debug[i] = 0;
 	      update_debug_storage1();
 #endif // DEBUG_SUPPORT == 2
-
-#if DEBUG_SUPPORT == 3
-	      // Clear the "reset" counters, the "additional" debug bytes,
-	      // and the TSV debug bytes
-	      for (i = 26; i < 46; i++) debug[i] = 0;
-	      update_debug_storage1();
-#endif // DEBUG_SUPPORT == 3
 
 	      current_webpage = WEBPAGE_STATS;
               pSocket->pData = g_HtmlPageStats;
@@ -3304,19 +3230,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    case 91: // Reboot
 	      user_reboot_request = 1;
 	      break;
-
-/*
-	    case 91: // Reboot - Sends a "Rebooting" page that contains
-	             // an automatic call to the Configuration page after
-		     // 5 seconds.
-	      user_reboot_request = 1;
-	      current_webpage = WEBPAGE_REBOOTING1;
-              pSocket->pData = g_HtmlPageRebooting1;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRebooting1) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
-	      break;
-*/
 
             case 98: // Show Very Short Form IO state page
             case 99: // Show Short Form IO state page
@@ -3334,23 +3247,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
 	      
-/*	      
-            case 99: // Show Short Form IO state page
-	      // Normally when a page is transmitted the "current_webpage" is
-	      // updated to reflect the page just transmitted. This is not
-	      // done for this case as the page is very short (only requires
-	      // one packet to send) and not changing the current_webpage
-	      // pointer prevents "page interference" between normal browser
-	      // activity and the automated functions that normally use this
-	      // page.
-	      // current_webpage = WEBPAGE_RSTATE;
-              pSocket->pData = g_HtmlPageRstate;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRstate) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
-	      break;
-*/
-
 	    default: // Show IO Control page
 	      current_webpage = WEBPAGE_IOCONTROL;
               pSocket->pData = g_HtmlPageIOControl;

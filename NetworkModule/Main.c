@@ -435,8 +435,12 @@ int main(void)
             publish_callback);
 
 
-#if DEBUG_SUPPORT == 2 || DEBUG_SUPPORT == 3
+#if DEBUG_SUPPORT == 2
 // Check RST_SR (Reset Status Register)
+// Important: Check the number of debug bytes in the current code revision
+// and update the debug[] locations used so that they are within the range
+// of the debug bytes. Search for the display routine and match it to these
+// locations.
 /*
   // Uncomment this for one build, one run to zero the counters. Note that
   // during debug it is normal for the RST_SR to have the SWIMF flag set at
@@ -474,7 +478,7 @@ int main(void)
     }
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
   }
-#endif // DEBUG_SUPPORT == 2 || DEBUG_SUPPORT == 3
+#endif // DEBUG_SUPPORT == 2
 
 
   while (1) {
@@ -2377,15 +2381,18 @@ void check_runtime_changes(void)
     fastflash();
     
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#if DEBUG_SUPPORT == 3
+#if DEBUG_SUPPORT == 2
   // Report the stack overflow bit
+  // Important - Verify that the correct debug[] byte is selected as
+  // these may have moved. Also check that this byte is reported in
+  // httpd.c for display in the Browser.
   unlock_eeprom();
   if (stack_error == 1) {
     debug[38] |= 0x80;
     update_debug_storage1();
   }
   lock_eeprom();
-#endif // DEBUG_SUPPORT == 3
+#endif // DEBUG_SUPPORT == 2
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
   }
@@ -2984,20 +2991,12 @@ void clear_eeprom_debug_bytes(void)
 #if DEBUG_SUPPORT == 2
   // Clear the general debug bytes
   for (i = 0; i < NUM_DEBUG_BYTES - 5; i++) debug[i] = 0x00;
-  // Recover the "reset" counters
+  // Recover the "Reset Status Register" counters
   for (i = 41; i < 46; i++) debug[i] = stored_debug[i];
   // Update EEPROM bytes that changed
   update_debug_storage1();
 #endif // DEBUG_SUPPORT == 2
 
-#if DEBUG_SUPPORT == 3
-  // Clear the general debug bytes
-  for (i = 0; i < NUM_DEBUG_BYTES - 20; i++) debug[i] = 0x00;
-  // Recover the "reset" counters and the "additional" debug bytes
-  for (i = 26; i < 46; i++) debug[i] = stored_debug[i];
-  // Update EEPROM bytes that changed
-  update_debug_storage1();
-#endif // DEBUG_SUPPORT == 3
 }
 
 

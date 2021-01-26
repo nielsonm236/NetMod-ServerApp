@@ -47,7 +47,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210123 1257";
+const char code_revision[] = "20210126 0355";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -250,9 +250,9 @@ extern uint32_t second_counter; // Time in seconds
 
 extern uint8_t OctetArray[11];  // Used in emb_itoa conversions
 
-uint32_t RXERIF_counter;              // Counts RXERIF errors detected by the
+uint8_t RXERIF_counter;               // Counts RXERIF errors detected by the
                                       // ENC28J60
-uint32_t TXERIF_counter;              // Counts TXERIF errors detected by the
+uint8_t TXERIF_counter;               // Counts TXERIF errors detected by the
                                       // ENC28J60
 uint32_t TRANSMIT_counter;            // Counts any transmit by the ENC28J60
 
@@ -305,9 +305,6 @@ struct uip_conn *mqtt_conn;           // mqtt_conn points to the connection
 				      // operations.
 extern uint8_t MQTT_error_status;     // For MQTT error status display in GUI
 uint8_t mqtt_restart_step;            // Step tracker for restarting MQTT
-// uint8_t mqtt_restart_backoff;         // Used to increase the time between
-                                      // restart attempts when a communication
-				      // loss is long term.
 
 static const unsigned char devicetype[] = "NetworkModule/"; // Used in
                                       // building topic and client id names
@@ -317,20 +314,16 @@ unsigned char topic_base[51];         // Used for building connect, subscribe,
 				      // NetworkModule/DeviceName123456789/availability
 				      // NetworkModule/DeviceName123456789/output/+/set
 				      // homeassistant/binary_sensor/macaddressxx/01/config
-uint32_t MQTT_resp_tout_counter;      // Counts response timeout events in the
+uint8_t MQTT_resp_tout_counter;       // Counts response timeout events in the
                                       // mqtt_sanity_check() function
-uint32_t MQTT_not_OK_counter;         // Counts MQTT != OK events in the
+uint8_t MQTT_not_OK_counter;          // Counts MQTT != OK events in the
                                       // mqtt_sanity_check() function
-uint32_t MQTT_broker_dis_counter;     // Counts broker disconnect events in
+uint8_t MQTT_broker_dis_counter;      // Counts broker disconnect events in
                                       // the mqtt_sanity_check() function
 uint8_t auto_pub_count;               // Tracks the Home Assistant Auto Discovery
                                       // publish msgs
 uint8_t auto_pub_toggle;              // Tracks the dual message count required for
                                       // the Home Assistant Auto Discovery publish msgs
-// uint16_t delete_pin_input_register;   // Used to track which Input pins need "delete
-                                      // pin" messages sent to Home Assistant
-// uint16_t delete_pin_output_register;  // Used to track which Output pins need "delete
-                                      // pin" messages sent to Home Assistant
 
 
 
@@ -400,6 +393,12 @@ int main(void)
 			   // because gpio_init() uses settings in the EEPROM
 			   // and we need to make sure it is up to date.
 
+#if DEBUG_SUPPORT == 2
+  // Clear the general purpose debug bytes and restore the saved
+  // debug statistics
+  clear_eeprom_debug_bytes();
+#endif // DEBUG_SUPPORT == 2
+
   gpio_init();             // Initialize and enable gpio pins
   
   spi_init();              // Initialize the SPI bit bang interface to the
@@ -415,9 +414,6 @@ int main(void)
   
   HttpDInit();             // Initialize listening ports
 
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-//  clear_eeprom_debug_bytes();
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -441,41 +437,28 @@ int main(void)
 // and update the debug[] locations used so that they are within the range
 // of the debug bytes. Search for the display routine and match it to these
 // locations.
-/*
-  // Uncomment this for one build, one run to zero the counters. Note that
-  // during debug it is normal for the RST_SR to have the SWIMF flag set at
-  // startup as you typically release the board from a SWIM reset to start
-  // it.
-  unlock_eeprom();
-  stored_debug[41] = 0;
-  stored_debug[42] = 0;
-  stored_debug[43] = 0;
-  stored_debug[44] = 0;
-  stored_debug[45] = 0;
-  lock_eeprom();
-*/
   if (RST_SR & 0x1f) {
     // Bit 4 EMCF: EMC reset flag
     // Bit 3 SWIMF: SWIM reset flag
     // Bit 2 ILLOPF: Illegal opcode reset flag
     // Bit 1 IWDGF: Independent Watchdog reset flag
     // Bit 0 WWDGF: Window Watchdog reset flag
-    if (RST_SR & 0x10) debug[41] = (uint8_t)(debug[41] + 1);
-    if (RST_SR & 0x08) debug[42] = (uint8_t)(debug[42] + 1);
-    if (RST_SR & 0x04) debug[43] = (uint8_t)(debug[43] + 1);
-    if (RST_SR & 0x02) debug[44] = (uint8_t)(debug[44] + 1);
-    if (RST_SR & 0x01) debug[45] = (uint8_t)(debug[45] + 1);
+    if (RST_SR & 0x10) debug[25] = (uint8_t)(debug[25] + 1);
+    if (RST_SR & 0x08) debug[26] = (uint8_t)(debug[26] + 1);
+    if (RST_SR & 0x04) debug[27] = (uint8_t)(debug[27] + 1);
+    if (RST_SR & 0x02) debug[28] = (uint8_t)(debug[28] + 1);
+    if (RST_SR & 0x01) debug[29] = (uint8_t)(debug[29] + 1);
     update_debug_storage1();
-    if (RST_SR & 0x17) {
-      // Trigger reboot LED signal on any except SWIMF
-      fastflash();
-      debugflash();
-      fastflash();
-      debugflash();
-      fastflash();
-      debugflash();
-      fastflash();
-    }
+//    if (RST_SR & 0x16) {
+//      // Trigger reboot LED signal on any except SWIMF
+//      fastflash();
+//      debugflash();
+//      fastflash();
+//      debugflash();
+//      fastflash();
+//      debugflash();
+//      fastflash();
+//    }
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
   }
 #endif // DEBUG_SUPPORT == 2
@@ -742,7 +725,8 @@ void mqtt_startup(void)
   //   - Verifies that the ARP request succeeded.
   //   - Verifies that the TCP connection request suceeded.
   //   - Initializes communication with the MQTT Broker.
-  
+
+/*
   if (mqtt_start == MQTT_START_TCP_CONNECT) {
     // When first powering up or on a reboot we need to initialize the
     // MQTT processes.
@@ -986,7 +970,8 @@ void mqtt_startup(void)
       // sure any prior definition is deleted.
     
       // Create pin number for topic and payload in text format.
-      emb_itoa((auto_pub_count + 1), OctetArray, 10, 2);
+//      emb_itoa((auto_pub_count + 1), OctetArray, 10, 2);
+      int2hex((uint8_t)(auto_pub_count + 1));
       // Create the payload template. Note the payload may be
       // changed to empty for some cases.
       // Create % part of payload template
@@ -1004,7 +989,7 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/switch/");
   	  // Payload is blank for delete pin msg
           app_message[0] = '\0';
-	  auto_pub_toggle++;
+//	  auto_pub_toggle++;
         }
         else if (auto_pub_toggle == 1) {
 	  // Next send an Input pin delete msg.
@@ -1012,8 +997,9 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/binary_sensor/");
   	  // Payload is blank for delete pin msg
           app_message[0] = '\0';
-	  auto_pub_toggle++;
+//	  auto_pub_toggle++;
 	}
+        auto_pub_toggle++;
       }
       
       if ((pin_control[auto_pub_count] & 0x01)
@@ -1024,7 +1010,7 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/switch/");
   	  // Create the O part of the payload
           app_message[1] = 'O';
-	  auto_pub_toggle++;
+//	  auto_pub_toggle++;
         }
         else if (auto_pub_toggle == 1) {
 	  // Next send an Input pin delete msg.
@@ -1032,8 +1018,9 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/binary_sensor/");
   	  // Payload is blank for delete pin msg
           app_message[0] = '\0';
-	  auto_pub_toggle++;
+//	  auto_pub_toggle++;
 	}
+        auto_pub_toggle++;
       }
       
       if ((pin_control[auto_pub_count] & 0x01)
@@ -1044,7 +1031,7 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/binary_sensor/");
   	  // Create the I part of the payload
           app_message[1] = 'I';
-	  auto_pub_toggle++;
+//	  auto_pub_toggle++;
         }
         else if (auto_pub_toggle == 1) {
 	  // Next send an Output pin delete msg.
@@ -1052,8 +1039,9 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/switch/");
   	  // Payload is blank for delete pin msg
           app_message[0] = '\0';
-	  auto_pub_toggle++;
+//	  auto_pub_toggle++;
 	}
+        auto_pub_toggle++;
       }
       
       // Create the rest of the topic
@@ -1108,6 +1096,380 @@ void mqtt_startup(void)
     // Indicate succesful completion
     mqtt_start = MQTT_START_COMPLETE;
   }  
+*/
+
+  switch(mqtt_start)
+  {
+  case MQTT_START_TCP_CONNECT:
+    // When first powering up or on a reboot we need to initialize the
+    // MQTT processes.
+    //
+    // A brand new device won't have a MQTT Server IP Address defined
+    // (as indicated by an all zeroes address). So these steps won't be
+    // executed unless a non-zero MQTT Server address is found. The user
+    // can input a MQTT Server IP Address and Port number via the GUI. A
+    // restart will automatically take place when the values are submitted
+    // in the GUI.
+    //
+    // The first step is to create a TCP Connection Request to the MQTT
+    // Server. This is done with uip_connect(). uip_connect() doesn't
+    // actually send anything - it just queues the SYN to be sent. The
+    // connection request will actually be sent when uip_periodic is
+    // called. uip_periodic will determine that the connection request is
+    // queued, will perform an ARP request to determine the MAC of the MQTT
+    // server, and will then send the SYN to start the connection process.
+    mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, Port_Mqttd);
+    
+    if (mqtt_conn != NULL) {
+      mqtt_start_ctr1 = 0; // Clear 100ms counter
+      mqtt_start_ctr2 = 0; // Clear 100ms counter
+      mqtt_start_status = MQTT_START_CONNECTIONS_GOOD;
+      mqtt_start = MQTT_START_VERIFY_ARP;
+    }
+    else {
+      mqtt_start_status |= MQTT_START_CONNECTIONS_ERROR;
+    }
+    break;
+      
+  case MQTT_START_VERIFY_ARP:
+     if (mqtt_start_ctr2 > 2) {
+      // mqtt_start_ctr2 causes us to wait 300ms before checking to see if the
+      // ARP request completed.
+      mqtt_start_ctr2 = 0; // Clear 100ms counter
+      // ARP Request and TCP Connection request were sent to the MQTT Server
+      // as a result of the uip_connect() in the prior step. Now we loop and
+      // check that the ARP request was successful.
+      if (check_mqtt_server_arp_entry() == 1) {
+        // ARP Reply received
+        mqtt_start_ctr1 = 0; // Clear 100ms counter
+        mqtt_start_status |= MQTT_START_ARP_REQUEST_GOOD;
+        mqtt_start = MQTT_START_VERIFY_TCP;
+      }
+      else if (mqtt_start_ctr1 > 150) {
+        // mqtt_start_ctr1 allows us to wait up to 15 seconds for the ARP
+        // Reply. If timeout occurs we probably have an error in the MQTT
+        // Server IP Address or there is a network problem. If we timeout
+        // we start over and retry the ARP request.
+        mqtt_start = MQTT_START_TCP_CONNECT;
+        // Clear the error indicator flags
+        mqtt_start_status = MQTT_START_NOT_STARTED;
+      }
+    }
+    break;
+
+  case MQTT_START_VERIFY_TCP:
+    if (mqtt_start_ctr2 > 2) {
+      mqtt_start_ctr2 = 0; // Clear 100ms counter
+      // Loop to make sure the TCP connection request was successful. We're
+      // waiting for the SYNACK/ACK process to complete (checking each 300ms).
+      // uip_periodic() runs frequently (each time the periodic_timer expires).
+      // When uip_periodic() runs it calls the uip_process() to receive the
+      // SYNACK and then send the ACK. We will know the ACK was sent when we
+      // see the UIP_ESTABLISHED state for the mqtt connection.
+      if ((mqtt_conn->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED) {
+        mqtt_start_ctr1 = 0; // Clear 100ms counter
+        mqtt_start_status |= MQTT_START_TCP_CONNECT_GOOD;
+        mqtt_start = MQTT_START_QUEUE_CONNECT;
+      }
+      else if (mqtt_start_ctr1 > 150) {
+        // Wait up to 15 seconds for the TCP connection to complete. If not
+        // completed we probably have a network problem.  Try again with a
+        // new uip_connect().
+        mqtt_start = MQTT_START_TCP_CONNECT;
+        // Clear the error indicator flags
+        mqtt_start_status = MQTT_START_NOT_STARTED; 
+      }
+    }
+    break;
+      
+  case MQTT_START_QUEUE_CONNECT:
+    if (mqtt_start_ctr2 > 2) {
+      // ARP Reply received from the MQTT Server and TCP Connection established.
+      // We should now be able to message the MQTT Broker, but will wait 300ms
+      // to give some start time.
+
+      // Queue the mqtt_connect message for transmission to the MQTT Broker. 
+      // The mqtt_connect function will create the message and put it in the
+      // mqtt_sendbuf queue.
+      // uip_periodic() will start the process that will call mqtt_sync to copy
+      // the message from the mqtt_sendbuf to the uip_buf.
+  
+      // Create client_id with devicetype and MAC address
+      strcpy(client_id_text, devicetype);
+      // Remove trailing / in devicetype
+      client_id_text[strlen(client_id_text) - 1] = '\0';
+      // Add MAC number
+      strcat(client_id_text, mac_string);
+      client_id = client_id_text;
+  
+      // Ensure we have a clean session
+      connect_flags = MQTT_CONNECT_CLEAN_SESSION;
+ 
+      // Create will_topic
+      strcpy(topic_base, devicetype);
+      strcat(topic_base, stored_devicename);
+      strcat(topic_base, "/availability");
+
+      // Queue the message
+      mqtt_connect(&mqttclient,
+                   client_id,              // Based on MAC address
+                   topic_base,             // Will topic
+                   "offline",              // Will message 
+                   7,                      // Will message size
+                   stored_mqtt_username,   // Username
+                   stored_mqtt_password,   // Password
+                   connect_flags,          // Connect flags
+                   mqtt_keep_alive);       // Ping interval
+     
+      // When a CONNECT is sent to the broker it should respond with a CONNACK.
+      connack_received = 0;
+      mqtt_start_ctr1 = 0; // Clear 100ms counter
+      mqtt_start = MQTT_START_VERIFY_CONNACK;
+    }
+    break;
+
+  case MQTT_START_VERIFY_CONNACK:
+    // Verify that the CONNECT CONNACK was received.
+    // When a CONNECT is sent to the broker it should respond with a CONNACK.
+    // Since the Broker won't send us anything else until this CONNACK occurs
+    // this step waits for the CONNACK, but will timeout after X seconds. A
+    // workaround is implemented with the global variable connack_received so
+    // that the mqtt.c code can tell the main.c code that the CONNECT CONNACK
+    // was received.
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // On reboot I frequently see that we get to this point, a Connack is
+    // sent to us, but we don't get a connack_received from the mqtt code.
+    // I suspect the problem is that I'm not shutting down the mqtt code
+    // properly, and the process steps here are seen as an error of some
+    // kind. When this happens a timeout occurs below, and the next pass is
+    // always successful. There must be a better solution. NEED TO COME BACK
+    // TO THIS. Maybe look more closely at the state of mqtt variables on
+    // a clean start vs a reboot.
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+    if (mqtt_start_ctr1 < 30) {
+      // Allow up to 3 seconds for CONNACK
+      if (connack_received == 1) {
+        mqtt_start_ctr2 = 0; // Clear 100ms counter
+        mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
+        mqtt_start = MQTT_START_QUEUE_SUBSCRIBE1;
+      }
+    }
+    else {
+      mqtt_start = MQTT_START_TCP_CONNECT;
+      // Clear the error indicator flags
+      mqtt_start_status = MQTT_START_NOT_STARTED; 
+    }
+    break;
+
+  case MQTT_START_QUEUE_SUBSCRIBE1:
+    if (mqtt_start_ctr2 > 2) {
+      // Subscribe to the output control messages
+      //
+      // Queue the mqtt_subscribe messages for transmission to the MQTT Broker.
+      // Wait 300ms before queueing first Subscribe msg.
+      //
+      // The mqtt_subscribe function will create the message and put it in the
+      // transmit queue. uip_periodic() will start the process that will call
+      // mqtt_sync to put the message in the uip_buf.
+      
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // I find that I can't queue multiple subscribe messages without them
+      // taking 10's of seconds to complete. Had this same problem with
+      // publish messages. I think something is wrong with the LiamBindle
+      // transmit queueing, or my interface to it. The quickest solution for
+      // now is to queue a message, return to the main loop so it can
+      // transmit, then queue another message.
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	
+      strcpy(topic_base, devicetype);
+      strcat(topic_base, stored_devicename);
+      strcat(topic_base, "/output/+/set");
+      mqtt_subscribe(&mqttclient, topic_base);
+      mqtt_start_ctr2 = 0; // Clear 100ms counter
+      mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
+    }
+    break;
+    
+  case MQTT_START_QUEUE_SUBSCRIBE2:
+    if (mqtt_start_ctr2 > 2) {
+      // Subscribe to the state-req message
+      //
+      // Wait 100ms before queuing the Subscribe message 
+      strcpy(topic_base, devicetype);
+      strcat(topic_base, stored_devicename);
+      strcat(topic_base, "/state-req");
+      mqtt_subscribe(&mqttclient, topic_base);
+      mqtt_start_ctr2 = 0; // Clear 100ms counter
+      if (stored_config_settings & 0x02) {
+        // Home Assistant Auto Discovery enabled
+        mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
+        auto_pub_count = 0;
+      }
+      else {
+        mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+      }
+    }
+    break;
+
+  case MQTT_START_QUEUE_PUBLISH_AUTO:
+    if (mqtt_start_ctr2 > 0) {
+      // Publish Auto Discovery messages
+      // This code will create a placeholder publish message. The code in the
+      // mqtt_pal.c file will convert the placeholder into the actual Auto
+      // Discovery Publish message when it detects the app_message inserted
+      // below. This complication is necessary because the MQTT transmit buffer
+      // is not large enough to contain an entire Auto Discovery message, so it
+      // is constructed on-the-fly into the uip_buf transmit buffer by the
+      // mqtt_pal.c code.
+      //    mqtt_publish(&mqttclient,
+      //                 topic_base,
+      //                 "%Oxx",
+      //                 4,
+      //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+      // This message triggers an Input discovery message. "xx" is the input
+      // number.
+      //    mqtt_publish(&mqttclient,
+      //                 topic_base,
+      //                 "%Ixx",
+      //                 4,
+      //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+
+      // Walk through the pin_control bytes and send an Auto Discovery Publish
+      // messages for every pin as follows:
+      //   Every pin that is an Enabled Output generates an Output Config message with a defining payload
+      //   Every pin that is an Input is sent an Output Config message with an empty payload
+      //   Every pin that is an Enabled Input generates an Input Config message with a defining payload
+      //   Every pin that is an Output is sent an Input Config message with an empty payload
+
+      if (auto_pub_count < 16) {
+        // Every pin requires two Config messages. One to send the
+        // pin definition, and another with a blank payload to make
+        // sure any prior definition is deleted.
+    
+        // Create pin number for topic and payload in text format.
+        int2hex((uint8_t)(auto_pub_count + 1));
+        // Create the payload template. Note the payload may be
+        // changed to empty for some cases.
+        // Create % part of payload template
+        app_message[0] = '%';
+        // Add pin number payload template
+        app_message[2] = OctetArray[0];
+        app_message[3] = OctetArray[1];
+        app_message[4] = '\0';
+      
+        if (!(pin_control[auto_pub_count] & 0x01)) {
+          // Pin is disabled.
+          if (auto_pub_toggle == 0) {
+            // Send a Output pin delete msg.
+            // Create first part of topic
+            strcpy(topic_base, "homeassistant/switch/");
+   	    // Payload is blank for delete pin msg
+            app_message[0] = '\0';
+          }
+          else if (auto_pub_toggle == 1) {
+ 	    // Next send an Input pin delete msg.
+ 	    // Create first part of topic
+            strcpy(topic_base, "homeassistant/binary_sensor/");
+   	    // Payload is blank for delete pin msg
+            app_message[0] = '\0';
+	  }
+          auto_pub_toggle++;
+        }
+      
+        if ((pin_control[auto_pub_count] & 0x01)
+         && (pin_control[auto_pub_count] & 0x02)) {
+          if (auto_pub_toggle == 0) {
+            // Pin is an Enabled Output. First send the pin definition.
+            // Create first part of topic
+            strcpy(topic_base, "homeassistant/switch/");
+    	    // Create the O part of the payload
+            app_message[1] = 'O';
+          }
+          else if (auto_pub_toggle == 1) {
+  	    // Next send an Input pin delete msg.
+  	    // Create first part of topic
+            strcpy(topic_base, "homeassistant/binary_sensor/");
+    	    // Payload is blank for delete pin msg
+            app_message[0] = '\0';
+  	  }
+          auto_pub_toggle++;
+        }
+      
+        if ((pin_control[auto_pub_count] & 0x01)
+         && (!(pin_control[auto_pub_count] & 0x02))) {
+          if (auto_pub_toggle == 0) {
+            // Pin is an Enabled Input. First send the pin definition.
+	    // Create first part of topic
+            strcpy(topic_base, "homeassistant/binary_sensor/");
+  	    // Create the I part of the payload
+            app_message[1] = 'I';
+          }
+          else if (auto_pub_toggle == 1) {
+	    // Next send an Output pin delete msg.
+	    // Create first part of topic
+            strcpy(topic_base, "homeassistant/switch/");
+  	    // Payload is blank for delete pin msg
+            app_message[0] = '\0';
+	  }
+          auto_pub_toggle++;
+        }
+      
+        // Create the rest of the topic
+        strcat(topic_base, mac_string);
+        strcat(topic_base, "/");
+        strcat(topic_base, OctetArray);
+        strcat(topic_base, "/config");
+      
+        mqtt_publish(&mqttclient,
+                    topic_base,
+ 	            app_message,
+ 	            strlen(app_message),
+	            MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+		     
+        if (auto_pub_toggle == 2) {
+          auto_pub_count++;
+	  auto_pub_toggle = 0;
+        }
+        mqtt_start_ctr2 = 0;
+        if (auto_pub_count == 16) {
+          mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+        }
+      }
+    }
+    break;
+
+  case MQTT_START_QUEUE_PUBLISH_ON:
+    if (mqtt_start_ctr2 > 2) {
+      // Wait 300ms before queuing Publish message 
+      // Publish the availability "online" message
+      strcpy(topic_base, devicetype);
+      strcat(topic_base, stored_devicename);
+      strcat(topic_base, "/availability");
+      mqtt_publish(&mqttclient,
+                   topic_base,
+                   "online",
+                   6,
+                   MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+      // Indicate succesful completion
+      mqtt_start_ctr2 = 0;
+      mqtt_start = MQTT_START_QUEUE_PUBLISH_PINS;
+    }
+    break;
+  
+  case MQTT_START_QUEUE_PUBLISH_PINS:
+    if (mqtt_start_ctr2 > 2) {
+      // Wait 300ms before starting
+      // Publish the state of all pins one at a time.
+      // This is accomplished by setting ON_OFF_word_sent to the inverse of
+      // whatever is currently in ON_OFF_word. This will cause the normal
+      // checks for pin state changes to trigger a transmit for every pin.
+      ON_OFF_word_sent = (uint16_t)(~ON_OFF_word);
+      // Indicate succesful completion
+      mqtt_start = MQTT_START_COMPLETE;
+    }
+    break;
+  } // end switch
 }
 
 
@@ -1124,6 +1486,7 @@ void mqtt_sanity_check(void)
   // function to be called from the main loop which will reset the backoff if
   // successful.
 
+/*
   if (mqtt_restart_step == MQTT_RESTART_IDLE) {
     // Check for a response timeout.
     // response_timeout is typically 30 seconds, and for a sanity check we
@@ -1234,6 +1597,123 @@ void mqtt_sanity_check(void)
     mqtt_restart_step = MQTT_RESTART_IDLE;
     mqtt_start = MQTT_START_TCP_CONNECT;
   }
+*/
+
+
+  switch(mqtt_restart_step)
+  {
+  case MQTT_RESTART_IDLE:
+    // Check for a response timeout.
+    // response_timeout is typically 30 seconds, and for a sanity check we
+    // are allowing X timeouts before taking action. See the mqtt.c code.
+    // Note that the Broker ping timeout may be shorter than this response
+    // timeout. If the Broker times out first it will disconnect from this
+    // device. That should not cause a problem.
+    if (mqttclient.number_of_timeouts > 1) {
+      // Reset the timeout counter
+      mqttclient.number_of_timeouts = 0;
+      MQTT_resp_tout_counter++;
+      mqtt_restart_step = MQTT_RESTART_BEGIN;
+    }
+
+    // Check for a graceful shutdown of the MQTT Broker, and/or a disconnect
+    // commanded by the broker (possibly the result of response timeout
+    // caused from this module). If this happens we'll be in the
+    // MQTT_START_COMPLETE state and we'll see a UIP_CLOSED. If this
+    // condition occurs it may persist for a long time.
+    if (mqtt_start == MQTT_START_COMPLETE
+     && mqtt_conn->tcpstateflags == UIP_CLOSED) {
+      MQTT_broker_dis_counter++;
+      mqtt_restart_step = MQTT_RESTART_BEGIN;
+    }
+  
+    // Check for an MQTT error
+    // != MQTT_OK needs to be qualified with MQTT_START_COMPLETE because a
+    // not OK condition can be present prior to mqtt_connect() running.
+    if (mqtt_start == MQTT_START_COMPLETE
+     && mqttclient.error != MQTT_OK) {
+      MQTT_not_OK_counter++;
+      mqtt_restart_step = MQTT_RESTART_BEGIN;
+    }
+    break;
+
+  case MQTT_RESTART_BEGIN:
+    // MQTT restart process triggered. The process:
+    // 1) Sends an mqtt disconnect just in case there is a connection.
+    // 2) Closes the TCP connection.
+    // 3) Return to the main loop so that the MQTT start process can run.
+    // This process sets up the first two events, but the main.c loop must
+    // run so that the uip_periodic() and uip_input() functions will carry
+    // out execution of the transmit and receive steps needed.
+    mqtt_restart_step = MQTT_RESTART_DISCONNECT_START;
+    // Clear the start error indicator flags so the GUI will reflect
+    // that we are no longer in a connected state
+    mqtt_start_status = MQTT_START_NOT_STARTED;
+    break;
+      
+  case MQTT_RESTART_DISCONNECT_START:
+    mqtt_restart_step = MQTT_RESTART_DISCONNECT_WAIT;
+    // Disconnect the MQTT client
+    mqtt_disconnect(&mqttclient);
+    mqtt_sanity_ctr = 0; // Clear 100ms counter
+    break;
+  
+  case MQTT_RESTART_DISCONNECT_WAIT:
+    if (mqtt_sanity_ctr > 10) {
+      // The mqtt_disconnect() is given 1 second to be communicated before
+      // we move on to TCP close
+      mqtt_restart_step = MQTT_RESTART_TCPCLOSE;
+    }
+    break;
+
+  case MQTT_RESTART_TCPCLOSE:
+    // The way a TCP connection close SHOULD work:
+    // 1) A uip_periodic() runs and uip_process(UIP_TIMER) is called
+    // 2) If a connection is in the ESTABLISHED state (meaning a TCP
+    //    connection is open) the uip_process() will make a UIP_APPCALL.
+    // 3) UIP_APPCALL calls the MQTT or HTTP application via
+    //    uip_TcpAppHubCall()
+    // 4) Before the application returns, if it wants to close the
+    //    connection, it should call uip_close()
+    // 5) The UIP code will then go to appsend: and will know to start
+    //    the TCP close process.
+    // So, it looks like all I need to do is make sure the APPCALL performs
+    // a uip_close() before returning to the UIP code. Then the regular
+    // uip_periodic() process should get the job done.
+    //
+    // Signal uip_TcpAppHubCall() to close the TCP connection
+    mqtt_close_tcp = 1;
+    // Capture time to delay the next step
+    mqtt_sanity_ctr = 0; // Clear 100ms counter
+    mqtt_restart_step = MQTT_RESTART_TCPCLOSE_WAIT;
+    break;
+  
+  case MQTT_RESTART_TCPCLOSE_WAIT:
+    // Verify closed ... how?
+    // For the moment I'm not sure how to do this, so I will just allow
+    // enough time for it to happen. That is probably very fast, but I will
+    // allow 2 seconds.
+    if (mqtt_sanity_ctr > 20) {
+      mqtt_close_tcp = 0;
+      mqtt_restart_step = MQTT_RESTART_SIGNAL_STARTUP;
+    }
+    break;
+    
+  case MQTT_RESTART_SIGNAL_STARTUP:
+    // Reinitialize the mqtt client
+    mqtt_init(&mqttclient,
+              mqtt_sendbuf,
+	      sizeof(mqtt_sendbuf),
+	      &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
+	      UIP_APPDATA_SIZE,
+	      publish_callback);
+    // Set mqtt_restart_step and mqtt_start to re-run the MQTT connection
+    // steps in the main loop
+    mqtt_restart_step = MQTT_RESTART_IDLE;
+    mqtt_start = MQTT_START_TCP_CONNECT;
+    break;
+    
+  } // end switch
 }
 
 
@@ -1356,16 +1836,15 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   //   OR
   // - Set the state_request variable
   pBuffer = uip_appdata;
-  // Skip the Fixed Header Control Byte
-  pBuffer = pBuffer + 1;
-  // Skip the Fixed Header Remaining Length Byte
-  pBuffer = pBuffer + 1;
-  // Skip the Topic name length bytes
-  pBuffer = pBuffer + 2;
-  // Skip the NetworkModule/ text
-  pBuffer = pBuffer + 14;
+  // Skip the Fixed Header Control Byte (1 byte)
+  // Skip the Fixed Header Remaining Length Byte (1 byte)
+  // Skip the Topic name length bytes (2 bytes)
+  // Skip the NetworkModule/ text (14 bytes)
+//  pBuffer = pBuffer + 18;
+  pBuffer += 18;
   // Skip the Devicename/ text
-  pBuffer = pBuffer + strlen(stored_devicename) + 1;
+//  pBuffer = pBuffer + strlen(stored_devicename) + 1;
+  pBuffer += strlen(stored_devicename) + 1;
   
   // Determine if the sub-topic is "output" or "state-req"
   if (*pBuffer == 'o') {
@@ -1579,7 +2058,8 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
   }
     
   // Add pin number to the topic message
-  emb_itoa(pin, OctetArray, 10, 2);
+//  emb_itoa(pin, OctetArray, 10, 2);
+  int2hex(pin);
   i = (uint8_t)strlen(topic_base);
   topic_base[i] = OctetArray[0];
   i++;
@@ -1920,6 +2400,7 @@ void check_eeprom_settings(void)
     uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
 
     // Default Device Name
+/*
     stored_devicename[0] =  'N';
     stored_devicename[1] =  'e';
     stored_devicename[2] =  'w';
@@ -1932,6 +2413,9 @@ void check_eeprom_settings(void)
     stored_devicename[9] =  '0';
     stored_devicename[10] = '0';
     stored_devicename[11] = '0';
+    for (i=12; i<20; i++) stored_devicename[i] = '\0';
+*/
+    strcpy(stored_devicename, "NewDevice000");
     for (i=12; i<20; i++) stored_devicename[i] = '\0';
 
     // Clear Config settings
@@ -2054,7 +2538,8 @@ void update_mac_string(void)
   i = 5;
   j = 0;
   while (j<12) {
-    emb_itoa(stored_uip_ethaddr_oct[i], OctetArray, 16, 2);
+//    emb_itoa(stored_uip_ethaddr_oct[i], OctetArray, 16, 2);
+    int2hex(stored_uip_ethaddr_oct[i]);
     mac_string[j++] = OctetArray[0];
     mac_string[j++] = OctetArray[1];
     i--;
@@ -2388,7 +2873,7 @@ void check_runtime_changes(void)
   // httpd.c for display in the Browser.
   unlock_eeprom();
   if (stack_error == 1) {
-    debug[38] |= 0x80;
+    debug[22] |= 0x80;
     update_debug_storage1();
   }
   lock_eeprom();
@@ -2408,7 +2893,8 @@ void check_restart_reboot(void)
   // connections and trigger a restart or reboot. This function is called
   // from the main loop and returns to the main loop so that the periodic()
   // function can run.
-  
+
+/*
   if (restart_request == 1 || reboot_request == 1) {
     // A restart or reboot has been requested. The restart and reboot
     // requests are set in the check_runtime_changes() function if a restart
@@ -2435,92 +2921,12 @@ void check_restart_reboot(void)
       // to fully buffer. Refresh of a page after POST can take a few
       // seconds.
       if (t100ms_ctr1 > 9) {
-//        if (mqtt_enabled) restart_reboot_step = RESTART_REBOOT_DELETE_PIN_LOOP;
         if (mqtt_enabled) restart_reboot_step = RESTART_REBOOT_SENDOFFLINE;
 	else restart_reboot_step = RESTART_REBOOT_FINISH;
       // Clear 100ms timer to delay the next step
       t100ms_ctr1 = 0;
       }
     }
-
-/*
-    else if (restart_reboot_step == RESTART_REBOOT_DELETE_PIN_LOOP) {
-      // We can only get here is mqtt_enabled == 1
-      // This step is repeatedly entered to send Home Assistant Auto
-      // Discovery "delete pin" messages for any pin that changed its
-      // Input/Output or Enaabled/Disabled state.
-      // The delete_pin_register will have a "1" for any pin that
-      // needs a delete pin message sent. The register will be all
-      // zero if MQTT is disabled, HA Auto Discovery is disabled, or
-      // no pin needs a delete pin message sent.
-      if (t100ms_ctr1 > 1) { // Wait 100 ms between steps
-        if (delete_pin_input_register || delete_pin_output_register) {
-          // Registers are not zero so determine which pin requires sending
-	  // a delete pin message.
-	  j = 0x0001;
-          for(i=0; i<16; i++) {
-	    if (delete_pin_input_register & j) {
-	      delete_pin_input_register &= ~j; // Delete pin indicator in register
-	      // Send Config msg with blank payload for input pin
-              // Pin is an input. Create first part of topic
-              strcpy(topic_base, "homeassistant/binary_sensor/");
-	      j = 0x0000;
-            }
-	      
-	    if (delete_pin_output_register & j) {
-	      delete_pin_output_register &= ~j; // Delete pin indicator in register
-	      // Send Config msg with blank payload for output pin
-              // Pin is an Output. Create first part of topic
-              strcpy(topic_base, "homeassistant/switch/");
-	      j = 0x0000;
-            }
-	    
-	    if (j == 0x0000) {
-	      // Finish creating the Publish message and place in the
-	      // transmit buffer.
-              // Create pin number for topic in text format.
-              emb_itoa((i + 1), OctetArray, 10, 2);
-              strcat(topic_base, mac_string);
-              strcat(topic_base, "/");
-              strcat(topic_base, OctetArray);
-              strcat(topic_base, "/config");
-	      // Blank payload
-              app_message[0] = '\0';
-              // Publish
-              mqtt_publish(&mqttclient,
-                           topic_base,
-	                   app_message,
-	                   0,
-	                   MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-              // Clear 100ms timer to delay the next step
-              t100ms_ctr1 = 0;
-	      break;
-	    }
-	      
-	    // Advance register mask to check the next pin
-	    if (i == 15) {
-	      // All pins have been checked. Return to the main loop.
-	      // When the state machine is called again it will find
-	      // no further pins need messages and it will go on to
-	      // the next state machine step.
-              // Clear 100ms timer to delay the next step
-              t100ms_ctr1 = 0;
-	      break;
-	    }
-	    j = j<<1;
-	  }
-	  // From here we will exit the state machine and return to the main
-	  // loop. A subsequent call will return to this step in the state
-	  // machine to check if any other pin needs a delete pin message sent.
-        }
-        else {
-          // No delete pin messages need to be sent. Go on to the next state
-	  // machine step.
-	  restart_reboot_step = RESTART_REBOOT_SENDOFFLINE;
-	}
-      }
-    }
-*/
 
     else if ((restart_reboot_step == RESTART_REBOOT_SENDOFFLINE)
           && (t100ms_ctr1 > 1)) {
@@ -2608,6 +3014,135 @@ void check_restart_reboot(void)
 	restart();
       }
     }
+  }
+*/
+
+
+  if (restart_request == 1 || reboot_request == 1) {
+    // A restart or reboot has been requested. The restart and reboot
+    // requests are set in the check_runtime_changes() function if a restart
+    // or reboot is needed.
+    // The following needs to occur:
+    // 1) If the pin_delete_register indicates there are pins that
+    //    require an HA Auto Discovery "blank payload" message this
+    //    state machine will be called multiple times to send those
+    //    messages.
+    // 2) If MQTT is enabled run the mqtt_disconnect() function.
+    // 2a) Verify that mqtt disconnect was sent to the MQTT server.
+    // 2b) Call uip_close() for the MQTT TCP connection.
+    // 3) Verify that the close requests completed.
+    // 4) Run either the restart() function or the reboot() function.
+
+    switch(restart_reboot_step)
+    {
+    case RESTART_REBOOT_ARM:
+      // Clear 100ms timer to delay the next step
+      t100ms_ctr1 = 0;
+      restart_reboot_step = RESTART_REBOOT_ARM2;
+      break;
+
+    case RESTART_REBOOT_ARM2:
+      // Wait 1 second for anything in the process of being transmitted
+      // to fully buffer. Refresh of a page after POST can take a few
+      // seconds.
+      if (t100ms_ctr1 > 9) {
+        if (mqtt_enabled) restart_reboot_step = RESTART_REBOOT_SENDOFFLINE;
+	else restart_reboot_step = RESTART_REBOOT_FINISH;
+        // Clear 100ms timer to delay the next step
+        t100ms_ctr1 = 0;
+      }
+      break;
+
+    case RESTART_REBOOT_SENDOFFLINE:
+      if (t100ms_ctr1 > 1) {
+       // We can only get here is mqtt_enabled == 1
+       // Wait at least 100 ms before publishing availability message
+       if (mqtt_start == MQTT_START_COMPLETE) {
+          // Publish the availability "offline" message
+          strcpy(topic_base, devicetype);
+          strcat(topic_base, stored_devicename);
+          strcat(topic_base, "/availability");
+          mqtt_publish(&mqttclient,
+                       topic_base,
+                       "offline",
+                       7,
+                       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+        }
+        restart_reboot_step = RESTART_REBOOT_DISCONNECT;
+        // Clear time to delay the next step
+        t100ms_ctr1 = 0;
+      }
+      break;
+    
+    case RESTART_REBOOT_DISCONNECT:
+      if (t100ms_ctr1 > 2) {
+        // We can only get here is mqtt_enabled == 1
+        // The offline publish is given up to 200 ms to be communicated
+        // before performing mqtt_disconnect
+        if (mqtt_start == MQTT_START_COMPLETE) {
+          // Disconnect the MQTT client
+          mqtt_disconnect(&mqttclient);
+        }
+        restart_reboot_step = RESTART_REBOOT_TCPCLOSE;
+        // Clear time to delay the next step
+        t100ms_ctr1 = 0;
+      }
+      break;
+    
+    case RESTART_REBOOT_TCPCLOSE:
+      if (t100ms_ctr1 > 2) {
+        // We can only get here is mqtt_enabled == 1
+        // The mqtt_disconnect() is given up to 200 ms to be communicated
+        // before starting TCP close
+        // 
+        // The way a TCP connection close SHOULD work:
+        // 1) A uip_periodic() runs and uip_process(UIP_TIMER) is called
+        // 2) If a connection is in the ESTABLISHED state (meaning a TCP
+        //    connection is open) the uip_process() will make a UIP_APPCALL.
+        // 3) UIP_APPCALL calls the MQTT or HTTP application via
+        //    uip_TcpAppHubCall()
+        // 4) Before the application returns, if it wants to close the
+        //    connection, it should call uip_close()
+        // 5) The UIP code will then go to appsend: and will know to start the
+        //    TCP close process.
+        // So, it looks like all I need to do is make sure the APPCALL performs
+        // a uip_close() before returning to the UIP code. Then the regular
+        // uip_periodic() process should get the job done.
+        //
+        // Signal uip_TcpAppHubCall() to close the MQTT TCP connection
+        mqtt_close_tcp = 1;
+        // Clear time to delay the next step
+        t100ms_ctr1 = 0;
+        restart_reboot_step = RESTART_REBOOT_TCPWAIT;
+      }
+      break;
+      
+    case RESTART_REBOOT_TCPWAIT:
+      // We can only get here is mqtt_enabled == 1
+      // Verify closed ... how?
+      // For the moment I'm not sure how to do this, so I will just allow
+      // enough time for it to happen. That is probably much faster, but I
+      // will allow 500 ms.
+      if (t100ms_ctr1 > 5) {
+	mqtt_close_tcp = 0;
+        restart_reboot_step = RESTART_REBOOT_FINISH;
+      }
+      break;
+    
+    case RESTART_REBOOT_FINISH:
+      if (reboot_request == 1) {
+        restart_reboot_step = RESTART_REBOOT_IDLE;
+        // Hardware reboot
+        reboot();
+      }
+      if (restart_request == 1) {
+	restart_request = 0;
+        restart_reboot_step = RESTART_REBOOT_IDLE;
+	// Firmware restart
+	restart();
+      }
+      break;
+    } // end switch
   }
 }
 
@@ -2990,9 +3525,9 @@ void clear_eeprom_debug_bytes(void)
 
 #if DEBUG_SUPPORT == 2
   // Clear the general debug bytes
-  for (i = 0; i < NUM_DEBUG_BYTES - 5; i++) debug[i] = 0x00;
-  // Recover the "Reset Status Register" counters
-  for (i = 41; i < 46; i++) debug[i] = stored_debug[i];
+  for (i = 0; i < (NUM_DEBUG_BYTES - 10); i++) debug[i] = 0x00;
+  // Recover the debug bytes
+  for (i = 20; i < 30; i++) debug[i] = stored_debug[i];
   // Update EEPROM bytes that changed
   update_debug_storage1();
 #endif // DEBUG_SUPPORT == 2
@@ -3158,6 +3693,3 @@ void capture_uip_buf_receive()
   }
 }
 #endif // DEBUG_SUPPORT != 0      
-
-
-

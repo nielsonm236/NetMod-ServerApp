@@ -72,6 +72,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad);
 int hex2int(char ch);
+void int2hex(uint8_t i);
 
 void HttpDInit(void);
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);

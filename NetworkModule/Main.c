@@ -47,7 +47,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210126 0355";
+const char code_revision[] = "20210126 0527";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -970,8 +970,7 @@ void mqtt_startup(void)
       // sure any prior definition is deleted.
     
       // Create pin number for topic and payload in text format.
-//      emb_itoa((auto_pub_count + 1), OctetArray, 10, 2);
-      int2hex((uint8_t)(auto_pub_count + 1));
+      emb_itoa((auto_pub_count + 1), OctetArray, 10, 2);
       // Create the payload template. Note the payload may be
       // changed to empty for some cases.
       // Create % part of payload template
@@ -989,7 +988,7 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/switch/");
   	  // Payload is blank for delete pin msg
           app_message[0] = '\0';
-//	  auto_pub_toggle++;
+	  auto_pub_toggle++;
         }
         else if (auto_pub_toggle == 1) {
 	  // Next send an Input pin delete msg.
@@ -997,9 +996,9 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/binary_sensor/");
   	  // Payload is blank for delete pin msg
           app_message[0] = '\0';
-//	  auto_pub_toggle++;
+	  auto_pub_toggle++;
 	}
-        auto_pub_toggle++;
+//        auto_pub_toggle++;
       }
       
       if ((pin_control[auto_pub_count] & 0x01)
@@ -1010,7 +1009,7 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/switch/");
   	  // Create the O part of the payload
           app_message[1] = 'O';
-//	  auto_pub_toggle++;
+	  auto_pub_toggle++;
         }
         else if (auto_pub_toggle == 1) {
 	  // Next send an Input pin delete msg.
@@ -1018,9 +1017,9 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/binary_sensor/");
   	  // Payload is blank for delete pin msg
           app_message[0] = '\0';
-//	  auto_pub_toggle++;
+	  auto_pub_toggle++;
 	}
-        auto_pub_toggle++;
+//        auto_pub_toggle++;
       }
       
       if ((pin_control[auto_pub_count] & 0x01)
@@ -1031,7 +1030,7 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/binary_sensor/");
   	  // Create the I part of the payload
           app_message[1] = 'I';
-//	  auto_pub_toggle++;
+	  auto_pub_toggle++;
         }
         else if (auto_pub_toggle == 1) {
 	  // Next send an Output pin delete msg.
@@ -1039,9 +1038,9 @@ void mqtt_startup(void)
           strcpy(topic_base, "homeassistant/switch/");
   	  // Payload is blank for delete pin msg
           app_message[0] = '\0';
-//	  auto_pub_toggle++;
+	  auto_pub_toggle++;
 	}
-        auto_pub_toggle++;
+//        auto_pub_toggle++;
       }
       
       // Create the rest of the topic
@@ -1097,6 +1096,7 @@ void mqtt_startup(void)
     mqtt_start = MQTT_START_COMPLETE;
   }  
 */
+
 
   switch(mqtt_start)
   {
@@ -1348,7 +1348,7 @@ void mqtt_startup(void)
         // sure any prior definition is deleted.
     
         // Create pin number for topic and payload in text format.
-        int2hex((uint8_t)(auto_pub_count + 1));
+        emb_itoa((auto_pub_count + 1), OctetArray, 10, 2);
         // Create the payload template. Note the payload may be
         // changed to empty for some cases.
         // Create % part of payload template
@@ -1470,6 +1470,8 @@ void mqtt_startup(void)
     }
     break;
   } // end switch
+
+
 }
 
 
@@ -2058,8 +2060,7 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
   }
     
   // Add pin number to the topic message
-//  emb_itoa(pin, OctetArray, 10, 2);
-  int2hex(pin);
+  emb_itoa(pin, OctetArray, 10, 2);
   i = (uint8_t)strlen(topic_base);
   topic_base[i] = OctetArray[0];
   i++;

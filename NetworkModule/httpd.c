@@ -223,12 +223,12 @@ extern char Pending_mqtt_password[11];    // Temp storage for new MQTT Password
 extern uint8_t mqtt_start_status;         // Contains error status from the MQTT start process
 extern uint8_t MQTT_error_status;         // For MQTT error status display in GUI
 
-extern uint32_t RXERIF_counter;           // Counts RXERIF errors
-extern uint32_t TXERIF_counter;           // Counts TXERIF errors
+extern uint8_t RXERIF_counter;           // Counts RXERIF errors
+extern uint8_t TXERIF_counter;           // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;         // Counts any transmit
-extern uint32_t MQTT_resp_tout_counter;   // Counts response timeout events
-extern uint32_t MQTT_not_OK_counter;      // Counts MQTT != OK events
-extern uint32_t MQTT_broker_dis_counter;  // Counts broker disconnect events
+extern uint8_t MQTT_resp_tout_counter;   // Counts response timeout events
+extern uint8_t MQTT_not_OK_counter;      // Counts MQTT != OK events
+extern uint8_t MQTT_broker_dis_counter;  // Counts broker disconnect events
 extern uint32_t second_counter;           // Counts seconds since boot
 
 
@@ -797,16 +797,14 @@ static const char g_HtmlPageStats[] =
   "</head>"
   "<body>"
   "<table>"
-  "<tr><td>Runtime %e26</td></tr>"
-  "<tr><td>RXERIF %e27</td></tr>"
-  "<tr><td>TXERIF %e28</td></tr>"
-  "<tr><td>TRANSMIT %e29</td></tr>"
-  "<tr><td>R timeouts %e30</td></tr>"
-  "<tr><td>Not OK %e31</td></tr>"
-  "<tr><td>Disconnects %e32</td></tr>"
-  "<tr><td>Stack error %e33</td></tr>"
+  "<tr><td>31 %e31</td></tr>"
+  "<tr><td>32 %e32</td></tr>"
+  "<tr><td>33 %e33</td></tr>"
+  "<tr><td>34 %e34</td></tr>"
+  "<tr><td>35 %e35</td></tr>"
   "</table>"
   "<button onclick='location=`/61`'>Configuration</button>"
+  "<button onclick='location=`/67`'>Clear</button>"
   "<button onclick='location=`/66`'>Refresh</button>"
   "</body>"
   "</html>";
@@ -1148,12 +1146,12 @@ size = size - 1;
     size = size + page_string04_len_less4
                 + page_string05_len_less4;
 
-    // Account for Statistics fields %e26 to %e32
-    // There are 8 instances of these fields
+    // Account for Statistics fields %e31 to %e35
+    // There are 5 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (8 x (10 - 4));
-    // size = size + (8 x (6));
-    size = size + 48;
+    // size = size + (5 x (10 - 4));
+    // size = size + (5 x (6));
+    size = size + 30;
   }
 #endif // UIP_STATISTICS == 2
 
@@ -1247,9 +1245,22 @@ int hex2int(char ch)
   // Convert a single hex character to an integer (a nibble)
   // If the character is not hex -1 is returned
     if (ch >= '0' && ch <= '9') return ch - '0';
-//    if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
     if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
     return -1;
+}
+
+
+void int2hex(uint8_t i)
+{
+  uint8_t j;
+  // Convert a single integer into two hex characters (two nibbles).
+  // Put the result in global variable OctetArray.
+  j = (uint8_t)(i>>4);
+  if(j<=9) OctetArray[0] = (uint8_t)(j + '0');
+  else OctetArray[0] = (uint8_t)(j - 10 + 'a');
+  j = (uint8_t)(i & 0x0f);
+  if(j<=9) OctetArray[1] = (uint8_t)(j + '0');
+  else OctetArray[1] = (uint8_t)(j - 10 + 'a');
 }
 
 
@@ -1673,23 +1684,48 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 #if UIP_STATISTICS == 2
         else if (nParsedMode == 'e') {
-          switch (nParsedNum)
-	  {
-	    // Display the second counter and error counters. First convert to 10
-	    // digit Decimal.
-	    case 26:  emb_itoa(second_counter,          OctetArray, 10, 10); break;
-	    case 27:  emb_itoa(RXERIF_counter,          OctetArray, 10, 10); break;
-	    case 28:  emb_itoa(TXERIF_counter,          OctetArray, 10, 10); break;
-	    case 29:  emb_itoa(TRANSMIT_counter,        OctetArray, 10, 10); break;
-	    case 30:  emb_itoa(MQTT_resp_tout_counter,  OctetArray, 10, 10); break;
-	    case 31:  emb_itoa(MQTT_not_OK_counter,     OctetArray, 10, 10); break;
-	    case 32:  emb_itoa(MQTT_broker_dis_counter, OctetArray, 10, 10); break;
-	    case 33:  emb_itoa(stack_error,             OctetArray, 10, 10); break;
+          if (nParsedNum == 31) emb_itoa(second_counter, OctetArray, 10, 10);
+	  if (nParsedNum == 32) emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
+          if (nParsedNum == 31 || nParsedNum == 32) {
+	    for (i=0; i<10; i++) {
+              *pBuffer = OctetArray[i]; pBuffer++;
+	    }
 	  }
-	  for (i=0; i<10; i++) {
-            *pBuffer = OctetArray[i];
-            pBuffer++;
+          else if (nParsedNum == 33) {
+	    for (i=20; i<25; i++) {
+//	      emb_itoa(debug[i], OctetArray, 16, 2);
+              int2hex(stored_debug[i]);
+              *pBuffer = OctetArray[0]; pBuffer++;
+              *pBuffer = OctetArray[1]; pBuffer++;
+	    }
 	  }
+          else if (nParsedNum == 34) {
+	    for (i=25; i<30; i++) {
+//	      emb_itoa(debug[i], OctetArray, 16, 2);
+              int2hex(stored_debug[i]);
+              *pBuffer = OctetArray[0]; pBuffer++;
+              *pBuffer = OctetArray[1]; pBuffer++;
+	    }
+	  }
+          else if (nParsedNum == 35) {
+            *pBuffer = '0'; pBuffer++;
+            *pBuffer = '0'; pBuffer++;
+            *pBuffer = '0'; pBuffer++;
+            *pBuffer = '0'; pBuffer++;
+//	    emb_itoa(MQTT_resp_tout_counter, OctetArray, 16, 2);
+            int2hex(MQTT_resp_tout_counter);
+            *pBuffer = OctetArray[0]; pBuffer++;
+            *pBuffer = OctetArray[1]; pBuffer++;
+//	    emb_itoa(MQTT_not_OK_counter, OctetArray, 16, 2);
+            int2hex(MQTT_not_OK_counter);
+            *pBuffer = OctetArray[0]; pBuffer++;
+            *pBuffer = OctetArray[1]; pBuffer++;
+//	    emb_itoa(MQTT_broker_dis_counter, OctetArray, 16, 2);
+            int2hex(MQTT_broker_dis_counter);
+            *pBuffer = OctetArray[0]; pBuffer++;
+            *pBuffer = OctetArray[1]; pBuffer++;
+	  }
+
 	  nBytes += 10;
 	}
 #endif // UIP_STATISTICS == 2
@@ -1754,11 +1790,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // There is only 1 'g' ID so we don't need to check the nParsedNum.
 	  
 	  // Convert Config settngs byte into two hex characters
-          emb_itoa(stored_config_settings, OctetArray, 16, 2);
-          *pBuffer = OctetArray[0];
-          pBuffer++;
-          *pBuffer = OctetArray[1];
-          pBuffer++;
+//          emb_itoa(stored_config_settings, OctetArray, 16, 2);
+          int2hex(stored_config_settings);
+          *pBuffer = OctetArray[0]; pBuffer++;
+          *pBuffer = OctetArray[1]; pBuffer++;
           nBytes += 2;
 	}
 	
@@ -1784,11 +1819,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 		  else j |= 0x80;
 		}
 	      }
-	      emb_itoa(j, OctetArray, 16, 2);
-              *pBuffer = OctetArray[0];
-              pBuffer++;
-              *pBuffer = OctetArray[1];
-              pBuffer++;
+//	      emb_itoa(j, OctetArray, 16, 2);
+	      int2hex(j);
+              *pBuffer = OctetArray[0]; pBuffer++;
+              *pBuffer = OctetArray[1]; pBuffer++;
             }
             nBytes += 32;
 	  }
@@ -3207,7 +3241,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      
             case 67: // Clear statistics
 	      uip_init_stats();
-	      
 #if DEBUG_SUPPORT == 2
 	      // Clear the "Reset Status Register" counters. Important:
 	      // The actual debug bytes used need to be in sync with
@@ -3215,8 +3248,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // routine) and with the display processes in httpd.c.
 	      // The bytes used may change if the number of bytes
 	      // available to the debug area changes.
-	      for (i = 41; i < 46; i++) debug[i] = 0;
+	      for (i = 20; i < 30; i++) debug[i] = 0;
 	      update_debug_storage1();
+	      // Clear the MQTT statistics
+	      MQTT_resp_tout_counter = 0;
+	      MQTT_not_OK_counter = 0;
+	      MQTT_broker_dis_counter = 0;
 #endif // DEBUG_SUPPORT == 2
 
 	      current_webpage = WEBPAGE_STATS;

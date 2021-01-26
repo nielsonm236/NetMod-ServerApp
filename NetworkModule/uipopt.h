@@ -214,7 +214,8 @@
 // free up considerable space.
 // 0 = disabled
 // 1 = full statistics page for non-MQTT builds
-// 2 = error statistics page for MQTT builds
+// 2 = error statistics page for MQTT builds. DEBUG_SUPPTORT == 2 must also be
+//     enabled.
 #define UIP_STATISTICS  0
 
 
@@ -230,7 +231,8 @@
 // CHANGE AT ANY TIME. 'DISABLE' IS THE RECOMMENED SETTING FOR MOST NORMAL BUILDS.
 // 0 = disable
 // 1 = enable
-// 2 = enable with "Reset Status Register" data collection
+// 2 = enable with "Reset Status Register" data collection. UIP_STATISTICS == 2
+//     must also be enabled.
 #define DEBUG_SUPPORT 0
 
 

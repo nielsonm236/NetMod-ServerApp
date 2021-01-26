@@ -55,8 +55,8 @@
 extern uint8_t debug[NUM_DEBUG_BYTES];
 #endif // DEBUG_SUPPORT != 0
 
-extern uint32_t RXERIF_counter;       // Counts RXERIF errors
-extern uint32_t TXERIF_counter;       // Counts TXERIF errors
+extern uint8_t RXERIF_counter;       // Counts RXERIF errors
+extern uint8_t TXERIF_counter;       // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;     // Counts any transmit
 
 
@@ -261,7 +261,7 @@ extern uint8_t stored_config_settings; // Config settings stored in EEPROM
 extern uint8_t stored_uip_ethaddr_oct[6];
 
 // Transmit Status Vector storage
-uint8_t tsv_byte[7];
+// uint8_t tsv_byte[7];
 
 
 void select(void)
@@ -612,6 +612,12 @@ void Enc28j60Init(void)
     // cleared anyway.
     Enc28j60WritePhy(PHY_PHCON1, 0x0000);
   }
+  
+#if DEBUG_SUPPORT == 2
+  // Read the ENC28J60 revision level and store in debug[22];
+  debug[22] |= (uint8_t)(Enc28j60ReadReg(BANK3_EREVID));
+  update_debug_storage1();
+#endif // DEBUG_SUPPORT == 2
 
   // Enable Packet Reception
   Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_RXEN));
@@ -692,7 +698,7 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
   uint8_t txerif_temp;
 
   txerif_temp = 0;
-
+  
   // Wait for a previously buffered frame to be sent out completely
   // 
   // This workaround will wait for TXRTS to be cleared within a maximum of 100ms
@@ -913,11 +919,17 @@ wait_timer(10);  // Wait 10 uS
 }
 
 
+/*
 void read_TSV(void)
 {
   uint8_t saved_ERDPTL;
   uint8_t saved_ERDPTH;
   uint16_t tsv_start;
+  
+  // KEEP THIS CODE AROUND in case reading the TSV bytes is ever
+  // needed again. It came in handy for debugging the Ethernet
+  // interface, but now that it all seems to be working this code
+  // is sideline.
 
   // I don't find this in the spec, but from experimentation it seems a
   // few microseconds are needed for the TSV values to be stable
@@ -958,4 +970,4 @@ wait_timer(10);  // Wait 10 uS
   Enc28j60WriteReg(BANK0_ERDPTL, saved_ERDPTL);
   Enc28j60WriteReg(BANK0_ERDPTH, saved_ERDPTH);
 }
-
+*/

@@ -47,7 +47,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210126 0527";
+const char code_revision[] = "20210127 1112";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -2599,6 +2599,21 @@ void check_runtime_changes(void)
     //   EEPROM is updated but a restart is not needed
     update_EEPROM = 0;
     
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // Check the DS18B20 Enable bit. If enabled over-ride the pin_control
+    // byte for pins 15 and 16 to force them to all zero. This forces the
+    // disabled state and makes sure all other bits are in a neutral
+    // condition should the DS18B20 be Disabled at some future time.
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // if (config_settings & 0x08) {
+    //   Pending_pin_control[14] == 0x00;
+    //   Pending_pin_control[15] == 0x00;
+    // }
+
     for (i=0; i<16; i++) {
       if (pin_control[i] != Pending_pin_control[i]) {
         // Check for change in ON/OFF bit. This function ONLY changes an
@@ -2693,6 +2708,20 @@ void check_runtime_changes(void)
       // Save the "prior" config (Features) setting in case it is needed after
       // boot.
       stored_prior_config = stored_config_settings;
+      
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // Check for changes in the DS18B20 Enable bit of the Config.
+      // if ((Pending_config_settings & 0x08) != (stored_config_settings & 0x08)) {
+        // If this setting changes is a reboot is required because
+	// the IO configuration needs to be set up again.
+      //  user_reboot_request = 1;
+      // }
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      
       // Check for changes in the MQTT Enable bit of the Config
       // setting
       if ((Pending_config_settings & 0x04) != (stored_config_settings & 0x04)) {
@@ -3356,6 +3385,15 @@ void write_output_pins(void)
   
   // Invert the output if the Invert_word has the corresponding bit set.
   xor_tmp = (uint16_t)(Invert_word ^ ON_OFF_word);
+  
+  
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // Whe DS18B20 mode is enabled do not write Output 16 or 15
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   
   if (xor_tmp & 0x8000) PC_ODR |= (uint8_t)0x40;  // Output 16 off
   else                  PC_ODR &= (uint8_t)~0x40; // Output 16 on

@@ -68,9 +68,10 @@
 #define STATE_GOTPOST		9	// Client just sent a POST request
 #define STATE_PARSEPOST		10	// We are currently parsing the
                                         // client's POST-data
-#define STATE_SENDHEADER	11	// Next we send the HTTP header
-#define STATE_SENDDATA		12	// ... followed by data
-#define STATE_PARSEGET		13	// We are currently parsing the
+#define STATE_SENDHEADER200	11	// Next we send the HTTP 200 header
+#define STATE_SENDHEADER204	12	// Or we send the HTTP 204 header
+#define STATE_SENDDATA		13	// ... followed by data
+#define STATE_PARSEGET		14	// We are currently parsing the
                                         // client's GET-request
 #define STATE_NULL		127     // Signals no fragment reassembly info
                                         // present
@@ -539,7 +540,7 @@ static const char g_HtmlPageConfiguration[] =
             "<tr>"
                "<td>MAC Address</td>"
                "<td>"
-                 "<input name='d00' pattern='([0-9a-fA-F]{2}[:-]?){5}([0-9a-fA-F]{2})' title='aa:bb:cc:dd:ee:ff format' maxlength=17/>"
+                 "<input name='d00' required pattern='([0-9a-fA-F]{2}[:-]?){5}([0-9a-fA-F]{2})' title='aa:bb:cc:dd:ee:ff format' maxlength=17/>"
                "</td>"
             "</tr>"
             "<tr>"
@@ -583,7 +584,7 @@ static const char g_HtmlPageConfiguration[] =
             "</tr>"
          "<script>"
 
-	 "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},"
+         "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},"
 	 "r={retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),l=s('form'),p=Object.e"
 	 "ntries,d=parseInt,i=(t,e)=>d(t).toString(16).padStart(e,'0'),u=t=>t.map(t=>i(t,2)).join(''),$=t"
 	 "=>t.match(/.{2}/g).map(t=>d(t,16)),m=t=>encodeURIComponent(t),b=(t,e)=>(t=>s(`input[name=${t}]`"
@@ -591,24 +592,24 @@ static const char g_HtmlPageConfiguration[] =
 	 "(e))t.setAttribute(n,o)},g=(t,e)=>p(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>$"
 	 "{t[0]}</option>`).join(''),A=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&"
 	 "e)==e?'checked':''}>${o}`,E=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},y=()"
-	 "=>c.reload(),T=()=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0];return f('.i"
-	 "p',t=>{h(t,{title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}"
-	 "'})}),f('.port',t=>{h(t,{title:'Enter 10 to 65535',pattern:'[0-9]{2,5}',maxlength:5})}),f('.up "
-	 "input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',maxle"
-	 "ngth:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e]).join('.'))),n.forEach(e=>"
-	 "b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$(t.h00).forEach((t,e)=>{con"
-	 "st n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)}</select>`:'',l='#d'==c.h"
-	 "ash?`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><select name='p${e}'>${g(o,3&t)"
-	 "}</select></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerHTML=Array.from(p({'Full Du"
-	 "plex':1,'HA Auto':6,MQTT:4}),([t,e])=>A('g00',e,j,t)).join('</br>'),{r:()=>{E('GET','/91'),T()}"
-	 ",s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormData(l),r=t=>o.getAll(t).map"
-	 "(t=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t).split('.')))),n.forEach(t"
-	 "=>o.set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h0"
-	 "0',u($(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')"
-	 "])),o})().entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/',r+'&z00=0'),T()},l:y}})("
-	 "{b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%"
-	 "g00'});"
-	 
+	 "=>c.reload(),T=()=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0],v={required:"
+	 "!0};return f('.ip',t=>{h(t,{...v,title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)["
+	 "0-9])([.](?!$)|$)){4}'})}),f('.port',t=>{h(t,{...v,title:'Enter 10 to 65535',pattern:'[0-9]{2,5"
+	 "}',maxlength:5})}),f('.up input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. "
+	 "Blank for no entry.',maxlength:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e])"
+	 ".join('.'))),n.forEach(e=>b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$("
+	 "t.h00).forEach((t,e)=>{const n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)"
+	 "}</select>`:'',l='#d'==c.hash?`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><sele"
+	 "ct name='p${e}'>${g(o,3&t)}</select></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerH"
+	 "TML=Array.from(p({'Full Duplex':1,'HA Auto':6,MQTT:4}),([t,e])=>A('g00',e,j,t)).join('</br>'),{"
+	 "r:()=>{E('GET','/91'),T()},s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormDa"
+	 "ta(l),r=t=>o.getAll(t).map(t=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t)"
+	 ".split('.')))),n.forEach(t=>o.set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().repl"
+	 "ace(/[:-]/g,'')),o.set('h00',u($(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a})"
+	 ")),o.set('g00',u([r('g00')])),o})().entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/"
+	 "',r+'&z00=0'),T()},l:y}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c0"
+	 "1:'%c01',h00:'%h00',g00:'%g00'});"
+
             "%y01"
       "<p>Code Revision %w00<br/>"
         "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
@@ -694,11 +695,12 @@ const m = (data => {
           send_request("POST", "/", string_data + '&z00=0');
           wait_reboot();
         },
-        features_data = convert_from_hex(data.g00)[0];
+        features_data = convert_from_hex(data.g00)[0],
+        common_attributes = {required: true};
 
-    selector_apply_fn('.ip', (e) => { set_attributes(e, { title: 'Enter valid', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
-    selector_apply_fn('.port', (e) => { set_attributes(e, { title: 'Enter 10 to 65535', pattern: '[0-9]{2,5}', maxlength: 5 }); });
-    selector_apply_fn('.up input', (e) => { set_attributes(e, { title: '0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.', maxlength: 10, pattern: '[0-9a-zA-Z-_*.]{0,10}$' }); });
+    selector_apply_fn('.ip', (e) => { set_attributes(e, {...common_attributes, title: 'Enter valid', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
+    selector_apply_fn('.port', (e) => { set_attributes(e, {...common_attributes, title: 'Enter 10 to 65535', pattern: '[0-9]{2,5}', maxlength: 5 }); });
+    selector_apply_fn('.up input', (e) => { set_attributes(e, {title: '0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.', maxlength: 10, pattern: '[0-9a-zA-Z-_*.]{0,10}$' }); });
 
     ip_input_names.forEach((n) => set_input_value(n, convert_from_hex(data[n]).join('.')));
     port_input_names.forEach((n) => set_input_value(n, parse_int(data[n], 16)));
@@ -746,7 +748,8 @@ static const char g_HtmlPageStats[] =
   "<head>"
   "<title>Network Statistics</title>"
   "<link rel='icon' href='data:,'>"
-  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
+//  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
+  "<meta name='viewport' content='width=device-width'>"
   "<style>"
   ".t1 { width: 100px; }"
   ".t2 { width: 450px; }"
@@ -1281,6 +1284,7 @@ static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString)
 }
 
 
+// static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen, uint8_t type)
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
 {
   uint16_t nBytes;
@@ -1288,11 +1292,28 @@ static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
 
   nBytes = 0;
 
+/*
+  if (type == 200) {
+    nBytes += CopyStringP(&pBuffer, (const char *)(
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Length:"
+      ));
+  }
+  
+  if (type == 204) {
+    nBytes += CopyStringP(&pBuffer, (const char *)(
+      "HTTP/1.1 204 No Content\r\n"
+      "Content-Length:"
+      ));
+  }  
+*/
+
   nBytes += CopyStringP(&pBuffer, (const char *)(
     "HTTP/1.1 200 OK\r\n"
     "Content-Length:"
     ));
-  
+
+
   // This creates the "xxxxx" part of a 5 character "Content-Length:xxxxx" field in the pBuffer.
   emb_itoa(nDataLen, OctetArray, 10, 5);
   for (i=0; i<5; i++) {
@@ -1742,7 +1763,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  while( 1 ) {
 	    if (pin_control[i] & 0x02) {
 	      // This is an output
-	      if (pin_control[i] & 0x01) {
+	      if (pin_control[i] & 0x80) {
 	        // Output is ON
 		*pBuffer = '1';
                 pBuffer++;
@@ -1755,7 +1776,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             }
             else {
 	      // This is an input
-	      if (pin_control[i] & 0x01) {
+	      if (pin_control[i] & 0x80) {
 	        // Input is ON, invert if needed
 	        if (pin_control[i] & 0x04) *pBuffer = '0';
 	        else *pBuffer = '1';
@@ -2153,7 +2174,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	// A TCP Fragment cannot occur in pSocket->nState states
 	// STATE_CONNECTED, STATE_GET_G, STATE_GET_GE, STATE_GET_GET,
 	// STATE_POST_P, STATE_POST_PO, STATE_POST_POS, STATE_POST_POST,
-	// STATE_GOTGET, STATE_SENDHEADER, STATE_SENDDATA, STATE_PARSEGET.
+	// STATE_GOTGET, STATE_SENDHEADER200, STATE_SENDHEADER204,
+	// STATE_SENDDATA, STATE_PARSEGET.
       pSocket->ParseState = saved_parsestate;
         // saved_parsestate can be one of these: PARSE_CMD, PARSE_NUM10,
 	// PARSE_NUM1, PARSE_EQUAL, PARSE_VAL, PARSE_DELIM, PARSE_SLASH1,
@@ -2816,12 +2838,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // we no longer need to track anything for fragment reassembly as
 	    // we've already collected all useful information. nBytes may
 	    // still be > 0, but it won't be checked. nParseLeft will be zero,
-	    // causing us to enter STATE_SENDHEADER.
+	    // causing us to enter STATE_SENDHEADER204.
 	    //
-	    // If for some reason there is another fragment coming it will be
-	    // processed without any action being taken (maybe another
-	    // STATE_SENDHEADER will occur, but that will only repaint the
-	    // browser with what it already has).
 	    // There is no '&' delimiter after this POST value.
 	    //
             // The next two lines aren't needed because we are going to zero
@@ -2883,7 +2901,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    clear_saved_postpartial_all();
 	    // If the '&' delimiter was the last POST byte in this packet we
 	    // will exit the while loop and fall through to an exit without
-	    // going to STATE_SENDHEADER
+	    // going to STATE_SENDHEADER204
             if (nBytes == 0) {
 	      break; // Hit end of fragment but still have more to parse in
 	             // the next TCP Fragment. The next TCP Fragment will
@@ -2902,12 +2920,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         }
       }  // end of "while(nBytes != 0)" loop
       
-      // If nParseLeft == 0 we should enter STATE_SENDHEADER, but we clean up
-      // the fragment tracking pointers first.
+      // If nParseLeft == 0 we should enter STATE_SENDHEADER204, but we
+      // clean up the fragment tracking pointers first.
       //
       // If nParseLeft is > 0 we haven't received the whole POST yet. In that
-      // case we should not enter STATE_SENDHEADER until we finish receiving
-      // and parsing the whole POST.
+      // case we should not enter STATE_SENDHEADER204 until we finish
+      // receiving and parsing the whole POST.
       //
       // We also do not want the main.c loop to do any processing of the
       // Pending values collected so far until we've completed collecting ALL
@@ -2935,7 +2953,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	
 	// Signal the main.c processes that parsing is complete
 	parse_complete = 1;
-	pSocket->nState = STATE_SENDHEADER;
+	pSocket->nState = STATE_SENDHEADER204;
 	
 	// Patch: ON CHROME ONLY: When 'Save' is clicked after changing from
 	// the IOControl page to the Configuration page for some reason no
@@ -2963,7 +2981,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	// send more POST data. This should arrive in subsequent packets. The
 	// remote host is not expecting a CLOSE connection until we are done
 	// receiving all POST data. The CLOSE will happen as part of the
-	// STATE_SENDHEADER and STATE_SENDDATA processes.
+	// STATE_SENDHEADER204 process.
 	//
         // Note on TCP Fragment reassembly: When the MSS is smaller than the
 	// size of the packets that the remote host wants to send it will
@@ -3296,49 +3314,69 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         }
 
         if (pSocket->ParseState == PARSE_FAIL) {
-          // Parsing failed above. By going to STATE_SENDHEADER we will
-	  // repaint the page already sent. While inefficient this will
-	  // satisfy the browser's need for a reply when it requests
-	  // favicon.ico or whatever else it requests that we don't have.
-          pSocket->nState = STATE_SENDHEADER;
+          // Parsing failed above. By going to STATE_SENDHEADER200 
+	  // javascript should repaint the page already sent. While
+	  // inefficient this will satisfy the browser's need for a
+	  // reply when it requests favicon.ico or whatever else it
+	  // requests that we don't have.
+          pSocket->nState = STATE_SENDHEADER200;
 	  break;
 	}
 
         if (pSocket->nParseLeft == 0) {
           // Finished parsing ... even if nBytes is not zero
 	  // Send the response
-          pSocket->nState = STATE_SENDHEADER;
+          pSocket->nState = STATE_SENDHEADER200;
           break;
         }
       }
     }
-    
-    if (pSocket->nState == STATE_SENDHEADER) {
-      // This step is entered after POST or GET processing is complete. The
-      // intent is to send an appropriate web page in response to the POST or
-      // GET. After a POST the POST was sent to is returned. After a GET the
-      // page requested by the GET is returned. In the uip_send() call we
-      // we provide the CopyHttpHeader function with the length of the web
-      // page. If no page is being returned a length of zero is provided to
-      // CopyHttpHeader(). In some cases (where we are not ready to send the
-      // web page and just want to go on to the next incoming packet) we will
-      // send no data. In that case pSocket->nDataLeft will be zero when we
-      // call CopyHttpHeader.
-      //
-      // Comment: After a POST it is no longer necessary to send the
-      // IOControl or Configuration page to update the browser. Javascript
-      // already does that update by performing a GET. It doesn't hurt to
-      // send the page, it just gets ignored. But is DOES consume transmit
-      // bandwidth and takes over 1 second to send all packets. If for some
-      // reason we wanted to stop that transmission from occurring the header
-      // needs to be replaced with a "HTTP 204 No Content" header, but it
-      // doesn't seem necessary and to do so would require more code.
+
+/*
+    if (pSocket->nState == STATE_SENDHEADER200) {
+      // This step is entered after GET processing is complete in order to
+      // send an appropriate web page. In the uip_send() call we provide the
+      // CopyHttpHeader function with the length of the web page. If no page
+      // is being returned a length of zero is provided to CopyHttpHeader().
       
-      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
+      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(), 200));
       pSocket->nState = STATE_SENDDATA;
       return;
     }
     
+    if (pSocket->nState == STATE_SENDHEADER204) {
+      // This step is entered after POST is complete. The Header must be a
+      // "204 No Content" header, and no data is sent after a POST. The
+      // javascript in the IOControl and Configuration pages generates a GET
+      // request to update the Browser page after the POST is sent.
+      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, 0, 204));
+//      uip_close();
+      return;
+    }
+*/
+
+    if ((pSocket->nState == STATE_SENDHEADER200) || (pSocket->nState == STATE_SENDHEADER204)) {
+      if (pSocket->nState == STATE_SENDHEADER200) {
+        // This step is entered after GET processing is complete in order to
+        // send an appropriate web page. In the uip_send() call we provide the
+        // CopyHttpHeader function with the length of the web page. If no page
+        // is being returned a length of zero is provided to CopyHttpHeader().
+        uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
+        pSocket->nState = STATE_SENDDATA;
+      }
+      else {
+        // This step is entered after POST is complete. Content Length: 0 must
+	// be returned in this case and we must send no data. The javascript in
+	// the IOControl and Configuration pages generates a GET request to
+	// update the Browser page after the POST is sent.
+	//
+	// Note: It is not clear if some browsers require a "204 No Content"
+	// header. This appears to work just returning a Content Length: 0.
+	uip_send(uip_appdata, CopyHttpHeader(uip_appdata, 0));
+      }
+      return;
+    }
+
     senddata:
     if (pSocket->nState == STATE_SENDDATA) {
       // We have sent the HTML Header or HTML Data previously. Now we send
@@ -3375,6 +3413,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   else if (uip_rexmit()) {
     if (pSocket->nPrevBytes == 0xFFFF) {
       /* Send header again */
+//      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(), 200));
       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
     }
     else {
@@ -3403,8 +3442,9 @@ void update_ON_OFF(uint8_t i, uint8_t j)
   // Verify that pin is an output and it is enabled. If so
   // update the ON/OFF state. Otherwise the command is ignored.
   if ((pin_control[i] & 0x01) && (pin_control[i] & 0x02)) {
-    if (j==0) pin_control[i] &= (uint8_t)(~0x80);
-    else pin_control[i] |= (uint8_t)0x80;
+    Pending_pin_control[i] = pin_control[i];
+    if (j==0) Pending_pin_control[i] &= (uint8_t)(~0x80);
+    else Pending_pin_control[i] |= (uint8_t)0x80;
     parse_complete = 1;
   }
 }

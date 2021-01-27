@@ -67,6 +67,7 @@ struct tHttpD
 uint16_t adjust_template_size(void);
 
 static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString);
+// static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen, uint8_t type);
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen);
 static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pDataLeft, uint16_t nMaxBytes);
 

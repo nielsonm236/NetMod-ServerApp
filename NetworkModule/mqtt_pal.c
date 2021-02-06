@@ -145,7 +145,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   char* pBuffer;
   char* mBuffer;
   char temp_buf[6];
-  char temp[60];
+//  char temp[60];
   uint16_t payload_size;
   uint8_t devicename_size;
   uint8_t mac_string_size;
@@ -288,7 +288,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         }
         if (temp_buf[3] == 'T') {
           // This is a Temperature Sensor auto discovery message
-          payload_size = 232; // Payload without devicename
+          payload_size = 251; // Payload without devicename
         }
 	// Add device name size to payload size
         payload_size += (3 * devicename_size);
@@ -403,7 +403,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// "avty_t":"~/availability",               // 26
 	// "stat_t":”~/temp/16",                    // 21
 //	// "dev_cla":"temperature",                 // -- 24 --
-//      // "unit_of_meas":"C",                      // -- 19 --
+        // "unit_of_meas":"C",                      // 19
 	// "dev":{                                  // 7
 	// "ids":["NetworkModule_aabbccddeeff"],    // 37
 	// "mdl":"HW-584",                          // 15
@@ -412,88 +412,175 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// "sw":"20210204 0311"                     // 20
 	// }                                        // 1
 	// }                                        // 1
-        //                                          // Total: 232 plus 3 x devicename
+        //                                          // Total: 251 plus 3 x devicename
+
 
         // The string "temp" is used to construct pieces of the payload then
         // those pieces are copied to the uip_buf using the pBuffer pointer.
         // "temp" is a maximum of 50 characters.
-        strcpy(temp, "{\"uniq_id\":\"");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-    
+//        strcpy(temp, "{\"uniq_id\":\"");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "{\"uniq_id\":\""
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+	#undef HA_APPMSG
+
         for (i=0; i<mac_string_size; i++) { *pBuffer = mac_string[i]; pBuffer++; }
    
-        if (temp_buf[3] == 'O') strcpy(temp, "_output_");
-        if (temp_buf[3] == 'I') strcpy(temp, "_input_");
-        if (temp_buf[3] == 'T') strcpy(temp, "_temp_");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
-    
-        strcpy(temp, "\",\"name\":\"");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-     
-        for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
-    
-        if (temp_buf[3] == 'O') strcpy(temp, " output ");
-        if (temp_buf[3] == 'I') strcpy(temp, " input ");
-        if (temp_buf[3] == 'T') strcpy(temp, " temp ");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
-    
-        strcpy(temp, "\",\"~\":\"NetworkModule/");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
-        for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
-        
-        strcpy(temp, "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
-        if (temp_buf[3] == 'O') strcpy(temp, "output/");
-        if (temp_buf[3] == 'I') strcpy(temp, "input/");
-        if (temp_buf[3] == 'T') strcpy(temp, "temp/");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
-    
-        strcpy(temp, "\",");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+//        if (temp_buf[3] == 'O') strcpy(temp, "_output_");
+//        if (temp_buf[3] == 'I') strcpy(temp, "_input_");
+//        if (temp_buf[3] == 'T') strcpy(temp, "_temp_");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        if (temp_buf[3] == 'O') {
+          #define HA_APPMSG "_output_"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'I') {
+          #define HA_APPMSG "_input_"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'T') {
+          #define HA_APPMSG "_temp_"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
 
+        *pBuffer = temp_buf[4];  // Input or Output number
+        pBuffer++;
+        *pBuffer = temp_buf[5];
+        pBuffer++; 
+    
+//        strcpy(temp, "\",\"name\":\"");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\",\"name\":\""
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
+
+        for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
+    
+//        if (temp_buf[3] == 'O') strcpy(temp, " output ");
+//        if (temp_buf[3] == 'I') strcpy(temp, " input ");
+//        if (temp_buf[3] == 'T') strcpy(temp, " temp ");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        if (temp_buf[3] == 'O') {
+          #define HA_APPMSG " output "
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'I') {
+          #define HA_APPMSG " input "
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'T') {
+          #define HA_APPMSG " temp "
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+
+        *pBuffer = temp_buf[4];  // Input or Output number
+        pBuffer++;
+        *pBuffer = temp_buf[5];
+        pBuffer++; 
+    
+//        strcpy(temp, "\",\"~\":\"NetworkModule/");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\",\"~\":\"NetworkModule/"
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
+
+        for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
+        
+//        strcpy(temp, "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/"
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
+
+//        if (temp_buf[3] == 'O') strcpy(temp, "output/");
+//        if (temp_buf[3] == 'I') strcpy(temp, "input/");
+//        if (temp_buf[3] == 'T') strcpy(temp, "temp/");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        if (temp_buf[3] == 'O') {
+          #define HA_APPMSG "output/"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'I') {
+          #define HA_APPMSG "input/"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'T') {
+          #define HA_APPMSG "temp/"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+
+        *pBuffer = temp_buf[4];  // Input or Output number
+        pBuffer++;
+        *pBuffer = temp_buf[5];
+        pBuffer++; 
+    
+//        strcpy(temp, "\",");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\","
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
 
         // Special case for output pin
         if (temp_buf[3] == 'O') {
-          strcpy(temp, "\"cmd_t\":\"~/output/");
-          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
+//          strcpy(temp, "\"cmd_t\":\"~/output/");
+//          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+          #define HA_APPMSG "\"cmd_t\":\"~/output/"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	  
           *pBuffer = temp_buf[4];  // Input or Output number
           pBuffer++;
           *pBuffer = temp_buf[5];
           pBuffer++;
     
-          strcpy(temp, "/set\",");
-          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+//          strcpy(temp, "/set\",");
+//          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+          #define HA_APPMSG "/set\","
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
         }
 
-
-//        // Special case for temperatue pin
-//        if (temp_buf[3] == 'T') {
-//	  strcpy(temp, "\"dev_cla\":\"temperature\",");
+        // Special case for temperature pin
+        if (temp_buf[3] == 'T') {
+//          strcpy(temp, "\unit_of_meas\":\"C\",");
 //          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-//	}
+          #define HA_APPMSG "\unit_of_meas\":\"C\","
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
 
-
-
-        strcpy(temp, "\"dev\":{\"ids\":[\"NetworkModule_");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+//        strcpy(temp, "\"dev\":{\"ids\":[\"NetworkModule_");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\"dev\":{\"ids\":[\"NetworkModule_"
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+	#undef HA_APPMSG
         
         for (i=0; i<mac_string_size; i++) { *pBuffer = mac_string[i]; pBuffer++; }
 
@@ -502,18 +589,30 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// the \" escape sequence will compile into a single byte (0x22). Thus
 	// the compiled string is 48 bytes, rather than the 59 that includes
 	// the escape character.
-        strcpy(temp, "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\"");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+//        strcpy(temp, "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\"");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\""
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
         
         for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
         
-        strcpy(temp, "\",\"sw\":\"");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+//        strcpy(temp, "\",\"sw\":\"");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\",\"sw\":\""
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
         
         for (i=0; i<strlen(code_revision); i++) { *pBuffer = code_revision[i]; pBuffer++; }
         
-        strcpy(temp, "\"}}");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+//        strcpy(temp, "\"}}");
+//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\"}}"
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
 
         // Now insert the new remaining length value in the uip_buf. It was
 	// stored in temp_buf[0] and temp_buf[1] earlier.
@@ -541,7 +640,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
               // UIP code uses the uip_slen value.
 }
 
-  
+
 int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz) {
   // This function will check if there is any data in the receive buffer and
   // report the size of that data to the MQTT calling process.

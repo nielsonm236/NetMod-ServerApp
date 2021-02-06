@@ -369,13 +369,7 @@ static const char g_HtmlPageIOControl[] =
             "%y01"
       "<p/>"
       "%y02`/61`'>Configuration</button>"
-      "<p>"
-         "Temperature Sensor 1 %t00<br>"
-         "Temperature Sensor 2 %t01<br>"
-         "Temperature Sensor 3 %t02<br>"
-         "Temperature Sensor 4 %t03<br>"
-         "Temperature Sensor 5 %t04<br>"
-      "</p>"
+      "%t00%t01%t02%t03%t04"
    "</body>"
 "</html>";
 
@@ -972,11 +966,44 @@ uint16_t adjust_template_size()
 #endif // UIP_STATISTICS == 1
 
     // Account for Temperature Sensor insertion %t00 to %t04
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (6 - 4));
-    // size = size + (5 x 2);
-    size = size + 10;
-
+    // Each of these insertions can have a different length due to the
+    // text around them. If DS18B20 is NOT enabled we only need to
+    // subtract the size of the 5 placeholders.
+    //
+    if (stored_config_settings & 0x08) {
+      //  %t00 "<p>Temperature Sensors<br> 1 " plus 6 bytes of data
+      //    29 bytes of text plus 6 bytes of data = 35
+      //    size = size + 35 - 4
+      size = size + 31;
+      //
+      //  %t01 "<br> 2 " plus 6 bytes of data
+      //    7 bytes of text plus 6 bytes of data = 35
+      //    size = size + 13 - 4
+      size = size + 9;
+      //
+      //  %t02 "<br> 3 " plus 6 bytes of data
+      //    7 bytes of text plus 6 bytes of data = 35
+      //    size = size + 13 - 4
+      size = size + 9;
+      //
+      //  %t03 "<br> 4 " plus 6 bytes of data
+      //    7 bytes of text plus 6 bytes of data = 35
+      //    size = size + 13 - 4
+      size = size + 9;
+      //
+      //  %t04 "<br> 5 " plus 6 bytes of data plus "<br></p>"
+      //    7 bytes of text
+      //    plus 6 bytes of data
+      //    plus 8 bytes of text = 35
+      //    size = size + 21 - 4
+      size = size + 17;
+    }
+    else {
+      // Subtract the size of the placeholders as they won't be used
+      // size = size - (5 x 4)
+      size = size - 20;
+    }
+    
     // Account for Text Replacement insertion
     // Some strings appear frequently in the templates - things like the
     // button titles which appear when hovering over a button. These strings
@@ -1904,15 +1931,63 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           nBytes++;
 	}
 
-        else if (nParsedMode == 't') {
+        else if ((nParsedMode == 't') && (stored_config_settings & 0x08)) {
 	  // This displays temperature sensor data (5 sets of 6 characters)
+	  // and the text fields around that data IF DS18B20 mode is enabled
+          if (nParsedNum == 0) {
+	    #define TEMPTEXT "<p>Temperature Sensors<br> 1 "
+            strcpy(pBuffer, TEMPTEXT);
+            pBuffer += strlen(TEMPTEXT);
+	    nBytes += strlen(TEMPTEXT);
+            #undef TEMPTEXT
+	    goto showdata;
+	    }
+          if (nParsedNum == 1) {
+	    #define TEMPTEXT " C<br> 2 "
+            strcpy(pBuffer, TEMPTEXT);
+            pBuffer += strlen(TEMPTEXT);
+	    nBytes += strlen(TEMPTEXT);
+            #undef TEMPTEXT
+	    goto showdata;
+	  }
+          if (nParsedNum == 2) {
+	    #define TEMPTEXT " C<br> 3 "
+            strcpy(pBuffer, TEMPTEXT);
+            pBuffer += strlen(TEMPTEXT);
+	    nBytes += strlen(TEMPTEXT);
+            #undef TEMPTEXT
+	    goto showdata;
+	  }
+          if (nParsedNum == 3) {
+	    #define TEMPTEXT " C<br> 4 "
+            strcpy(pBuffer, TEMPTEXT);
+            pBuffer += strlen(TEMPTEXT);
+	    nBytes += strlen(TEMPTEXT);
+            #undef TEMPTEXT
+	    goto showdata;
+	  }
+          if (nParsedNum == 4) {
+	    #define TEMPTEXT " C<br> 5 "
+            strcpy(pBuffer, TEMPTEXT);
+            pBuffer += strlen(TEMPTEXT);
+	    nBytes += strlen(TEMPTEXT);
+            #undef TEMPTEXT
+	  }
+	  showdata:
           for(i=0; i<6; i++) {
             *pBuffer = DS18B20_string[nParsedNum][i];
             pBuffer++;
             nBytes++;
 	  }
+          if (nParsedNum == 4) {
+	    #define TEMPTEXT " C<br></p>"
+            strcpy(pBuffer, TEMPTEXT);
+            pBuffer += strlen(TEMPTEXT);
+	    nBytes += strlen(TEMPTEXT);
+            #undef TEMPTEXT
+	  }
 	}
-	
+
         else if (nParsedMode == 'w') {
 	  // This displays Code Revision information (13 characters)
           for(i=0; i<13; i++) {
@@ -1997,11 +2072,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	      break;
 	      
 	    case 5:
-	      // %y05 replaced with second header string 
+	      // %y05 replaced with second header string
               *pBuffer = (uint8_t)page_string05[i];
 	      insertion_flag[0]++;
 	      if (insertion_flag[0] == page_string05_len) insertion_flag[0] = 0;
 	      break;
+	      
 	    default: break;
 	  }
           pBuffer++;

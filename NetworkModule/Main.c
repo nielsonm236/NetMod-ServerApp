@@ -48,7 +48,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210206 0231";
+const char code_revision[] = "20210206 2334";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -1918,7 +1918,7 @@ void publish_temperature(uint8_t sensor)
     strcat(topic_base, "/temp/");
     
     // Add sensor number to the topic message
-    emb_itoa(sensor, OctetArray, 10, 2);
+    emb_itoa((sensor + 1), OctetArray, 10, 2);
     i = (uint8_t)strlen(topic_base);
     topic_base[i] = OctetArray[0];
     i++;
@@ -1929,12 +1929,13 @@ void publish_temperature(uint8_t sensor)
     
     // Build the application message
     strcpy(app_message, DS18B20_string[sensor]);
+    strcpy(app_message, " C");
     
     // Queue publish message
     mqtt_publish(&mqttclient,
                  topic_base,
                  app_message,
-                 strlen(app_message),
+                 8,
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   }
 }

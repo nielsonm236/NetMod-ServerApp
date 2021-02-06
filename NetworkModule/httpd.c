@@ -232,6 +232,10 @@ extern uint8_t MQTT_not_OK_counter;      // Counts MQTT != OK events
 extern uint8_t MQTT_broker_dis_counter;  // Counts broker disconnect events
 extern uint32_t second_counter;           // Counts seconds since boot
 
+// DS18B20 variables
+extern uint8_t DS18B20_string[5][7];  // Stores the temperature measurement for the
+                                      // DS18B20s
+
 
 //---------------------------------------------------------------------------//
 // Notes on web pages:
@@ -278,8 +282,8 @@ extern uint32_t second_counter;           // Counts seconds since boot
 //   variation in the length of the actual data transmitted.
 //
 // - IMPORTANT: Be sure to carefully update the adjust_template_size function
-//   if any changes are made to the amount of text being replaced in the
-//   templates.
+//   if any changes are made to the %xxx text replacement markers and strings
+//   in the templates.
 //
 // - The templates include the line
 //   "<link rel='icon' href='data:,'>".
@@ -365,12 +369,20 @@ static const char g_HtmlPageIOControl[] =
             "%y01"
       "<p/>"
       "%y02`/61`'>Configuration</button>"
+      "<p>"
+         "Temperature Sensor 1 %t00<br>"
+         "Temperature Sensor 2 %t01<br>"
+         "Temperature Sensor 3 %t02<br>"
+         "Temperature Sensor 4 %t03<br>"
+         "Temperature Sensor 5 %t04<br>"
+      "</p>"
    "</body>"
 "</html>";
 
 
 
 /*
+// Credit to Jevdeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
 // 2) Copy the resulting minified script to an editor and replace all double quotes with
@@ -584,31 +596,30 @@ static const char g_HtmlPageConfiguration[] =
             "</tr>"
          "<script>"
 
-         "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},"
-	 "r={retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),l=s('form'),p=Object.e"
-	 "ntries,d=parseInt,i=(t,e)=>d(t).toString(16).padStart(e,'0'),u=t=>t.map(t=>i(t,2)).join(''),$=t"
-	 "=>t.match(/.{2}/g).map(t=>d(t,16)),m=t=>encodeURIComponent(t),b=(t,e)=>(t=>s(`input[name=${t}]`"
-	 "))(t).value=e,f=(t,e)=>{for(const n of a.querySelectorAll(t))e(n)},h=(t,e)=>{for(const[n,o]of p"
-	 "(e))t.setAttribute(n,o)},g=(t,e)=>p(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>$"
-	 "{t[0]}</option>`).join(''),A=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&"
-	 "e)==e?'checked':''}>${o}`,E=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},y=()"
-	 "=>c.reload(),T=()=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0],v={required:"
-	 "!0};return f('.ip',t=>{h(t,{...v,title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)["
-	 "0-9])([.](?!$)|$)){4}'})}),f('.port',t=>{h(t,{...v,title:'Enter 10 to 65535',pattern:'[0-9]{2,5"
-	 "}',maxlength:5})}),f('.up input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. "
-	 "Blank for no entry.',maxlength:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e])"
-	 ".join('.'))),n.forEach(e=>b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$("
-	 "t.h00).forEach((t,e)=>{const n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)"
-	 "}</select>`:'',l='#d'==c.hash?`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><sele"
-	 "ct name='p${e}'>${g(o,3&t)}</select></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerH"
-	 "TML=Array.from(p({'Full Duplex':1,'HA Auto':6,MQTT:4}),([t,e])=>A('g00',e,j,t)).join('</br>'),{"
-	 "r:()=>{E('GET','/91'),T()},s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormDa"
-	 "ta(l),r=t=>o.getAll(t).map(t=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t)"
-	 ".split('.')))),n.forEach(t=>o.set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().repl"
-	 "ace(/[:-]/g,'')),o.set('h00',u($(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a})"
-	 ")),o.set('g00',u([r('g00')])),o})().entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/"
-	 "',r+'&z00=0'),T()},l:y}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c0"
-	 "1:'%c01',h00:'%h00',g00:'%g00'});"
+         "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},r="
+	 "{retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),l=s('form'),p=Object.entri"
+	 "es,d=parseInt,i=(t,e)=>d(t).toString(16).padStart(e,'0'),u=t=>t.map(t=>i(t,2)).join(''),$=t=>t.ma"
+	 "tch(/.{2}/g).map(t=>d(t,16)),m=t=>encodeURIComponent(t),b=(t,e)=>(t=>s(`input[name=${t}]`))(t).va"
+	 "lue=e,f=(t,e)=>{for(const n of a.querySelectorAll(t))e(n)},h=(t,e)=>{for(const[n,o]of p(e))t.setA"
+	 "ttribute(n,o)},g=(t,e)=>p(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>${t[0]}</opti"
+	 "on>`).join(''),A=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&e)==e?'checked"
+	 "':''}>${o}`,E=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},y=()=>c.reload(),T=("
+	 ")=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0],S={required:!0};return f('.ip'"
+	 ",t=>{h(t,{...S,title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4"
+	 "}'})}),f('.port',t=>{h(t,{...S,title:'Enter 10 to 65535',pattern:'[0-9]{2,5}',maxlength:5})}),f('"
+	 ".up input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',max"
+	 "length:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e]).join('.'))),n.forEach(e=>"
+	 "b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$(t.h00).forEach((t,e)=>{const"
+	 " n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)}</select>`:'',l='#d'==c.hash?"
+	 "`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><select name='p${e}'>${g(o,3&t)}</sel"
+	 "ect></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerHTML=Array.from(p({'Full Duplex':1,"
+	 "'HA Auto':6,MQTT:4,DS18B20:8}),([t,e])=>A('g00',e,j,t)).join('</br>'),{r:()=>{E('GET','/91'),T()}"
+	 ",s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormData(l),r=t=>o.getAll(t).map(t"
+	 "=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t).split('.')))),n.forEach(t=>o."
+	 "set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u($"
+	 "(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})("
+	 ").entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/',r+'&z00=0'),T()},l:y}})({b00:'%b00"
+	 "',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00'});"
 
             "%y01"
       "<p>Code Revision %w00<br/>"
@@ -622,6 +633,7 @@ static const char g_HtmlPageConfiguration[] =
 
 
 /*
+// Credit to Jevdeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
 // 2) Copy the resulting minified script to an editor and replace all double quotes with
@@ -636,7 +648,7 @@ static const char g_HtmlPageConfiguration[] =
 const m = (data => {
     const ip_input_names = ['b00', 'b04', 'b08', 'b12'],
         port_input_names = ['c00', 'c01'],
-        features = { "Full Duplex": 1, "HA Auto": 6, "MQTT": 4 },
+        features = { "Full Duplex": 1, "HA Auto": 6, "MQTT": 4, "DS18B20": 8 },
         pin_types = { "disabled": 0, "input": 1, "output": 3 },
         boot_state = { "retain": 8, "on": 16, "off": 0 },
         doc=document,
@@ -796,7 +808,7 @@ static const char g_HtmlPageStats[] =
 // Statistics page Template
 #define WEBPAGE_STATS		5
 static const char g_HtmlPageStats[] =
-"%y04%y05"
+  "%y04%y05"
   "</head>"
   "<body>"
   "<table>"
@@ -834,11 +846,11 @@ static const char g_HtmlPageSstate[] =
 
 // String for %y01 replacement in web page templates
 static const char page_string01[] =
-         "</script>"
-         "</table>"
-         "<p/>"
-         "<button type=submit>Save</button> <button type=reset onclick='m.l()'>Undo All</button>"
-      "</form>";
+  "</script>"
+  "</table>"
+  "<p/>"
+  "<button type=submit>Save</button> <button type=reset onclick='m.l()'>Undo All</button>"
+  "</form>";
 static const uint8_t page_string01_len = sizeof(page_string01) - 1;
 static const uint8_t page_string01_len_less4 = sizeof(page_string01) - 5;
 // STRING LENGTH MUST BE LESS THAN 256
@@ -958,6 +970,12 @@ uint16_t adjust_template_size()
     // size = size + (strlen(page_string03) - 4);
     size = size + page_string03_len_less4;
 #endif // UIP_STATISTICS == 1
+
+    // Account for Temperature Sensor insertion %t00 to %t04
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (6 - 4));
+    // size = size + (5 x 2);
+    size = size + 10;
 
     // Account for Text Replacement insertion
     // Some strings appear frequently in the templates - things like the
@@ -1247,9 +1265,9 @@ int hex2int(char ch)
 {
   // Convert a single hex character to an integer (a nibble)
   // If the character is not hex -1 is returned
-    if (ch >= '0' && ch <= '9') return ch - '0';
-    if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
-    return -1;
+  if (ch >= '0' && ch <= '9') return ch - '0';
+  if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+  return -1;
 }
 
 
@@ -1292,27 +1310,10 @@ static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
 
   nBytes = 0;
 
-/*
-  if (type == 200) {
-    nBytes += CopyStringP(&pBuffer, (const char *)(
-      "HTTP/1.1 200 OK\r\n"
-      "Content-Length:"
-      ));
-  }
-  
-  if (type == 204) {
-    nBytes += CopyStringP(&pBuffer, (const char *)(
-      "HTTP/1.1 204 No Content\r\n"
-      "Content-Length:"
-      ));
-  }  
-*/
-
   nBytes += CopyStringP(&pBuffer, (const char *)(
     "HTTP/1.1 200 OK\r\n"
     "Content-Length:"
     ));
-
 
   // This creates the "xxxxx" part of a 5 character "Content-Length:xxxxx" field in the pBuffer.
   emb_itoa(nDataLen, OctetArray, 10, 5);
@@ -1506,6 +1507,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         // %n - MQTT Status - Displays red or green boxes to indicate startup
 	//      status for MQTT (Connection Available, ARP OK, TCP OK, Connect
 	//      OK, MQTT_OK). Output only.
+	// %t - Temperature Sensor data. Output only.
 	// %w - Code Revision. Output only.
         // %y - Indicates the need to insert one of several commonly occuring
 	//      HTML strings. This is to aid in compressing the web page
@@ -1714,7 +1716,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  }
           else if (nParsedNum == 33) {
 	    for (i=20; i<25; i++) {
-//	      emb_itoa(debug[i], OctetArray, 16, 2);
               int2hex(stored_debug[i]);
               *pBuffer = OctetArray[0]; pBuffer++;
               *pBuffer = OctetArray[1]; pBuffer++;
@@ -1722,7 +1723,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  }
           else if (nParsedNum == 34) {
 	    for (i=25; i<30; i++) {
-//	      emb_itoa(debug[i], OctetArray, 16, 2);
               int2hex(stored_debug[i]);
               *pBuffer = OctetArray[0]; pBuffer++;
               *pBuffer = OctetArray[1]; pBuffer++;
@@ -1733,15 +1733,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             *pBuffer = '0'; pBuffer++;
             *pBuffer = '0'; pBuffer++;
             *pBuffer = '0'; pBuffer++;
-//	    emb_itoa(MQTT_resp_tout_counter, OctetArray, 16, 2);
             int2hex(MQTT_resp_tout_counter);
             *pBuffer = OctetArray[0]; pBuffer++;
             *pBuffer = OctetArray[1]; pBuffer++;
-//	    emb_itoa(MQTT_not_OK_counter, OctetArray, 16, 2);
             int2hex(MQTT_not_OK_counter);
             *pBuffer = OctetArray[0]; pBuffer++;
             *pBuffer = OctetArray[1]; pBuffer++;
-//	    emb_itoa(MQTT_broker_dis_counter, OctetArray, 16, 2);
             int2hex(MQTT_broker_dis_counter);
             *pBuffer = OctetArray[0]; pBuffer++;
             *pBuffer = OctetArray[1]; pBuffer++;
@@ -1811,7 +1808,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // There is only 1 'g' ID so we don't need to check the nParsedNum.
 	  
 	  // Convert Config settngs byte into two hex characters
-//          emb_itoa(stored_config_settings, OctetArray, 16, 2);
           int2hex(stored_config_settings);
           *pBuffer = OctetArray[0]; pBuffer++;
           *pBuffer = OctetArray[1]; pBuffer++;
@@ -1840,7 +1836,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 		  else j |= 0x80;
 		}
 	      }
-//	      emb_itoa(j, OctetArray, 16, 2);
 	      int2hex(j);
               *pBuffer = OctetArray[0]; pBuffer++;
               *pBuffer = OctetArray[1]; pBuffer++;
@@ -1909,6 +1904,15 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           nBytes++;
 	}
 
+        else if (nParsedMode == 't') {
+	  // This displays temperature sensor data (5 sets of 6 characters)
+          for(i=0; i<6; i++) {
+            *pBuffer = DS18B20_string[nParsedNum][i];
+            pBuffer++;
+            nBytes++;
+	  }
+	}
+	
         else if (nParsedMode == 'w') {
 	  // This displays Code Revision information (13 characters)
           for(i=0; i<13; i++) {
@@ -2629,8 +2633,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // Parse 'g' ------------------------------------------------------//
 	  else if (pSocket->ParseCmd == 'g') {
             // This code sets the Config Settings bytes which define the
-	    // MQTT, Full/Half Duplex, and Home Assistant Auto Discovery
-	    // functionality.
+	    // DS18B20, MQTT, Full/Half Duplex, and Home Assistant Auto
+	    // Discovery functionality.
 	    //
 	    // There are always 2 characters in the string which represent a
 	    // hex encoded byte. Each is collected and saved for later
@@ -3061,7 +3065,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  }
 	  // Parse first ParseNum digit. Looks like the user did input a
 	  // filename digit, so collect it here.
-//	  else if (*pBuffer >= '0' && *pBuffer <= '9') { // Check for user entry error
 	  else if (isdigit(*pBuffer)) { // Check for user entry error
             // Still good - parse number
             pSocket->ParseNum = (uint8_t)((*pBuffer - '0') * 10);
@@ -3080,7 +3083,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	
 	// Parse second ParseNum digit
         else if (pSocket->ParseState == PARSE_NUM1) {
-//	  if (*pBuffer >= '0' && *pBuffer <= '9') { // Check for user entry error
 	  if (isdigit(*pBuffer)) { // Check for user entry error
             // Still good - parse number
             pSocket->ParseNum += (uint8_t)(*pBuffer - '0');
@@ -3163,6 +3165,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  //
           switch(pSocket->ParseNum)
 	  {
+/*	  
 	    case 0:  update_ON_OFF(0,0);  break; // Output-01 OFF
 	    case 1:  update_ON_OFF(0,1);  break; // Output-01 ON
 	    case 2:  update_ON_OFF(1,0);  break; // Output-02 OFF
@@ -3195,7 +3198,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    case 29: update_ON_OFF(14,1); break; // Output-15 ON
 	    case 30: update_ON_OFF(15,0); break; // Output-16 OFF
 	    case 31: update_ON_OFF(15,1); break; // Output-16 ON
-	 	    
+*/    
 	    case 55:
 	      // Turn all outputs ON. Verify that each pin is an output
 	      // and that it is enabled.
@@ -3301,15 +3304,33 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pSocket->nState = STATE_CONNECTED;
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
-	      
-	    default: // Show IO Control page
+/*	      
+	    default:
+	      // Show IO Control page
 	      current_webpage = WEBPAGE_IOCONTROL;
               pSocket->pData = g_HtmlPageIOControl;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
               pSocket->nState = STATE_CONNECTED;
               pSocket->nPrevBytes = 0xFFFF;
-	      break;
-	  }
+              break;
+*/
+
+	    default:
+	      if (pSocket->ParseNum < 32) {
+                // Output-01..16 OFF/ON
+                update_ON_OFF((uint8_t)(pSocket->ParseNum/2), (uint8_t)(pSocket->ParseNum%2));
+              }
+              else {
+	        // Show IO Control page
+	        current_webpage = WEBPAGE_IOCONTROL;
+                pSocket->pData = g_HtmlPageIOControl;
+                pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
+                pSocket->nState = STATE_CONNECTED;
+                pSocket->nPrevBytes = 0xFFFF;
+              }
+              break;
+
+	  } // end switch
           pSocket->nParseLeft = 0;
         }
 
@@ -3332,48 +3353,26 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       }
     }
 
-/*
     if (pSocket->nState == STATE_SENDHEADER200) {
       // This step is entered after GET processing is complete in order to
       // send an appropriate web page. In the uip_send() call we provide the
       // CopyHttpHeader function with the length of the web page. If no page
       // is being returned a length of zero is provided to CopyHttpHeader().
-      
-      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(), 200));
+      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
       pSocket->nState = STATE_SENDDATA;
       return;
     }
-    
+      
     if (pSocket->nState == STATE_SENDHEADER204) {
-      // This step is entered after POST is complete. The Header must be a
-      // "204 No Content" header, and no data is sent after a POST. The
-      // javascript in the IOControl and Configuration pages generates a GET
-      // request to update the Browser page after the POST is sent.
-      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, 0, 204));
-//      uip_close();
-      return;
-    }
-*/
-
-    if ((pSocket->nState == STATE_SENDHEADER200) || (pSocket->nState == STATE_SENDHEADER204)) {
-      if (pSocket->nState == STATE_SENDHEADER200) {
-        // This step is entered after GET processing is complete in order to
-        // send an appropriate web page. In the uip_send() call we provide the
-        // CopyHttpHeader function with the length of the web page. If no page
-        // is being returned a length of zero is provided to CopyHttpHeader().
-        uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
-        pSocket->nState = STATE_SENDDATA;
-      }
-      else {
-        // This step is entered after POST is complete. Content Length: 0 must
-	// be returned in this case and we must send no data. The javascript in
-	// the IOControl and Configuration pages generates a GET request to
-	// update the Browser page after the POST is sent.
-	//
-	// Note: It is not clear if some browsers require a "204 No Content"
-	// header. This appears to work just returning a Content Length: 0.
-	uip_send(uip_appdata, CopyHttpHeader(uip_appdata, 0));
-      }
+      // This step is entered after POST is complete. Content Length: 0 must
+      // be returned in this case and we must send no data. The javascript in
+      // the IOControl and Configuration pages generates a GET request to
+      // update the Browser page after the POST is sent.
+      //
+      // Note: It is not clear if some browsers require a "204 No Content"
+      // header. This appears to work just returning a "200 OK" with Content
+      // Length: 0.
+      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, 0));
       return;
     }
 
@@ -3413,7 +3412,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   else if (uip_rexmit()) {
     if (pSocket->nPrevBytes == 0xFFFF) {
       /* Send header again */
-//      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(), 200));
       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
     }
     else {
@@ -3452,32 +3450,32 @@ void update_ON_OFF(uint8_t i, uint8_t j)
 
 void clear_saved_postpartial_all(void)
 {
-uint8_t i;
+  uint8_t i;
   for (i=0; i<36; i++) saved_postpartial[i] = '\0';
 }
 
 
 void clear_saved_postpartial_data(void)
 {
-uint8_t i;
+  uint8_t i;
   for (i=4; i<36; i++) saved_postpartial[i] = '\0';
 }
 
 
 void clear_saved_postpartial_previous(void)
 {
-uint8_t i;
+  uint8_t i;
   for (i=0; i<36; i++) saved_postpartial_previous[i] = '\0';
 }
 
 
 void parse_POST_string(uint8_t curr_ParseCmd, uint8_t num_chars)
 {
-uint8_t i;
-uint8_t amp_found;
-uint8_t frag_flag;
-uint8_t resume;
-char tmp_Pending[20];
+  uint8_t i;
+  uint8_t amp_found;
+  uint8_t frag_flag;
+  uint8_t resume;
+  char tmp_Pending[20];
   // This function processes POST data for one of several string fields:
   //   Device Name field
   //   MQTT Username field

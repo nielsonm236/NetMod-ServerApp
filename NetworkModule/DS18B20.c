@@ -66,7 +66,7 @@ uint8_t ROM[8];          // ROM bytes
 uint8_t lastDiscrep = 0; // last discrepancy
 uint8_t doneFlag = 0;    // Done flag
 uint8_t FoundROM[5][8];  // Table of found ROM codes
-int8_t numROMs;          // Count of DS18B20 devices found
+int numROMs;             // Count of DS18B20 devices found
 
 
 
@@ -132,7 +132,8 @@ void get_temperature()
   //   close enough for this application.
 
   
-  uint8_t i;
+//  uint8_t i;
+  int i;
   uint8_t j;
   uint8_t device_num;
   uint8_t DS18B20_scratch_byte[9];
@@ -144,7 +145,8 @@ void get_temperature()
   for (device_num = 0; device_num < 5; device_num++) {
     // Attempt to read up to 5 devices. If no devices are present the
     // reset_pulse() function will return 1. The value num_ROMs is the last
-    // index for devices found in the FindDevices() function.
+    // index for devices found in the FindDevices() function. num_ROMs == -1
+    // indicates no devices.
     if (reset_pulse()) return; // If reset_pulse returns 1 no devices are
                                // present
     
@@ -284,25 +286,26 @@ void get_temperature()
 //   PC_IDR
 
 
-uint8_t reset_pulse()
+int reset_pulse()
 {
   // Generates a master reset pulse on the specified IO
   // The pulse must be a minimum of 480us
+//  uint8_t rtn;
+  int rtn;
+  
   PC_ODR |= 0x40;           // write IO ODR to 1
   PC_DDR |= 0x40;           // write IO DDR to output
   PC_ODR &= (uint8_t)~0x40; // write IO ODR to 0
   wait_timer(500);
   PC_DDR &= (uint8_t)~0x40; // write IO DDR to input
-  wait_timer(300);
+  wait_timer(100);
   
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // Need to check for the ack (presence) pulse and return 0 if one
-  // is seen, or 1 if none is seen
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  
-  return 0;
+  // Check for "presence" state on the 1-wire. 0 = device(s) present.
+  rtn = 0;
+  if (PC_IDR & 0x40) rtn = 1;
+
+  wait_timer(200);
+  return rtn;
 }
 
 
@@ -331,7 +334,7 @@ void transmit_byte(uint8_t transmit_value)
 }
 
 
-uint8_t read_bit()
+int read_bit()
 {
   // Read timing is a little tricky written in C code (less tricky if written
   // in assembly).
@@ -345,8 +348,10 @@ uint8_t read_bit()
   // pullup working in about 1/2us with a 12 inch wire lead. Longer leads to
   // the DS18B20 may result in a slower rise time.
   // After reading a bit we must wait 60us before reading the next bit.
-  uint8_t nop_cnt;
-  uint8_t bit;
+//  uint8_t nop_cnt;
+  int nop_cnt;
+//  uint8_t bit;
+  int bit;
 
   bit = 0;
 
@@ -366,7 +371,8 @@ uint8_t read_bit()
 
 void write_bit(uint8_t transmit_bit)
 {
-  uint8_t i;
+//  uint8_t i;
+  int i;
   
   // To send a 1 bit we need to pulse the output low for a minimum of 5us and
   //   max of 15us. Then we release the pin and wait 60us before returning to
@@ -403,13 +409,15 @@ void FindDevices(void)
   // found (a value equal to one less than the number of devices found since
   // the index is 0, 1, 2, 3, 4 for the devices).
 
-  uint8_t m;
+//  uint8_t m;
+  int m;
+  
+  numROMs = -1; // -1 indicates no devices
   
   if (!reset_pulse()) {  //Begins when a presence is detected
     if (First()) {       //Begins when at least one part is found
-      numROMs = -1;
       do {
-        numROMs++;
+        numROMs++; // On first pass this increments numROMs to index 0
         for (m=0; m<8; m++) {
           FoundROM[numROMs][m] = ROM[m]; // Identifies family, serial number, and
 	                                 // CRC on found device
@@ -444,21 +452,21 @@ uint8_t Next(void)
   // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
   //
   uint8_t m = 1; // ROM Bit index
-  uint8_t n = 0; // ROM Byte index
+  int n = 0; // ROM Byte index
   uint8_t k = 1; // bit mask
-  uint8_t x = 0;
+  int x = 0;
   uint8_t discrepMarker = 0; // discrepancy marker
   uint8_t g;     // Output bit
   uint8_t nxt;   // return value
-  int flag;
   uint8_t crc;
   
   nxt = 0;       // set the next flag to false
   crc = 0;
-  flag = reset_pulse(); // reset the 1-Wire
   
-  if (flag || doneFlag) {  // no parts -> return false
-    lastDiscrep = 0;       // reset the search
+  if (reset_pulse() || doneFlag) { // Reset the 1-wire, make sure there
+                                   // are parts, and verify that we are
+				   // not done yet.
+    lastDiscrep = 0;       // Reset the search
     return 0;
   }
   
@@ -496,7 +504,7 @@ uint8_t Next(void)
   } while(n < 8); //loop until through all ROM bytes 0-7
   
   // Calculate CRC for first 8 ROM bytes
-  crc = dallas_crc8();
+  crc = dallas_crc8(ROM, 8);
   
   if (m < 65 || (crc != ROM[8])) lastDiscrep = 0;  // if search was
   // unsuccessful then reset the last discrepancy to 0
@@ -510,18 +518,20 @@ uint8_t Next(void)
 }
 
 
-uint8_t dallas_crc8(void)
+uint8_t dallas_crc8(uint8_t *data, uint8_t size)
 {
-    int8_t i;
-    uint8_t j;
+//    int8_t i;
+    int i;
+//    uint8_t j;
+    int j;
     uint8_t inbyte;
     uint8_t mix;
     uint8_t crc;
     
     crc = 0;
-    for ( i = 0; i < 8; ++i )
+    for ( i = 0; i < size; ++i )
     {
-        inbyte = ROM[i];
+        inbyte = data[i];
         for ( j = 0; j < 8; ++j )
         {
             mix = (uint8_t)((crc ^ inbyte) & 0x01);

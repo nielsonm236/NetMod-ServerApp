@@ -23,16 +23,16 @@
 #define __DS18B20_H__
 
 void get_temperature(void);
-uint8_t reset_pulse(void);
+int reset_pulse(void);
 uint8_t check_CRC(void);
 void transmit_byte(uint8_t transmit_value);
-uint8_t read_bit(void);
+int read_bit(void);
 void write_bit(uint8_t transmit_bit);
 
 void FindDevices(void);
 uint8_t First(void);
 uint8_t Next(void);
-uint8_t dallas_crc8(void);
+uint8_t dallas_crc8(uint8_t *data, uint8_t size);
 
 
 

@@ -100,8 +100,6 @@ extern uint8_t stored_debug[NUM_DEBUG_BYTES];
 
 extern uint16_t Port_Httpd;               // Port number in use
 
-extern uint8_t invert_output;             // Output inversion control
-extern uint8_t invert_input;              // Input inversion control
 extern uint8_t pin_control[16];           // Per pin configuration byte
 extern uint16_t ON_OFF_word;              // ON/OFF states of pins in single 16
                                           // bit word
@@ -971,32 +969,38 @@ uint16_t adjust_template_size()
     // subtract the size of the 5 placeholders.
     //
     if (stored_config_settings & 0x08) {
-      //  %t00 "<p>Temperature Sensors<br> 1 " plus 6 bytes of data
-      //    29 bytes of text plus 6 bytes of data = 35
-      //    size = size + 35 - 4
-      size = size + 31;
+      //  %t00 "<p>Temperature Sensors<br> 1 "
+      //      plus 13 bytes of data and degC characters (-000.0&#8451;)
+      //    29 bytes of text plus 13 bytes of data = 42
+      //    size = size + 42 - 4
+      size = size + 38;
       //
-      //  %t01 "<br> 2 " plus 6 bytes of data
-      //    7 bytes of text plus 6 bytes of data = 35
-      //    size = size + 13 - 4
-      size = size + 9;
+      //  %t01 "<br> 2 " 
+      //      plus 13 bytes of data and degC characters (-000.0&#8451;)
+      //    7 bytes of text plus 13 bytes of data = 20
+      //    size = size + 20 - 4
+      size = size + 16;
       //
-      //  %t02 "<br> 3 " plus 6 bytes of data
-      //    7 bytes of text plus 6 bytes of data = 35
-      //    size = size + 13 - 4
-      size = size + 9;
+      //  %t02 "<br> 3 "
+      //      plus 13 bytes of data and degC characters (-000.0&#8451;)
+      //    7 bytes of text plus 13 bytes of data = 20
+      //    size = size + 20 - 4
+      size = size + 16;
       //
-      //  %t03 "<br> 4 " plus 6 bytes of data
-      //    7 bytes of text plus 6 bytes of data = 35
-      //    size = size + 13 - 4
-      size = size + 9;
+      //  %t03 "<br> 4 "
+      //      plus 13 bytes of data and degC characters (-000.0&#8451;)
+      //    7 bytes of text plus 13 bytes of data = 20
+      //    size = size + 20 - 4
+      size = size + 16;
       //
-      //  %t04 "<br> 5 " plus 6 bytes of data plus "<br></p>"
+      //  %t04 "<br> 5 "
+      //      plus 13 bytes of data and degC characters (-000.0&#8451;)
+      //      plus "<br></p>"
       //    7 bytes of text
-      //    plus 6 bytes of data
-      //    plus 8 bytes of text = 35
-      //    size = size + 21 - 4
-      size = size + 17;
+      //    plus 13 bytes of data
+      //    plus 8 bytes of text = 28
+      //    size = size + 28 - 4
+      size = size + 24;
     }
     else {
       // Subtract the size of the placeholders as they won't be used
@@ -1248,7 +1252,8 @@ void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
   //       where number is a uint32_t containing the value 0xc0a80004
   //       output string in OctetArray is c0a80004
 
-  uint8_t i;
+//  uint8_t i;
+  int i;
   uint8_t rem;
 
   // Fill the string with zeroes. This handles the case where the num provided
@@ -1333,7 +1338,8 @@ static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString)
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
 {
   uint16_t nBytes;
-  uint8_t i;
+//  uint8_t i;
+  int i;
 
   nBytes = 0;
 
@@ -1376,9 +1382,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   uint8_t nParsedNum;
   uint8_t nParsedMode;
   uint8_t temp;
-  uint8_t i;
-  uint8_t j;
-  uint8_t no_err;
+//  uint8_t i;
+  int i;
+//  uint8_t no_err;
+  int no_err;
   unsigned char temp_octet[3];
 
   nBytes = 0;
@@ -1842,7 +1849,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	}
 	
         else if (nParsedMode == 'h') {
-	  // This displays the Pin Control String, defined as follows:
+	  // This sends the Pin Control String, defined as follows:
 	  // 32 characters
 	  // The 32 characters represent 16 hex bytes of information in text
 	  // format. Each byte is the pin_control character for each IO pin
@@ -1852,7 +1859,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  	  
 	  // Insert pin_control bytes
 	  {
-	    uint8_t i;
+//	    uint8_t i;
+	    int i;
 	    uint8_t j;
 	    for (i = 0; i <16; i++) {
 	      j = pin_control[i];
@@ -1933,7 +1941,9 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
         else if ((nParsedMode == 't') && (stored_config_settings & 0x08)) {
 	  // This displays temperature sensor data (5 sets of 6 characters)
-	  // and the text fields around that data IF DS18B20 mode is enabled
+	  // and the text fields around that data IF DS18B20 mode is enabled.
+	  // Note: &#8451; inserts a degree symbol followed by C.
+	
           if (nParsedNum == 0) {
 	    #define TEMPTEXT "<p>Temperature Sensors<br> 1 "
             strcpy(pBuffer, TEMPTEXT);
@@ -1943,7 +1953,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    goto showdata;
 	    }
           if (nParsedNum == 1) {
-	    #define TEMPTEXT " C<br> 2 "
+	    #define TEMPTEXT "&#8451;<br> 2 "
             strcpy(pBuffer, TEMPTEXT);
             pBuffer += strlen(TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
@@ -1951,7 +1961,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    goto showdata;
 	  }
           if (nParsedNum == 2) {
-	    #define TEMPTEXT " C<br> 3 "
+	    #define TEMPTEXT "&#8451;<br> 3 "
             strcpy(pBuffer, TEMPTEXT);
             pBuffer += strlen(TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
@@ -1959,7 +1969,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    goto showdata;
 	  }
           if (nParsedNum == 3) {
-	    #define TEMPTEXT " C<br> 4 "
+	    #define TEMPTEXT "&#8451;<br> 4 "
             strcpy(pBuffer, TEMPTEXT);
             pBuffer += strlen(TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
@@ -1967,7 +1977,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    goto showdata;
 	  }
           if (nParsedNum == 4) {
-	    #define TEMPTEXT " C<br> 5 "
+	    #define TEMPTEXT "&#8451;<br> 5 "
             strcpy(pBuffer, TEMPTEXT);
             pBuffer += strlen(TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
@@ -1980,7 +1990,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             nBytes++;
 	  }
           if (nParsedNum == 4) {
-	    #define TEMPTEXT " C<br></p>"
+	    #define TEMPTEXT "&#8451;<br></p>"
             strcpy(pBuffer, TEMPTEXT);
             pBuffer += strlen(TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
@@ -2124,7 +2134,8 @@ void HttpDInit()
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 {
   uint16_t nBufSize;
-  uint8_t i;
+//  uint8_t i;
+  int i;
   
   i = 0;
 
@@ -2861,8 +2872,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
             // Sort the alpha characters into the pin control bytes
 	    {
-              uint8_t i;
-              uint8_t j;
+//              uint8_t i;
+              int i;
+//              uint8_t j;
+              int j;
 	      uint8_t k;
               i = 0;
               j = 0;
@@ -3241,40 +3254,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  //
           switch(pSocket->ParseNum)
 	  {
-/*	  
-	    case 0:  update_ON_OFF(0,0);  break; // Output-01 OFF
-	    case 1:  update_ON_OFF(0,1);  break; // Output-01 ON
-	    case 2:  update_ON_OFF(1,0);  break; // Output-02 OFF
-	    case 3:  update_ON_OFF(1,1);  break; // Output-02 ON
-	    case 4:  update_ON_OFF(2,0);  break; // Output-03 OFF
-	    case 5:  update_ON_OFF(2,1);  break; // Output-03 ON
-	    case 6:  update_ON_OFF(3,0);  break; // Output-04 OFF
-	    case 7:  update_ON_OFF(3,1);  break; // Output-04 ON
-	    case 8:  update_ON_OFF(4,0);  break; // Output-05 OFF
-	    case 9:  update_ON_OFF(4,1);  break; // Output-05 ON
-	    case 10: update_ON_OFF(5,0);  break; // Output-06 OFF
-	    case 11: update_ON_OFF(5,1);  break; // Output-06 ON
-	    case 12: update_ON_OFF(6,0);  break; // Output-07 OFF
-	    case 13: update_ON_OFF(6,1);  break; // Output-07 ON
-	    case 14: update_ON_OFF(7,0);  break; // Output-08 OFF
-	    case 15: update_ON_OFF(7,1);  break; // Output-08 ON
-	    case 16: update_ON_OFF(8,0);  break; // Output-09 OFF
-	    case 17: update_ON_OFF(8,1);  break; // Output-09 ON
-	    case 18: update_ON_OFF(9,0);  break; // Output-10 OFF
-	    case 19: update_ON_OFF(9,1);  break; // Output-10 ON
-	    case 20: update_ON_OFF(10,0); break; // Output-11 OFF
-	    case 21: update_ON_OFF(10,1); break; // Output-11 ON
-	    case 22: update_ON_OFF(11,0); break; // Output-12 OFF
-	    case 23: update_ON_OFF(11,1); break; // Output-12 ON
-	    case 24: update_ON_OFF(12,0); break; // Output-13 OFF
-	    case 25: update_ON_OFF(12,1); break; // Output-13 ON
-	    case 26: update_ON_OFF(13,0); break; // Output-14 OFF
-	    case 27: update_ON_OFF(13,1); break; // Output-14 ON
-	    case 28: update_ON_OFF(14,0); break; // Output-15 OFF
-	    case 29: update_ON_OFF(14,1); break; // Output-15 ON
-	    case 30: update_ON_OFF(15,0); break; // Output-16 OFF
-	    case 31: update_ON_OFF(15,1); break; // Output-16 ON
-*/    
 	    case 55:
 	      // Turn all outputs ON. Verify that each pin is an output
 	      // and that it is enabled.
@@ -3526,31 +3505,35 @@ void update_ON_OFF(uint8_t i, uint8_t j)
 
 void clear_saved_postpartial_all(void)
 {
-  uint8_t i;
+  int i;
   for (i=0; i<36; i++) saved_postpartial[i] = '\0';
 }
 
 
 void clear_saved_postpartial_data(void)
 {
-  uint8_t i;
+  int i;
   for (i=4; i<36; i++) saved_postpartial[i] = '\0';
 }
 
 
 void clear_saved_postpartial_previous(void)
 {
-  uint8_t i;
+  int i;
   for (i=0; i<36; i++) saved_postpartial_previous[i] = '\0';
 }
 
 
-void parse_POST_string(uint8_t curr_ParseCmd, uint8_t num_chars)
+void parse_POST_string(uint8_t curr_ParseCmd, int num_chars)
 {
-  uint8_t i;
-  uint8_t amp_found;
-  uint8_t frag_flag;
-  uint8_t resume;
+//  uint8_t i;
+  int i;
+//  uint8_t amp_found;
+  int amp_found;
+//  uint8_t frag_flag;
+  int frag_flag;
+//  uint8_t resume;
+  int resume;
   char tmp_Pending[20];
   // This function processes POST data for one of several string fields:
   //   Device Name field
@@ -3737,7 +3720,8 @@ void parse_POST_string(uint8_t curr_ParseCmd, uint8_t num_chars)
 
 void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
 {
-  uint8_t i;
+//  uint8_t i;
+  int i;
   
   for (i=0; i<8; i++) alpha[i] = '-';
 
@@ -3796,8 +3780,10 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     // The code converts eight alpha fields with hex alphas ('0' to 'f') into
     // 4 octets representing the new setting.
     uint16_t temp;
-    uint8_t invalid;
-    uint8_t j;
+//    uint8_t invalid;
+    int invalid;
+//    uint8_t j;
+    int j;
     
     invalid = 0;
     j = 0;
@@ -3849,7 +3835,8 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
 
 void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
 {
-  uint8_t i;
+//  uint8_t i;
+  int i;
 
   for (i=0; i<4; i++) alpha[i] = '-';
 
@@ -3875,7 +3862,8 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
   }
 
   {
-    uint8_t i;
+//    uint8_t i;
+    int i;
     for (i=0; i<4; i++) {
       // Examine each 'alpha' character to see if it was already found
       // in a prior TCP Fragment. If not collect it now.
@@ -3912,7 +3900,8 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     // valid range.
     uint16_t temp;
     uint16_t nibble;
-    uint8_t invalid;
+//    uint8_t invalid;
+    int invalid;
     invalid = 0;
 
     // Validate each character in the string as a hex character
@@ -3958,7 +3947,8 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
 
 void parse_POST_MAC(uint8_t curr_ParseCmd)
 {
-  uint8_t i;
+//  uint8_t i;
+  int i;
 
   for (i=0; i<12; i++) alpha[i] = '-';
 
@@ -3984,7 +3974,8 @@ void parse_POST_MAC(uint8_t curr_ParseCmd)
   }
 
   {
-    uint8_t i;
+//    uint8_t i;
+    int i;
     for (i=0; i<12; i++) {
       // Examine each 'alpha' character to see if it was already found
       // in a prior TCP Fragment. If not collect it now.
@@ -4019,7 +4010,8 @@ void parse_POST_MAC(uint8_t curr_ParseCmd)
     // The code converts twelve alpha fields with hex alphas ('0' to 'f')
     // into 6 octets representing the new setting.
     uint16_t temp;
-    uint8_t invalid;
+//    uint8_t invalid;
+    int invalid;
     invalid = 0;
 
     // Validate each character in the string as a hex character
@@ -4069,7 +4061,8 @@ void parse_POST_MAC(uint8_t curr_ParseCmd)
 void encode_16bit_registers()
 {
   // Function to sort the pin control bytes into the 16 bit registers.
-  uint8_t i;
+//  uint8_t i;
+  int i;
   uint16_t j;
   i = 0;
   j = 0x0001;

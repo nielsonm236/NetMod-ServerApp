@@ -48,7 +48,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210206 2334";
+const char code_revision[] = "20210207 1436";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -194,8 +194,6 @@ uint8_t debug[NUM_DEBUG_BYTES];
 #endif // DEBUG_SUPPORT != 0
 
 
-uint8_t invert_output;			// Stores the output pin invert
-uint8_t invert_input;			// Stores the input pin invert
 uint8_t pin_control[16];                // Per pin configuration byte
 uint16_t ON_OFF_word;                   // ON/OFF states of pins in single 16
                                         // bit word
@@ -274,7 +272,7 @@ char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
 uint8_t connect_flags;                // Used in MQTT setup
 uint16_t mqttport;             	      // MQTT port number
 uint16_t Port_Mqttd;                  // In use MQTT port number
-unsigned char app_message[7];         // Stores the application message (the
+unsigned char app_message[14];        // Stores the application message (the
                                       // payload) that will be sent in an
 				      // MQTT message. The longest app_message
 				      // is 7 characters (DS18B20 temperature
@@ -341,7 +339,7 @@ int8_t send_mqtt_temperature;         // Indicates if a new temperature measurem
 				      // application there are 5 sensors, so setting
 				      // to 4 will cause all 5 to transmit (4,3,2,1,0).
 				      // -1 indicates nothing to transmit.
-extern int8_t numROMs;                // Count of DS18B20 devices found
+extern int numROMs;                   // Count of DS18B20 devices found
 
 
 
@@ -349,6 +347,7 @@ extern int8_t numROMs;                // Count of DS18B20 devices found
 int main(void)
 {
   uint8_t i;
+  
   uip_ipaddr_t IpAddr;
   
   parse_complete = 0;
@@ -1089,7 +1088,7 @@ void mqtt_startup(void)
 	// empty for some cases.
         // Create % part of payload template
         app_message[0] = '%';
-        // Add pin number payload template
+        // Add pin number to payload template
         app_message[2] = OctetArray[0];
         app_message[3] = OctetArray[1];
         app_message[4] = '\0';
@@ -1130,6 +1129,9 @@ void mqtt_startup(void)
 	    //   Then we will send a Temperature Sensor definition message
 	    //   for each sensor 1, 2, 3, 4 and 5 if that sensor exists (as
 	    //   indicated by the numROMs variable).
+	    //   Note: The variable numROMs is actually the index into the
+	    //   Found_ROM table. Thus the numROMs value starts at 0 (for
+	    //   the first sensor), 1 for the second sensor, and so on.
 	    // Else:
 	    //   Set skip_auto_msg = 1 so no Publish is sent. Note that we
 	    //   will still pass through this step 5 times even if we skip
@@ -1137,13 +1139,33 @@ void mqtt_startup(void)
             if ((stored_config_settings & 0x08)
              && (auto_pub_count == 15)
 	     && ((auto_pub_toggle - 2) <= numROMs)) {
-              // Pin is used for Temperature Sensors. Send the sensor
-	      // definition. Note that we need to replace the "pin" number
-	      // with the sensor number (which happens to equal
-	      // (auto_pub_toggle - 2). Also note that the sensor number is
-	      // always '0' plus the alpha digit for the sensor number.
+              // If the test is true this pin is being used for Temperature
+	      // Sensors. If no sensors were detected numROMs will be -1 and
+	      // we will go on to the "else" statement (and thus will not
+	      // create a Config message).
+	      // If there is at least one sensor detetected numROMs will be
+	      // zero or greater. In that case send the sensor definition as
+	      // a Config message.
+	      // Note that if we are creating a Config message we need to
+	      // replace the "pin" number with the "sensor number" in human
+	      // readable format. This needs to occur both in the Config
+	      // topic AND in the Config payload.
+	      // Internal to code sensors are numbered 0 to 4, but they need
+	      // to be displayed as 1 to 5. "auto_pub_toggle - 2" is the
+	      // internal numbering, so "auto_pub_toggle - 1" is the human
+	      // readable numbering. Also note that the human readable number
+	      // is in the format 01, 02, etc ... so the first digit is
+	      // always '0'.
+	      
+	      // Create the sensor number (to replace the pin number) for the
+	      // topic.
+              emb_itoa((auto_pub_toggle - 1), OctetArray, 10, 2);
+	      
+	      // Create the sensor number (to replace the pin number) for the
+	      // payload.
               app_message[2] = '0';
-              app_message[3] = (uint8_t)('0' + (auto_pub_toggle - 2));
+              app_message[3] = (uint8_t)('0' + (auto_pub_toggle - 1));
+	      
               // Create first part of topic
               strcpy(topic_base, "homeassistant/sensor/");
               // Create the T part of the payload
@@ -1531,7 +1553,8 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   char* pBuffer;
   uint8_t pin_value;
   uint8_t ParseNum;
-  uint8_t i;
+//  uint8_t i;
+  int i;
   
   pin_value = 0;
   ParseNum = 0;
@@ -1707,7 +1730,8 @@ void publish_outbound(void)
   // supersede the processing of lower order bits.
   
   uint16_t xor_tmp;
-  uint8_t i;
+//  uint8_t i;
+  int i;
   uint16_t j;
 
   if (state_request == STATE_REQUEST_IDLE) {
@@ -1790,8 +1814,10 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
   // This function transmits a change in pin state and updates the "sent"
   // value.
   
-  uint8_t size;
-  uint8_t i;
+//  uint8_t size;
+  int size;
+//  uint8_t i;
+  int i;
   app_message[0] = '\0';
   
   strcpy(topic_base, devicetype);
@@ -1849,7 +1875,8 @@ void publish_pinstate_all(void)
   // The second byte of the Payload contains the ON/OFF state for IO 8 in the
   // msb of the byte. The ON/OFF state for IO 1 is in the lsb.
   
-  uint8_t i;
+//  uint8_t i;
+  int i;
   uint16_t j;
   uint16_t k;
   
@@ -1905,19 +1932,29 @@ void publish_temperature(uint8_t sensor)
   // This function is called to Publish a temperature value collected from
   // a DS18B20 connected to IO 16.
   
-  uint8_t i;
+//  uint8_t i;
+  int i;
 
   if (sensor <= numROMs) {
     // Only Publish if the sensor number is one of the sensors found by
     // FindDevices as indicated by numROMs.
-    
+    //
+    // The "sensor" value delivered to this function identifies the sensor
+    // as a value from 0 to 4 (for the five sensors).
+    //
+    // The "numROMs" value is also a value from 0 to 4 (for the five sensors).
+    //
+    // When the Publish message is sent the sensor value must be in human
+    // readable form, ie, 1 to 5 (for the 5 sensors).
+
     app_message[0] = '\0';
     
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
     strcat(topic_base, "/temp/");
     
-    // Add sensor number to the topic message
+    // Add sensor number to the topic message. Note the sensor number has 1
+    // added to make it human readable form.
     emb_itoa((sensor + 1), OctetArray, 10, 2);
     i = (uint8_t)strlen(topic_base);
     topic_base[i] = OctetArray[0];
@@ -1929,13 +1966,18 @@ void publish_temperature(uint8_t sensor)
     
     // Build the application message
     strcpy(app_message, DS18B20_string[sensor]);
-    strcpy(app_message, " C");
+//    strcat(app_message, " C");
+//    strcat(app_message, "\xc2\xb0");
+//    strcat(app_message, "C");
+//    strcat(app_message, " \u2103");
+//    strcat(app_message, " &#8451;");
+    strcat(app_message, "\xc2\xb0\x43");
     
     // Queue publish message
     mqtt_publish(&mqttclient,
                  topic_base,
                  app_message,
-                 8,
+                 strlen(app_message),
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   }
 }
@@ -1970,7 +2012,8 @@ void upgrade_EEPROM(void)
 {
   // This functions upgrades prior revisions of the EEPROM to the current
   // revision.
-  uint8_t i;
+//  uint8_t i;
+  int i;
   
   // ----------------------------------------------------------------------//
   // Starting with the January 2021 releases the EEPROM will contain a
@@ -2037,7 +2080,8 @@ void upgrade_EEPROM(void)
 
 void check_eeprom_settings(void)
 {
-  uint8_t i;
+//  uint8_t i;
+  int i;
 
   // Check magic number in EEPROM.
   // If no magic number is found it is assumed that the EEPROM has never been
@@ -2309,13 +2353,14 @@ void update_mac_string(void)
 {
   // Function to turn the uip_ethaddr values into a single string containing
   // the MAC address
-  uint8_t i;
-  uint8_t j;
+//  uint8_t i;
+  int i;
+//  uint8_t j;
+  int j;
 
   i = 5;
   j = 0;
   while (j<12) {
-//    emb_itoa(stored_uip_ethaddr_oct[i], OctetArray, 16, 2);
     int2hex(stored_uip_ethaddr_oct[i]);
     mac_string[j++] = OctetArray[0];
     mac_string[j++] = OctetArray[1];
@@ -2337,7 +2382,8 @@ void check_runtime_changes(void)
   // make sure that a complete POST entry has been received before attempting
   // to process the changes made by the user.
 
-  uint8_t i;
+//  uint8_t i;
+  int i;
   uint8_t update_EEPROM;
 
   unlock_eeprom();
@@ -2528,49 +2574,6 @@ void check_runtime_changes(void)
       stored_config_settings = Pending_config_settings;
     }
 
-/*
-    // Check for changes in the IP Address
-    if (stored_hostaddr[3] != Pending_hostaddr[3] ||
-        stored_hostaddr[2] != Pending_hostaddr[2] ||
-        stored_hostaddr[1] != Pending_hostaddr[1] ||
-        stored_hostaddr[0] != Pending_hostaddr[0]) {
-      // Write the new IP address octets to the EEPROM
-      for (i=0; i<4; i++) stored_hostaddr[i] = Pending_hostaddr[i];
-      restart_request = 1;
-    }
-  
-    // Check for changes in the Gateway Address
-    if (stored_draddr[3] != Pending_draddr[3] ||
-        stored_draddr[2] != Pending_draddr[2] ||
-        stored_draddr[1] != Pending_draddr[1] ||
-        stored_draddr[0] != Pending_draddr[0]) {
-      // Write the new Gateway address octets to the EEPROM
-      for (i=0; i<4; i++) stored_draddr[i] = Pending_draddr[i];
-      restart_request = 1;
-    }
-  
-    // Check for changes in the Netmask
-    if (stored_netmask[3] != Pending_netmask[3] ||
-        stored_netmask[2] != Pending_netmask[2] ||
-        stored_netmask[1] != Pending_netmask[1] ||
-        stored_netmask[0] != Pending_netmask[0]) {
-      // Write the new Netmask octets to the EEPROM
-      for (i=0; i<4; i++) stored_netmask[i] = Pending_netmask[i];
-      restart_request = 1;
-    }
-      
-    // Check for changes in the MQTT Server IP Address
-    if (stored_mqttserveraddr[3] != Pending_mqttserveraddr[3] ||
-        stored_mqttserveraddr[2] != Pending_mqttserveraddr[2] ||
-        stored_mqttserveraddr[1] != Pending_mqttserveraddr[1] ||
-        stored_mqttserveraddr[0] != Pending_mqttserveraddr[0]) {
-      // Write the new MQTT Server address octets to the EEPROM
-      for (i=0; i<4; i++) stored_mqttserveraddr[i] = Pending_mqttserveraddr[i];
-      // A firmware restart will occur to cause this change to take effect
-      restart_request = 1;
-    }
-*/
-
     // Check for changes in the IP Address, Gateway Address,
     // Netmask, and MQTT Server IP Address. Combined into one
     // loop for code size reduction.
@@ -2721,9 +2724,6 @@ void check_runtime_changes(void)
 
 void check_restart_reboot(void)
 {
-  uint8_t i;
-  uint16_t j;
-  
   // Function provides the sequence and timing required to shut down
   // connections and trigger a restart or reboot. This function is called
   // from the main loop and returns to the main loop so that the periodic()
@@ -3104,6 +3104,7 @@ void check_reset_button(void)
   // for 5 seconds. If the button remains pressed that entire time then
   // clear the magic number and reset the code.
   uint8_t i;
+  
   if ((PA_IDR & 0x02) == 0x00) {
     // Reset Button pressed
     for (i=0; i<100; i++) {

@@ -145,12 +145,13 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   char* pBuffer;
   char* mBuffer;
   char temp_buf[6];
-//  char temp[60];
   uint16_t payload_size;
   uint8_t devicename_size;
   uint8_t mac_string_size;
-  uint8_t auto_found;
-  uint8_t i;
+//  uint8_t auto_found;
+  int auto_found;
+//  uint8_t i;
+  int i;
   
   payload_size = 0;
   auto_found = 0;
@@ -418,8 +419,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // The string "temp" is used to construct pieces of the payload then
         // those pieces are copied to the uip_buf using the pBuffer pointer.
         // "temp" is a maximum of 50 characters.
-//        strcpy(temp, "{\"uniq_id\":\"");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         #define HA_APPMSG "{\"uniq_id\":\""
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);
@@ -427,10 +426,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         for (i=0; i<mac_string_size; i++) { *pBuffer = mac_string[i]; pBuffer++; }
    
-//        if (temp_buf[3] == 'O') strcpy(temp, "_output_");
-//        if (temp_buf[3] == 'I') strcpy(temp, "_input_");
-//        if (temp_buf[3] == 'T') strcpy(temp, "_temp_");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         if (temp_buf[3] == 'O') {
           #define HA_APPMSG "_output_"
           strcpy(pBuffer, HA_APPMSG);
@@ -455,8 +450,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         *pBuffer = temp_buf[5];
         pBuffer++; 
     
-//        strcpy(temp, "\",\"name\":\"");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         #define HA_APPMSG "\",\"name\":\""
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);
@@ -464,10 +457,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
     
-//        if (temp_buf[3] == 'O') strcpy(temp, " output ");
-//        if (temp_buf[3] == 'I') strcpy(temp, " input ");
-//        if (temp_buf[3] == 'T') strcpy(temp, " temp ");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         if (temp_buf[3] == 'O') {
           #define HA_APPMSG " output "
           strcpy(pBuffer, HA_APPMSG);
@@ -492,8 +481,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         *pBuffer = temp_buf[5];
         pBuffer++; 
     
-//        strcpy(temp, "\",\"~\":\"NetworkModule/");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         #define HA_APPMSG "\",\"~\":\"NetworkModule/"
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);
@@ -501,17 +488,11 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
         
-//        strcpy(temp, "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         #define HA_APPMSG "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/"
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);
         #undef HA_APPMSG
 
-//        if (temp_buf[3] == 'O') strcpy(temp, "output/");
-//        if (temp_buf[3] == 'I') strcpy(temp, "input/");
-//        if (temp_buf[3] == 'T') strcpy(temp, "temp/");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         if (temp_buf[3] == 'O') {
           #define HA_APPMSG "output/"
           strcpy(pBuffer, HA_APPMSG);
@@ -536,8 +517,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         *pBuffer = temp_buf[5];
         pBuffer++; 
     
-//        strcpy(temp, "\",");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         #define HA_APPMSG "\","
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);
@@ -545,8 +524,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         // Special case for output pin
         if (temp_buf[3] == 'O') {
-//          strcpy(temp, "\"cmd_t\":\"~/output/");
-//          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
           #define HA_APPMSG "\"cmd_t\":\"~/output/"
           strcpy(pBuffer, HA_APPMSG);
           pBuffer+=strlen(HA_APPMSG);
@@ -557,8 +534,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           *pBuffer = temp_buf[5];
           pBuffer++;
     
-//          strcpy(temp, "/set\",");
-//          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
           #define HA_APPMSG "/set\","
           strcpy(pBuffer, HA_APPMSG);
           pBuffer+=strlen(HA_APPMSG);
@@ -567,16 +542,12 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         // Special case for temperature pin
         if (temp_buf[3] == 'T') {
-//          strcpy(temp, "\unit_of_meas\":\"C\",");
-//          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
           #define HA_APPMSG "\unit_of_meas\":\"C\","
           strcpy(pBuffer, HA_APPMSG);
           pBuffer+=strlen(HA_APPMSG);
           #undef HA_APPMSG
 	}
 
-//        strcpy(temp, "\"dev\":{\"ids\":[\"NetworkModule_");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         #define HA_APPMSG "\"dev\":{\"ids\":[\"NetworkModule_"
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);
@@ -589,8 +560,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// the \" escape sequence will compile into a single byte (0x22). Thus
 	// the compiled string is 48 bytes, rather than the 59 that includes
 	// the escape character.
-//        strcpy(temp, "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\"");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         #define HA_APPMSG "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\""
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);
@@ -598,8 +567,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         
         for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
         
-//        strcpy(temp, "\",\"sw\":\"");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         #define HA_APPMSG "\",\"sw\":\""
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);
@@ -607,8 +574,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         
         for (i=0; i<strlen(code_revision); i++) { *pBuffer = code_revision[i]; pBuffer++; }
         
-//        strcpy(temp, "\"}}");
-//        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
         #define HA_APPMSG "\"}}"
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);

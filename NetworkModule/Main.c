@@ -48,7 +48,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210207 1436";
+const char code_revision[] = "20210207 1543";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -272,11 +272,6 @@ char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
 uint8_t connect_flags;                // Used in MQTT setup
 uint16_t mqttport;             	      // MQTT port number
 uint16_t Port_Mqttd;                  // In use MQTT port number
-unsigned char app_message[14];        // Stores the application message (the
-                                      // payload) that will be sent in an
-				      // MQTT message. The longest app_message
-				      // is 7 characters (DS18B20 temperature
-				      // example "+025.0" plus \0)
 uint16_t mqtt_keep_alive;             // Ping interval
 struct mqtt_client mqttclient;        // Declare pointer to the MQTT client
                                       // structure
@@ -771,6 +766,9 @@ void mqtt_startup(void)
   //   - Verifies that the TCP connection request suceeded.
   //   - Initializes communication with the MQTT Broker.
   int8_t skip_auto_msg;
+  unsigned char app_message[5];       // Stores the application message (the
+                                      // payload) that will be sent in an
+				      // MQTT message.
   
   switch(mqtt_start)
   {
@@ -1212,6 +1210,11 @@ void mqtt_startup(void)
 	    //   will still pass through this step 5 times even if we skip
 	    //   the Publish each time.
             if (auto_pub_count == 15) {
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	      // Note that we need to replace the "pin"
 	      // number with the sensor number (which happens to equal
 	      // (auto_pub_toggle - 2). Also note that the sensor number
@@ -1264,6 +1267,10 @@ void mqtt_startup(void)
 	    //   will still pass through this step 5 times even if we skip
 	    //   the Publish each time.
             if (auto_pub_count == 15) {
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	      // Note that we need to replace the "pin"
 	      // number with the sensor number (which happens to equal
 	      // (auto_pub_toggle - 2). Also note that the sensor number
@@ -1818,6 +1825,10 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
   int size;
 //  uint8_t i;
   int i;
+  unsigned char app_message[4];       // Stores the application message (the
+                                      // payload) that will be sent in an
+				      // MQTT message.
+  
   app_message[0] = '\0';
   
   strcpy(topic_base, devicetype);
@@ -1879,6 +1890,9 @@ void publish_pinstate_all(void)
   int i;
   uint16_t j;
   uint16_t k;
+  unsigned char app_message[3];       // Stores the application message (the
+                                      // payload) that will be sent in an
+				      // MQTT message.
   
   j = 0x0001;
   k = 0x0000;
@@ -1934,6 +1948,9 @@ void publish_temperature(uint8_t sensor)
   
 //  uint8_t i;
   int i;
+  unsigned char app_message[10];      // Stores the application message (the
+                                      // payload) that will be sent in an
+				      // MQTT message.
 
   if (sensor <= numROMs) {
     // Only Publish if the sensor number is one of the sensors found by
@@ -1966,12 +1983,9 @@ void publish_temperature(uint8_t sensor)
     
     // Build the application message
     strcpy(app_message, DS18B20_string[sensor]);
-//    strcat(app_message, " C");
-//    strcat(app_message, "\xc2\xb0");
-//    strcat(app_message, "C");
-//    strcat(app_message, " \u2103");
-//    strcat(app_message, " &#8451;");
-    strcat(app_message, "\xc2\xb0\x43");
+    // This sequence of characters will send a "degree" symbol
+    // followed by 'C' for "degrees C" display in HA.
+//    strcat(app_message, "\xc2\xb0\x43");
     
     // Queue publish message
     mqtt_publish(&mqttclient,

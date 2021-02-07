@@ -289,7 +289,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         }
         if (temp_buf[3] == 'T') {
           // This is a Temperature Sensor auto discovery message
-          payload_size = 251; // Payload without devicename
+          payload_size = 253; // Payload without devicename
         }
 	// Add device name size to payload size
         payload_size += (3 * devicename_size);
@@ -404,7 +404,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// "avty_t":"~/availability",               // 26
 	// "stat_t":”~/temp/16",                    // 21
 //	// "dev_cla":"temperature",                 // -- 24 --
-        // "unit_of_meas":"C",                      // 19
+        // "unit_of_meas":"\xc2\xb0\x43",           // 21
 	// "dev":{                                  // 7
 	// "ids":["NetworkModule_aabbccddeeff"],    // 37
 	// "mdl":"HW-584",                          // 15
@@ -413,7 +413,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// "sw":"20210204 0311"                     // 20
 	// }                                        // 1
 	// }                                        // 1
-        //                                          // Total: 251 plus 3 x devicename
+        //                                          // Total: 253 plus 3 x devicename
 
 
         // The string "temp" is used to construct pieces of the payload then
@@ -542,12 +542,12 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         // Special case for temperature pin
         if (temp_buf[3] == 'T') {
-          #define HA_APPMSG "\unit_of_meas\":\"C\","
+          #define HA_APPMSG "\"unit_of_meas\":\"\xc2\xb0\x43\","
           strcpy(pBuffer, HA_APPMSG);
           pBuffer+=strlen(HA_APPMSG);
           #undef HA_APPMSG
 	}
-
+	
         #define HA_APPMSG "\"dev\":{\"ids\":[\"NetworkModule_"
         strcpy(pBuffer, HA_APPMSG);
         pBuffer+=strlen(HA_APPMSG);

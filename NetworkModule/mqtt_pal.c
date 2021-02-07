@@ -437,7 +437,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           #undef HA_APPMSG
 	}
 
-        strncat(pBuffer, temp_buf + 4, 2);
+        strncat(pBuffer, &temp_buf[4], 2);
     
         #define HA_APPMSG "\",\"name\":\""
         strcat(pBuffer, HA_APPMSG);
@@ -461,7 +461,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           #undef HA_APPMSG
 	}
 
-        strncat(pBuffer, temp_buf + 4, 2);
+        strncat(pBuffer, &temp_buf[4], 2);
     
         #define HA_APPMSG "\",\"~\":\"NetworkModule/"
         strcat(pBuffer, HA_APPMSG);
@@ -489,7 +489,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           #undef HA_APPMSG
 	}
 
-        strncat(pBuffer, temp_buf + 4, 2);
+        strncat(pBuffer, &temp_buf[4], 2);
     
         #define HA_APPMSG "\","
         strcat(pBuffer, HA_APPMSG);
@@ -501,7 +501,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	  
-          strncat(pBuffer, temp_buf + 4, 2);
+          strncat(pBuffer, &temp_buf[4], 2);
     
           #define HA_APPMSG "/set\","
           strcat(pBuffer, HA_APPMSG);
@@ -510,7 +510,9 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         // Special case for temperature pin
         if (temp_buf[3] == 'T') {
-          #define HA_APPMSG "\unit_of_meas\":\"C\","
+//          strcpy(temp, "\unit_of_meas\":\"C\",");
+//          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+          #define HA_APPMSG "\"unit_of_meas\":\"C\","
           strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}

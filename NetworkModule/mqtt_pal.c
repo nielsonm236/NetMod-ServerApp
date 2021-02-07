@@ -147,11 +147,8 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   char temp_buf[6];
   uint16_t payload_size;
   uint8_t devicename_size;
-  uint8_t mac_string_size;
-//  uint8_t auto_found;
-  int auto_found;
-//  uint8_t i;
-  int i;
+  uint8_t auto_found;
+  uint8_t i;
   
   payload_size = 0;
   auto_found = 0;
@@ -274,7 +271,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         pBuffer++;
         // Initialize string length values used in later code
         devicename_size = (uint8_t)strlen(stored_devicename);
-        mac_string_size = (uint8_t)strlen(mac_string);
        
         // Determine the payload size. To save code space this value is
 	// manually calculated in the comments below where the prototype
@@ -402,7 +398,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// "name":"devicename123456789 temp 16",    // 18 (without devicename)
 	// "~":"NetworkModule/devicename123456789", // 21 (without devicename)
 	// "avty_t":"~/availability",               // 26
-	// "stat_t":”~/temp/16",                    // 21
+	// "stat_t":ï¿½~/temp/16",                    // 21
 //	// "dev_cla":"temperature",                 // -- 24 --
         // "unit_of_meas":"C",                      // 19
 	// "dev":{                                  // 7
@@ -420,140 +416,110 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // those pieces are copied to the uip_buf using the pBuffer pointer.
         // "temp" is a maximum of 50 characters.
         #define HA_APPMSG "{\"uniq_id\":\""
-        strcpy(pBuffer, HA_APPMSG);
-        pBuffer+=strlen(HA_APPMSG);
+        strcat(pBuffer, HA_APPMSG);
 	#undef HA_APPMSG
 
-        for (i=0; i<mac_string_size; i++) { *pBuffer = mac_string[i]; pBuffer++; }
+        strcat(pBuffer, mac_string);
    
         if (temp_buf[3] == 'O') {
           #define HA_APPMSG "_output_"
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
         if (temp_buf[3] == 'I') {
           #define HA_APPMSG "_input_"
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
         if (temp_buf[3] == 'T') {
           #define HA_APPMSG "_temp_"
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
 
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
+        strncat(pBuffer, temp_buf + 4, 2);
     
         #define HA_APPMSG "\",\"name\":\""
-        strcpy(pBuffer, HA_APPMSG);
-        pBuffer+=strlen(HA_APPMSG);
+        strcat(pBuffer, HA_APPMSG);
         #undef HA_APPMSG
 
-        for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
+        strcat(pBuffer, stored_devicename);
     
         if (temp_buf[3] == 'O') {
           #define HA_APPMSG " output "
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
         if (temp_buf[3] == 'I') {
           #define HA_APPMSG " input "
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
         if (temp_buf[3] == 'T') {
           #define HA_APPMSG " temp "
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
 
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
+        strncat(pBuffer, temp_buf + 4, 2);
     
         #define HA_APPMSG "\",\"~\":\"NetworkModule/"
-        strcpy(pBuffer, HA_APPMSG);
-        pBuffer+=strlen(HA_APPMSG);
+        strcat(pBuffer, HA_APPMSG);
         #undef HA_APPMSG
 
-        for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
+        strcat(pBuffer, stored_devicename);
         
         #define HA_APPMSG "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/"
-        strcpy(pBuffer, HA_APPMSG);
-        pBuffer+=strlen(HA_APPMSG);
+        strcat(pBuffer, HA_APPMSG);
         #undef HA_APPMSG
 
         if (temp_buf[3] == 'O') {
           #define HA_APPMSG "output/"
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
         if (temp_buf[3] == 'I') {
           #define HA_APPMSG "input/"
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
         if (temp_buf[3] == 'T') {
           #define HA_APPMSG "temp/"
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
 
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
+        strncat(pBuffer, temp_buf + 4, 2);
     
         #define HA_APPMSG "\","
-        strcpy(pBuffer, HA_APPMSG);
-        pBuffer+=strlen(HA_APPMSG);
+        strcat(pBuffer, HA_APPMSG);
         #undef HA_APPMSG
 
         // Special case for output pin
         if (temp_buf[3] == 'O') {
           #define HA_APPMSG "\"cmd_t\":\"~/output/"
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	  
-          *pBuffer = temp_buf[4];  // Input or Output number
-          pBuffer++;
-          *pBuffer = temp_buf[5];
-          pBuffer++;
+          strncat(pBuffer, temp_buf + 4, 2);
     
           #define HA_APPMSG "/set\","
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
         }
 
         // Special case for temperature pin
         if (temp_buf[3] == 'T') {
           #define HA_APPMSG "\unit_of_meas\":\"C\","
-          strcpy(pBuffer, HA_APPMSG);
-          pBuffer+=strlen(HA_APPMSG);
+          strcat(pBuffer, HA_APPMSG);
           #undef HA_APPMSG
 	}
 
         #define HA_APPMSG "\"dev\":{\"ids\":[\"NetworkModule_"
-        strcpy(pBuffer, HA_APPMSG);
-        pBuffer+=strlen(HA_APPMSG);
+        strcat(pBuffer, HA_APPMSG);
 	#undef HA_APPMSG
         
-        for (i=0; i<mac_string_size; i++) { *pBuffer = mac_string[i]; pBuffer++; }
+        strcat(pBuffer, mac_string);
 
         // Coding comment; The below string set the size of the variable "temp"
 	// at 60 bytes. It could probably be reduced by 10 bytes if needed as
@@ -561,30 +527,24 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// the compiled string is 48 bytes, rather than the 59 that includes
 	// the escape character.
         #define HA_APPMSG "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\""
-        strcpy(pBuffer, HA_APPMSG);
-        pBuffer+=strlen(HA_APPMSG);
+        strcat(pBuffer, HA_APPMSG);
         #undef HA_APPMSG
         
-        for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
+        strcat(pBuffer, stored_devicename);
         
         #define HA_APPMSG "\",\"sw\":\""
-        strcpy(pBuffer, HA_APPMSG);
-        pBuffer+=strlen(HA_APPMSG);
+        strcat(pBuffer, HA_APPMSG);
         #undef HA_APPMSG
         
-        for (i=0; i<strlen(code_revision); i++) { *pBuffer = code_revision[i]; pBuffer++; }
+        strcat(pBuffer, code_revision);
         
         #define HA_APPMSG "\"}}"
-        strcpy(pBuffer, HA_APPMSG);
-        pBuffer+=strlen(HA_APPMSG);
+        strcat(pBuffer, HA_APPMSG);
         #undef HA_APPMSG
 
         // Now insert the new remaining length value in the uip_buf. It was
 	// stored in temp_buf[0] and temp_buf[1] earlier.
-        pBuffer = uip_appdata + 1;
-	*pBuffer = temp_buf[0];
-	pBuffer++;
-	*pBuffer = temp_buf[1];
+        memcpy(uip_appdata + 1, temp_buf, 2);
       }
     }
   }

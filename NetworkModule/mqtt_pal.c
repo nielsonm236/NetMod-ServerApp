@@ -153,11 +153,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   char* mBuffer;
   char temp_buf[6];
   uint16_t payload_size;
-  uint8_t devicename_size;
-  uint8_t mac_string_size;
-//  uint8_t auto_found;
   int auto_found;
-//  uint8_t i;
   int i;
   
   payload_size = 0;
@@ -241,10 +237,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //                 additional remaining length bytes and this cannot be
   //                 an Auto Discovery message.
   mBuffer = buf;
-  temp_buf[0] = *mBuffer;
-  mBuffer++;
-  temp_buf[1] = *mBuffer;
-  mBuffer++;
+  *((uint16_t*)&temp_buf[0]) = *((uint16_t*)mBuffer);	// copy 16 bits in a row
 
   // Check if Publish message
   if ((temp_buf[0] & 0xf0) == 0x30) {
@@ -261,14 +254,8 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
       //   temp_buf[3] = I or O
       //   temp_buf[4] = MSB input or output number
       //   temp_buf[5] = LSB input or output number
-      temp_buf[2] = *mBuffer;
-      mBuffer++;
-      temp_buf[3] = *mBuffer;
-      mBuffer++;
-      temp_buf[4] = *mBuffer;
-      mBuffer++;
-      temp_buf[5] = *mBuffer;
-      mBuffer++;        
+      *((uint32_t*)&temp_buf[2]) = *((uint32_t*)mBuffer);		// copy 32 bits in a row
+
 
       if (temp_buf[2] == '%') {
         // Found a marker - replace the existing payload with an auto
@@ -277,11 +264,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // Set pointer to uip_appdata
         pBuffer = uip_appdata;
         // Copy the Fixed Header Byte 1 to the uip_buf
-        *pBuffer = temp_buf[0];
-        pBuffer++;
-        // Initialize string length values used in later code
-        devicename_size = (uint8_t)strlen(stored_devicename);
-        mac_string_size = (uint8_t)strlen(mac_string);
+        *pBuffer++ = temp_buf[0];
        
         // Determine the payload size. To save code space this value is
 	// manually calculated in the comments below where the prototype
@@ -299,7 +282,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           payload_size = 253; // Payload without devicename
         }
 	// Add device name size to payload size
-        payload_size += (3 * devicename_size);
+        payload_size += (3 * (uint8_t)strlen(stored_devicename));
     
 	// The "remaining length" value in the MQTT message was 1 byte when we
 	// started, and will be 2 bytes as a result of the payload replacement.
@@ -318,9 +301,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// Copy the Variable Header to the uip_buf (but not the temporary
 	// payload).
 	for (i=0; i < (temp_buf[1] - 4); i++) {
-	  *pBuffer = *mBuffer;
-	  pBuffer++;
-	  mBuffer++;
+	  *pBuffer++ = *mBuffer++;
 	}
 	
         // Calculate the new "remaining length" bytes and save them for later
@@ -409,7 +390,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// "name":"devicename123456789 temp 16",    // 18 (without devicename)
 	// "~":"NetworkModule/devicename123456789", // 21 (without devicename)
 	// "avty_t":"~/availability",               // 26
-	// "stat_t":�~/temp/16",                    // 21
+	// "stat_t":ï¿½~/temp/16",                    // 21
 //	// "dev_cla":"temperature",                 // -- 24 --
         // "unit_of_meas":"\xc2\xb0\x43",           // 21
 	// "dev":{                                  // 7
@@ -440,10 +421,11 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           pBuffer=stpcpy(pBuffer, "_temp_");
 	}
 
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
+
+	// Input or Output number
+	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]);		// copy 16 bits in a row
+	pBuffer += 2;
+
     
         pBuffer=stpcpy(pBuffer, "\",\"name\":\"");
 
@@ -459,10 +441,9 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           pBuffer=stpcpy(pBuffer, " temp ");
 	}
 
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
+	// Input or Output number
+	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]);		// copy 16 bits in a row
+	pBuffer += 2;
     
         pBuffer=stpcpy(pBuffer, "\",\"~\":\"NetworkModule/");
 
@@ -480,10 +461,9 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           pBuffer=stpcpy(pBuffer, "temp/");
 	}
 
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
+	// Input or Output number
+	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]);		// copy 16 bits in a row
+	pBuffer += 2;
     
         pBuffer=stpcpy(pBuffer, "\",");
 
@@ -491,10 +471,9 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         if (temp_buf[3] == 'O') {
           pBuffer=stpcpy(pBuffer, "\"cmd_t\":\"~/output/");
 	  
-          *pBuffer = temp_buf[4];  // Input or Output number
-          pBuffer++;
-          *pBuffer = temp_buf[5];
-          pBuffer++;
+	  // Input or Output number
+	  *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]);		// copy 16 bits in a row
+	  pBuffer += 2;
     
           pBuffer=stpcpy(pBuffer, "/set\",");
         }
@@ -526,9 +505,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // Now insert the new remaining length value in the uip_buf. It was
 	// stored in temp_buf[0] and temp_buf[1] earlier.
         pBuffer = uip_appdata + 1;
-	*pBuffer = temp_buf[0];
-	pBuffer++;
-	*pBuffer = temp_buf[1];
+	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[0]);		// copy 16 bits in a row
       }
     }
   }
@@ -571,4 +548,3 @@ int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz) {
   }
   return rv;
 }
-

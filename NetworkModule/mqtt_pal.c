@@ -219,8 +219,15 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //                 "%Ixx",
   //                 4,
   //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+  // This message triggers a Temperature Sensor discovery message. "xx" is
+  // the sensor number.
+  //    mqtt_publish(&mqttclient,
+  //                 topic_base,
+  //                 "%Txx",
+  //                 4,
+  //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   //
-  // Seek the placeholder in the current message in the transmit buffer.
+  // Seeking the placeholder in the current message in the transmit buffer:
   // 1) First check if this is a Publish message.
   // 2) If yes, find the existing "remaining length" bytes as this will point
   //    to the start of the payload. Note that if this is an Auto Discovery
@@ -237,7 +244,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //                 additional remaining length bytes and this cannot be
   //                 an Auto Discovery message.
   mBuffer = buf;
-  *((uint16_t*)&temp_buf[0]) = *((uint16_t*)mBuffer);	// copy 16 bits in a row
+  *((uint16_t*)&temp_buf[0]) = *((uint16_t*)mBuffer); // copy 16 bits in a row
 
   // Check if Publish message
   if ((temp_buf[0] & 0xf0) == 0x30) {
@@ -254,7 +261,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
       //   temp_buf[3] = I or O
       //   temp_buf[4] = MSB input or output number
       //   temp_buf[5] = LSB input or output number
-      *((uint32_t*)&temp_buf[2]) = *((uint32_t*)mBuffer);		// copy 32 bits in a row
+      *((uint32_t*)&temp_buf[2]) = *((uint32_t*)mBuffer); // copy 32 bits in a row
 
 
       if (temp_buf[2] == '%') {
@@ -318,6 +325,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	
 	// Note: The value "len" remains unchanged. It is the length of the
 	// "app_message" provided to this function, even if we are creating a
+	// new payload for trasnmission.
 	
 	// Now encode the new remaining length and store in the first two bytes
 	// of temp_buf for now. The scheme here is simplified since we always
@@ -404,45 +412,30 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         //                                          // Total: 253 plus 3 x devicename
 
 
-        // The string "temp" is used to construct pieces of the payload then
-        // those pieces are copied to the uip_buf using the pBuffer pointer.
-        // "temp" is a maximum of 50 characters.
+        // "stpcpy()" is used to efficiently copy data to the uip_bug
+	// utilizing the pBuffer pointer.
         pBuffer=stpcpy(pBuffer, "{\"uniq_id\":\"");
 
         pBuffer=stpcpy(pBuffer, mac_string);
    
-        if (temp_buf[3] == 'O') {
-          pBuffer=stpcpy(pBuffer, "_output_");
-	}
-        if (temp_buf[3] == 'I') {
-          pBuffer=stpcpy(pBuffer, "_input_");
-	}
-        if (temp_buf[3] == 'T') {
-          pBuffer=stpcpy(pBuffer, "_temp_");
-	}
-
+        if (temp_buf[3] == 'O') pBuffer=stpcpy(pBuffer, "_output_");
+        if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, "_input_");
+        if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, "_temp_");
 
 	// Input or Output number
-	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]);		// copy 16 bits in a row
+	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
 	pBuffer += 2;
-
     
         pBuffer=stpcpy(pBuffer, "\",\"name\":\"");
 
         pBuffer=stpcpy(pBuffer, stored_devicename);
     
-        if (temp_buf[3] == 'O') {
-          pBuffer=stpcpy(pBuffer, " output ");
-	}
-        if (temp_buf[3] == 'I') {
-          pBuffer=stpcpy(pBuffer, " input ");
-	}
-        if (temp_buf[3] == 'T') {
-          pBuffer=stpcpy(pBuffer, " temp ");
-	}
+        if (temp_buf[3] == 'O') pBuffer=stpcpy(pBuffer, " output ");
+        if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, " input ");
+        if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, " temp ");
 
 	// Input or Output number
-	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]);		// copy 16 bits in a row
+	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
 	pBuffer += 2;
     
         pBuffer=stpcpy(pBuffer, "\",\"~\":\"NetworkModule/");
@@ -451,18 +444,12 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         
         pBuffer=stpcpy(pBuffer, "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/");
 
-        if (temp_buf[3] == 'O') {
-          pBuffer=stpcpy(pBuffer, "output/");
-	}
-        if (temp_buf[3] == 'I') {
-          pBuffer=stpcpy(pBuffer, "input/");
-	}
-        if (temp_buf[3] == 'T') {
-          pBuffer=stpcpy(pBuffer, "temp/");
-	}
+        if (temp_buf[3] == 'O') pBuffer=stpcpy(pBuffer, "output/");
+        if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, "input/");
+        if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, "temp/");
 
 	// Input or Output number
-	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]);		// copy 16 bits in a row
+	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
 	pBuffer += 2;
     
         pBuffer=stpcpy(pBuffer, "\",");
@@ -472,7 +459,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           pBuffer=stpcpy(pBuffer, "\"cmd_t\":\"~/output/");
 	  
 	  // Input or Output number
-	  *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]);		// copy 16 bits in a row
+	  *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
 	  pBuffer += 2;
     
           pBuffer=stpcpy(pBuffer, "/set\",");
@@ -487,11 +474,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         
         pBuffer=stpcpy(pBuffer, mac_string);
 
-        // Coding comment; The below string set the size of the variable "temp"
-	// at 60 bytes. It could probably be reduced by 10 bytes if needed as
-	// the \" escape sequence will compile into a single byte (0x22). Thus
-	// the compiled string is 48 bytes, rather than the 59 that includes
-	// the escape character.
         pBuffer=stpcpy(pBuffer, "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\"");
         
         pBuffer=stpcpy(pBuffer, stored_devicename);

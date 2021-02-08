@@ -145,12 +145,13 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   char* pBuffer;
   char* mBuffer;
   char temp_buf[6];
-  char temp[35];
   uint16_t payload_size;
   uint8_t devicename_size;
   uint8_t mac_string_size;
-  uint8_t auto_found;
-  uint8_t i;
+//  uint8_t auto_found;
+  int auto_found;
+//  uint8_t i;
+  int i;
   
   payload_size = 0;
   auto_found = 0;
@@ -275,7 +276,9 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         devicename_size = (uint8_t)strlen(stored_devicename);
         mac_string_size = (uint8_t)strlen(mac_string);
        
-        // Calculate the payload size
+        // Determine the payload size. To save code space this value is
+	// manually calculated in the comments below where the prototype
+	// of the application message is shown.
         if (temp_buf[3] == 'O') {
           // This is an Output auto discovery message
           payload_size = 264; // Payload without devicename
@@ -284,21 +287,29 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           // This is an Input auto discovery message
           payload_size = 235; // Payload without devicename
         }
+        if (temp_buf[3] == 'T') {
+          // This is a Temperature Sensor auto discovery message
+          payload_size = 253; // Payload without devicename
+        }
+	// Add device name size to payload size
         payload_size += (3 * devicename_size);
     
-	// Remaining length was 1 byte when we started, and will be 2 bytes as a 
-	// result of the payload replacement. This means we have to move the
-	// Variable Header one byte further out in as it is copied to the uip_buf.
-	// Here the Variable header is copied to the uip_buf, and later we'll
-	// come back and write the new "remaining length" to the uip_buf.
+	// The "remaining length" value in the MQTT message was 1 byte when we
+	// started, and will be 2 bytes as a result of the payload replacement.
+	// This means we have to move the Variable Header one byte further out
+	// as it is copied to the uip_buf. Here the Variable header is copied
+	// to the uip_buf, and later we'll come back and write the new
+	// "remaining length" to the uip_buf.
 	//
-	// Point pBuffer at the location in the uip_buf where we want the Variable
-	// Header to start.
+	// Point pBuffer at the location in the uip_buf where we want the
+	// Variable Header to start.
 	pBuffer += 2;
-	// Point mBuffer at the location in the buf where the Variable Header starts
+	// Point mBuffer at the location in the buf where the Variable Header
+	// starts
 	mBuffer = buf;
 	mBuffer += 2;
-	// Copy the Variable Header to the uip_buf (but not the temporary payload).
+	// Copy the Variable Header to the uip_buf (but not the temporary
+	// payload).
 	for (i=0; i < (temp_buf[1] - 4); i++) {
 	  *pBuffer = *mBuffer;
 	  pBuffer++;
@@ -308,19 +319,18 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // Calculate the new "remaining length" bytes and save them for later
 	// storage in the uip_buf.
 	// The new remaining length is the payload_size, plus the old remaining
-	// length, less four to account for removal of the 4 byte temporary payload.
-	// We'll use the payload_size variable to store this value.
+	// length, less four to account for removal of the 4 byte temporary
+	// payload. We'll use the payload_size variable to store this value.
 	payload_size = payload_size + temp_buf[1] - 4;
 	// Calculate uip_slen (it will be used later). It is the new reamining 
-	// length plus 3 (for the control byte and the two remaining length bytes).
-	// Remember that payload_size variable is currently equal to the new
-	// remaining length value.
+	// length plus 3 (for the control byte and the two remaining length
+	// bytes). Remember that payload_size variable is currently equal to
+	// the new remaining length value.
 	uip_slen = payload_size + 3;
-	// Calculate len (it will be used later). It is the old remaining length
-	// value plus 2 (for the control byte and the remaining length byte).
-	// THIS IS NOT NECESSARY. len IS ALWAYS THE len PROVIDED IN THE CALL TO
-	// THIS FUNCTION.
-//	len = temp_buf[1] + 2;
+	
+	// Note: The value "len" remains unchanged. It is the length of the
+	// "app_message" provided to this function, even if we are creating a
+	
 	// Now encode the new remaining length and store in the first two bytes
 	// of temp_buf for now. The scheme here is simplified since we always
 	// have more than 127 and less than 512 bytes to send. A more general
@@ -337,24 +347,25 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           temp_buf[0] = (uint8_t)((payload_size - 384) | 0x80);
           temp_buf[1] = 3;
 	}
+	
 	// Calculate uip_slen (it will be used later). It is the new reamining 
-	// length plus 3 (for the control byte and the two remaining length bytes).
-	// Remember that payload_size is currently equal to the new remaining
-	// length value.
+	// length plus 3 (for the control byte and the two remaining length
+	// bytes). Remember that payload_size is currently equal to the new
+	// remaining length value.
 	uip_slen = payload_size + 3;
     
         // Build the discovery payload and copy it to the uip_buf. pBuffer is
         // already pointing to the the uip_buf location where the new Payload
         // should start.
-        // We build the payload by copying template fields where they are constant,
-        // and replacing template fields as needed. While building the payload it is
-        // copied to the uip_buf.
+        // We build the payload by copying template fields where they are
+	// constant, and replacing template fields as needed. While building
+	// the payload it is copied to the uip_buf.
         //
         // output payload
         // {                                        // 1
         // "uniq_id":"aabbccddeeff_output_01",      // 35
-        // "name":"devicename123456789 output 01",  // 21-39
-        // "~":"NetworkModule/devicename123456789", // 22-40
+        // "name":"devicename123456789 output 01",  // 20 (without devicename)
+        // "~":"NetworkModule/devicename123456789", // 21 (without devicename)
         // "avty_t":"~/availability",               // 26
         // "stat_t":"~/output/01",                  // 23
         // "cmd_t":"~/output/01/set",               // 26
@@ -362,122 +373,214 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // "ids":["NetworkModule_aabbccddeeff"],    // 37
         // "mdl":"HW-584",                          // 15
         // "mf":"NetworkModule",                    // 21
-        // "name":"devicename123456789",            // 11-29
+        // "name":"devicename123456789",            // 10 (without devicename)
         // "sw":"20201220 1322"                     // 20
         // }                                        // 1
         // }                                        // 1
-        //                                          // 267 - 321
-        //                                          // or 264 plus 3 x devicename
+        //                                          // Total: 264 plus 3 x devicename
         //
         // input payload
         // {                                        // 1
         // "uniq_id":"aabbccddeeff_input_01",       // 34
-        // "name":"devicename123456789 input 01",   // 20-38
-        // "~":"NetworkModule/devicename123456789", // 22-40
+        // "name":"devicename123456789 input 01",   // 19 (without devicename)
+        // "~":"NetworkModule/devicename123456789", // 21 (without devicename)
         // "avty_t":"~/availability",               // 26
         // "stat_t":"~/input/01",                   // 22
         // "dev":{                                  // 7
         // "ids":["NetworkModule_aabbccddeeff"],    // 37
         // "mdl":"HW-584",                          // 15
         // "mf":"NetworkModule",                    // 21
-        // "name":"devicename123456789",            // 11-29
+        // "name":"devicename123456789",            // 10 (without devicename)
         // "sw":"20201220 1322"                     // 20
         // }                                        // 1
         // }                                        // 1
-        //                                          // 238 - 292
-        //                                          // or 235 plus 3 x devicename
+        //                                          // Total: 235 plus 3 x devicename
         //
-        // .........1.........2.........3.........4
+	// temperature sensor payload
+	// {                                        // 1
+	// "uniq_id":"aabbccddeeff_temp_16",        // 33
+	// "name":"devicename123456789 temp 16",    // 18 (without devicename)
+	// "~":"NetworkModule/devicename123456789", // 21 (without devicename)
+	// "avty_t":"~/availability",               // 26
+	// "stat_t":”~/temp/16",                    // 21
+//	// "dev_cla":"temperature",                 // -- 24 --
+        // "unit_of_meas":"\xc2\xb0\x43",           // 21
+	// "dev":{                                  // 7
+	// "ids":["NetworkModule_aabbccddeeff"],    // 37
+	// "mdl":"HW-584",                          // 15
+	// "mf":"NetworkModule",                    // 21
+	// "name":"devicename123456789",            // 10 (without devicename)
+	// "sw":"20210204 0311"                     // 20
+	// }                                        // 1
+	// }                                        // 1
+        //                                          // Total: 253 plus 3 x devicename
+
 
         // The string "temp" is used to construct pieces of the payload then
         // those pieces are copied to the uip_buf using the pBuffer pointer.
-        // "temp" is a maximum of 35 characters.
-        strcpy(temp, "{\"uniq_id\":\"");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-    
+        // "temp" is a maximum of 50 characters.
+        #define HA_APPMSG "{\"uniq_id\":\""
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+	#undef HA_APPMSG
+
         for (i=0; i<mac_string_size; i++) { *pBuffer = mac_string[i]; pBuffer++; }
    
-        if (temp_buf[3] == 'O') strcpy(temp, "_output_");
-        if (temp_buf[3] == 'I') strcpy(temp, "_input_");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
+        if (temp_buf[3] == 'O') {
+          #define HA_APPMSG "_output_"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'I') {
+          #define HA_APPMSG "_input_"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'T') {
+          #define HA_APPMSG "_temp_"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+
         *pBuffer = temp_buf[4];  // Input or Output number
         pBuffer++;
         *pBuffer = temp_buf[5];
         pBuffer++; 
     
-        if (temp_buf[3] == 'O') strcpy(temp, "\",\"name\":\"");
-        if (temp_buf[3] == 'I') strcpy(temp, "\",\"name\":\"");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-     
+        #define HA_APPMSG "\",\"name\":\""
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
+
         for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
     
-        if (temp_buf[3] == 'O') strcpy(temp, " output ");
-        if (temp_buf[3] == 'I') strcpy(temp, " input ");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
+        if (temp_buf[3] == 'O') {
+          #define HA_APPMSG " output "
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'I') {
+          #define HA_APPMSG " input "
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'T') {
+          #define HA_APPMSG " temp "
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+
         *pBuffer = temp_buf[4];  // Input or Output number
         pBuffer++;
         *pBuffer = temp_buf[5];
         pBuffer++; 
     
-        if (temp_buf[3] == 'O') strcpy(temp, "\",\"~\":\"NetworkModule/");
-        if (temp_buf[3] == 'I') strcpy(temp, "\",\"~\":\"NetworkModule/");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
+        #define HA_APPMSG "\",\"~\":\"NetworkModule/"
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
+
         for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
         
-        strcpy(temp, "\",\"avty_t\":\"~/availability\",");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
-        if (temp_buf[3] == 'O') strcpy(temp, "\"stat_t\":\"~/output/");
-        if (temp_buf[3] == 'I') strcpy(temp, "\"stat_t\":\"~/input/");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
-        *pBuffer = temp_buf[4];  // Input or Output number
-        pBuffer++;
-        *pBuffer = temp_buf[5];
-        pBuffer++; 
-    
-        strcpy(temp, "\",");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/"
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
 
         if (temp_buf[3] == 'O') {
-          strcpy(temp, "\"cmd_t\":\"~/output/");
-          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
+          #define HA_APPMSG "output/"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'I') {
+          #define HA_APPMSG "input/"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+        if (temp_buf[3] == 'T') {
+          #define HA_APPMSG "temp/"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+
+        *pBuffer = temp_buf[4];  // Input or Output number
+        pBuffer++;
+        *pBuffer = temp_buf[5];
+        pBuffer++; 
+    
+        #define HA_APPMSG "\","
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
+
+        // Special case for output pin
+        if (temp_buf[3] == 'O') {
+          #define HA_APPMSG "\"cmd_t\":\"~/output/"
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	  
           *pBuffer = temp_buf[4];  // Input or Output number
           pBuffer++;
           *pBuffer = temp_buf[5];
           pBuffer++;
     
-          strcpy(temp, "/set\",");
-          for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+          #define HA_APPMSG "/set\","
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
         }
 
-        strcpy(temp, "\"dev\":{\"ids\":[\"NetworkModule_");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        // Special case for temperature pin
+        if (temp_buf[3] == 'T') {
+          #define HA_APPMSG "\"unit_of_meas\":\"\xc2\xb0\x43\","
+          strcpy(pBuffer, HA_APPMSG);
+          pBuffer+=strlen(HA_APPMSG);
+          #undef HA_APPMSG
+	}
+	
+        #define HA_APPMSG "\"dev\":{\"ids\":[\"NetworkModule_"
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+	#undef HA_APPMSG
         
         for (i=0; i<mac_string_size; i++) { *pBuffer = mac_string[i]; pBuffer++; }
-        
-        strcpy(temp, "\"],\"mdl\":\"HW-584\",");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
-        
-        strcpy(temp, "\"mf\":\"NetworkModule\",\"name\":\"");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+
+        // Coding comment; The below string set the size of the variable "temp"
+	// at 60 bytes. It could probably be reduced by 10 bytes if needed as
+	// the \" escape sequence will compile into a single byte (0x22). Thus
+	// the compiled string is 48 bytes, rather than the 59 that includes
+	// the escape character.
+        #define HA_APPMSG "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\""
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
         
         for (i=0; i<devicename_size; i++) { *pBuffer = stored_devicename[i]; pBuffer++; }
         
-        strcpy(temp, "\",\"sw\":\"");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\",\"sw\":\""
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
         
         for (i=0; i<strlen(code_revision); i++) { *pBuffer = code_revision[i]; pBuffer++; }
         
-        strcpy(temp, "\"}}");
-        for (i=0; i<strlen(temp); i++) { *pBuffer = temp[i]; pBuffer++; }
+        #define HA_APPMSG "\"}}"
+        strcpy(pBuffer, HA_APPMSG);
+        pBuffer+=strlen(HA_APPMSG);
+        #undef HA_APPMSG
 
-        // Now insert the new remaining length value in the uip_buf. It
-	// was stored in temp_buf[0] and temp_buf[1] earlier.
+        // Now insert the new remaining length value in the uip_buf. It was
+	// stored in temp_buf[0] and temp_buf[1] earlier.
         pBuffer = uip_appdata + 1;
 	*pBuffer = temp_buf[0];
 	pBuffer++;
@@ -502,7 +605,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
               // UIP code uses the uip_slen value.
 }
 
-  
+
 int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz) {
   // This function will check if there is any data in the receive buffer and
   // report the size of that data to the MQTT calling process.

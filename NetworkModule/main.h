@@ -62,6 +62,7 @@ void publish_callback(void** unused, struct mqtt_response_publish *published);
 void publish_outbound(void);
 void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t mask);
 void publish_pinstate_all(void);
+void publish_temperature(uint8_t sensor);
 int8_t reverse_bit_order(uint8_t k);
 
 #define MQTT_START_TCP_CONNECT		1

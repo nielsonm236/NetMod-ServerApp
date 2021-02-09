@@ -77,10 +77,14 @@ void int2hex(uint8_t i);
 
 void HttpDInit(void);
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);
-void parse_POST_string(uint8_t curr_ParseCmd, int num_chars);
-void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
-void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
-void parse_POST_MAC(uint8_t curr_ParseCmd);
+// void parse_POST_string(uint8_t curr_ParseCmd, int num_chars);
+void parse_POST_string(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket, uint8_t num_chars);
+// void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
+void parse_POST_address(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket);
+// void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum);
+void parse_POST_port(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket);
+// void parse_POST_MAC(uint8_t curr_ParseCmd);
+void parse_POST_MAC(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket);
 
 void encode_16bit_registers(void);
 void update_pin_control_bytes(void);
@@ -92,5 +96,7 @@ void update_ON_OFF(uint8_t i, uint8_t j);
 void clear_saved_postpartial_all(void);
 void clear_saved_postpartial_data(void);
 void clear_saved_postpartial_previous(void);
+void preload_alphas(void);
+void check_alphas(void);
 
 #endif /*HTTPD_H_*/

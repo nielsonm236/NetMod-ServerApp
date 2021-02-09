@@ -61,9 +61,20 @@ extern uint8_t stored_debug[NUM_DEBUG_BYTES];
 
 char *stpcpy(char * dest, const char * src)
 {
-	while ((*dest++ = *src++) != '\0')
-		/* nothing */;
-	return --dest;
+  // stpcpy - copy a string from src to dest returning a pointer to the new
+  //          end of dest, including src's %NUL-terminator. May overrun dest.
+  // * @dest: pointer to end of string being copied into. Must be large
+  //          enough to receive copy.
+  // * @src:  pointer to the beginning of string being copied from. Must not
+  //          overlap dest.
+  //
+  // stpcpy differs from strcpy in a key way: the return value is a pointer
+  // to the new %NUL-terminating character in @dest. (For strcpy, the return
+  // value is a pointer to the start of @dest). This function does not
+  // perform bounds checking of the inputs.
+  while ((*dest++ = *src++) != '\0')
+    /* nothing */;
+  return --dest;
 }
 
 // Implements mqtt_pal_sendall and mqtt_pal_recvall and any platform-specific 
@@ -422,7 +433,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, "_input_");
         if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, "_temp_");
 
-	// Input or Output number
+	// Input or Output number in temp_buf[4] and [5]
 	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
 	pBuffer += 2;
     
@@ -434,7 +445,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, " input ");
         if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, " temp ");
 
-	// Input or Output number
+	// Input or Output number in temp_buf[4] and [5]
 	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
 	pBuffer += 2;
     
@@ -448,7 +459,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, "input/");
         if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, "temp/");
 
-	// Input or Output number
+	// Input or Output number in temp_buf[4] and [5]
 	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
 	pBuffer += 2;
     
@@ -458,7 +469,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         if (temp_buf[3] == 'O') {
           pBuffer=stpcpy(pBuffer, "\"cmd_t\":\"~/output/");
 	  
-	  // Input or Output number
+ 	  // Input or Output number in temp_buf[4] and [5]
 	  *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
 	  pBuffer += 2;
     

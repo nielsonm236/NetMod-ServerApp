@@ -50,6 +50,7 @@
 #include "uip_arch.h"
 #include "gpio.h"
 #include "main.h"
+#include "mqtt_pal.h"
 #include "uipopt.h"
 
 // #include "stdlib.h"
@@ -199,9 +200,9 @@ uint8_t saved_newlines;       // Saved nNewlines value in case TCP fragmentation
                               // the /r/n/r/n search.
 uint8_t z_diag;               // The last value in a POST (hidden), used for diagnostics
 
-uint8_t* tmp_pBuffer;         // Used to return the pBuffer value from parsing sub-functions 
-uint16_t tmp_nBytes;          // Used to return the nBytes value from parsing sub-functions
-uint8_t tmp_nParseLeft;       // Used to pass the nParseLeft value to parsing sub-functions
+// uint8_t* tmp_pBuffer;         // Used to return the pBuffer value from parsing sub-functions 
+// uint16_t tmp_nBytes;          // Used to return the nBytes value from parsing sub-functions
+// uint8_t tmp_nParseLeft;       // Used to pass the nParseLeft value to parsing sub-functions
 uint8_t break_while;          // Used to indicate that a parsing "while loop" break is required
 uint8_t alpha[32];            // Used in parsing of multi-character values
 
@@ -1231,6 +1232,11 @@ void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
   // str  - Pointer to the storage location for the converted value
   // base - The base to be used in the output string
   // pad  - size of the string result, pre-pad with zeroes if needed
+  //
+  // The resulting string  in str will be NULL terminated on completion.
+  // No checking is done so make sure str has enough room for the
+  // converted value and the terminator.
+  //
   // Positive numbers ONLY,
   //   Up to 10 digits (32 bits),
   //   Includes leading 0 pad,
@@ -1587,15 +1593,18 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
         if (nParsedMode == 'a') {
 	  // This displays the device name (up to 19 characters)
-	  for(i=0; i<19; i++) {
-	    if (stored_devicename[i] != '\0') {
-              *pBuffer = (uint8_t)(stored_devicename[i]);
-              pBuffer++;
-              nBytes++;
-	    }
-	    else break;
-	  }
+//	  for(i=0; i<19; i++) {
+//	    if (stored_devicename[i] != '\0') {
+//              *pBuffer = (uint8_t)(stored_devicename[i]);
+//              pBuffer++;
+//              nBytes++;
+//	    }
+//	    else break;
+//	  }
+        pBuffer=stpcpy(pBuffer, stored_devicename);
+	nBytes += strlen(stored_devicename);
 	}
+
 	
         else if (nParsedMode == 'b') {
 	  // This displays the IP Address, Gateway Address, and Netmask information.
@@ -1635,10 +1644,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             }
 	  
  	    // Copy OctetArray characters to output. Advance pointers.
-	    for(i=0; i<8; i++) {
-	      *pBuffer = (uint8_t)OctetArray[i];
-              pBuffer++;
-	    }
+//	    for(i=0; i<8; i++) {
+//	      *pBuffer = (uint8_t)OctetArray[i];
+//              pBuffer++;
+//	    }
+            pBuffer=stpcpy(pBuffer, OctetArray);
 	    nBytes += 8;
 	  }
 	}
@@ -1655,10 +1665,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  else emb_itoa(stored_mqttport, OctetArray, 16, 5);
 	    
 	  // Copy OctetArray characters to output. Advance pointers.
-	  for(i=0; i<5; i++) {
-            *pBuffer = (uint8_t)OctetArray[i];
-            pBuffer++;
-	  }
+//	  for(i=0; i<5; i++) {
+//            *pBuffer = (uint8_t)OctetArray[i];
+//            pBuffer++;
+//	  }
+          pBuffer=stpcpy(pBuffer, OctetArray);
 	  nBytes += 5;
         }
 	
@@ -1667,12 +1678,15 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // octet). We send the 12 characters in the mac_string (rather
 	  // than from the uip_ethaddr bytes) as the mac_string is already
 	  // in alphanumeric format.
-          for (i=0; i<12; i++) {
-            *pBuffer = mac_string[i];
-            pBuffer++;
-            nBytes++;
-	  }
+//          for (i=0; i<12; i++) {
+//            *pBuffer = mac_string[i];
+//            pBuffer++;
+//            nBytes++;
+//	  }
+          pBuffer=stpcpy(pBuffer, mac_string);
+          nBytes += 12;
 	}
+	
 
 #if UIP_STATISTICS == 1
         else if (nParsedMode == 'e') {
@@ -1734,7 +1748,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             *pBuffer = OctetArray[i];
             pBuffer++;
 	  }
-	  nBytes += 10;
 	}
 #endif // UIP_STATISTICS == 1
 
@@ -1825,7 +1838,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           }
 	  nBytes += 16;
 	}
-
+	
 
         else if (nParsedMode == 'g') {
 	  // This displays the Config string, currently defined as follows:
@@ -1835,7 +1848,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // Bit 7: Undefined, 0 only
 	  // Bit 6: Undefined, 0 only
 	  // Bit 5: Undefined, 0 only
-	  // Bit 4: Undefined, 0 only
+	  // Bit 4: DS18B20 1 = Enable, 0 = Disable
 	  // Bit 3: MQTT 1 = Enable, 0 = Disable
 	  // Bit 2: Home Assistant Auto Discovery 1 = Enable, 0 = Disable
 	  // Bit 1: Duplex 1 = Full, 0 = Half
@@ -1847,6 +1860,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           *pBuffer = OctetArray[1]; pBuffer++;
           nBytes += 2;
 	}
+	
 	
         else if (nParsedMode == 'h') {
 	  // This sends the Pin Control String, defined as follows:
@@ -1879,28 +1893,33 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  }
 	}
 	
+	
         else if (nParsedMode == 'l') {
 	  // This displays MQTT Username information (0 to 10 characters)
-          for(i=0; i<10; i++) {
-	    if (stored_mqtt_username[i] != '\0') {
-              *pBuffer = (uint8_t)(stored_mqtt_username[i]);
-              pBuffer++;
-              nBytes++;
-	    }
-	    else break;
-	  }
+//          for(i=0; i<10; i++) {
+//	    if (stored_mqtt_username[i] != '\0') {
+//              *pBuffer = (uint8_t)(stored_mqtt_username[i]);
+//              pBuffer++;
+//              nBytes++;
+//	    }
+//	    else break;
+//	  }
+          pBuffer=stpcpy(pBuffer, stored_mqtt_username);
+	  nBytes += strlen(stored_mqtt_username);
 	}
 	
         else if (nParsedMode == 'm') {
 	  // This displays MQTT Password information (0 to 10 characters)
-          for(i=0; i<10; i++) {
-	    if (stored_mqtt_password[i] != '\0') {
-              *pBuffer = (uint8_t)(stored_mqtt_password[i]);
-              pBuffer++;
-              nBytes++;
-	    }
-	    else break;
-	  }
+//          for(i=0; i<10; i++) {
+//	    if (stored_mqtt_password[i] != '\0') {
+//              *pBuffer = (uint8_t)(stored_mqtt_password[i]);
+//              pBuffer++;
+//              nBytes++;
+//	    }
+//	    else break;
+//	  }
+          pBuffer=stpcpy(pBuffer, stored_mqtt_password);
+	  nBytes += strlen(stored_mqtt_password);
 	}
 	
         else if (nParsedMode == 'n') {
@@ -1946,53 +1965,61 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	
           if (nParsedNum == 0) {
 	    #define TEMPTEXT "<p>Temperature Sensors<br> 1 "
-            strcpy(pBuffer, TEMPTEXT);
-            pBuffer += strlen(TEMPTEXT);
+//            strcpy(pBuffer, TEMPTEXT);
+//            pBuffer += strlen(TEMPTEXT);
+            pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
 	    goto showdata;
 	    }
           if (nParsedNum == 1) {
 	    #define TEMPTEXT "&#8451;<br> 2 "
-            strcpy(pBuffer, TEMPTEXT);
-            pBuffer += strlen(TEMPTEXT);
+//            strcpy(pBuffer, TEMPTEXT);
+//            pBuffer += strlen(TEMPTEXT);
+            pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
 	    goto showdata;
 	  }
           if (nParsedNum == 2) {
 	    #define TEMPTEXT "&#8451;<br> 3 "
-            strcpy(pBuffer, TEMPTEXT);
-            pBuffer += strlen(TEMPTEXT);
+//            strcpy(pBuffer, TEMPTEXT);
+//            pBuffer += strlen(TEMPTEXT);
+            pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
 	    goto showdata;
 	  }
           if (nParsedNum == 3) {
 	    #define TEMPTEXT "&#8451;<br> 4 "
-            strcpy(pBuffer, TEMPTEXT);
-            pBuffer += strlen(TEMPTEXT);
+//            strcpy(pBuffer, TEMPTEXT);
+//            pBuffer += strlen(TEMPTEXT);
+            pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
 	    goto showdata;
 	  }
           if (nParsedNum == 4) {
 	    #define TEMPTEXT "&#8451;<br> 5 "
-            strcpy(pBuffer, TEMPTEXT);
-            pBuffer += strlen(TEMPTEXT);
+//            strcpy(pBuffer, TEMPTEXT);
+//            pBuffer += strlen(TEMPTEXT);
+            pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
 	  }
 	  showdata:
-          for(i=0; i<6; i++) {
-            *pBuffer = DS18B20_string[nParsedNum][i];
-            pBuffer++;
-            nBytes++;
-	  }
+//          for(i=0; i<6; i++) {
+//            *pBuffer = DS18B20_string[nParsedNum][i];
+//            pBuffer++;
+//            nBytes++;
+//	  }
+          pBuffer=stpcpy(pBuffer, DS18B20_string[nParsedNum]);
+	  nBytes += 6;
           if (nParsedNum == 4) {
 	    #define TEMPTEXT "&#8451;<br></p>"
-            strcpy(pBuffer, TEMPTEXT);
-            pBuffer += strlen(TEMPTEXT);
+//            strcpy(pBuffer, TEMPTEXT);
+//            pBuffer += strlen(TEMPTEXT);
+            pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
 	  }
@@ -2000,11 +2027,13 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
         else if (nParsedMode == 'w') {
 	  // This displays Code Revision information (13 characters)
-          for(i=0; i<13; i++) {
-              *pBuffer = code_revision[i];
-              pBuffer++;
-              nBytes++;
-	  }
+//          for(i=0; i<13; i++) {
+//              *pBuffer = code_revision[i];
+//              pBuffer++;
+//              nBytes++;
+//	  }
+          pBuffer=stpcpy(pBuffer, code_revision);
+          nBytes += 13;
 	}
 	
         else if (nParsedMode == 'y') {
@@ -2136,8 +2165,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   uint16_t nBufSize;
 //  uint8_t i;
   int i;
+  uint8_t j;
   
   i = 0;
+  j = 0;
 
   if (uip_connected()) {
     //Initialize this connection
@@ -2588,18 +2619,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
 	                     // occurs.
-            tmp_pBuffer = pBuffer;
-            tmp_nBytes = nBytes;
-	    tmp_nParseLeft = pSocket->nParseLeft;
             switch (pSocket->ParseCmd) {
-              case 'a': i = 19; break;
+              case 'a': j = 19; break;
               case 'l':
-              case 'm': i = 10; break;
+              case 'm': j = 10; break;
             }
-            parse_POST_string(pSocket->ParseCmd, i);
-            pBuffer = tmp_pBuffer;
-            nBytes = tmp_nBytes;
-	    pSocket->nParseLeft = tmp_nParseLeft;
+            parse_POST_string(&pBuffer, &nBytes, pSocket, j);
             if (break_while == 1) {
 	      // Hit end of TCP Fragment. Break out of while() loop.
 	      // The parse_POST_string() routine will have loaded the
@@ -2623,13 +2648,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // functions.
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
 	                     // occurs.
-            tmp_pBuffer = pBuffer;
-            tmp_nBytes = nBytes;
-	    tmp_nParseLeft = pSocket->nParseLeft;
-            parse_POST_address(pSocket->ParseCmd, pSocket->ParseNum);
-            pBuffer = tmp_pBuffer;
-            nBytes = tmp_nBytes;
-	    pSocket->nParseLeft = tmp_nParseLeft;
+            parse_POST_address(&pBuffer, &nBytes, pSocket);
             if (break_while == 1) {
 	      // Hit end of TCP Fragment but still have characters to collect.
 	      // Break out of while() loop.
@@ -2660,13 +2679,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // the pending port number.
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
 	                     // occurs.
-            tmp_pBuffer = pBuffer;
-            tmp_nBytes = nBytes;
-	    tmp_nParseLeft = pSocket->nParseLeft;
-            parse_POST_port(pSocket->ParseCmd, pSocket->ParseNum);
-            pBuffer = tmp_pBuffer;
-            nBytes = tmp_nBytes;
-	    pSocket->nParseLeft = tmp_nParseLeft;
+            parse_POST_port(&pBuffer, &nBytes, pSocket);
             if (break_while == 1) {
 	      // Hit end of TCP Fragment but still have characters to collect.
 	      // Break out of while() loop.
@@ -2694,13 +2707,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
 	                     // occurs.
-            tmp_pBuffer = pBuffer;
-            tmp_nBytes = nBytes;
-	    tmp_nParseLeft = pSocket->nParseLeft;
-            parse_POST_MAC(pSocket->ParseCmd);
-            pBuffer = tmp_pBuffer;
-            nBytes = tmp_nBytes;
-	    pSocket->nParseLeft = tmp_nParseLeft;
+            parse_POST_MAC(&pBuffer, &nBytes, pSocket);
             if (break_while == 1) {
 	      // Hit end of TCP Fragment but still have characters to collect.
 	      // Break out of while() loop.
@@ -2727,8 +2734,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // hex encoded byte. Each is collected and saved for later
 	    // processing.
 
-            for (i=0; i<2; i++) alpha[i] = '-';
-	    
+            preload_alphas();
+
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
 	                     // occurs.
 	    
@@ -2742,9 +2749,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // restored. We need to determine where in this command the
 	      // fragmentation break occurred and continue from there.
 	      // Check alphas
-              for (i=0; i<2; i++) {
-                if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
-	      }
+	      check_alphas();
 	    }
 	    
 	    else {
@@ -2813,7 +2818,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // time, converted to a numeric byte, and stored in their
 	    // corresponding Pending_pin_control byte.
 	    
-            for (i=0; i<32; i++) alpha[i] = '-';
+//            for (i=0; i<32; i++) alpha[i] = '-';
+            preload_alphas();
 	    
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
 	                     // occurs.
@@ -2828,9 +2834,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // restored. We need to determine where in this command the
 	      // fragmentation break occurred and continue from there.
 	      // Check alphas
-              for (i=0; i<32; i++) {
-                if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
-	      }
+	      check_alphas();
 	    }
 	    
 	    else {
@@ -2872,9 +2876,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
             // Sort the alpha characters into the pin control bytes
 	    {
-//              uint8_t i;
               int i;
-//              uint8_t j;
               int j;
 	      uint8_t k;
               i = 0;
@@ -3524,16 +3526,29 @@ void clear_saved_postpartial_previous(void)
 }
 
 
-void parse_POST_string(uint8_t curr_ParseCmd, int num_chars)
+void preload_alphas(void)
 {
-//  uint8_t i;
   int i;
-//  uint8_t amp_found;
-  int amp_found;
-//  uint8_t frag_flag;
-  int frag_flag;
-//  uint8_t resume;
-  int resume;
+  for (i=0; i<32; i++) alpha[i] = '-';
+}
+
+
+void check_alphas(void)
+{
+  int i;
+  for (i=0; i<32; i++) {
+    if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
+    else break;
+  }
+}
+
+
+void parse_POST_string(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket, uint8_t num_chars)
+{
+  int i;
+  uint8_t amp_found;
+  uint8_t frag_flag;
+  uint8_t resume;
   char tmp_Pending[20];
   // This function processes POST data for one of several string fields:
   //   Device Name field
@@ -3555,7 +3570,7 @@ void parse_POST_string(uint8_t curr_ParseCmd, int num_chars)
   amp_found = 0;
   for (i=0; i<20; i++) tmp_Pending[i] = '\0';
   
-  if (saved_postpartial_previous[0] == curr_ParseCmd) {
+  if (saved_postpartial_previous[0] == pSocket->ParseCmd) {
     // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
     // should only get used once on processing a given TCP Fragment.
     saved_postpartial_previous[0] = '\0';
@@ -3609,11 +3624,11 @@ void parse_POST_string(uint8_t curr_ParseCmd, int num_chars)
         tmp_Pending[i] = saved_postpartial_previous[4+i];
       }
       else {
-        resume = i;
+        resume = (uint8_t)i;
         break;
       }
     }
-    if (*tmp_pBuffer == '&') {
+    if (**pBuffer == '&') {
       // Handle the case where all characters were collected in the last TCP
       // Fragment but the & was not seen. In this case the & is the first
       // character of this packet.
@@ -3636,19 +3651,19 @@ void parse_POST_string(uint8_t curr_ParseCmd, int num_chars)
       if (amp_found == 0) {
         // Collect a byte of the devicename from the uip_buf until the '&' is
         // found.
-        if (*tmp_pBuffer == '&') {
+        if (**pBuffer == '&') {
           // Set the amp_found flag and do not store this character in
           // devicename.
           amp_found = 1;
         }
         else {
-          tmp_Pending[i] = *tmp_pBuffer;
-          saved_postpartial[4+i] = *tmp_pBuffer;
-          tmp_nParseLeft--;
-          saved_nparseleft = tmp_nParseLeft;
-          tmp_pBuffer++;
-          tmp_nBytes--;
-          if (tmp_nBytes == 0) {
+          tmp_Pending[i] = **pBuffer;
+          saved_postpartial[4+i] = **pBuffer;
+          pSocket->nParseLeft--;
+          saved_nparseleft = pSocket->nParseLeft;
+          (*pBuffer)++;
+          (*nBytes)--;
+          if (*nBytes == 0) {
             // If nBytes == 0 we just read the last byte of POST data in the
             // uip_buf. The POST data will continue in the next TCP Fragment,
             // but we need to exit the for() and while() loops now.
@@ -3678,7 +3693,7 @@ void parse_POST_string(uint8_t curr_ParseCmd, int num_chars)
         // not advanced because nothing is read from the buffer. When we exit the
         // loop the buffer pointer is left pointing at the '&' which starts the
         // next field.
-        tmp_nParseLeft--;
+        pSocket->nParseLeft--;
       }
     }
   }
@@ -3702,30 +3717,30 @@ void parse_POST_string(uint8_t curr_ParseCmd, int num_chars)
   if (break_while == 0) clear_saved_postpartial_all();
   
   // Update the Device Name field
-  if (curr_ParseCmd == 'a') {
+  if (pSocket->ParseCmd == 'a') {
     for (i=0; i<num_chars; i++) Pending_devicename[i] = tmp_Pending[i];
   }
 
   // Update the MQTT Username field
-  else if (curr_ParseCmd == 'l') {
+  else if (pSocket->ParseCmd == 'l') {
     for (i=0; i<num_chars; i++) Pending_mqtt_username[i] = tmp_Pending[i];
   }
 
   // Update the MQTT Password field
-  else if (curr_ParseCmd == 'm') {
+  else if (pSocket->ParseCmd == 'm') {
     for (i=0; i<num_chars; i++) Pending_mqtt_password[i] = tmp_Pending[i];
   }
+  return;
 }
 
 
-void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
+void parse_POST_address(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket)
 {
-//  uint8_t i;
   int i;
   
-  for (i=0; i<8; i++) alpha[i] = '-';
+  preload_alphas();
 
-  if (saved_postpartial_previous[0] == curr_ParseCmd) {
+  if (saved_postpartial_previous[0] == pSocket->ParseCmd) {
     // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
     // should only get used once on processing a given TCP Fragment.
     saved_postpartial_previous[0] = '\0';
@@ -3735,9 +3750,7 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     // from there.
     //
     // Check for alphas found in prior TCP Fragment
-    for (i=0; i<8; i++) {
-      if (saved_postpartial_previous[i+4] != '\0')  alpha[i] = saved_postpartial_previous[i+4];
-    }
+    check_alphas();
   }
   else {
     // We are not doing a reassembly. Clear the data part of the
@@ -3753,13 +3766,13 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     // if a TCP Fragment boundary is found unless the character
     // collected is the last 'alpha'.
     if (alpha[i] == '-') {
-      alpha[i] = (uint8_t)(*tmp_pBuffer);
-      saved_postpartial[i+4] = (uint8_t)(*tmp_pBuffer);
-      tmp_nParseLeft--;
-      saved_nparseleft = tmp_nParseLeft;
-      tmp_pBuffer++;
-      tmp_nBytes--;
-      if (i != 7 && tmp_nBytes == 0) {
+      alpha[i] = (uint8_t)(**pBuffer);
+      saved_postpartial[i+4] = (uint8_t)(**pBuffer);
+      pSocket->nParseLeft--;
+      saved_nparseleft = pSocket->nParseLeft;
+      (*pBuffer)++;
+      (*nBytes)--;
+      if (i != 7 && *nBytes == 0) {
         break_while = 1; // Hit end of fragment but still have characters to
                          // collect in the next packet. Set break_while to 1
                          // so that we'll break out of the while() loop on
@@ -3768,7 +3781,9 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
       }
     }
   }
-  if (break_while == 1) return; // Hit end of fragment. Break out of while() loop.
+  if (break_while == 1) { // Hit end of fragment. Break out of while() loop.
+    return;
+  }
 
   // If we get this far we no longer need the saved_postpartial values and
   // must clear them to prevent interference with subsequent restores.
@@ -3780,9 +3795,7 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     // The code converts eight alpha fields with hex alphas ('0' to 'f') into
     // 4 octets representing the new setting.
     uint16_t temp;
-//    uint8_t invalid;
     int invalid;
-//    uint8_t j;
     int j;
     
     invalid = 0;
@@ -3810,7 +3823,8 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
         if (i == 4) j = 2;
         if (i == 6) j = 1;
         if (i == 8) j = 0;
-        switch(curr_ParseNum)
+	
+        switch(pSocket->ParseNum)
         {
           case 0: Pending_hostaddr[j] = (uint8_t)temp; break;
 	  case 4: Pending_draddr[j] = (uint8_t)temp; break;
@@ -3822,25 +3836,24 @@ void parse_POST_address(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     }
   }
 
-  if (tmp_nBytes == 0) {
+  if (*nBytes == 0) {
     // Hit end of fragment. Break out of while() loop. The first character
     // of the next packet will be '&' so we need to set PARSE_DELIM.
     break_while = 2; // Hit end of fragment. Set break_while to 2 so that
                      // we'll break out of the while() loop on return from
                      // this function AND go to the PARSE_DELIM state.
-    return;
   }
+  return;
 }
 
 
-void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
+void parse_POST_port(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket)
 {
-//  uint8_t i;
   int i;
 
-  for (i=0; i<4; i++) alpha[i] = '-';
+  preload_alphas();
 
-  if (saved_postpartial_previous[0] == curr_ParseCmd) {
+  if (saved_postpartial_previous[0] == pSocket->ParseCmd) {
     // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
     // should only get used once on processing a given TCP Fragment.
     saved_postpartial_previous[0] = '\0';
@@ -3850,9 +3863,7 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     // from there.
     //
     // Check for alphas found in prior TCP Fragment
-    for (i=0; i<4; i++) {
-      if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
-    }
+    check_alphas();
   }
   else {
     // We are not doing a reassembly. Clear the data part of the
@@ -3862,7 +3873,6 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
   }
 
   {
-//    uint8_t i;
     int i;
     for (i=0; i<4; i++) {
       // Examine each 'alpha' character to see if it was already found
@@ -3871,22 +3881,24 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
       // if a TCP Fragment boundary is found unless the character
       // collected is the last 'alpha'.
       if (alpha[i] == '-') {
-        alpha[i] = (uint8_t)(*tmp_pBuffer);
-        saved_postpartial[i+4] = *tmp_pBuffer;
-        tmp_nParseLeft--;
-        saved_nparseleft = tmp_nParseLeft;
-        tmp_pBuffer++;
-        tmp_nBytes--;
-        if (i != 3 && tmp_nBytes == 0) {
+        alpha[i] = (uint8_t)(**pBuffer);
+        saved_postpartial[i+4] = **pBuffer;
+        pSocket->nParseLeft--;
+        saved_nparseleft = pSocket->nParseLeft;
+        (*pBuffer)++;
+        (*nBytes)--;
+        if (i != 3 && *nBytes == 0) {
           break_while = 1; // Hit end of fragment but still have characters to
 	                   // collect in the next packet. Set break_while to 1
 			   // so that we'll break out of the while() loop on
 			   // return from this function.
-   	break; // Break out of for() loop.
+          break; // Break out of for() loop.
         }
       }
     }
-    if (break_while == 1) return; // Hit end of fragment. Break out of while() loop.
+    if (break_while == 1) { // Hit end of fragment. Break out of while() loop.
+      return;
+    }
   }
 
   // If we get this far we no longer need the saved_postpartial values and
@@ -3900,7 +3912,6 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     // valid range.
     uint16_t temp;
     uint16_t nibble;
-//    uint8_t invalid;
     int invalid;
     invalid = 0;
 
@@ -3929,30 +3940,29 @@ void parse_POST_port(uint8_t curr_ParseCmd, uint8_t curr_ParseNum)
     }
     
     if (invalid == 0) { // Make change only if valid entry
-      if (curr_ParseNum == 0) Pending_port = (uint16_t)temp;
+      if (pSocket->ParseNum == 0) Pending_port = (uint16_t)temp;
       else Pending_mqttport = (uint16_t)temp;
     }
   }
 
-  if (tmp_nBytes == 0) {
+  if (*nBytes == 0) {
     // Hit end of fragment. Break out of while() loop. The first character
     // of the next packet will be '&' so we need to set PARSE_DELIM.
     break_while = 2; // Hit end of fragment. Set break_while to 2 so that
                      // we'll break out of the while() loop on return from
                      // this function AND go to the PARSE_DELIM state.
-    return;
   }
+  return;
 }
 
 
-void parse_POST_MAC(uint8_t curr_ParseCmd)
+void parse_POST_MAC(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket)
 {
-//  uint8_t i;
   int i;
 
-  for (i=0; i<12; i++) alpha[i] = '-';
+  preload_alphas();
 
-  if (saved_postpartial_previous[0] == curr_ParseCmd) {
+  if (saved_postpartial_previous[0] == pSocket->ParseCmd) {
     // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
     // should only get used once on processing a given TCP Fragment.
     saved_postpartial_previous[0] = '\0';
@@ -3962,9 +3972,7 @@ void parse_POST_MAC(uint8_t curr_ParseCmd)
     // from there.
     //
     // Check for alphas found in prior TCP Fragment
-    for (i=0; i<12; i++) {
-      if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
-    }
+    check_alphas();
   }
   else {
     // We are not doing a reassembly. Clear the data part of the
@@ -3974,7 +3982,6 @@ void parse_POST_MAC(uint8_t curr_ParseCmd)
   }
 
   {
-//    uint8_t i;
     int i;
     for (i=0; i<12; i++) {
       // Examine each 'alpha' character to see if it was already found
@@ -3983,22 +3990,24 @@ void parse_POST_MAC(uint8_t curr_ParseCmd)
       // if a TCP Fragment boundary is found unless the character
       // collected is the last 'alpha'.
       if (alpha[i] == '-') {
-        alpha[i] = (uint8_t)(*tmp_pBuffer);
-        saved_postpartial[i+4] = *tmp_pBuffer;
-        tmp_nParseLeft--;
-        saved_nparseleft = tmp_nParseLeft;
-        tmp_pBuffer++;
-        tmp_nBytes--;
-        if (i != 11 && tmp_nBytes == 0) {
+        alpha[i] = (uint8_t)(**pBuffer);
+        saved_postpartial[i+4] = **pBuffer;
+        pSocket->nParseLeft--;
+        saved_nparseleft = pSocket->nParseLeft;
+        (*pBuffer)++;
+        (*nBytes)--;
+        if (i != 11 && *nBytes == 0) {
           break_while = 1; // Hit end of fragment but still have characters to
 	                   // collect in the next packet. Set break_while to 1
 			   // so that we'll break out of the while() loop on
 			   // return from this function.
-   	break; // Break out of for() loop.
+          break; // Break out of for() loop.
         }
       }
     }
-    if (break_while == 1) return; // Hit end of fragment. Break out of while() loop.
+    if (break_while == 1) { // Hit end of fragment. Break out of while() loop.
+      return;
+    }
   }
 
   // If we get this far we no longer need the saved_postpartial values and
@@ -4010,7 +4019,6 @@ void parse_POST_MAC(uint8_t curr_ParseCmd)
     // The code converts twelve alpha fields with hex alphas ('0' to 'f')
     // into 6 octets representing the new setting.
     uint16_t temp;
-//    uint8_t invalid;
     int invalid;
     invalid = 0;
 
@@ -4047,21 +4055,20 @@ void parse_POST_MAC(uint8_t curr_ParseCmd)
     }
   }
 
-  if (tmp_nBytes == 0) {
+  if (*nBytes == 0) {
     // Hit end of fragment. Break out of while() loop. The first character
     // of the next packet will be '&' so we need to set PARSE_DELIM.
     break_while = 2; // Hit end of fragment. Set break_while to 2 so that
                      // we'll break out of the while() loop on return from
                      // this function AND go to the PARSE_DELIM state.
-    return;
   }
+  return;
 }
 
 
 void encode_16bit_registers()
 {
   // Function to sort the pin control bytes into the 16 bit registers.
-//  uint8_t i;
   int i;
   uint16_t j;
   i = 0;

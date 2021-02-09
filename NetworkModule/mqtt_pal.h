@@ -92,6 +92,8 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len);
 // returns - The number of bytes received if successful, an MQTTErrors otherwise.
 int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz);
 
+char *stpcpy(char * dest, const char * src);
+
 
 #endif // define __MQTT_PAL_H__
 

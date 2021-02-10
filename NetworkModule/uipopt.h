@@ -236,6 +236,19 @@
 #define DEBUG_SUPPORT 0
 
 
+// Determines if UART DEBUG SUPPORT code is compiled in
+// IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
+// Enabling UART DEBUG SUPPORT uses IO 11 (Pin 11) as a serial port transmitter.
+// This is intended for development use ONLY. When this option is compiled in the
+// developer must make sure IO 11 is not connected to circuitry that might be
+// damaged by serial port signaling. Additionally, the developer is responsible
+// for providing adequate for translation of the 3v Network Module output to the
+// signal levels needed on the terminal being used.
+// 0 = disable
+// 1 = enable
+#define UART_DEBUG_SUPPORT 1
+
+
 // Determines if the Independent Watchdog is to be enable
 // For production code this should me enabled. It turns on the IWDG to cause a
 // hardware reset after 1 second of the code failing to reset the watchdog,

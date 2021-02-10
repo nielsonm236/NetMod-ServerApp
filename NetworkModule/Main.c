@@ -43,6 +43,7 @@
 #include "uipopt.h"
 #include "mqtt.h"
 #include "DS18B20.h"
+#include "UART.h"
 
 
 //---------------------------------------------------------------------------//
@@ -429,6 +430,12 @@ int main(void)
   HttpDInit();             // Initialize listening ports
 
 
+#if UART_DEBUG_SUPPORT == 1
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  InitializeUART();
+#endif // UART_DEBUG_SUPPORT == 1
+
+
   // Initialize DS18B20 temperature storage strings
   for (i=0; i<5; i++) strcpy(DS18B20_string[i], "------");
   // Initialize DS18B20 devices (if enabled) 
@@ -490,6 +497,12 @@ int main(void)
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
   }
 #endif // DEBUG_SUPPORT == 2
+
+
+#if UART_DEBUG_SUPPORT == 1
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  UARTPrintf("Booting ....\n\r");
+#endif // UART_DEBUG_SUPPORT == 1
 
 
   while (1) {
@@ -2396,7 +2409,6 @@ void check_runtime_changes(void)
   // make sure that a complete POST entry has been received before attempting
   // to process the changes made by the user.
 
-//  uint8_t i;
   int i;
   uint8_t update_EEPROM;
 
@@ -2404,21 +2416,30 @@ void check_runtime_changes(void)
 
   read_input_pins();
 
+
+#if UART_DEBUG_SUPPORT == 1
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // If UART_DEBUG_SUPPORT is enabled the following code forces IO 11 to
+  // a disabled state and keeps it disabled. The UART code will operate
+  // the pin for IO 11 as needed for UART transmit to a terminal.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x00;
+  // Update the stored_pin_control[] variables
+  if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
+#endif // UART_DEBUG_SUPPORT == 1
+
+
   // Check the DS18B20 Enable bit. If enabled over-ride the pin_control byte
   // bits for IO 16 to force them to all zero. This forces the disabled
   // state and makes sure all other bits are in a neutral condition should
   // the DS18B20 be Disabled at some future time.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   if (Pending_config_settings & 0x08) {
-//    pin_control[14] = Pending_pin_control[14] = (uint8_t)0x00;
     pin_control[15] = Pending_pin_control[15] = (uint8_t)0x00;
     // Update the stored_pin_control[] variables
-//    if (stored_pin_control[14] != pin_control[14]) stored_pin_control[14] = pin_control[14];
     if (stored_pin_control[15] != pin_control[15]) stored_pin_control[15] = pin_control[15];
   }
 
@@ -2469,15 +2490,6 @@ void check_runtime_changes(void)
         // Check for change in ON/OFF bit. This function will save the ON/OFF
 	// bit in the EEPROM if the IO is an Output and Retain is enabled (or
 	// in the process of being enabled).
-//	if (pin_control[i] & 0x02) { // Output?
-//	if (Pending_pin_control[i] & 0x02) { // Output?
-//          if ((pin_control[i] & 0x80) != (Pending_pin_control[i] & 0x80)) {
-//	    // ON/OFF changed
-//            if (Pending_pin_control[i] & 0x08) {
-//	      // Retain is set, so need to update EEPROM
-//              update_EEPROM = 1;
-//            }
-//          }
 	if (Pending_pin_control[i] & 0x0a) { // Output AND Retain set?
           if ((pin_control[i] & 0x80) != (Pending_pin_control[i] & 0x80)) {
 	    // ON/OFF changed
@@ -2505,11 +2517,7 @@ void check_runtime_changes(void)
 	  //   needed if MQTT is enabled, but it will be done even if MQTT is
 	  //   not enabled to simplify code.
           update_EEPROM = 1;
-//	  if (stored_config_settings & 0x04) { // MQTT enabled?
-//            // Changing pin definitions with regard to Enabled/Disabled
-//	    // definition requires a hardware reboot if MQTT is enabled.
             user_reboot_request = 1;
-//	  }
         }
 
         // Check for change in Invert
@@ -2520,16 +2528,10 @@ void check_runtime_changes(void)
 	  //   needed if MQTT is enabled, but it will be done even if MQTT is
 	  //   not enabled to simplify code.
           update_EEPROM = 1;
-//          if (mqtt_enabled == 1) {
-//            // If MQTT is enabled restart so input inversion is reported to
-//            // the MQTT server
             restart_request = 1;
-//          }
         }
 	
         // Check for change in Retain/On/Off bits
-//        if (((pin_control[i] & 0x10) != (Pending_pin_control[i] & 0x10))
-//         || ((pin_control[i] & 0x08) != (Pending_pin_control[i] & 0x08))) {
         if ((pin_control[i] & 0x18) != (Pending_pin_control[i] & 0x18)) {
           // There is a change. Signal an EEPROM update. No restart or
 	  // reboot is required as these bits are only used when a reboot
@@ -2540,7 +2542,6 @@ void check_runtime_changes(void)
 	// Always update the pin_control byte even if the EEPROM was not
 	// updated. Don't let the ON/OFF bit change if this pin_control is
 	// for an input.
-//	if (pin_control[i] & 0x02) { // Output?
 	if (Pending_pin_control[i] & 0x02) { // Output?
 	  // Update all bits
 	  pin_control[i] = Pending_pin_control[i];

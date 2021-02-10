@@ -129,7 +129,14 @@ void clock_init(void)
   CLK_PCKENR1 |= (uint8_t)0x20;		// Enable clock to TIM2
   CLK_PCKENR1 |= (uint8_t)0x40;		// Enable clock to TIM3
   CLK_PCKENR1 &= (uint8_t)(~0x10);	// Disable clock to TIM4
+
+#if UART_DEBUG_SUPPORT == 0
   CLK_PCKENR1 &= (uint8_t)(~0x08);	// Disable clock to UART
+#endif // UART_DEBUG_SUPPORT == 0
+#if UART_DEBUG_SUPPORT == 1
+  CLK_PCKENR1 |= (uint8_t)0x08;		// Enable clock to UART
+#endif // UART_DEBUG_SUPPORT == 1
+
   CLK_PCKENR1 &= (uint8_t)(~0x02);	// Disable clock to SPI
   CLK_PCKENR1 &= (uint8_t)(~0x01);	// Disable clock to I2C
   CLK_PCKENR2 &= (uint8_t)(~0x08);	// Disable clock to ADC

@@ -2430,7 +2430,7 @@ void check_runtime_changes(void)
     // received.
 
     // Check all pin_control bytes for changes.
-    // ON/OFF state: If an Output pin’s ON/OFF state changes the EEPROM is
+    // ON/OFF state: If an Output pinÂ’s ON/OFF state changes the EEPROM is
     //   updated only if Retain is set, but a restart must not occur.
     //   IMPORTANT: This routine must only change Output pin ON/OFF states.
     //   The read_input_pins() function is the only place where Input pin
@@ -2969,50 +2969,6 @@ void init_IWDG(void)
                     // before the 1 second timeout occurs to prevent the
 		    // watchdog from performing a hardware reset.
 }
-
-
-// The following enum PORTS, struct io_registers, struct io_mapping, and
-// struct io_mapping io_map are used to direct the read_input_pins() and
-// write_output_pins functions to the correct registers and bits for each
-// physical pin that is being read or written. This significantly reduces
-// the code size for these functions. Credit to Carlos Ladeira for this
-// clever implementation.
-
-enum PORTS { PA, PB, PC, PD, PE, PF, PG, NUM_PORTS };
-
-struct io_registers {
-	volatile char odr;	// Data Output Latch reg
-	volatile char idr;	// Input Pin Value reg
-	volatile char ddr;	// Data Direction
-	volatile char cr1;	// Control register 1
-	volatile char cr2;	// Control register 2
-};
-
-struct io_mapping {
-	uint8_t port;		// port
-	uint8_t bit;		// port bit
-};
-
-volatile struct io_registers io_reg[ NUM_PORTS ]	@0x5000;	// make room for PA .. PG starting at 0x5000
-
-const struct io_mapping io_map[16] = {
-	{ PA, 0x08 },    // PA bit3, IO1
-	{ PA, 0x20 },    // PA bit5, IO2
-	{ PD, 0x40 },    // PD bit6, IO3
-	{ PD, 0x10 },    // PD bit4, IO4
-	{ PD, 0x04 },    // PD bit2, IO5
-	{ PE, 0x01 },    // PE bit0, IO6
-	{ PG, 0x02 },    // PG bit1, IO7
-	{ PC, 0x80 },    // PC bit7, IO8
-	{ PA, 0x10 },    // PA bit4, IO9
-	{ PD, 0x80 },    // PD bit7, IO10
-	{ PD, 0x20 },    // PD bit5, IO11
-	{ PD, 0x08 },    // PD bit3, IO12
-	{ PD, 0x01 },    // PD bit0, IO13
-	{ PE, 0x08 },    // PE bit3, IO14
-	{ PG, 0x01 },    // PG bit0, IO15
-	{ PC, 0x40 }     // PC bit6, IO16
-};
 
 
 void read_input_pins(void)

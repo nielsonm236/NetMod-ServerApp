@@ -163,9 +163,9 @@ void InitializeUART()
 //  UART2_CR3_LBCL = 1;
 
   //  Turn on the UART transmit, receive and the UART clock.
-  UART2_CR2 |= UART2_CR2_TEN; // Enable transmit
-//  UART2_CR2_REN = 1;   // Enable receive
-//  UART2_CR3_CKEN = 1;  // Enable clock output
+  UART2_CR2 |= UART2_CR2_TEN;   // Enable transmit
+//  UART2_CR2 |= UART2_CR2_REN;   // Enable receive
+//  UART2_CR2 |= UART2_CR3_CKEN;  // Enable clock output
 }
 
 
@@ -184,8 +184,8 @@ void UARTPrintf(char *message)
   while (*ch) {
     UART2_DR = (unsigned char) *ch; // Put the next character into the data
                                     // transmission register.
-    while (UART2_SR_TXE == 0);      //  Wait for transmission to complete.
-    ch++;                           //  Grab the next character.
+    while (UART2_SR_TXE == 0);      // Wait for transmission to complete.
+    ch++;                           // Grab the next character.
   }
 }
 
@@ -195,16 +195,21 @@ void UARTPrintf(char *message)
 //  Main program loop.
 //
 /*
-void main()
+void main() // No interrupts
 {
-  __disable_interrupts();
+  char buffer[50];
+  
   InitialiseSystemClock()
   InitializeUART()
-  __enable_interrupts();
-  while (1) {
-    UARTPrintf("Hello from my microcontroller....\n\r");
-    for (long counter = 0; counter < 250000; counter++);
-  }
+
+  UARTPrintf("Hello from my microcontroller....\n\r");
+  
+  strcpy(temp, "Hello again ...\n\r");
+  UARTPrintf(temp);
+
+  int a = 10, b = 20;
+  sprintf(buffer, "Value a is %a and b is %b\n\r", a, b);
+  UARTPrintf(buffer);
 }
 */
 

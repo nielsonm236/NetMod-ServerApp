@@ -2430,6 +2430,11 @@ void check_runtime_changes(void)
   pin_control[10] = Pending_pin_control[10] = (uint8_t)0x00;
   // Update the stored_pin_control[] variables
   if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
+  // For UART mode Port D Bit 5 needs to be set to Output / Push-Pull /
+  // 10MHz slope
+  PD_DDR |= 0x20; // Set Output mode
+  PD_CR1 |= 0x20; // Set Push-Pull
+  PD_CR2 |= 0x20; // Set 10MHz
 #endif // UART_DEBUG_SUPPORT == 1
 
 

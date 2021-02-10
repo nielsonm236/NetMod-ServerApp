@@ -22,9 +22,33 @@
 #ifndef __GPIO_H__
 #define __GPIO_H__
 
+// The following enum PORTS, struct io_registers, struct io_mapping, and
+// struct io_mapping io_map are used to direct the read_input_pins() and
+// write_output_pins functions to the correct registers and bits for each
+// physical pin that is being read or written. This significantly reduces
+// the code size for these functions. Credit to Carlos Ladeira for this
+// clever implementation.
+
+enum PORTS { PA, PB, PC, PD, PE, PF, PG, NUM_PORTS };
+
+struct io_registers {
+	volatile uint8_t odr;	// Data Output Latch reg
+	volatile uint8_t idr;	// Input Pin Value reg
+	volatile uint8_t ddr;	// Data Direction
+	volatile uint8_t cr1;	// Control register 1
+	volatile uint8_t cr2;	// Control register 2
+};
+
+struct io_mapping {
+	uint8_t port;		// port
+	uint8_t bit;		// port bit
+};
+
+extern volatile struct io_registers io_reg[ NUM_PORTS ];	// make room for PA .. PG starting at 0x5000
+extern const struct io_mapping io_map[16];
+
 void gpio_init(void);
 void LEDcontrol(uint8_t state);
-
 
 
 #endif /* __GPIO_H__ */

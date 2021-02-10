@@ -39,6 +39,207 @@ extern uint8_t stored_pin_control[16];  // Per pin control settings stored in
                                         // EEPROM
 
 
+// The following enum PORTS, struct io_registers, struct io_mapping, and
+// struct io_mapping io_map are used to direct the read_input_pins() and
+// write_output_pins functions to the correct registers and bits for each
+// physical pin that is being read or written. This significantly reduces
+// the code size for these functions. Credit to Carlos Ladeira for this
+// clever implementation.
+
+// Ccreate a variable with the structure of the port registers and define
+// it's position on the memory location of the port registers
+// this way we can manipulate this data as an array of ports
+volatile struct io_registers io_reg[ NUM_PORTS ]	@0x5000;	// make room for PA .. PG starting at 0x5000
+
+// Define the pair PORT:BIT for each of the 16 I/Os
+const struct io_mapping io_map[16] = {
+	{ PA, 0x08 },    // PA bit3, IO1
+	{ PA, 0x20 },    // PA bit5, IO2
+	{ PD, 0x40 },    // PD bit6, IO3
+	{ PD, 0x10 },    // PD bit4, IO4
+	{ PD, 0x04 },    // PD bit2, IO5
+	{ PE, 0x01 },    // PE bit0, IO6
+	{ PG, 0x02 },    // PG bit1, IO7
+	{ PC, 0x80 },    // PC bit7, IO8
+	{ PA, 0x10 },    // PA bit4, IO9
+	{ PD, 0x80 },    // PD bit7, IO10
+	{ PD, 0x20 },    // PD bit5, IO11
+	{ PD, 0x08 },    // PD bit3, IO12
+	{ PD, 0x01 },    // PD bit0, IO13
+	{ PE, 0x08 },    // PE bit3, IO14
+	{ PG, 0x01 },    // PG bit0, IO15
+	{ PC, 0x40 }     // PC bit6, IO16
+};
+
+
+void gpio_init(void)
+{
+  uint8_t i;
+
+  // GPIO Definitions for 16 outputs
+  //
+  // Assumption is that power-on reset has set all GPIO to the 
+  // default states of the chip hardware (see STM8 manuals).
+  //
+  // This function will set the GPIO registers to states for this
+  // specific application (Network Module). Only the GPIO bits that
+  // are attached to pins are manipulated here.
+  //
+  // The STM8S is mostly used as a GPIO driver device. Most outputs
+  // drive devices such as relays. The SPI interface to the ENC28J60
+  // chip is GPIO "bit bang" driven.
+  //
+  // Any pins that are "not used" are set as pulled up inputs.
+
+  // To reduce the incidence of output pin "chatter" during a reboor
+  // (no power loss) the ODR (Output Data Register) for each output
+  // pin is pre-written to the ON/OFFvstate stored in EEPROM if the
+  // Magic Number indicates there is data stored in the EEPROM. When
+  // the device is rebooted the output pins briefly become floating
+  // input pins (effectively tri-state), but when their configurations
+  // are asserted as outputs this code will make sure the ODR is
+  // already set to the previous state of the output. Doing this in
+  // the gpio.c module reduces the time that the pins are in a
+  // tri-state condition.
+  if ((magic4 == 0x55) && 
+      (magic3 == 0xee) && 
+      (magic2 == 0x0f) && 
+      (magic1 == 0xf0)) {
+
+    // Create 16bit versions of the pin control information
+    encode_16bit_registers();
+    
+    // Update the output pins
+    write_output_pins(); // Initializes the ODR bits
+  }
+
+  // Any IO pin can be an input or output as defined in the
+  // stored_pin_control bytes (and the associated 16 bit registers).
+  // As each IO pin is encountered in the initialization below
+  // the stored_pin_control bytes are checked to determine how to
+  // set up that pin.
+
+  // Port A
+  // Pinout map:
+  // Bit 7 - Not attached to pin
+  // Bit 6 - Pin 12 - Input  PU - Not used?
+  // Bit 5 - Pin 11 - IO 2 control
+  // Bit 4 - Pin 10 - IO 9 control
+  // Bit 3 - Pin 09 - IO 1 control
+  // Bit 2 - Pin 03 - Output PP - LED
+  // Bit 1 - Pin 02 - Input  PU - -RstButton
+  // Bit 0 - Not attached to pin
+  // PA_ODR for output pins has been pre-set by code above. PA_ODR for
+  // all other output pins is assumed to be zero from power on or reset
+  
+  // Port B
+  // Pinout map:
+  // Bit 7 - Pin 15 - Input  PU - Not used?
+  // Bit 6 - Pin 16 - Input  PU - Not used?
+  // Bit 5 - Pin 17 - Input  PU - Not used?
+  // Bit 4 - Pin 18 - Input  PU - Not used?
+  // Bit 3 - Pin 19 - Input  PU - Not used?
+  // Bit 2 - Pin 20 - Input  PU - Not used?
+  // Bit 1 - Pin 21 - Input  PU - Not used?
+  // Bit 0 - Pin 22 - Input  PU - Not used?
+  // PB_ODR for IO output pins has been pre-set by code above. PB_ODR for
+  // all other output pins is assumed to be zero from power on or reset
+
+  // Port C
+  // Pinout map:
+  // Bit 7 - Pin 34 - Output PP - IO 8 control
+  // Bit 6 - Pin 33 - Output PP - IO 16 control
+  // Bit 5 - Pin 30 - Input  PU - ENC28J60 -INT
+  // Bit 4 - Pin 29 - Input  PU - ENC28J60 SO (SPI SI)
+  // Bit 3 - Pin 28 - Output PP - ENC28J60 SI (SPI SO)
+  // Bit 2 - Pin 27 - Output PP - ENC28J60 SCK
+  // Bit 1 - Pin 26 - Output PP - ENC28J60 -CS
+  // Bit 0 - Not attached to pin
+  // PC_ODR for IO output pins has been pre-set by code above. PC_ODR for
+  // all other output pins is assumed to be zero from power on or reset
+
+  // Port D
+  // Pinout map:
+  // Bit 7 - Pin 48 - IO 10 control
+  // Bit 6 - Pin 47 - IO 3 control
+  // Bit 5 - Pin 46 - IO 11 control
+  // Bit 4 - Pin 45 - IO 4 control
+  // Bit 3 - Pin 44 - IO 12 control
+  // Bit 2 - Pin 43 - IO 5 control
+  // Bit 1 - Pin 42 - Alternate - SWIM
+  // Bit 0 - Pin 41 - IO 13 control
+  // PD_ODR for IO output pins has been pre-set by code above. PD_ODR for
+  // all other output pins is assumed to be zero from power on or reset
+
+  // Port E
+  // Pinout map:
+  // Bit 7 - Pin 23 - Input  PU - Not used?
+  // Bit 6 - Pin 24 - Input  PU - Not used?
+  // Bit 5 - Pin 25 - Output PP - ENC28J60 -RESET
+  // Bit 4 - Not attached to pin
+  // Bit 3 - Pin 37 - Output OD - IO 14 control
+  // Bit 2 - Pin 38 - Input  PU - Not used?
+  // Bit 1 - Pin 39 - Input  PU - Not used?
+  // Bit 0 - Pin 40 - Output PP - IO 6 control
+  // PE_ODR for IO output pins has been pre-set by code above. PE_ODR for
+  // all other output pins is assumed to be zero from power on or reset
+
+  // Port F: Not attached to pins
+
+  // Port G:
+  // Pinout map:
+  // Bit 7 - Not attached to pin
+  // Bit 6 - Not attached to pin
+  // Bit 5 - Not attached to pin
+  // Bit 4 - Not attached to pin
+  // Bit 3 - Not attached to pin
+  // Bit 2 - Not attached to pin
+  // Bit 1 - Pin 36 - Output PP - IO 7 control
+  // Bit 0 - Pin 35 - Output PP - IO 15 control
+  // PG_ODR for IO output pins has been pre-set by code above. PG_ODR for
+  // all other output pins is assumed to be zero from power on or reset
+
+  // start seting the registers CR1 and CR2 of all ports
+  // a loop is used to save some code space
+  for (i=PA; i<NUM_PORTS; i++) {
+    io_reg[ i ].cr1 = 0xff;
+    io_reg[ i ].cr2 = 0x00;
+  }
+
+  // some of the registers need special config
+  // time to setup them to correct config
+  // PA Bit 2 - Pin 03 - Output PP - LED
+  PA_DDR = 0x04;
+  
+  // PC Bit 3 - Pin 28 - Output PP - ENC28J60 SI (SPI SO)
+  // PC Bit 2 - Pin 27 - Output PP - ENC28J60 SCK
+  // PC Bit 1 - Pin 26 - Output PP - ENC28J60 -CS
+  PC_DDR = 0x0e;
+  PC_CR2 = 0x0e;
+  
+  // PE Bit 5 - Pin 25 - Output PP - ENC28J60 -RESET
+  PE_DDR = 0x20;
+  PE_CR2 = 0x20;
+  
+
+  // loop across all i/o's and set the respective bit 
+  // of the corresponding DDR register in case they
+  // need to be configured as output
+  for (i=0; i<16; i++) {
+    // Determine setting from stored_pin_control byte
+    if (stored_pin_control[i] & 0x02) {
+      // set i/o port ddr register
+      // seting to 1 only the corresponding bit of
+      // the port associated to the current i/o
+      io_reg[ io_map[i].port ].ddr |= io_map[i].bit;
+    }
+  }
+}
+
+// *****************************************************
+// the previous version his here commented just in case.
+// *****************************************************
+/*
 void gpio_init(void)
 {
   uint8_t temp;
@@ -337,7 +538,7 @@ void gpio_init(void)
   //   All inputs are Interrupt Disabled
   PG_CR2 = (uint8_t)0x00;
 }
-
+*/
 
 void LEDcontrol(uint8_t state)
 {

@@ -1388,9 +1388,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   uint8_t nParsedNum;
   uint8_t nParsedMode;
   uint8_t temp;
-//  uint8_t i;
   int i;
-//  uint8_t no_err;
   int no_err;
   unsigned char temp_octet[3];
 
@@ -1593,16 +1591,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
         if (nParsedMode == 'a') {
 	  // This displays the device name (up to 19 characters)
-//	  for(i=0; i<19; i++) {
-//	    if (stored_devicename[i] != '\0') {
-//              *pBuffer = (uint8_t)(stored_devicename[i]);
-//              pBuffer++;
-//              nBytes++;
-//	    }
-//	    else break;
-//	  }
-        pBuffer=stpcpy(pBuffer, stored_devicename);
-	nBytes += strlen(stored_devicename);
+          pBuffer=stpcpy(pBuffer, stored_devicename);
+          nBytes += strlen(stored_devicename);
 	}
 
 	
@@ -1644,10 +1634,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             }
 	  
  	    // Copy OctetArray characters to output. Advance pointers.
-//	    for(i=0; i<8; i++) {
-//	      *pBuffer = (uint8_t)OctetArray[i];
-//              pBuffer++;
-//	    }
             pBuffer=stpcpy(pBuffer, OctetArray);
 	    nBytes += 8;
 	  }
@@ -1665,10 +1651,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  else emb_itoa(stored_mqttport, OctetArray, 16, 5);
 	    
 	  // Copy OctetArray characters to output. Advance pointers.
-//	  for(i=0; i<5; i++) {
-//            *pBuffer = (uint8_t)OctetArray[i];
-//            pBuffer++;
-//	  }
           pBuffer=stpcpy(pBuffer, OctetArray);
 	  nBytes += 5;
         }
@@ -1678,11 +1660,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // octet). We send the 12 characters in the mac_string (rather
 	  // than from the uip_ethaddr bytes) as the mac_string is already
 	  // in alphanumeric format.
-//          for (i=0; i<12; i++) {
-//            *pBuffer = mac_string[i];
-//            pBuffer++;
-//            nBytes++;
-//	  }
           pBuffer=stpcpy(pBuffer, mac_string);
           nBytes += 12;
 	}
@@ -1873,7 +1850,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  	  
 	  // Insert pin_control bytes
 	  {
-//	    uint8_t i;
 	    int i;
 	    uint8_t j;
 	    for (i = 0; i <16; i++) {
@@ -1896,28 +1872,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	
         else if (nParsedMode == 'l') {
 	  // This displays MQTT Username information (0 to 10 characters)
-//          for(i=0; i<10; i++) {
-//	    if (stored_mqtt_username[i] != '\0') {
-//              *pBuffer = (uint8_t)(stored_mqtt_username[i]);
-//              pBuffer++;
-//              nBytes++;
-//	    }
-//	    else break;
-//	  }
           pBuffer=stpcpy(pBuffer, stored_mqtt_username);
 	  nBytes += strlen(stored_mqtt_username);
 	}
 	
         else if (nParsedMode == 'm') {
 	  // This displays MQTT Password information (0 to 10 characters)
-//          for(i=0; i<10; i++) {
-//	    if (stored_mqtt_password[i] != '\0') {
-//              *pBuffer = (uint8_t)(stored_mqtt_password[i]);
-//              pBuffer++;
-//              nBytes++;
-//	    }
-//	    else break;
-//	  }
           pBuffer=stpcpy(pBuffer, stored_mqtt_password);
 	  nBytes += strlen(stored_mqtt_password);
 	}
@@ -1965,8 +1925,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	
           if (nParsedNum == 0) {
 	    #define TEMPTEXT "<p>Temperature Sensors<br> 1 "
-//            strcpy(pBuffer, TEMPTEXT);
-//            pBuffer += strlen(TEMPTEXT);
             pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
@@ -1974,8 +1932,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    }
           if (nParsedNum == 1) {
 	    #define TEMPTEXT "&#8451;<br> 2 "
-//            strcpy(pBuffer, TEMPTEXT);
-//            pBuffer += strlen(TEMPTEXT);
             pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
@@ -1983,8 +1939,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  }
           if (nParsedNum == 2) {
 	    #define TEMPTEXT "&#8451;<br> 3 "
-//            strcpy(pBuffer, TEMPTEXT);
-//            pBuffer += strlen(TEMPTEXT);
             pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
@@ -1992,8 +1946,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  }
           if (nParsedNum == 3) {
 	    #define TEMPTEXT "&#8451;<br> 4 "
-//            strcpy(pBuffer, TEMPTEXT);
-//            pBuffer += strlen(TEMPTEXT);
             pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
@@ -2001,24 +1953,15 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  }
           if (nParsedNum == 4) {
 	    #define TEMPTEXT "&#8451;<br> 5 "
-//            strcpy(pBuffer, TEMPTEXT);
-//            pBuffer += strlen(TEMPTEXT);
             pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
 	  }
 	  showdata:
-//          for(i=0; i<6; i++) {
-//            *pBuffer = DS18B20_string[nParsedNum][i];
-//            pBuffer++;
-//            nBytes++;
-//	  }
           pBuffer=stpcpy(pBuffer, DS18B20_string[nParsedNum]);
 	  nBytes += 6;
           if (nParsedNum == 4) {
 	    #define TEMPTEXT "&#8451;<br></p>"
-//            strcpy(pBuffer, TEMPTEXT);
-//            pBuffer += strlen(TEMPTEXT);
             pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
@@ -2027,11 +1970,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
         else if (nParsedMode == 'w') {
 	  // This displays Code Revision information (13 characters)
-//          for(i=0; i<13; i++) {
-//              *pBuffer = code_revision[i];
-//              pBuffer++;
-//              nBytes++;
-//	  }
           pBuffer=stpcpy(pBuffer, code_revision);
           nBytes += 13;
 	}
@@ -2818,7 +2756,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // time, converted to a numeric byte, and stored in their
 	    // corresponding Pending_pin_control byte.
 	    
-//            for (i=0; i<32; i++) alpha[i] = '-';
             preload_alphas();
 	    
 	    break_while = 0; // Clear the break switch in case a TCP Fragment
@@ -3361,16 +3298,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pSocket->nState = STATE_CONNECTED;
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
-/*	      
-	    default:
-	      // Show IO Control page
-	      current_webpage = WEBPAGE_IOCONTROL;
-              pSocket->pData = g_HtmlPageIOControl;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
-              break;
-*/
 
 	    default:
 	      if (pSocket->ParseNum < 32) {

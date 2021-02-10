@@ -117,6 +117,36 @@
 //       When setting these registers it is important to remember to set BRR2
 //       before setting BRR1.
 //
+
+
+//     9600 baud
+//     UART Divider = fmaster / baud rate
+//                  = 16,000,000 / 115,200
+//                  = 2318
+//                  = 0x090e
+//     Now we need to rearrange the number 0x008a in order to get the right
+//     bits into BRR1 and BRR2 (Baud Rate Register 1 & 2). This was written
+//     as a 32 bit number to illustrate how this is put into the registers.
+//     To do this we split the number (represented by d3d2d1d0) into three
+//     parts:
+//     the first digit (d3) – 0
+//     the next two digits (d2d1) – 90
+//     the last digit (d0) – e
+//     And set up the registers as follows:
+//       BRR1 = d2d1
+//            = 0x90
+//       BRR2 = d3d0
+//            = 0x0e
+//       When setting these registers it is important to remember to set BRR2
+//       before setting BRR1.
+
+
+
+
+
+
+
+
 //   UART_CR2 & UART_CR3 – Enabling the UART
 //       UART_CR2_TEN    Enable/disable transmission
 //       UART_CR2_REN    Enable/disable reception
@@ -150,8 +180,8 @@ void InitializeUART()
   UART2_CR1 &= (uint8_t)(~UART2_CR1_M);    //  8 Data bits.
   UART2_CR1 &= (uint8_t)(~UART2_CR1_PCEN); //  Disable parity.
   UART2_CR3 &= (uint8_t)(~UART2_CR3_STOP); //  1 stop bit.
-  UART2_BRR2 = 0x0a; //  Set the baud rate registers to 115200 baud
-  UART2_BRR1 = 0x08; //  based upon a 16 MHz system clock.
+  UART2_BRR2 = 0x0e; //  Set the baud rate registers to 115200 baud
+  UART2_BRR1 = 0x90; //  based upon a 16 MHz system clock.
 
   //  Disable the transmitter and receiver.
 //  UART2_CR2_TEN = 0;      //  Disable transmit.

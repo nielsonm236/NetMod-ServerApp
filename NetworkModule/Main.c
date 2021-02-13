@@ -49,7 +49,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210208 0523";
+const char code_revision[] = "20210213 0213";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -251,11 +251,13 @@ extern uint32_t second_counter; // Time in seconds
 
 extern uint8_t OctetArray[11];  // Used in emb_itoa conversions
 
-uint8_t RXERIF_counter;               // Counts RXERIF errors detected by the
-                                      // ENC28J60
-uint8_t TXERIF_counter;               // Counts TXERIF errors detected by the
-                                      // ENC28J60
-uint32_t TRANSMIT_counter;            // Counts any transmit by the ENC28J60
+uint8_t RXERIF_counter;         // Counts RXERIF errors detected by the
+                                // ENC28J60
+uint8_t TXERIF_counter;         // Counts TXERIF errors detected by the
+                                // ENC28J60
+uint32_t TRANSMIT_counter;      // Counts any transmit by the ENC28J60
+
+extern uint8_t enc28j60_rev;    // ENC28J60 revision code
 
 
 // MQTT variables
@@ -429,11 +431,35 @@ int main(void)
   
   HttpDInit();             // Initialize listening ports
 
-
-#if UART_DEBUG_SUPPORT == 1
+  
+#if UART_DEBUG_SUPPORT != 0
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // If UART_DEBUG_SUPPORT is enabled the following code forces IO 11 to
+  // an output state and keeps it that way. The UART code will operate
+  // the pin for IO 11 as needed for UART transmit to a terminal.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // Set pin 11 to output/enabled
+  // Update the stored_pin_control[] variables
+  unlock_eeprom();
+  if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
+  lock_eeprom();
+  // For UART mode Port D Bit 5 needs to be set to Output / Push-Pull /
+  // 10MHz slope
+  PD_ODR |= 0x20; // Set Output data to 1
+  PD_DDR |= 0x20; // Set Output mode
+  PD_CR1 |= 0x20; // Set Push-Pull
+  PD_CR2 |= 0x20; // Set 10MHz
+#endif // UART_DEBUG_SUPPORT != 0
+
+#if UART_DEBUG_SUPPORT != 0
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // Initialize the UART for debug output
   InitializeUART();
-#endif // UART_DEBUG_SUPPORT == 1
+#endif // UART_DEBUG_SUPPORT != 0
 
 
   // Initialize DS18B20 temperature storage strings
@@ -499,10 +525,19 @@ int main(void)
 #endif // DEBUG_SUPPORT == 2
 
 
-#if UART_DEBUG_SUPPORT == 1
+#if UART_DEBUG_SUPPORT != 0
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  UARTPrintf("Booting ....\n\r");
-#endif // UART_DEBUG_SUPPORT == 1
+  {
+    UARTPrintf("\r\nBooting Rev ");
+    UARTPrintf(code_revision);
+    UARTPrintf("\r\n");
+    
+    UARTPrintf("ENC28J60 Rev Code ");
+    emb_itoa(enc28j60_rev, OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf("\r\n");
+  }
+#endif // UART_DEBUG_SUPPORT != 0
 
 
   while (1) {
@@ -2417,17 +2452,17 @@ void check_runtime_changes(void)
   read_input_pins();
 
 
-#if UART_DEBUG_SUPPORT == 1
+#if UART_DEBUG_SUPPORT != 0
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // If UART_DEBUG_SUPPORT is enabled the following code forces IO 11 to
-  // a disabled state and keeps it disabled. The UART code will operate
+  // an output state and keeps it that way. The UART code will operate
   // the pin for IO 11 as needed for UART transmit to a terminal.
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x00;
+  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // force to output/enabled
   // Update the stored_pin_control[] variables
   if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
   // For UART mode Port D Bit 5 needs to be set to Output / Push-Pull /
@@ -2435,7 +2470,7 @@ void check_runtime_changes(void)
   PD_DDR |= 0x20; // Set Output mode
   PD_CR1 |= 0x20; // Set Push-Pull
   PD_CR2 |= 0x20; // Set 10MHz
-#endif // UART_DEBUG_SUPPORT == 1
+#endif // UART_DEBUG_SUPPORT != 0
 
 
   // Check the DS18B20 Enable bit. If enabled over-ride the pin_control byte

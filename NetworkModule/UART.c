@@ -95,8 +95,9 @@
 //   UART_BRR1 & UART_BRR2 – Baud Rate Registers
 //     The baud rate of the UART is controlled by dividing fmaster by the
 //     baud rate divisor. The result gives the clock speed of the serial port.
-//     In this application we have a 16 MHz clock speed for fmaster and we
-//     want the serial port to run at 115200 baud. The formula:
+//     In this application we have a 16 MHz clock speed for fmaster.
+//
+//     The formula for 115200 baud:
 //     UART Divider = fmaster / baud rate
 //                  = 16,000,000 / 115,200
 //                  = 138
@@ -117,36 +118,18 @@
 //       When setting these registers it is important to remember to set BRR2
 //       before setting BRR1.
 //
-
-
-//     9600 baud
+// 
+//     For 9600 baud
 //     UART Divider = fmaster / baud rate
-//                  = 16,000,000 / 115,200
-//                  = 2318
-//                  = 0x090e
-//     Now we need to rearrange the number 0x008a in order to get the right
-//     bits into BRR1 and BRR2 (Baud Rate Register 1 & 2). This was written
-//     as a 32 bit number to illustrate how this is put into the registers.
-//     To do this we split the number (represented by d3d2d1d0) into three
-//     parts:
-//     the first digit (d3) – 0
-//     the next two digits (d2d1) – 90
-//     the last digit (d0) – e
-//     And set up the registers as follows:
+//                  = 16,000,000 / 9600
+//                  = 1666
+//                  = 0x0682
+//     Set up the registers as follows:
 //       BRR1 = d2d1
-//            = 0x90
+//            = 0x68
 //       BRR2 = d3d0
-//            = 0x0e
-//       When setting these registers it is important to remember to set BRR2
-//       before setting BRR1.
-
-
-
-
-
-
-
-
+//            = 0x02
+//
 //   UART_CR2 & UART_CR3 – Enabling the UART
 //       UART_CR2_TEN    Enable/disable transmission
 //       UART_CR2_REN    Enable/disable reception
@@ -154,50 +137,46 @@
 //     In this application we do not need to enable the clock output (used
 //     for synchronous mode), and we do not need to enable receptio (as we
 //     will only transmit characters).
-
+//
 // Setup the UART to run at 115200 baud, no parity, one stop bit, 8 data bits.
 // Important: This relies upon the system clock being set to run at 16 MHz.
 //
-void InitializeUART()
+void InitializeUART(void)
 {
   unsigned char tmp;
+
   //
   // Clear the Idle Line Detected bit in the status register by a read to the
   // UART2_SR register followed by a Read to the UART2_DR register.
   tmp = UART2_SR;
   tmp = UART2_DR;
   
+// if (UART2_SR == 0xc0) fastflash(); // verfied that UART2_SR contains 0xc0
+// fastflash();
+
   //  Reset the UART registers to the reset values.
+  UART2_BRR2 = UART2_BRR2_RESET_VALUE;
+  UART2_BRR1 = UART2_BRR1_RESET_VALUE;
   UART2_CR1 = UART2_CR1_RESET_VALUE;
   UART2_CR2 = UART2_CR2_RESET_VALUE;
   UART2_CR4 = UART2_CR3_RESET_VALUE;
   UART2_CR3 = UART2_CR4_RESET_VALUE;
   UART2_CR5 = UART2_CR5_RESET_VALUE;
-  UART2_GTR = UART2_GTR_RESET_VALUE;
-  UART2_PSCR = UART2_PSCR_RESET_VALUE;
 
-  //  Now setup the port to 115200,n,8,1.
-  UART2_CR1 &= (uint8_t)(~UART2_CR1_M);    //  8 Data bits.
-  UART2_CR1 &= (uint8_t)(~UART2_CR1_PCEN); //  Disable parity.
-  UART2_CR3 &= (uint8_t)(~UART2_CR3_STOP); //  1 stop bit.
-  UART2_BRR2 = 0x0e; //  Set the baud rate registers to 115200 baud
-  UART2_BRR1 = 0x90; //  based upon a 16 MHz system clock.
+  // All bits for 8 bit data, No Parity, 1 Stop are in the correct state due
+  // to the Reset values above. We only need to set the baud rate and enable
+  // the Transmitter.
 
-  //  Disable the transmitter and receiver.
-//  UART2_CR2_TEN = 0;      //  Disable transmit.
-//  UART2_CR2_REN = 0;      //  Disable receive.
-
-  //  Set the clock polarity, lock phase and last bit clock pulse.
-//  UART2_CR3_CPOL = 1;
-//  UART2_CR3_CPHA = 1;
-//  UART2_CR3_LBCL = 1;
-
-  //  Turn on the UART transmit, receive and the UART clock.
-  UART2_CR2 |= UART2_CR2_TEN;   // Enable transmit
-//  UART2_CR2 |= UART2_CR2_REN;   // Enable receive
-//  UART2_CR2 |= UART2_CR3_CKEN;  // Enable clock output
+  // Set the baud rate registers to 9600
+//  UART2_BRR2 = 0x02;
+//  UART2_BRR1 = 0x68;
+  // Set the baud rate registers to 115200
+  UART2_BRR2 = 0x0a;
+  UART2_BRR1 = 0x08;
+  
+  // Set the Transmitter Enable bit
+  UART2_CR2 |= (uint8_t)UART2_CR2_TEN;
 }
-
 
 // A simple method of sending a string to the serial port.
 //   Set a pointer to the start of the string.
@@ -211,11 +190,13 @@ void InitializeUART()
 void UARTPrintf(char *message)
 {
   char *ch = message;
+
   while (*ch) {
-    UART2_DR = (unsigned char) *ch; // Put the next character into the data
-                                    // transmission register.
-    while (UART2_SR_TXE == 0);      // Wait for transmission to complete.
-    ch++;                           // Grab the next character.
+    // Put the next character into the data transmission register.
+    UART2_DR = (unsigned char) *ch;
+    // Wait for transmission to complete.
+    while ((UART2_SR & UART2_SR_TXE) == 0);
+    ch++;
   }
 }
 

@@ -79,6 +79,7 @@
 #include "uip_types.h"
 #include "Enc28j60.h"
 #include "uip_TcpAppHub.h"
+#include "uipopt.h"
 
 
 //---------------------------------------------------------------------------//
@@ -246,7 +247,9 @@
 // signal levels needed on the terminal being used.
 // 0 = disable
 // 1 = enable
+// 2 = enable with enc28j60 revision level output
 #define UART_DEBUG_SUPPORT 1
+
 
 
 // Determines if the Independent Watchdog is to be enable
@@ -259,7 +262,6 @@
 // 0 = disable
 // 1 = enable
 #define IWDG_ENABLE 1
-
 
 
 //---------------------------------------------------------------------------//

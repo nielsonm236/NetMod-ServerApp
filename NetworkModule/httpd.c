@@ -200,9 +200,6 @@ uint8_t saved_newlines;       // Saved nNewlines value in case TCP fragmentation
                               // the /r/n/r/n search.
 uint8_t z_diag;               // The last value in a POST (hidden), used for diagnostics
 
-// uint8_t* tmp_pBuffer;         // Used to return the pBuffer value from parsing sub-functions 
-// uint16_t tmp_nBytes;          // Used to return the nBytes value from parsing sub-functions
-// uint8_t tmp_nParseLeft;       // Used to pass the nParseLeft value to parsing sub-functions
 uint8_t break_while;          // Used to indicate that a parsing "while loop" break is required
 uint8_t alpha[32];            // Used in parsing of multi-character values
 
@@ -753,7 +750,6 @@ static const char g_HtmlPageStats[] =
   "<head>"
   "<title>Network Statistics</title>"
   "<link rel='icon' href='data:,'>"
-//  "<meta name='viewport' content='user-scalable=no,initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
   "<meta name='viewport' content='width=device-width'>"
   "<style>"
   ".t1 { width: 100px; }"
@@ -793,12 +789,12 @@ static const char g_HtmlPageStats[] =
   "%y03/67' method='GET'><button>Clear Statistics</button></form>"
   "</body>"
   "</html>";
-#endif /* UIP_STATISTICS == 1 */
+#endif // UIP_STATISTICS == 1
 
 
 
-#if UIP_STATISTICS == 2
-// Statistics page Template
+#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+// Link Error Statistics page Template
 #define WEBPAGE_STATS		5
 static const char g_HtmlPageStats[] =
   "%y04%y05"
@@ -808,7 +804,6 @@ static const char g_HtmlPageStats[] =
   "<tr><td>31 %e31</td></tr>"
   "<tr><td>32 %e32</td></tr>"
   "<tr><td>33 %e33</td></tr>"
-  "<tr><td>34 %e34</td></tr>"
   "<tr><td>35 %e35</td></tr>"
   "</table>"
   "<button onclick='location=`/61`'>Configuration</button>"
@@ -816,7 +811,7 @@ static const char g_HtmlPageStats[] =
   "<button onclick='location=`/66`'>Refresh</button>"
   "</body>"
   "</html>";
-#endif // UIP_STATISTICS == 2
+#endif // UIP_STATISTICS
 
 
 // Very Short IO state page Template
@@ -962,7 +957,7 @@ uint16_t adjust_template_size()
     // size = size + (strlen(page_string03) - marker_field_size);
     // size = size + (strlen(page_string03) - 4);
     size = size + page_string03_len_less4;
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
 
     // Account for Temperature Sensor insertion %t00 to %t04
     // Each of these insertions can have a different length due to the
@@ -1031,7 +1026,7 @@ uint16_t adjust_template_size()
     // There is 1 more %y02 instance (Statistics button)
     // size = size + (1) x (page_string02_len_less4);
     size = size + page_string02_len_less4;
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
   }
 
 
@@ -1158,7 +1153,7 @@ size = size - 1;
     // size = size + (1) x (67 - 4);
     // size = size + (1) x (63);
     size = size + page_string02_len_less4;
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
   }
 
 
@@ -1185,10 +1180,10 @@ size = size - 1;
     // size = size + (strlen(page_string03) - 4);
     size = size + (3 * page_string03_len_less4);
   }
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
 
 
-#if UIP_STATISTICS == 2
+#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
   //---------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_STATS template
   //
@@ -1199,14 +1194,14 @@ size = size - 1;
     size = size + page_string04_len_less4
                 + page_string05_len_less4;
 
-    // Account for Statistics fields %e31 to %e35
-    // There are 5 instances of these fields
+    // Account for Statistics fields %e31, %e32, %e33, %e35
+    // There are 4 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (5 x (10 - 4));
-    // size = size + (5 x (6));
-    size = size + 30;
+    // size = size + (4 x (10 - 4));
+    // size = size + (4 x (6));
+    size = size + 24;
   }
-#endif // UIP_STATISTICS == 2
+#endif // DEBUG_SUPPORT
 
 
   //---------------------------------------------------------------------------//
@@ -1258,7 +1253,6 @@ void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
   //       where number is a uint32_t containing the value 0xc0a80004
   //       output string in OctetArray is c0a80004
 
-//  uint8_t i;
   int i;
   uint8_t rem;
 
@@ -1344,7 +1338,6 @@ static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString)
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
 {
   uint16_t nBytes;
-//  uint8_t i;
   int i;
 
   nBytes = 0;
@@ -1726,10 +1719,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             pBuffer++;
 	  }
 	}
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
 
 
-#if UIP_STATISTICS == 2
+#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
         else if (nParsedMode == 'e') {
           if (nParsedNum == 31) emb_itoa(second_counter, OctetArray, 10, 10);
 	  if (nParsedNum == 32) emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
@@ -1740,13 +1733,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  }
           else if (nParsedNum == 33) {
 	    for (i=20; i<25; i++) {
-              int2hex(stored_debug[i]);
-              *pBuffer = OctetArray[0]; pBuffer++;
-              *pBuffer = OctetArray[1]; pBuffer++;
-	    }
-	  }
-          else if (nParsedNum == 34) {
-	    for (i=25; i<30; i++) {
               int2hex(stored_debug[i]);
               *pBuffer = OctetArray[0]; pBuffer++;
               *pBuffer = OctetArray[1]; pBuffer++;
@@ -1770,7 +1756,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 	  nBytes += 10;
 	}
-#endif // UIP_STATISTICS == 2
+#endif // DEBUG_SUPPORT
 
 
         else if (nParsedMode == 'f') {
@@ -2122,12 +2108,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
     }
 
-#if UIP_STATISTICS == 1 || UIP_STATISTICS == 2
+#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15 || UIP_STATISTICS == 1
     else if (current_webpage == WEBPAGE_STATS) {
       pSocket->pData = g_HtmlPageStats;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
     }
-#endif // UIP_STATISTICS == 1 || UIP_STATISTICS == 2
+#endif // DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15 || UIP_STATISTICS == 1
 
 
     else if (current_webpage == WEBPAGE_SSTATE) {
@@ -3245,7 +3231,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // XXXXXXXXXXXXXXXXXXXXXX
 	      break;
 
-#if UIP_STATISTICS == 1 || UIP_STATISTICS == 2
+#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15 || UIP_STATISTICS == 1
             case 66: // Show statistics page
 	      current_webpage = WEBPAGE_STATS;
               pSocket->pData = g_HtmlPageStats;
@@ -3256,28 +3242,27 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      
             case 67: // Clear statistics
 	      uip_init_stats();
-#if DEBUG_SUPPORT == 2
-	      // Clear the "Reset Status Register" counters. Important:
-	      // The actual debug bytes used need to be in sync with
-	      // the debug bytes used to capture the data (in the main.c
-	      // routine) and with the display processes in httpd.c.
-	      // The bytes used may change if the number of bytes
-	      // available to the debug area changes.
+	      // Clear the "Reset Status Register" counters and the
+	      // Link Error Stats bytes.
+	      // Important: 
+	      // The debug[] byte indexes used may change if the
+	      // number of debug bytes changes.
 	      for (i = 20; i < 30; i++) debug[i] = 0;
 	      update_debug_storage1();
-	      // Clear the MQTT statistics
+	      // Clear the statistics that are part of Link Error
+	      // Stats
+	      TRANSMIT_counter = 0;
 	      MQTT_resp_tout_counter = 0;
 	      MQTT_not_OK_counter = 0;
 	      MQTT_broker_dis_counter = 0;
-#endif // DEBUG_SUPPORT == 2
-
+	      
 	      current_webpage = WEBPAGE_STATS;
               pSocket->pData = g_HtmlPageStats;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
               pSocket->nState = STATE_CONNECTED;
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
-#endif // UIP_STATISTICS == 1 || UIP_STATISTICS == 2
+#endif // DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15 || UIP_STATISTICS == 1
 
 	    case 91: // Reboot
 	      user_reboot_request = 1;

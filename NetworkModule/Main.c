@@ -257,7 +257,6 @@ uint8_t TXERIF_counter;         // Counts TXERIF errors detected by the
                                 // ENC28J60
 uint32_t TRANSMIT_counter;      // Counts any transmit by the ENC28J60
 
-extern uint8_t enc28j60_rev;    // ENC28J60 revision code
 
 
 // MQTT variables
@@ -410,11 +409,11 @@ int main(void)
 			   // need to make sure it is up to date.
 
 
-#if DEBUG_SUPPORT == 2
+#if DEBUG_SUPPORT != 0
   // Clear the general purpose debug bytes and restore the saved debug
   // statistics
   clear_eeprom_debug_bytes();
-#endif // DEBUG_SUPPORT == 2
+#endif // DEBUG_SUPPORT
 
   gpio_init();             // Initialize and enable gpio pins
   
@@ -432,7 +431,7 @@ int main(void)
   HttpDInit();             // Initialize listening ports
 
   
-#if UART_DEBUG_SUPPORT != 0
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -453,13 +452,13 @@ int main(void)
   PD_DDR |= 0x20; // Set Output mode
   PD_CR1 |= 0x20; // Set Push-Pull
   PD_CR2 |= 0x20; // Set 10MHz
-#endif // UART_DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
-#if UART_DEBUG_SUPPORT != 0
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // Initialize the UART for debug output
   InitializeUART();
-#endif // UART_DEBUG_SUPPORT != 0
+#endif // UART_DEBUG_SUPPORT
 
 
   // Initialize DS18B20 temperature storage strings
@@ -492,12 +491,13 @@ int main(void)
             publish_callback);
 
 
-#if DEBUG_SUPPORT == 2
-// Check RST_SR (Reset Status Register)
-// Important: Check the number of debug bytes in the current code revision
-// and update the debug[] locations used so that they are within the range
-// of the debug bytes. Search for the display routine and match it to these
-// locations.
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // Check RST_SR (Reset Status Register)
+  // Important: Check the number of debug bytes in the current code revision
+  // and update the debug[] locations used so that they are within the range
+  // of the debug bytes. Search for the display routine and match it to these
+  // locations.
   if (RST_SR & 0x1f) {
     // Bit 4 EMCF: EMC reset flag
     // Bit 3 SWIMF: SWIM reset flag
@@ -510,34 +510,43 @@ int main(void)
     if (RST_SR & 0x02) debug[28] = (uint8_t)(debug[28] + 1);
     if (RST_SR & 0x01) debug[29] = (uint8_t)(debug[29] + 1);
     update_debug_storage1();
-//    if (RST_SR & 0x16) {
-//      // Trigger reboot LED signal on any except SWIMF
-//      fastflash();
-//      debugflash();
-//      fastflash();
-//      debugflash();
-//      fastflash();
-//      debugflash();
-//      fastflash();
-//    }
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
   }
-#endif // DEBUG_SUPPORT == 2
+#endif // DEBUG_SUPPORT
 
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+  UARTPrintf("\r\nBooting Rev ");
+  UARTPrintf(code_revision);
+  UARTPrintf("\r\n");
+  
+  UARTPrintf("ENC28J60 Rev Code ");
+  emb_itoa((debug[22] & 0x07), OctetArray, 16, 2);
+  UARTPrintf(OctetArray);
+  UARTPrintf("\r\n");
 
-#if UART_DEBUG_SUPPORT != 0
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  {
-    UARTPrintf("\r\nBooting Rev ");
-    UARTPrintf(code_revision);
-    UARTPrintf("\r\n");
-    
-    UARTPrintf("ENC28J60 Rev Code ");
-    emb_itoa(enc28j60_rev, OctetArray, 16, 2);
-    UARTPrintf(OctetArray);
-    UARTPrintf("\r\n");
-  }
-#endif // UART_DEBUG_SUPPORT != 0
+  UARTPrintf("Reset Status Register Counters:\r\n");
+  UARTPrintf("EMCF: ");
+  emb_itoa(debug[25], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("  SWIMF: ");
+  emb_itoa(debug[26], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("  ILLOPF: ");
+  emb_itoa(debug[27], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("  IWDGF: ");
+  emb_itoa(debug[28], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("  WWDGF: ");
+  emb_itoa(debug[29], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("\r\n");
+  
+  if (debug[22] & 0x80) UARTPrintf("Stack Overflow ERROR!");
+  else UARTPrintf("Stack Overflow - none detected");
+  UARTPrintf("\r\n");
+  
+#endif // DEBUG_SUPPORT
 
 
   while (1) {
@@ -2452,7 +2461,7 @@ void check_runtime_changes(void)
   read_input_pins();
 
 
-#if UART_DEBUG_SUPPORT != 0
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -2470,7 +2479,7 @@ void check_runtime_changes(void)
   PD_DDR |= 0x20; // Set Output mode
   PD_CR1 |= 0x20; // Set Push-Pull
   PD_CR2 |= 0x20; // Set 10MHz
-#endif // UART_DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 
   // Check the DS18B20 Enable bit. If enabled over-ride the pin_control byte
@@ -2758,8 +2767,7 @@ void check_runtime_changes(void)
     fastflash();
     fastflash();
     
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#if DEBUG_SUPPORT == 2
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // Report the stack overflow bit
   // Important - Verify that the correct debug[] byte is selected as
   // these may have moved. Also check that this byte is reported in
@@ -2770,8 +2778,7 @@ void check_runtime_changes(void)
     update_debug_storage1();
   }
   lock_eeprom();
-#endif // DEBUG_SUPPORT == 2
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#endif // DEBUG_SUPPORT
 
   }
 }
@@ -3240,16 +3247,16 @@ void clear_eeprom_debug_bytes(void)
   for (i = 0; i < NUM_DEBUG_BYTES; i++) debug[i] = 0x00;
   // Update EEPROM bytes that changed
   update_debug_storage1();
-#endif // DEBUG_SUPPORT == 1
+#endif // DEBUG_SUPPORT
 
-#if DEBUG_SUPPORT == 2
+#if DEBUG_SUPPORT > 1
   // Clear the general debug bytes
   for (i = 0; i < (NUM_DEBUG_BYTES - 10); i++) debug[i] = 0x00;
-  // Recover the debug bytes
+  // Recover the stored debug bytes
   for (i = 20; i < 30; i++) debug[i] = stored_debug[i];
   // Update EEPROM bytes that changed
   update_debug_storage1();
-#endif // DEBUG_SUPPORT == 2
+#endif // DEBUG_SUPPORT
 
 }
 
@@ -3262,12 +3269,13 @@ void update_debug_storage() {
   unlock_eeprom();
   
   // To use this function it is intended that you fill the debug[]
-  // somewhere in inline code, then call this function to commit
-  // them to EEPROM. debug[0] should be 0 until your are ready for
-  // the snapshot to occur, then set debug[0] to one and call this
-  // function. The function will set debug[0] to two after the
-  // snapshot to help assure it only happens once. You can then
-  // read the stored values from EEPROM with the STVP programmer.
+  // bytes somewhere in inline code, then call this function to
+  // commit the debug[] bytes to EEPROM. debug[0] should be 0
+  // until your are ready for the snapshot to occur, then set
+  // debug[0] to one and call this function. The function will
+  // set debug[0] to two after the snapshot to help assure it only
+  // happens once. You can then read the stored values from EEPROM
+  // with the STVP programmer.
   if (debug[0] == 0x01) {
     debug[0] = 0x02;
     for (i = 0; i < NUM_DEBUG_BYTES; i++) {

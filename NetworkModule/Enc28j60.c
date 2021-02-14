@@ -62,7 +62,6 @@ extern uint32_t TRANSMIT_counter;      // Counts any transmit
 extern uint8_t stored_config_settings; // Config settings stored in EEPROM
 extern uint8_t OctetArray[11];         // Used in conversion of integer values to
                                        // character values
-uint8_t enc28j60_rev;
 
 
 // SPI Opcodes
@@ -615,10 +614,10 @@ void Enc28j60Init(void)
     Enc28j60WritePhy(PHY_PHCON1, 0x0000);
   }
   
-#if UART_DEBUG_SUPPORT != 0
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // Read the ENC28J60 revision level and store for output to the UART
-  enc28j60_rev = (uint8_t)(Enc28j60ReadReg(BANK3_EREVID));
-#endif // UART_DEBUG_SUPPORT != 0
+  debug[22] = (uint8_t)((Enc28j60ReadReg(BANK3_EREVID)) & 0x07);
+#endif // DEBUG_SUPPORT
 
   // Enable Packet Reception
   Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_RXEN));

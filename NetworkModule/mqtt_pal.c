@@ -57,7 +57,7 @@ extern char mac_string[13];               // MAC formatted as string
 // Variables used to store debug information
 extern uint8_t debug[NUM_DEBUG_BYTES];
 extern uint8_t stored_debug[NUM_DEBUG_BYTES];
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 char *stpcpy(char * dest, const char * src)
 {

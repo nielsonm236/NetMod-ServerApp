@@ -60,7 +60,7 @@ uint8_t mqtt_sendbuf[200];	      // Buffer to contain MQTT transmit queue
 
 #if DEBUG_SUPPORT != 0
 extern uint8_t debug[NUM_DEBUG_BYTES];
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 
 

@@ -43,12 +43,13 @@
 #include "uipopt.h"
 #include "mqtt.h"
 #include "DS18B20.h"
+#include "UART.h"
 
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210208 0523";
+const char code_revision[] = "20210213 0213";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -250,11 +251,12 @@ extern uint32_t second_counter; // Time in seconds
 
 extern uint8_t OctetArray[11];  // Used in emb_itoa conversions
 
-uint8_t RXERIF_counter;               // Counts RXERIF errors detected by the
-                                      // ENC28J60
-uint8_t TXERIF_counter;               // Counts TXERIF errors detected by the
-                                      // ENC28J60
-uint32_t TRANSMIT_counter;            // Counts any transmit by the ENC28J60
+uint8_t RXERIF_counter;         // Counts RXERIF errors detected by the
+                                // ENC28J60
+uint8_t TXERIF_counter;         // Counts TXERIF errors detected by the
+                                // ENC28J60
+uint32_t TRANSMIT_counter;      // Counts any transmit by the ENC28J60
+
 
 
 // MQTT variables
@@ -407,11 +409,11 @@ int main(void)
 			   // need to make sure it is up to date.
 
 
-#if DEBUG_SUPPORT == 2
+#if DEBUG_SUPPORT != 0
   // Clear the general purpose debug bytes and restore the saved debug
   // statistics
   clear_eeprom_debug_bytes();
-#endif // DEBUG_SUPPORT == 2
+#endif // DEBUG_SUPPORT
 
   gpio_init();             // Initialize and enable gpio pins
   
@@ -427,6 +429,36 @@ int main(void)
   uip_init();              // Initialize uIP Web Server
   
   HttpDInit();             // Initialize listening ports
+
+  
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // If UART_DEBUG_SUPPORT is enabled the following code forces IO 11 to
+  // an output state and keeps it that way. The UART code will operate
+  // the pin for IO 11 as needed for UART transmit to a terminal.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // Set pin 11 to output/enabled
+  // Update the stored_pin_control[] variables
+  unlock_eeprom();
+  if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
+  lock_eeprom();
+  // For UART mode Port D Bit 5 needs to be set to Output / Push-Pull /
+  // 10MHz slope
+  PD_ODR |= 0x20; // Set Output data to 1
+  PD_DDR |= 0x20; // Set Output mode
+  PD_CR1 |= 0x20; // Set Push-Pull
+  PD_CR2 |= 0x20; // Set 10MHz
+#endif // DEBUG_SUPPORT
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // Initialize the UART for debug output
+  InitializeUART();
+#endif // UART_DEBUG_SUPPORT
 
 
   // Initialize DS18B20 temperature storage strings
@@ -459,12 +491,13 @@ int main(void)
             publish_callback);
 
 
-#if DEBUG_SUPPORT == 2
-// Check RST_SR (Reset Status Register)
-// Important: Check the number of debug bytes in the current code revision
-// and update the debug[] locations used so that they are within the range
-// of the debug bytes. Search for the display routine and match it to these
-// locations.
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // Check RST_SR (Reset Status Register)
+  // Important: Check the number of debug bytes in the current code revision
+  // and update the debug[] locations used so that they are within the range
+  // of the debug bytes. Search for the display routine and match it to these
+  // locations.
   if (RST_SR & 0x1f) {
     // Bit 4 EMCF: EMC reset flag
     // Bit 3 SWIMF: SWIM reset flag
@@ -477,19 +510,43 @@ int main(void)
     if (RST_SR & 0x02) debug[28] = (uint8_t)(debug[28] + 1);
     if (RST_SR & 0x01) debug[29] = (uint8_t)(debug[29] + 1);
     update_debug_storage1();
-//    if (RST_SR & 0x16) {
-//      // Trigger reboot LED signal on any except SWIMF
-//      fastflash();
-//      debugflash();
-//      fastflash();
-//      debugflash();
-//      fastflash();
-//      debugflash();
-//      fastflash();
-//    }
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
   }
-#endif // DEBUG_SUPPORT == 2
+#endif // DEBUG_SUPPORT
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+  UARTPrintf("\r\nBooting Rev ");
+  UARTPrintf(code_revision);
+  UARTPrintf("\r\n");
+  
+  UARTPrintf("ENC28J60 Rev Code ");
+  emb_itoa((debug[22] & 0x07), OctetArray, 16, 2);
+  UARTPrintf(OctetArray);
+  UARTPrintf("\r\n");
+
+  UARTPrintf("Reset Status Register Counters:\r\n");
+  UARTPrintf("EMCF: ");
+  emb_itoa(debug[25], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("  SWIMF: ");
+  emb_itoa(debug[26], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("  ILLOPF: ");
+  emb_itoa(debug[27], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("  IWDGF: ");
+  emb_itoa(debug[28], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("  WWDGF: ");
+  emb_itoa(debug[29], OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("\r\n");
+  
+  if (debug[22] & 0x80) UARTPrintf("Stack Overflow ERROR!");
+  else UARTPrintf("Stack Overflow - none detected");
+  UARTPrintf("\r\n");
+  
+#endif // DEBUG_SUPPORT
 
 
   while (1) {
@@ -1737,7 +1794,6 @@ void publish_outbound(void)
   // supersede the processing of lower order bits.
   
   uint16_t xor_tmp;
-//  uint8_t i;
   int i;
   uint16_t j;
 
@@ -1754,7 +1810,7 @@ void publish_outbound(void)
       // Check if DS18B20 is enabled, and if yes check if a temperature
       // Publish needs to occur.
       if (stored_config_settings & 0x08) { // DS18B20 enabled?
-        if (j == 0x8000) { // Servicing pin 16?
+        if (j == 0x8000) { // Servicing IO 16?
 	  if (send_mqtt_temperature >= 0) {
 	    publish_temperature(send_mqtt_temperature);
 	    send_mqtt_temperature--;
@@ -1762,6 +1818,15 @@ void publish_outbound(void)
 	  }
 	}
       }
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+      // If UART is enabled we need to skip IO 11 to prevent UART signal
+      // switching from generating MQTT ON/OFF messages.
+      if (j == 0x0400) { // Servicing IO 11?
+        j = j >> 1;
+        i--;
+      }
+#endif // DEBUG_SUPPORT
 
       // Scan xor_temp for IOs that have changed.
       if (xor_tmp & j) {
@@ -1792,10 +1857,6 @@ void publish_outbound(void)
 	  // and will prevent hitting on the pin again.
           if (ON_OFF_word & j) ON_OFF_word_sent |= j;
           else ON_OFF_word_sent &= (uint16_t)~j;
-//	  // Go on to the next pin
-//          if (i == 0) break;
-//          j = j >> 1;
-//          i--;
 	}
       }
       
@@ -2396,7 +2457,6 @@ void check_runtime_changes(void)
   // make sure that a complete POST entry has been received before attempting
   // to process the changes made by the user.
 
-//  uint8_t i;
   int i;
   uint8_t update_EEPROM;
 
@@ -2404,21 +2464,35 @@ void check_runtime_changes(void)
 
   read_input_pins();
 
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // If UART_DEBUG_SUPPORT is enabled the following code forces IO 11 to
+  // an output state and keeps it that way. The UART code will operate
+  // the pin for IO 11 as needed for UART transmit to a terminal.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // force to output/enabled
+  // Update the stored_pin_control[] variables
+  if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
+  // For UART mode Port D Bit 5 needs to be set to Output / Push-Pull /
+  // 10MHz slope
+  PD_DDR |= 0x20; // Set Output mode
+  PD_CR1 |= 0x20; // Set Push-Pull
+  PD_CR2 |= 0x20; // Set 10MHz
+#endif // DEBUG_SUPPORT
+
+
   // Check the DS18B20 Enable bit. If enabled over-ride the pin_control byte
   // bits for IO 16 to force them to all zero. This forces the disabled
   // state and makes sure all other bits are in a neutral condition should
   // the DS18B20 be Disabled at some future time.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   if (Pending_config_settings & 0x08) {
-//    pin_control[14] = Pending_pin_control[14] = (uint8_t)0x00;
     pin_control[15] = Pending_pin_control[15] = (uint8_t)0x00;
     // Update the stored_pin_control[] variables
-//    if (stored_pin_control[14] != pin_control[14]) stored_pin_control[14] = pin_control[14];
     if (stored_pin_control[15] != pin_control[15]) stored_pin_control[15] = pin_control[15];
   }
 
@@ -2469,15 +2543,6 @@ void check_runtime_changes(void)
         // Check for change in ON/OFF bit. This function will save the ON/OFF
 	// bit in the EEPROM if the IO is an Output and Retain is enabled (or
 	// in the process of being enabled).
-//	if (pin_control[i] & 0x02) { // Output?
-//	if (Pending_pin_control[i] & 0x02) { // Output?
-//          if ((pin_control[i] & 0x80) != (Pending_pin_control[i] & 0x80)) {
-//	    // ON/OFF changed
-//            if (Pending_pin_control[i] & 0x08) {
-//	      // Retain is set, so need to update EEPROM
-//              update_EEPROM = 1;
-//            }
-//          }
 	if (Pending_pin_control[i] & 0x0a) { // Output AND Retain set?
           if ((pin_control[i] & 0x80) != (Pending_pin_control[i] & 0x80)) {
 	    // ON/OFF changed
@@ -2505,11 +2570,7 @@ void check_runtime_changes(void)
 	  //   needed if MQTT is enabled, but it will be done even if MQTT is
 	  //   not enabled to simplify code.
           update_EEPROM = 1;
-//	  if (stored_config_settings & 0x04) { // MQTT enabled?
-//            // Changing pin definitions with regard to Enabled/Disabled
-//	    // definition requires a hardware reboot if MQTT is enabled.
             user_reboot_request = 1;
-//	  }
         }
 
         // Check for change in Invert
@@ -2520,16 +2581,10 @@ void check_runtime_changes(void)
 	  //   needed if MQTT is enabled, but it will be done even if MQTT is
 	  //   not enabled to simplify code.
           update_EEPROM = 1;
-//          if (mqtt_enabled == 1) {
-//            // If MQTT is enabled restart so input inversion is reported to
-//            // the MQTT server
             restart_request = 1;
-//          }
         }
 	
         // Check for change in Retain/On/Off bits
-//        if (((pin_control[i] & 0x10) != (Pending_pin_control[i] & 0x10))
-//         || ((pin_control[i] & 0x08) != (Pending_pin_control[i] & 0x08))) {
         if ((pin_control[i] & 0x18) != (Pending_pin_control[i] & 0x18)) {
           // There is a change. Signal an EEPROM update. No restart or
 	  // reboot is required as these bits are only used when a reboot
@@ -2540,7 +2595,6 @@ void check_runtime_changes(void)
 	// Always update the pin_control byte even if the EEPROM was not
 	// updated. Don't let the ON/OFF bit change if this pin_control is
 	// for an input.
-//	if (pin_control[i] & 0x02) { // Output?
 	if (Pending_pin_control[i] & 0x02) { // Output?
 	  // Update all bits
 	  pin_control[i] = Pending_pin_control[i];
@@ -2717,8 +2771,7 @@ void check_runtime_changes(void)
     fastflash();
     fastflash();
     
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#if DEBUG_SUPPORT == 2
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // Report the stack overflow bit
   // Important - Verify that the correct debug[] byte is selected as
   // these may have moved. Also check that this byte is reported in
@@ -2729,8 +2782,7 @@ void check_runtime_changes(void)
     update_debug_storage1();
   }
   lock_eeprom();
-#endif // DEBUG_SUPPORT == 2
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#endif // DEBUG_SUPPORT
 
   }
 }
@@ -3199,16 +3251,16 @@ void clear_eeprom_debug_bytes(void)
   for (i = 0; i < NUM_DEBUG_BYTES; i++) debug[i] = 0x00;
   // Update EEPROM bytes that changed
   update_debug_storage1();
-#endif // DEBUG_SUPPORT == 1
+#endif // DEBUG_SUPPORT
 
-#if DEBUG_SUPPORT == 2
+#if DEBUG_SUPPORT > 1
   // Clear the general debug bytes
   for (i = 0; i < (NUM_DEBUG_BYTES - 10); i++) debug[i] = 0x00;
-  // Recover the debug bytes
+  // Recover the stored debug bytes
   for (i = 20; i < 30; i++) debug[i] = stored_debug[i];
   // Update EEPROM bytes that changed
   update_debug_storage1();
-#endif // DEBUG_SUPPORT == 2
+#endif // DEBUG_SUPPORT
 
 }
 
@@ -3221,12 +3273,13 @@ void update_debug_storage() {
   unlock_eeprom();
   
   // To use this function it is intended that you fill the debug[]
-  // somewhere in inline code, then call this function to commit
-  // them to EEPROM. debug[0] should be 0 until your are ready for
-  // the snapshot to occur, then set debug[0] to one and call this
-  // function. The function will set debug[0] to two after the
-  // snapshot to help assure it only happens once. You can then
-  // read the stored values from EEPROM with the STVP programmer.
+  // bytes somewhere in inline code, then call this function to
+  // commit the debug[] bytes to EEPROM. debug[0] should be 0
+  // until your are ready for the snapshot to occur, then set
+  // debug[0] to one and call this function. The function will
+  // set debug[0] to two after the snapshot to help assure it only
+  // happens once. You can then read the stored values from EEPROM
+  // with the STVP programmer.
   if (debug[0] == 0x01) {
     debug[0] = 0x02;
     for (i = 0; i < NUM_DEBUG_BYTES; i++) {

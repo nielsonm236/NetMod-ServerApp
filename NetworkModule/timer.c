@@ -31,6 +31,8 @@
 #include <stm8s-005.h>	// Bit location definitions in registers
 			// See C:\Users\Mike\Desktop\STM8S Peripheral Library\en.stsw-stm8069\STM8S_StdPeriph_Lib\Libraries\STM8S_StdPeriph_Driver\inc directory
 #include <main.h>
+#include <uipopt.h>
+
 
 uint8_t periodic_timer;       // Peroidic_timer counter
 uint8_t mqtt_timer;           // MQTT_timer counter
@@ -85,28 +87,33 @@ void clock_init(void)
   //   When the CCOEN bit is set the reset of the CCOR register requires
   //   two consecutive write instructions in order to reset first the CCOEN
   //   bit and the second one is to reset the CCOSEL bits.
-  CLK_ICKR = ((uint8_t)0x01);
-  CLK_ECKR = ((uint8_t)0x00);
-  CLK_SWR  = ((uint8_t)0xE1);
-  CLK_SWCR = ((uint8_t)0x00);
-  CLK_CKDIVR = ((uint8_t)0x18);
-  CLK_PCKENR1 = ((uint8_t)0xFF);
-  CLK_PCKENR2 = ((uint8_t)0xFF);
-  CLK_CSSR = ((uint8_t)0x00);
-  CLK_CCOR = ((uint8_t)0x00);
-  while ((CLK_CCOR & CLK_CCOR_CCOEN)!= 0) {}
-  CLK_CCOR = ((uint8_t)0x00);
-  CLK_HSITRIMR = ((uint8_t)0x00);
-  CLK_SWIMCCR = ((uint8_t)0x00);
 
+  CLK_ICKR = CLK_ICKR_RESET_VALUE;           // 0x01
+  CLK_ECKR = CLK_ECKR_RESET_VALUE;           // 0x00
+  CLK_SWR  = CLK_SWR_RESET_VALUE;            // 0xE1
+  CLK_SWCR = CLK_SWCR_RESET_VALUE;           // 0x00
+  CLK_CKDIVR = CLK_CKDIVR_RESET_VALUE;       // 0x18
+  CLK_PCKENR1 = CLK_PCKENR1_RESET_VALUE;     // 0xFF
+  CLK_PCKENR2 = CLK_PCKENR2_RESET_VALUE;     // 0xFF
+  CLK_CSSR = CLK_CSSR_RESET_VALUE;           // 0x00
+  
+  CLK_CCOR = CLK_CCOR_RESET_VALUE;           // 0x00, reset CCOEN
+  while ((CLK_CCOR & CLK_CCOR_CCOEN)!= 0) {} // wait until CCOEN clears
+  CLK_CCOR = CLK_CCOR_RESET_VALUE;           // 0x00, reset CCOSEL
+  
+  CLK_HSITRIMR = CLK_HSITRIMR_RESET_VALUE;   // 0x00
+  CLK_SWIMCCR = CLK_SWIMCCR_RESET_VALUE;     // 0x00
+  
   // Set up main clock for operation 
-  CLK_ICKR |= ((uint8_t)0x01); // Enable HSI oscillator (MAY NOT BE NECESSARY AFTER RESET)
+  CLK_ICKR |= CLK_ICKR_RESET_VALUE;          // 0x01, Enable HSI oscillator
+                                             // (MAY NOT BE NECESSARY AFTER RESET)
 
   // Wait until HSI clock is stable
   while ((CLK_ICKR & CLK_ICKR_HSIRDY)== 0) {}
 
-  // Enable the Clock Switch (MAY NOT BE NECESSARY)
-  CLK_SWCR |= CLK_SWCR_SWEN;
+  // Enable the Clock Switch
+  CLK_SWCR |= CLK_SWCR_SWEN; // 0x02
+
 
   // Set up clock divider
   // Sets CPU to 16 MHz using HSI internal oscilator
@@ -125,15 +132,33 @@ void clock_init(void)
   //   UART is defaulted to disabled after reset per UART_CR1 register
   //   CAN - it is not clear how to disable CAN but I assume it must be
   //     disabled after reset
-  CLK_PCKENR1 |= (uint8_t)0x80;		// Enable clock to TIM1
-  CLK_PCKENR1 |= (uint8_t)0x20;		// Enable clock to TIM2
-  CLK_PCKENR1 |= (uint8_t)0x40;		// Enable clock to TIM3
-  CLK_PCKENR1 &= (uint8_t)(~0x10);	// Disable clock to TIM4
-  CLK_PCKENR1 &= (uint8_t)(~0x08);	// Disable clock to UART
-  CLK_PCKENR1 &= (uint8_t)(~0x02);	// Disable clock to SPI
-  CLK_PCKENR1 &= (uint8_t)(~0x01);	// Disable clock to I2C
-  CLK_PCKENR2 &= (uint8_t)(~0x08);	// Disable clock to ADC
-  CLK_PCKENR2 &= (uint8_t)(~0x04);	// Disable clock to AWU
+  // Since the CLK_PCKENR1 and CLK_PCKENR2 registers were just set to
+  // their default values (0xff) above, the following code only needs
+  // to disable peripheral clocks that are not needed.
+  //   CLK_PCKENR1 |= (uint8_t)0x80;	// TIM1 clock left enabled
+  //   CLK_PCKENR1 |= (uint8_t)0x40;	// TIM3 clock left enabled
+  CLK_PCKENR1 &= (uint8_t)(~0x20);	// TIM2 clock disabled
+  CLK_PCKENR1 &= (uint8_t)(~0x10);	// TIM4 clock disabled
+
+#if DEBUG_SUPPORT == 0 || DEBUG_SUPPORT == 1 || DEBUG_SUPPORT == 11
+  CLK_PCKENR1 &= (uint8_t)(~0x08);	// UART clock disabled unless we
+                                        // are using the UART for debug
+					// support (then we just leave
+					// it enabled)
+#endif // DEBUG_SUPPORT
+
+  //   CLK_PCKENR1 bit 0x04             // Bit location 0x04 is reserved
+  CLK_PCKENR1 &= (uint8_t)(~0x02);	// SPI clock disabled
+  CLK_PCKENR1 &= (uint8_t)(~0x01);	// I2C clock disabled
+  
+  // CLK_PCKENR2 bit 0x80               // Bit location 0x80 is reserved
+  // CLK_PCKENR2 bit 0x40               // Bit location 0x40 is reserved
+  // CLK_PCKENR2 bit 0x20               // Bit location 0x20 is reserved
+  // CLK_PCKENR2 bit 0x10               // Bit location 0x10 is reserved
+  CLK_PCKENR2 &= (uint8_t)(~0x08);	// ADC I2C clock disabled
+  CLK_PCKENR2 &= (uint8_t)(~0x04);	// AWU I2C clock disabled
+  // CLK_PCKENR2 bit 0x02               // Bit location 0x02 is reserved
+  // CLK_PCKENR2 bit 0x01               // Bit location 0x01 is reserved
 
   // Notes on timers
   //
@@ -169,19 +194,6 @@ void clock_init(void)
   TIM1_SR1 = (uint8_t)(~0x01);  // Clear the UIF (update interrupt flag)
   TIM1_CR1 |= 0x01;             // Enable the counter
 
-/*
-  // Configure TIM2
-  // Configure TIM2 to increment at close to 1000 ticks per second. The
-  // below will divide 16MHz by 16384, yielding a 976Hz clock with a
-  // period of 1.024ms. Close enough since the timer will mostly be used
-  // to find 1/2 second and 10 second periods.
-  TIM2_PSCR = (uint8_t)0x0e;
-  // Enable TIM2
-  TIM2_CR1 = (uint8_t)0x01;
-  // Set UG bit to load the PSCR. The bit is auto-cleared by hardware.
-  TIM2_EGR = (uint8_t)0x01;
-*/
-
   // Configure TIM3
   // Configure TIM3 to increment at close to 1,000,000 ticks per second
   // (1us per tick). The below will divide 16MHz by 16, yielding a 1MHz
@@ -201,6 +213,7 @@ void clock_init(void)
   second_toggle = 0;       // Initialize toggle for seconds counter
   second_counter = 0;      // Initialize seconds counter
 }
+
 
 
 void timer_update(void)
@@ -250,6 +263,7 @@ void timer_update(void)
     }
   }
 }
+
 
 
 uint8_t periodic_timer_expired(void)

@@ -132,7 +132,6 @@ void get_temperature()
   //   close enough for this application.
 
   
-//  uint8_t i;
   int i;
   uint8_t j;
   uint8_t device_num;
@@ -290,7 +289,6 @@ int reset_pulse()
 {
   // Generates a master reset pulse on the specified IO
   // The pulse must be a minimum of 480us
-//  uint8_t rtn;
   int rtn;
   
   PC_ODR |= 0x40;           // write IO ODR to 1
@@ -348,9 +346,7 @@ int read_bit()
   // pullup working in about 1/2us with a 12 inch wire lead. Longer leads to
   // the DS18B20 may result in a slower rise time.
   // After reading a bit we must wait 60us before reading the next bit.
-//  uint8_t nop_cnt;
   int nop_cnt;
-//  uint8_t bit;
   int bit;
 
   bit = 0;
@@ -371,7 +367,6 @@ int read_bit()
 
 void write_bit(uint8_t transmit_bit)
 {
-//  uint8_t i;
   int i;
   
   // To send a 1 bit we need to pulse the output low for a minimum of 5us and
@@ -409,7 +404,6 @@ void FindDevices(void)
   // found (a value equal to one less than the number of devices found since
   // the index is 0, 1, 2, 3, 4 for the devices).
 
-//  uint8_t m;
   int m;
   
   numROMs = -1; // -1 indicates no devices
@@ -520,9 +514,7 @@ uint8_t Next(void)
 
 uint8_t dallas_crc8(uint8_t *data, uint8_t size)
 {
-//    int8_t i;
     int i;
-//    uint8_t j;
     int j;
     uint8_t inbyte;
     uint8_t mix;

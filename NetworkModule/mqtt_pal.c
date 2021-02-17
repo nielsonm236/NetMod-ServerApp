@@ -47,6 +47,7 @@ SOFTWARE.
 #include <uip.h>
 #include <uip_arp.h>
 #include "main.h"
+#include "uart.h"
 
 extern uint16_t uip_slen;                 // Send Length for packets
 extern const char code_revision[];        // Code Revision
@@ -57,7 +58,7 @@ extern char mac_string[13];               // MAC formatted as string
 // Variables used to store debug information
 extern uint8_t debug[NUM_DEBUG_BYTES];
 extern uint8_t stored_debug[NUM_DEBUG_BYTES];
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 char *stpcpy(char * dest, const char * src)
 {
@@ -256,6 +257,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //                 an Auto Discovery message.
   mBuffer = buf;
   *((uint16_t*)&temp_buf[0]) = *((uint16_t*)mBuffer); // copy 16 bits in a row
+  mBuffer += 2;
 
   // Check if Publish message
   if ((temp_buf[0] & 0xf0) == 0x30) {
@@ -269,11 +271,10 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
       // Copy the first 4 characters of the MQTT payload to temp_buf
       // After copy (if this is an Auto Discovery message)
       //   temp_buf[2] = %
-      //   temp_buf[3] = I or O
+      //   temp_buf[3] = I or O or T
       //   temp_buf[4] = MSB input or output number
       //   temp_buf[5] = LSB input or output number
       *((uint32_t*)&temp_buf[2]) = *((uint32_t*)mBuffer); // copy 32 bits in a row
-
 
       if (temp_buf[2] == '%') {
         // Found a marker - replace the existing payload with an auto
@@ -283,7 +284,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         pBuffer = uip_appdata;
         // Copy the Fixed Header Byte 1 to the uip_buf
         *pBuffer++ = temp_buf[0];
-       
+	
         // Determine the payload size. To save code space this value is
 	// manually calculated in the comments below where the prototype
 	// of the application message is shown.
@@ -423,7 +424,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         //                                          // Total: 253 plus 3 x devicename
 
 
-        // "stpcpy()" is used to efficiently copy data to the uip_bug
+        // "stpcpy()" is used to efficiently copy data to the uip_buf
 	// utilizing the pBuffer pointer.
         pBuffer=stpcpy(pBuffer, "{\"uniq_id\":\"");
 

@@ -79,6 +79,7 @@
 #include "uip_types.h"
 #include "Enc28j60.h"
 #include "uip_TcpAppHub.h"
+#include "uipopt.h"
 
 
 //---------------------------------------------------------------------------//
@@ -196,47 +197,76 @@
 // Application specific compile controls
 //
 // Controls whether the options for code compile. For instance:
-//  - Controls with/without Help web pages
-//  - Control number of relay outputs / sense inputs
-//      16 relay outputs (no inputs)
-//        OR
-//      8 relay outputs and 8 sense inputs
-//        OR
-//      16 sense inputs
-//  - Controls inclusion of MQTT support.
-//  - Controls full/half duplex support.
-//  - Contols inclusion of Debug support. This is only useful for development.
+//  - Controls inclusion of the Network Statistics web page
+//  - Controls inclusion of Debug support
+//  - Controls inclusion of the Independent Watchdog
 
 
-// Determines if statistics support should be compiled in. The statistics are
-// useful for debugging and to show the user. If you are modifying the project
-// and need more program space eliminating the statistics pages and processes will
-// free up considerable space.
+// UIP_STATISTICS
+// Determines if Network Statistics support should be compiled in. Network
+// Statistics are useful for debugging Network related problems. If you are
+// modifying the project and need more program space eliminating the Network
+// Statistics pages and processes will free up considerable space.
 // 0 = disabled
-// 1 = full statistics page for non-MQTT builds
-// 2 = error statistics page for MQTT builds. DEBUG_SUPPTORT == 2 must also be
-//     enabled.
+// 1 = included
 #define UIP_STATISTICS  0
 
 
+// DEBUG_SUPPORT
 // Determines if DEBUG code is compiled in
-// IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
-// DEBUG requires a lot of RAM and EEPROM - about 55 bytes depending on the number
-// of debug bytes collected. Be sure there is enough space available before
-// enabling.
+// IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
+// DEBUG requires a lot of RAM and EEPROM - about 55 bytes depending on the
+// debug funtionality selected. Be sure there is enough space available in
+// RAM and EEPROM before enabling.
 //
-// DEBUG support allocates EEPROM and RAM space to collect debug data and store it
-// in the EEPROM for viewing with the STVP programmer or Network Statistics special
-// debug display. THIS IS ONLY USEFUL DURING DEVELOPMENT AND THE DEFINITIONS MAY
-// CHANGE AT ANY TIME. 'DISABLE' IS THE RECOMMENED SETTING FOR MOST NORMAL BUILDS.
-// 0 = disable
-// 1 = enable
-// 2 = enable with "Reset Status Register" data collection. UIP_STATISTICS == 2
-//     must also be enabled.
-#define DEBUG_SUPPORT 0
+// DEBUG support allocates EEPROM and RAM space to collect debug data and
+// store it in the EEPROM for viewing with the STVP programmer, the UART, or
+// with the Link Error Stats web page.
+// Most of these functions are only useful during code development, however
+// the Link Error Stats web page is very useful to the end user to determine
+// if Full Duplex works better with their specific switch vs the default Half
+// Duplex. For this reason DEBUG_SUPPORT 11 should be the default setting for
+// production code.
+//
+// 0 =  No debug bytes
+//      No UART
+//      No Link Error Stats browser page
+//      USAGE: Smallest memory footprint. Useful during development if
+//      in-development code needs a little more space.
+// 1 =  General purpose debug bytes enabled (visible only via STVP)
+//      No UART
+//      No Link Error Stats browser page
+//      USAGE: Moderate memory footprint. Allows the developer to utilize
+//      more debug RAM and EEPROM for capturing developer specific debug
+//      values.
+// 7 =  General purpose debug bytes enabled (visible only via STVP)
+//      Last 10 bytes of debug[] allocated to specific debug data*
+//      UART enabled for display of basic debug data
+//      No Link Error Stats browser page
+//      USAGE: Useful mode for displaying most in-development debug without
+//      the overhead of the Link Error Stats web page.
+// 11 = General purpose debug bytes enabled (visible only via STVP)
+//      Last 10 bytes of debug allocated to specific debug data*
+//      No UART
+//      Link Error Stats browser page enabled
+//      USAGE: Most useful production setting. Provides the user with the
+//      Link Error Stats in a web page without the overhead of the UART
+//      and debug[] bytes functionality.
+// 15 = General purpose debug bytes enabled (visible only via STVP)
+//      Last 10 bytes of debug allocated to specific debug data*
+//      UART enabled
+//      Link Error Stats browser page enabled
+//      USAGE: Provides the most run time error data, but may not be useful
+//      during most development cycles as the developer is typically using
+//      only the internal debug (debug[] bytes, last 10 bytes, UART display)
+//      OR the developer is focused on external Link Error Stats information.
+// * Specific debug data: Reset Status Register counters, TXERIF counter,
+//   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
+#define DEBUG_SUPPORT 15
 
 
-// Determines if the Independent Watchdog is to be enable
+// IWDG_ENABLE
+// Determines if the Independent Watchdog is to be enabled
 // For production code this should me enabled. It turns on the IWDG to cause a
 // hardware reset after 1 second of the code failing to reset the watchdog,
 // which implies some kind of fatal error occurred. The reset will re-enable
@@ -246,7 +276,6 @@
 // 0 = disable
 // 1 = enable
 #define IWDG_ENABLE 1
-
 
 
 //---------------------------------------------------------------------------//

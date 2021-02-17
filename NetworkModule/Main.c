@@ -1794,7 +1794,6 @@ void publish_outbound(void)
   // supersede the processing of lower order bits.
   
   uint16_t xor_tmp;
-//  uint8_t i;
   int i;
   uint16_t j;
 
@@ -1811,7 +1810,7 @@ void publish_outbound(void)
       // Check if DS18B20 is enabled, and if yes check if a temperature
       // Publish needs to occur.
       if (stored_config_settings & 0x08) { // DS18B20 enabled?
-        if (j == 0x8000) { // Servicing pin 16?
+        if (j == 0x8000) { // Servicing IO 16?
 	  if (send_mqtt_temperature >= 0) {
 	    publish_temperature(send_mqtt_temperature);
 	    send_mqtt_temperature--;
@@ -1819,6 +1818,15 @@ void publish_outbound(void)
 	  }
 	}
       }
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+      // If UART is enabled we need to skip IO 11 to prevent UART signal
+      // switching from generating MQTT ON/OFF messages.
+      if (j == 0x0400) { // Servicing IO 11?
+        j = j >> 1;
+        i--;
+      }
+#endif // DEBUG_SUPPORT
 
       // Scan xor_temp for IOs that have changed.
       if (xor_tmp & j) {
@@ -1849,10 +1857,6 @@ void publish_outbound(void)
 	  // and will prevent hitting on the pin again.
           if (ON_OFF_word & j) ON_OFF_word_sent |= j;
           else ON_OFF_word_sent &= (uint16_t)~j;
-//	  // Go on to the next pin
-//          if (i == 0) break;
-//          j = j >> 1;
-//          i--;
 	}
       }
       

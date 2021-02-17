@@ -477,11 +477,14 @@ int16_t __mqtt_recv(struct mqtt_client *client)
         client->error = consumed;
         return consumed;
     }
+
     else if (consumed == 0) {
         // if curr_sz is 0 then the buffer is too small to ever fit the message
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	// I DON'T THINK THIS CODE IS APPLICABLE TO THIS APPLICATION AS ALL
-	// MESSAGES ARE VERY SHORT
+	// MESSAGES ARE VERY SHORT AND EASILY FIT IN THE UIP_BUF WHICH IS
+	// BEING USED AS THE RECEIVE BUFFER. WE DON'T QUEUE RECEIVE
+	// MESSAGES, AGAIN MAKING AN EASY FIT.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         if (client->recv_buffer.curr_sz == 0) {
             client->error = MQTT_ERROR_RECV_BUFFER_TOO_SMALL;
@@ -615,17 +618,28 @@ int16_t __mqtt_recv(struct mqtt_client *client)
         // transmit processing is completed.
   
         // we've handled the response, now clean the buffer
-        void* dest = (unsigned char*)client->recv_buffer.mem_start;
-        void* src  = (unsigned char*)client->recv_buffer.mem_start + consumed;
-        uint16_t n = client->recv_buffer.curr - client->recv_buffer.mem_start - consumed;
-        memmove(dest, src, n);
-        client->recv_buffer.curr -= consumed;
-        client->recv_buffer.curr_sz += consumed;
-	// MN: My suggessted replacement code:
-	// client->recv_buffer.mem_start = recvbuf;
-	// client->recv_buffer.mem_size = recvbufsz;
-	// client->recv_buffer.curr = client->recv_buffer.mem_start;
-	// client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// SINCE WE ONLY RECEIVE ON MQTT MESSAGE AT A TIME IN THIS APPLICATION
+	// THERE SHOULD BE NO NEED TO "CLEAN" THE RECEIVE BUFFER. SHOULD BE
+	// ABLE TO JUST RESET THE POINTERS TO THE START OF THE BUFFER AS IN
+	// THE INITIALIZATION CODE.
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+         void* dest = (unsigned char*)client->recv_buffer.mem_start;
+         void* src  = (unsigned char*)client->recv_buffer.mem_start + consumed;
+         uint16_t n = client->recv_buffer.curr - client->recv_buffer.mem_start - consumed;
+         memmove(dest, src, n);
+         client->recv_buffer.curr -= consumed;
+         client->recv_buffer.curr_sz += consumed;
+	
+	// Reset receive pointers to start of buffer. Note: We only receive
+	// one message at a time in this application. There is no receive
+	// queue as in the original mqtt.c code.
+	// Note, since recvbuf and recvbufsz are not global variables we need
+	// to use the structure member copy here
+//        client->recv_buffer.curr = recvbuf;
+//        client->recv_buffer.curr_sz = recvbufsz;
+//	client->recv_buffer.curr = client->recv_buffer.mem_start;
+//	client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
     }
 
     // In case there was some error handling the (well formed) message, we end up here

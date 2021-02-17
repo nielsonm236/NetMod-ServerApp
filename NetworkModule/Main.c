@@ -362,9 +362,7 @@ int main(void)
 #endif // IWDG_ENABLE == 1
   
 // Initialize MQTT variables
-  mqtt_enabled = 0;                      // Initialized to 'disabled', but any
-				         // non-zero MQTT Server IP Adddress will
-				         // cause it to be 'enabled'
+  mqtt_enabled = 0;                      // Initialized to 'disabled'
   mqtt_start = MQTT_START_TCP_CONNECT;	 // Tracks the MQTT startup steps
   mqtt_start_status = MQTT_START_NOT_STARTED; // Tracks error states during
                                          // startup
@@ -1833,8 +1831,8 @@ void publish_outbound(void)
         // Note that any pin reassigned to a DS18B20 can be scanned
 	// without harm - its pin_control ON/OFF will never change.
 	//
-	// If a pin is an Enabled Output and its ON/OFF state changed
-	// a Publish needs to occur.
+	// If a pin is Enabled (either Input or Output) and its ON/OFF
+	// state changed a Publish needs to occur.
 	
 	if (pin_control[i] & 0x01) { // enabled
           if (pin_control[i] & 0x02) publish_pinstate('O', (uint8_t)(i+1), ON_OFF_word, j);

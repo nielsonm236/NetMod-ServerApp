@@ -52,6 +52,7 @@
 #include "main.h"
 #include "mqtt_pal.h"
 #include "uipopt.h"
+#include "uart.h"
 
 // #include "stdlib.h"
 #include "string.h"
@@ -1507,7 +1508,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	// transmission buffer. pDataLeft is decremented once for each
 	// character read from the web page template.
       
-        //memcpy(&nByte, *ppData, 1);
 	nByte = **ppData;
 
         // Search for '%' symbol in the data stream. The symbol indicates the
@@ -1550,17 +1550,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	//      form. The z value itself is never used.
       
         if (nByte == '%') {
-          //*ppData = *ppData + 1;
-          //*pDataLeft = *pDataLeft - 1;
           (*ppData)++;
           (*pDataLeft)--;
           
           // Collect the "nParsedMode" value (the i, o, a, b, c, etc part of
 	  // the field). This, along with the "nParsedNum" digits that follow,
 	  // will determine what data is put in the output stream.
-          //memcpy(&nParsedMode, *ppData, 1);
-          //*ppData = *ppData + 1;
-          //*pDataLeft = *pDataLeft - 1;
 	  nParsedMode = **ppData;
           (*ppData)++;
           (*pDataLeft)--;
@@ -1568,9 +1563,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           // Collect the first digit of the "nParsedNum" which follows the
 	  // "nParseMode". This is the "tens" digit of the two character
 	  // nParsedNum.
-          //memcpy(&temp, *ppData, 1);
-          //*ppData = *ppData + 1;
-          //*pDataLeft = *pDataLeft - 1;
 	  temp = **ppData;
           nParsedNum = (uint8_t)((temp - '0') * 10);
           (*ppData)++;
@@ -1579,9 +1571,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           // Collect the second digit of the "nParsedNum". This is the "ones"
 	  // digit. Add it to the "tens" digit to complete the number in
 	  // integer form.
-          //memcpy(&temp, *ppData, 1);
-          //*ppData = *ppData + 1;
-          //*pDataLeft = *pDataLeft - 1;
 	  temp = **ppData;
           nParsedNum = (uint8_t)(nParsedNum + temp - '0');
           (*ppData)++;
@@ -1606,44 +1595,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // We need to get the 32 bit values for IP Address, Gateway Address, and
 	  // Netmask and send them as text strings of hex characters (8 characters
 	  // for a 32 bit number, for example "c0a80004").
-	  /*
-	  {
-	    uint32_t temp32;
-            switch (nParsedNum)
-	    {
-	      // Convert the value to an 8 digit hex string
-	      case 0:
-	        temp32 = uip_hostaddr[0];
-		temp32 = temp32<<16;
-		temp32 = temp32 | uip_hostaddr[1];
-	        emb_itoa(temp32, OctetArray, 16, 8);
-	        break;
-	      case 4:
-	        temp32 = uip_draddr[0];
-		temp32 = temp32<<16;
-		temp32 = temp32 | uip_draddr[1];
-	        emb_itoa(temp32, OctetArray, 16, 8);
-	        break;
-	      case 8:
-	        temp32 = uip_netmask[0];
-		temp32 = temp32<<16;
-		temp32 = temp32 | uip_netmask[1];
-	        emb_itoa(temp32, OctetArray, 16, 8);
-	        break;
-	      case 12:
-	        temp32 = uip_mqttserveraddr[0];
-		temp32 = temp32<<16;
-		temp32 = temp32 | uip_mqttserveraddr[1];
-	        emb_itoa(temp32, OctetArray, 16, 8);
-	        break;
-	      default: break;
-            }
-	  
- 	    // Copy OctetArray characters to output. Advance pointers.
-            pBuffer=stpcpy(pBuffer, OctetArray);
-	    nBytes += 8;
-	  }
-	  */
 	  {
 	    uint32_t temp32;
 	    uip_ipaddr_t * uip_ptr = NULL;
@@ -1772,42 +1723,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-/*
-        else if (nParsedMode == 'e') {
-          if (nParsedNum == 31) emb_itoa(second_counter, OctetArray, 10, 10);
-	  if (nParsedNum == 32) emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
-          if (nParsedNum == 31 || nParsedNum == 32) {
-	    for (i=0; i<10; i++) {
-              *pBuffer = OctetArray[i]; pBuffer++;
-	    }
-	  }
-          else if (nParsedNum == 33) {
-	    for (i=20; i<25; i++) {
-              int2hex(stored_debug[i]);
-              *pBuffer = OctetArray[0]; pBuffer++;
-              *pBuffer = OctetArray[1]; pBuffer++;
-	    }
-	  }
-          else if (nParsedNum == 35) {
-            *pBuffer = '0'; pBuffer++;
-            *pBuffer = '0'; pBuffer++;
-            *pBuffer = '0'; pBuffer++;
-            *pBuffer = '0'; pBuffer++;
-            int2hex(MQTT_resp_tout_counter);
-            *pBuffer = OctetArray[0]; pBuffer++;
-            *pBuffer = OctetArray[1]; pBuffer++;
-            int2hex(MQTT_not_OK_counter);
-            *pBuffer = OctetArray[0]; pBuffer++;
-            *pBuffer = OctetArray[1]; pBuffer++;
-            int2hex(MQTT_broker_dis_counter);
-            *pBuffer = OctetArray[0]; pBuffer++;
-            *pBuffer = OctetArray[1]; pBuffer++;
-	  }
-
-	  nBytes += 10;
-	}
-
-*/
         else if (nParsedMode == 'e') {
           if (nParsedNum == 31) emb_itoa(second_counter, OctetArray, 10, 10);
 	  if (nParsedNum == 32) emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
@@ -1858,12 +1773,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	      if (pin_control[i] & 0x80) {
 	        // Output is ON
 		*pBuffer++ = '1';
-                //pBuffer++;
 	      }
 	      else {
 		// Output is OFF
 		*pBuffer++ = '0';
-                //pBuffer++;
 	      }
             }
             else {
@@ -1993,54 +1906,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // This displays temperature sensor data (5 sets of 6 characters)
 	  // and the text fields around that data IF DS18B20 mode is enabled.
 	  // Note: &#8451; inserts a degree symbol followed by C.
-
-/*
-          if (nParsedNum == 0) {
-	    #define TEMPTEXT "<p>Temperature Sensors<br> 1 "
-            pBuffer=stpcpy(pBuffer, TEMPTEXT);
-	    nBytes += strlen(TEMPTEXT);
-            #undef TEMPTEXT
-	    goto showdata;
-	    }
-          if (nParsedNum == 1) {
-	    #define TEMPTEXT "&#8451;<br> 2 "
-            pBuffer=stpcpy(pBuffer, TEMPTEXT);
-	    nBytes += strlen(TEMPTEXT);
-            #undef TEMPTEXT
-	    goto showdata;
-	  }
-          if (nParsedNum == 2) {
-	    #define TEMPTEXT "&#8451;<br> 3 "
-            pBuffer=stpcpy(pBuffer, TEMPTEXT);
-	    nBytes += strlen(TEMPTEXT);
-            #undef TEMPTEXT
-	    goto showdata;
-	  }
-          if (nParsedNum == 3) {
-	    #define TEMPTEXT "&#8451;<br> 4 "
-            pBuffer=stpcpy(pBuffer, TEMPTEXT);
-	    nBytes += strlen(TEMPTEXT);
-            #undef TEMPTEXT
-	    goto showdata;
-	  }
-          if (nParsedNum == 4) {
-	    #define TEMPTEXT "&#8451;<br> 5 "
-            pBuffer=stpcpy(pBuffer, TEMPTEXT);
-	    nBytes += strlen(TEMPTEXT);
-            #undef TEMPTEXT
-	  }
-	  showdata:
-          pBuffer=stpcpy(pBuffer, DS18B20_string[nParsedNum]);
-	  nBytes += 6;
-          if (nParsedNum == 4) {
-	    #define TEMPTEXT "&#8451;<br></p>"
-            pBuffer=stpcpy(pBuffer, TEMPTEXT);
-	    nBytes += strlen(TEMPTEXT);
-            #undef TEMPTEXT
-	  }
-
-*/
-
 	  switch (nParsedNum) {
 		case 0:
 		    #define TEMPTEXT "<p>Temperature Sensors<br> 1 "
@@ -2074,19 +1939,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 		break;
 	  }
 
-	  /*
-	  // using this section instead of the previous switch uses more space
-	  // in .const and .text sections!
-	  const char * temp_sensors_message[5] = {
-		"<p>Temperature Sensors<br> 1 ",
-		"&#8451;<br> 2 ",
-		"&#8451;<br> 3 ",
-		"&#8451;<br> 4 ",
-		"&#8451;<br> 5 "
-	  };
-	  pBuffer=stpcpy(pBuffer, temp_sensors_message[nParsedNum]);
-	  nBytes += strlen(temp_sensors_message[nParsedNum]);
-	  */
 	  
           pBuffer=stpcpy(pBuffer, DS18B20_string[nParsedNum]);
 	  nBytes += 6;
@@ -2229,6 +2081,32 @@ void HttpDInit()
   clear_saved_postpartial_all();
 }
 
+
+// define a structure that will help in terms of code reduction
+// when we process the GET and the POST
+struct STATES_TABLE {
+  uint8_t current_state;
+  char ch;
+  uint8_t next_state;
+};
+
+// define number of states represented inside the table below
+#define AUTO_PARSE_ELEMENTS  9
+
+// allocate this in .const segment
+const struct STATES_TABLE parse_table[AUTO_PARSE_ELEMENTS] = {
+//  current state    char   next state
+  { STATE_CONNECTED, 'G',   STATE_GET_G },
+  { STATE_GET_G,     'E',   STATE_GET_GE },
+  { STATE_GET_GE,    'T',   STATE_GET_GET },
+  { STATE_GET_GET,   ' ',   STATE_GOTGET },
+  
+  { STATE_CONNECTED, 'P',   STATE_POST_P },
+  { STATE_POST_P,    'O',   STATE_POST_PO },
+  { STATE_POST_PO,   'S',   STATE_POST_POS },
+  { STATE_POST_POS,  'T',   STATE_POST_POST },
+  { STATE_POST_POST, ' ',   STATE_GOTPOST }
+};
 
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 {
@@ -2429,106 +2307,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     //
     // If we are parsing a fragment then pSocket->nState may have been restored
     // to a state further down in the process.
-
-
-    if (pSocket->nState == STATE_CONNECTED) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'G') {
-        pSocket->nState = STATE_GET_G;
-      }
-      else if (*pBuffer == 'P') {
-        pSocket->nState = STATE_POST_P;
-      }
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_GET_G) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'E') pSocket->nState = STATE_GET_GE;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_GET_GE) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'T') pSocket->nState = STATE_GET_GET;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_GET_GET) {
-      if (nBytes == 0) return;
-      if (*pBuffer == ' ') pSocket->nState = STATE_GOTGET;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_POST_P) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'O') pSocket->nState = STATE_POST_PO;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_POST_PO) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'S') pSocket->nState = STATE_POST_POS;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_POST_POS) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'T') pSocket->nState = STATE_POST_POST;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_POST_POST) {
-      if (nBytes == 0) return;
-      if (*pBuffer == ' ') pSocket->nState = STATE_GOTPOST;
-      nBytes--;
-      pBuffer++;
-    }
-
-
-    /*    
     {
-	// *********************************************************************
-	// this is a possible optimization of the previous section
-	// if (pSocket->nState == .....
-	// and can save about 111 bytes in code space
-	// however, the variable parse_table should be global what at the moment
-	// is not possible because we don't have more memory left for variables
-	// *********************************************************************
-	//
-	// create a table with the parsing sequence
-	// so that we can save 111 bytes code space
-	struct STATES_TABLE {
-	  uint8_t current_state;
-	  char ch;
-	  uint8_t next_state;
-	};
-
-	// define number of states represented inside the table below
-	#define AUTO_PARSE_ELEMENTS  9
-
-	// this array could be a global variable, but currently there is no space
-	struct STATES_TABLE parse_table[AUTO_PARSE_ELEMENTS] = {
-	  { STATE_CONNECTED, 'G', STATE_GET_G },
-	  { STATE_CONNECTED, 'P', STATE_POST_P },
-	  
-	  { STATE_GET_G,     'E', STATE_GET_GE },
-	  { STATE_GET_GE,    'T', STATE_GET_GET },
-	  { STATE_GET_GET,   ' ', STATE_GOTGET },
-	  
-	  { STATE_POST_P,    'O', STATE_POST_PO },
-	  { STATE_POST_PO,   'S', STATE_POST_POS },
-	  { STATE_POST_POS,  'T', STATE_POST_POST },
-	  { STATE_POST_POST, ' ', STATE_GOTPOST }
-	};
-	
+        // use the structure defined on the top of this function to process
+	// the GET ans the POST
+	uint8_t found = 0;
 	// loop trough the table and identify the current state (pSocket->nState)
 	for (i=0; i<=AUTO_PARSE_ELEMENTS ; i++) {
 	  // current table element is our current state?
@@ -2536,15 +2318,23 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // if no more bytes left, return
 	    if (nBytes == 0) return;
 	    // if we get the expected character in the buffer, move to next state
-	    if (*pBuffer == parse_table[i].ch) pSocket->nState = parse_table[i].next_state;
-	    // adjust counters
-	    nBytes--;
-	    pBuffer++;
+	    if (*pBuffer == parse_table[i].ch) {
+	      pSocket->nState = parse_table[i].next_state;
+	      // adjust counters
+	      nBytes--;
+	      pBuffer++;
+	      // signals a match found
+	      found = 1;
+	    }
 	  }
 	}
-	
+	// if we tested all possibilities without find a match
+	// move to next character in buffer
+	if (!found) {
+	      nBytes--;
+	      pBuffer++;
+	}
     }
-    */
 
     if (pSocket->nState == STATE_GOTPOST) {
       //Search for \r\n\r\n
@@ -2777,7 +2567,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             if (break_while == 1) {
 	      // Hit end of TCP Fragment but still have characters to collect.
 	      // Break out of while() loop.
-// The next line shouldn't be needed because the values shouldn't have changed
+	      // The next line shouldn't be needed because the values shouldn't have changed
               pSocket->ParseState = saved_parsestate = PARSE_VAL;
 	      break;
 	    }
@@ -3325,7 +3115,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // anything useful in it and processing of the fragment won't cause
 	  // anything to happen.
 	  //
-	  // For 00-31, 55, and 56 you won’t see any screen updates unless you
+	  // For 00-31, 55, and 56 you wonâ€™t see any screen updates unless you
 	  // are already on the IO Control page or the Short Form IO States
 	  // page of the webserver.
 	  //
@@ -3581,7 +3371,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   
   else if (uip_rexmit()) {
     if (pSocket->nPrevBytes == 0xFFFF) {
-      /* Send header again */
+      // Send header again
       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
     }
     else {
@@ -3933,12 +3723,10 @@ void parse_POST_address(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSo
         temp = temp | hex2int(alpha[i]);
 	i++;
 
-	/*
-        if (i == 2) j = 3;
-        if (i == 4) j = 2;
-        if (i == 6) j = 1;
-        if (i == 8) j = 0;
-	*/
+        // if (i == 2) j = 3;
+        // if (i == 4) j = 2;
+        // if (i == 6) j = 1;
+        // if (i == 8) j = 0;
 	j = (8 - i) / 2;
 	
         switch(pSocket->ParseNum)
@@ -4041,13 +3829,11 @@ void parse_POST_port(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocke
     temp = 0;
     nibble = 0;
     for (i=0; i<4; i++) {
-    /*
-      nibble = hex2int(alpha[i]);
-      if (i == 0) nibble = nibble<<12;
-      if (i == 1) nibble = nibble<<8;
-      if (i == 2) nibble = nibble<<4;
-      temp = temp | nibble;
-      */
+      // nibble = hex2int(alpha[i]);
+      // if (i == 0) nibble = nibble<<12;
+      // if (i == 1) nibble = nibble<<8;
+      // if (i == 2) nibble = nibble<<4;
+      // temp = temp | nibble;
       temp |= hex2int(alpha[i]) << (12 - i*4);
     }
 
@@ -4160,19 +3946,17 @@ void parse_POST_MAC(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket
         temp = temp | hex2int(alpha[i]);
 	i++;
     
-	/*
-        switch(i) {
-	  // Store result in Pending_uip_ethaddr_oct. Note that order is
-	  // reversed in this variable.
-          case 2: Pending_uip_ethaddr_oct[5] = (uint8_t)temp; break;
-          case 4: Pending_uip_ethaddr_oct[4] = (uint8_t)temp; break;
-          case 6: Pending_uip_ethaddr_oct[3] = (uint8_t)temp; break;
-          case 8: Pending_uip_ethaddr_oct[2] = (uint8_t)temp; break;
-          case 10: Pending_uip_ethaddr_oct[1] = (uint8_t)temp; break;
-          case 12: Pending_uip_ethaddr_oct[0] = (uint8_t)temp; break;
-          default: break;
-        }
-	*/
+        // switch(i) {
+        //   case 2: Pending_uip_ethaddr_oct[5] = (uint8_t)temp; break;
+        //   case 4: Pending_uip_ethaddr_oct[4] = (uint8_t)temp; break;
+        //   case 6: Pending_uip_ethaddr_oct[3] = (uint8_t)temp; break;
+        //   case 8: Pending_uip_ethaddr_oct[2] = (uint8_t)temp; break;
+        //   case 10: Pending_uip_ethaddr_oct[1] = (uint8_t)temp; break;
+        //   case 12: Pending_uip_ethaddr_oct[0] = (uint8_t)temp; break;
+        //   default: break;
+        // }
+	// Store result in Pending_uip_ethaddr_oct. Note that order is
+	// reversed in this variable.
 	Pending_uip_ethaddr_oct[ (12-i)/2 ] = (uint8_t)temp;
       }
     }

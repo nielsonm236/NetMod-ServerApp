@@ -292,8 +292,10 @@ uint8_t mqtt_start_ctr2;              // Tracks time for the MQTT startup
 uint8_t mqtt_sanity_ctr;              // Tracks time for the MQTT sanity steps
 extern uint8_t connack_received;      // Used to communicate CONNECT CONNACK
                                       // received from mqtt.c to main.c
+extern uint8_t suback_received;       // Used to communicate SUBSCRIBE SUBACK
+                                      // received from mqtt.c to main.c
 
-extern uint8_t mqtt_sendbuf[200];     // Buffer to contain MQTT transmit queue
+extern uint8_t mqtt_sendbuf[120];     // Buffer to contain MQTT transmit queue
 				      // and data.
 
 struct uip_conn *mqtt_conn;           // mqtt_conn points to the connection
@@ -522,7 +524,7 @@ int main(void)
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
 
-  UARTPrintf("Reset Status Register Counters:\r\n");
+//  UARTPrintf("Reset Status Register Counters:\r\n");
   UARTPrintf("EMCF: ");
   emb_itoa(debug[25], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
@@ -937,6 +939,10 @@ void mqtt_startup(void)
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/availability");
 
+      // When a CONNECT is sent to the broker it should respond with a
+      // CONNACK.
+      connack_received = 0;
+      
       // Queue the message
       mqtt_connect(&mqttclient,
                    client_id,              // Based on MAC address
@@ -948,9 +954,6 @@ void mqtt_startup(void)
                    connect_flags,          // Connect flags
                    mqtt_keep_alive);       // Ping interval
      
-      // When a CONNECT is sent to the broker it should respond with a
-      // CONNACK.
-      connack_received = 0;
       mqtt_start_ctr1 = 0; // Clear 100ms counter
       mqtt_start = MQTT_START_VERIFY_CONNACK;
     }
@@ -959,9 +962,9 @@ void mqtt_startup(void)
   case MQTT_START_VERIFY_CONNACK:
     // Verify that the CONNECT CONNACK was received.
     // When a CONNECT is sent to the broker it should respond with a CONNACK.
-    // Since the Broker won't send us anything else until this CONNACK occurs
-    // this step waits for the CONNACK, but will timeout after X seconds. A
-    // workaround is implemented with the global variable connack_received so
+    // The CONNACK will occur very quickly but we will allow up to 10 seconds
+    // before assuming an error has occurred.
+    // A workaround is implemented with the global variable connack_received so
     // that the mqtt.c code can tell the main.c code that the CONNECT CONNACK
     // was received.
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -975,15 +978,17 @@ void mqtt_startup(void)
     // a clean start vs a reboot.
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-    if (mqtt_start_ctr1 < 30) {
-      // Allow up to 3 seconds for CONNACK
+    if (mqtt_start_ctr1 < 100) {
+      // Allow up to 10 seconds for CONNACK
       if (connack_received == 1) {
+UARTPrintf("connack received\r\n");
         mqtt_start_ctr2 = 0; // Clear 100ms counter
         mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
         mqtt_start = MQTT_START_QUEUE_SUBSCRIBE1;
       }
     }
     else {
+UARTPrintf("restart MQTT_START\r\n");
       mqtt_start = MQTT_START_TCP_CONNECT;
       // Clear the error indicator flags
       mqtt_start_status = MQTT_START_NOT_STARTED; 
@@ -1010,39 +1015,88 @@ void mqtt_startup(void)
       // transmit, then queue another message.
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	
+      suback_received = 0;
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/output/+/set");
       mqtt_subscribe(&mqttclient, topic_base);
       mqtt_start_ctr2 = 0; // Clear 100ms counter
-      mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
+      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
     }
     break;
     
+  case MQTT_START_VERIFY_SUBSCRIBE1:
+    // Verify that the SUBSCRIBE SUBACK was received.
+    // When a SUBSCRIBE is sent to the broker it should respond with a SUBACK.
+    // The SUBACK will occur very quickly but we will allow up to 10 seconds
+    // before assuming an error has occurred.
+    // A workaround is implemented with the global variable suback_received so
+    // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
+    // was received.
+
+    if (mqtt_start_ctr1 < 100) {
+      // Allow up to 10 seconds for SUBACK
+      if (suback_received == 1) {
+UARTPrintf("verified SUBSCRIBE1\r\n");
+        mqtt_start_ctr2 = 0; // Clear 100ms counter
+        mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
+      }
+    }
+    else {
+UARTPrintf("restart MQTT_START\r\n");
+      mqtt_start = MQTT_START_TCP_CONNECT;
+      // Clear the error indicator flags
+      mqtt_start_status = MQTT_START_NOT_STARTED; 
+    }
+    break;
+
   case MQTT_START_QUEUE_SUBSCRIBE2:
     if (mqtt_start_ctr2 > 2) {
       // Subscribe to the state-req message
       //
-      // Wait 100ms before queuing the Subscribe message 
+      // Wait 300ms before queuing the Subscribe message 
+      suback_received = 0;
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/state-req");
       mqtt_subscribe(&mqttclient, topic_base);
-      mqtt_start_ctr2 = 0; // Clear 100ms counter
-      if (stored_config_settings & 0x02) {
-        // Home Assistant Auto Discovery enabled
-        mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
-        auto_pub_count = 0;
+      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE2;
+    }
+    break;
+
+  case MQTT_START_VERIFY_SUBSCRIBE2:
+    // Verify that the SUBSCRIBE SUBACK was received.
+    // When a SUBSCRIBE is sent to the broker it should respond with a SUBACK.
+    // The SUBACK will occur very quickly but we will allow up to 10 seconds
+    // before assuming an error has occurred.
+    // A workaround is implemented with the global variable suback_received so
+    // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
+    // was received.
+
+    if (mqtt_start_ctr1 < 100) {
+      // Allow up to 10 seconds for SUBACK
+      if (suback_received == 1) {
+UARTPrintf("verified SUBSCRIBE2\r\n");
+        mqtt_start_ctr2 = 0; // Clear 100ms counter
+        if (stored_config_settings & 0x02) {
+          // Home Assistant Auto Discovery enabled
+          mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
+          auto_pub_count = 0;
+        }
+        else {
+          mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+        }
       }
-      else {
-        mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
-      }
+    }
+    else {
+      mqtt_start = MQTT_START_TCP_CONNECT;
+      // Clear the error indicator flags
+      mqtt_start_status = MQTT_START_NOT_STARTED; 
     }
     break;
 
   case MQTT_START_QUEUE_PUBLISH_AUTO:
     if (mqtt_start_ctr2 > 0) {
-// if (auto_pub_count == 0) fastflash();
       // Publish Home Assistant Auto Discovery messages
       // This step of the state machine is entered multiple times until all
       // Publish messages are sent. The variable auto_pub_count is used to
@@ -1571,20 +1625,31 @@ void mqtt_sanity_check(void)
   // copied to the uip_buf, uip_len is set > 0, and the UIP code will perform
   // the transmission as part of the uip_periodic function.
   //
-  // Maximum size of an MQTT packet (what will appear in the uip_buf) is:
-  //   LLH (14 bytes)
-  //   IP Header (20 bytes)
-  //   TCP Header (20 bytes)
-  //   MQTT Publish Payload (max 52 bytes - see below)
-  //   Total: 106 bytes
+  // The only messages that must be retained in the mqtt_sendbuf are the
+  // CONNECT, SUBSCRIBE, and PINGREQ messages. Since the CONNECT and SUBSCRIBE
+  // messages are only sent by the mqtt_startup state machine we can carefully
+  // manage that state machine to make sure the ACK for each of those messages
+  // is received before continuing the state machine. This means that the only
+  // message that will be retained in the mqtt_sendbuf during normal operation
+  // is the PINGREQ message. That message is two bytes long. So, we can
+  // minimize the size of the mqtt_sendbuf to the point that only that 2 byte
+  // message and the longest of any other MQTT transmit message will fit.
   //
   // Output PUBLISH Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
-  //   Variable Header 43 bytes
-  //     Topic NetworkModule/DeviceName012345678/off01 39 bytes
+  //   Variable Header 47 bytes
+  //     Topic NetworkModule/DeviceName012345678/output/xx 43 bytes
   //     Topic Length 2 bytes
   //     Packet ID 2 bytes
-  //   Total: 45 bytes
+  //   Total: 49 bytes
+  //
+  // Temperature PUBLISH Msg (in the mqtt_sendbuf)
+  //   Fixed Header 2 bytes
+  //   Variable Header 51 bytes
+  //     Topic NetworkModule/DeviceName012345678/temp/xx-000.0 47 bytes
+  //     Topic Length 2 bytes
+  //     Packet ID 2 bytes
+  //   Total: 53 bytes
   //
   // Status PUBLISH Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
@@ -1592,21 +1657,16 @@ void mqtt_sanity_check(void)
   //     Topic NetworkModule/DeviceName123456789/availabilityoffline 53 bytes
   //     Topic Length 2 bytes
   //     Packet ID 2 bytes
-  //   Total: 57 bytes
+  //   Total: 59 bytes
   //   
-  // All Subscribe Msg (in the mqtt_sendbuf)
-  //   Fixed Header 2 bytes
-  //   Variable Header 40 bytes
-  //     Topic NetworkModule/DeviceName012345678/# 35 bytes
-  //     Topic Length 2 bytes
-  //     Packet ID 2 bytes
-  //     QOS 1 byte
-  //   Total: 42 bytes
-  //
-  // If 200 bytes are allocated for the mqtt_sendbuf it can hold 4 to 20
-  // queued MQTT messages. We need to make sure we stay within the bounds
-  // of the mqtt_sendbuf or messages will be lost.
-  //
+  // The implication of the above is that the mqtt_sendbuf needs to be as
+  // large as one PINGREQ message (2 bytes) plus the longest Publish message
+  // (59 bytes), or 61 bytes. I think the structure added to the mqtt_sendbuf
+  // for each message in the queue is 11 bytes (search on
+  //   struct mqtt_queued_message
+  // This would make the requirement for the mqtt_sendbuf = 61 + 22 = 83.
+  // The mqtt_sendbuf should therefore be 100 bytes to provide a little
+  // flexibility in code or message changes.
 //---------------------------------------------------------------------------//
 
 

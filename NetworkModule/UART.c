@@ -22,10 +22,6 @@
  Copyright 2021 Michael Nielson
 */
 
-// Credit to Mark Stevens for the original concepts used here.
-// https://blog.mark-stevens.co.uk/2012/08/using-the-uart-on-the-stm8s-2/
-
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,22 +44,18 @@
 //
 // The UART tx and rx pins require use of the following IO pins:
 //   IO 11 (tx)
-//   IO 3 (rx)
+//   IO 3 (rx) (this is not implemented at this time)
 // Because these pins are repurposed while the UART is used the UART function
-// is only available is a debug build. When the debug build is generated the
+// is only available as a debug build. When the debug build is generated the
 // developer must be careful that these two IO pins do not have any circuitry
 // connected that might cause damage to the IO pins. Further, because the
 // pins operate at 3v a level converter is needed to connect the pins to
 // external RS232 logic levels.
-
-// Hardware requirements:
 //---------------------------------------------------------------------------//
 
 
-
-
 // Code allows the STM8S to send debug information to a terminal emulator
-// running at 115200,n,8,1
+// running at 9600,n,8,1 or 115200,n,8,1 (see baud rate selection below).
 //
 // Perform the following tasks:
 //   set the parity and number of data bits
@@ -83,15 +75,9 @@
 //
 // UART_CR3 – Number of Stop Bits and Clock Settings
 //   UART_CR3_STOP is set to a value of 00 for 1 stop bit.
-//   UART_CR3_CPOL determines the idle state of the clock output. In this
-//     application we don't use the clock output so this setting doesn't
-//     matter.
-//   UART_CR3_CPHA determines if the data should be stable on the rising or
-//     falling edge of the output clock. In this application we don't use
-//     the clock output so this setting doesn't matter.
-//   UART_CR3_LBCL determines the clock pulse for the last data bit. In this
-//     application we don't use the clock output so this setting doesn't
-//     matter.
+//   UART_CR3_CPOL, UART_CR3_CPHA, and UART_CR3_LBCL affect the synchronous
+//     clock output. This is not used in this application so these settings
+//     do not matter.
 //   UART_BRR1 & UART_BRR2 – Baud Rate Registers
 //     The baud rate of the UART is controlled by dividing fmaster by the
 //     baud rate divisor. The result gives the clock speed of the serial port.
@@ -102,21 +88,20 @@
 //                  = 16,000,000 / 115,200
 //                  = 138
 //                  = 0x008a
-//     Now we need to rearrange the number 0x008a in order to get the right
-//     bits into BRR1 and BRR2 (Baud Rate Register 1 & 2). This was written
-//     as a 32 bit number to illustrate how this is put into the registers.
-//     To do this we split the number (represented by d3d2d1d0) into three
-//     parts:
-//     the first digit (d3) – 0
-//     the next two digits (d2d1) – 08
-//     the last digit (d0) – a
-//     And set up the registers as follows:
+//     It is an odd implementation, but the BRR2 register must be set with
+//     the Most Significant Nibble or the Divider and the Least Significant
+//     nibble of the Devider. The BRR1 register must be set with the middle
+//     two nibbles of the Divider.
+//     Example:
+//     Think of the Divider value as four nibbles represented by d3d2d1d0,
+//     and the Divider value is 0x008a.
+//     Set up the registers as follows:
 //       BRR1 = d2d1
 //            = 0x08
 //       BRR2 = d3d0
 //            = 0x0a
-//       When setting these registers it is important to remember to set BRR2
-//       before setting BRR1.
+//       When writing these registers it is important to remember to set
+//       BRR2 before setting BRR1.
 //
 // 
 //     For 9600 baud
@@ -132,11 +117,9 @@
 //
 //   UART_CR2 & UART_CR3 – Enabling the UART
 //       UART_CR2_TEN    Enable/disable transmission
-//       UART_CR2_REN    Enable/disable reception
-//       UART_CR3_CKEN   Enable/disable the clock
-//     In this application we do not need to enable the clock output (used
-//     for synchronous mode), and we do not need to enable receptio (as we
-//     will only transmit characters).
+//       UART_CR2_REN    Enable/disable reception (disabled at this time)
+//       UART_CR3_CKEN   Enable/disable the clock (always disabled in this
+//                       application.
 //
 // Setup the UART to run at 115200 baud, no parity, one stop bit, 8 data bits.
 // Important: This relies upon the system clock being set to run at 16 MHz.
@@ -145,15 +128,11 @@ void InitializeUART(void)
 {
   unsigned char tmp;
 
-  //
   // Clear the Idle Line Detected bit in the status register by a read to the
   // UART2_SR register followed by a Read to the UART2_DR register.
   tmp = UART2_SR;
   tmp = UART2_DR;
   
-// if (UART2_SR == 0xc0) fastflash(); // verfied that UART2_SR contains 0xc0
-// fastflash();
-
   //  Reset the UART registers to the reset values.
   UART2_BRR2 = UART2_BRR2_RESET_VALUE;
   UART2_BRR1 = UART2_BRR1_RESET_VALUE;
@@ -213,7 +192,7 @@ void main() // No interrupts
   InitialiseSystemClock()
   InitializeUART()
 
-  UARTPrintf("Hello from my microcontroller....\n\r");
+  UARTPrintf("Hello ....\n\r");
   
   strcpy(temp, "Hello again ...\n\r");
   UARTPrintf(temp);

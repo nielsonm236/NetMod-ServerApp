@@ -824,7 +824,7 @@ static const char g_HtmlPageStats[] =
 static const char g_HtmlPageSstate[] =
   "%f00";
 
-
+/*
 // Commonly used strings in the HTML pages. These strings are inserted in
 // the HTML page during copy of the HTML page template to the transmit
 // buffer when the associated "%yxx" placeholder is encountered in the
@@ -899,6 +899,119 @@ static const uint8_t page_string05_len_less4 = sizeof(page_string05) - 5;
 #if (page_string05_len > 255)
   #error "page_string05 is too big"
 #endif
+*/
+
+
+
+//---------------------------------------------------------------------------//
+// The following creates an array of strings that are commonly used strings
+// in the HTML pages. To reduce the size of the HTML pages these common
+// strings are replaced with placeholders of the form "%yxx", then when the
+// HTML page is copied to the trasnmit buffer the placeholders are replaced
+// with one of the strings in this array. The length of each string is
+// manually counted and put in the associated _len value. When the _len value 
+// is needed it often has 4 subtracted (as the strings are replacing the 4
+// character placeholder), so that subtraction is done once here.
+
+// The following creates an array of 6 strings of variable length
+
+// String for %y00 replacement in web page templates
+#define s1 " "
+
+// String for %y01 replacement in web page templates
+#define s2 "" \
+  "</script>" \
+  "</table>" \
+  "<p/>" \
+  "<button type=submit>Save</button> <button type=reset onclick='m.l()'>Undo All</button>" \
+  "</form>"
+
+// String for %y02 replacement in web page templates
+#define s3 "" \
+  "<button title='Save first!' onclick='location.reload()'>Refresh</button> " \
+  "<button title='Save first!' onclick='location="
+
+// String for %y03 replacement in web page templates
+#define s4 " "
+
+// String for %y04 replacement in web page templates
+//  "<!DOCTYPE html>"
+//  "<html lang='en-US'>"
+#define s5  "" \
+  "<html>"\
+  "<head>" \
+  "<link rel='icon' href='data:,'>" \
+  "<meta name='viewport' content='user-scalable=no," \
+  "initial-scale=1.0,maximum-scale=1.0,width=device-width'>" \
+  "<style>" \
+  ".s0{background:red;}" \
+  ".s1{background:green;}"
+
+// String for %y05 replacement in web page templates
+#define s6 "" \
+  "table{border-spacing:8px2px}" \
+  ".t3{width:30px;}" \
+  ".t8{width:40px;}" \
+  ".c{text-align:center;}" \
+  ".ip input{width:27px;}" \
+  ".mac input{width:14px;}" \
+  ".s div{width:13px;height:13px;display:inline-block;}" \
+  ".hs{height:9px;}" \
+  "</style>"
+
+// The following creates an array of string lengths corresponding to
+// the strings above
+// AND
+// Creates an array of string lengths (less 4) corresponding to the
+// strings above
+struct page_string {
+    const char * str;
+    uint8_t size;
+    uint8_t size_less4;
+};
+
+const struct page_string ps[6] = {
+    { s1, 1, 1 },
+    { s2, sizeof(s2)-1, sizeof(s2)-5 },
+    { s3, sizeof(s3)-1, sizeof(s3)-5 },
+    { s4, 1, 1 },
+    { s5, sizeof(s5)-1, sizeof(s5)-5 },
+    { s6, sizeof(s6)-1, sizeof(s6)-5 }
+};
+
+// Access the above strings, string length, and (string length - 4) as
+// follows:
+// ps[i].str
+// ps[i].size
+// ps[i].size_less4
+
+
+
+
+
+
+
+/*
+
+// The following tests the string lengths to make sure they are within
+// valid limits. All string lengths must be less than 256.
+#if (sizeof(page_string[1]) > 255)
+  #error "page_string01 is too big"
+#endif
+
+#if (sizeof(page_string[2]) > 255)
+  #error "page_string02 is too big"
+#endif
+
+#if (sizeof(page_string[4]) > 255)
+  #error "page_string04 is too big"
+#endif
+
+#if (sizeof(page_string[5]) > 255)
+  #error "page_string05 is too big"
+#endif
+
+*/
 
 
 // insertion_flag is used in continuing transmission of a "%yxx" insertion
@@ -934,13 +1047,18 @@ uint16_t adjust_template_size()
 
   // Adjust the size reported by the WEBPAGE_IOCONTROL template
   //
+  
+//  UARTPrintf(page_string[0]);
+//  UARTPrintf("\r\n");
 
   if (current_webpage == WEBPAGE_IOCONTROL) {
     size = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
 
     // Account for header replacement strings %y04 %y05
-    size = size + page_string04_len_less4
-                + page_string05_len_less4;
+//    size = size + page_string04_len_less4]
+//                + page_string05_len_less4;
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
 
     // Account for Device Name field %a00
     // This can be variable in size during run time so we have to calculate it
@@ -955,9 +1073,12 @@ uint16_t adjust_template_size()
  
 #if UIP_STATISTICS == 1
     // Account for IP Address insertion %y03 - Network Statistics Button
-    // size = size + (strlen(page_string03) - marker_field_size);
-    // size = size + (strlen(page_string03) - 4);
-    size = size + page_string03_len_less4;
+//    // size = size + (strlen(page_string03) - marker_field_size);
+//    // size = size + (strlen(page_string03) - 4);
+    // size = size + (ps[3].size - marker_field_size);
+    // size = size + ps[3].size_less4;
+//    size = size + page_string03_len_less4;
+    size = size + ps[3].size_less4;
 #endif // UIP_STATISTICS
 
     // Account for Temperature Sensor insertion %t00 to %t04
@@ -1013,20 +1134,28 @@ uint16_t adjust_template_size()
     
     // String for %y01 in web page template
     // There 1 instance (Save and Undo All buttons)
-    // size = size + (#instances) x ((strlen(page_string01) - marker_field_size);
-    // size = size + ((strlen(page_string01) - 4);
-    size = size + (page_string01_len_less4);
+//    // size = size + (#instances) x ((strlen(page_string01) - marker_field_size);
+//    // size = size + ((strlen(page_string01) - 4);
+    // size = size + (#instances) x (ps[1].size - marker_field_size);
+    // size = size + ps[1].size_less4;
+//    size = size + (page_string01_len_less4);
+    size = size + ps[1].size_less4;
     
     // String for %y02 in web page template
     // There 1 instance (Refresh and Configuration buttons)
-    // size = size + (#instances) x ((strlen(page_string02) - marker_field_size);
-    // size = size + ((strlen(page_string02) - 4);
-    size = size + (page_string02_len_less4);
+//    // size = size + (#instances) x ((strlen(page_string02) - marker_field_size);
+//    // size = size + ((strlen(page_string02) - 4);
+    // size = size + (#instances) x (ps[2].size - marker_field_size);
+    // size = size + ps[2].size_less4;
+//    size = size + (page_string02_len_less4);
+    size = size + ps[2].size_less4;
     
 #if UIP_STATISTICS == 1
     // There is 1 more %y02 instance (Statistics button)
-    // size = size + (1) x (page_string02_len_less4);
-    size = size + page_string02_len_less4;
+//    // size = size + (1) x (page_string02_len_less4);
+    // size = size + (1) x ps[2].size_less4;
+//    size = size + page_string02_len_less4;
+    size = size + ps[2].size_less4;
 #endif // UIP_STATISTICS
   }
 
@@ -1038,8 +1167,10 @@ uint16_t adjust_template_size()
     size = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
 
     // Account for header replacement strings %y04 %y05
-    size = size + page_string04_len_less4
-                + page_string05_len_less4;
+//    size = size + page_string04_len_less4
+//                + page_string05_len_less4;
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // Once again the math comes up different than the actual transmission,
@@ -1124,9 +1255,12 @@ size = size - 1;
  
 #if UIP_STATISTICS == 1
     // Account for IP Address insertion %y03 - Network Statistics Button
-    // size = size + (strlen(page_string03) - marker_field_size);
-    // size = size + (strlen(page_string03) - 4);
-    size = size + page_string03_len_less4;
+//    // size = size + (strlen(page_string03) - marker_field_size);
+//    // size = size + (strlen(page_string03) - 4);
+    // size = size + (ps[3].size - marker_field_size);
+    // size = size + ps[3].size_less4;
+//    size = size + page_string03_len_less4;
+    size = size + ps[3].size_less4;
 #endif // UIP_STATISTICS == 1
 
     // Account for Text Replacement insertion
@@ -1137,23 +1271,30 @@ size = size - 1;
     
     // String for %y01 in web page template
     // There 1 instance (Save and Undo All buttons)
-    // size = size + (#instances) x ((strlen(page_string01) - marker_field_size);
-    // size = size + ((strlen(page_string01) - 4);
-    size = size + (page_string01_len_less4);
+//    // size = size + (#instances) x ((strlen(page_string01) - marker_field_size);
+//    // size = size + ((strlen(page_string01) - 4);
+    // size = size + (#instances) x (ps[1].size - marker_field_size);
+    // size = size + ps[1].size_less4;
+//    size = size + (page_string01_len_less4);
+    size = size + ps[1].size_less4;
     
     // String for %y02 in web page templates
     // There is 1 instance (Refresh and IO Control buttons)
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances) x ((strlen(page_string00) - 4);
-    // size = size + (1) x (page_string02_len_less4);
-    size = size + page_string02_len_less4;
+//    // size = size + (#instances) x ((strlen(page_string02) - 4);
+//    // size = size + (1) x (page_string02_len_less4);
+    // size = size + (#instances) x (ps[2].size - 4);
+    // size = size + (1) x ps[2].size_less4;
+//    size = size + page_string02_len_less4;
+    size = size + ps[2].size_less4;
     
 #if UIP_STATISTICS == 1
     // There is 1 more %y02 instance (Statistics button)
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (1) x (67 - 4);
     // size = size + (1) x (63);
-    size = size + page_string02_len_less4;
+//    size = size + page_string02_len_less4;
+    size = size + ps[2].size_less4;
 #endif // UIP_STATISTICS
   }
 
@@ -1177,9 +1318,12 @@ size = size - 1;
     // Account for IP Address insertion - Refresh Button
     // AND
     // Account for IP Address insertion - Clear Statistics Button
-    // size = size + (strlen(page_string03) - marker_field_size);
-    // size = size + (strlen(page_string03) - 4);
-    size = size + (3 * page_string03_len_less4);
+//    // size = size + (strlen(page_string03) - marker_field_size);
+//    // size = size + (strlen(page_string03) - 4);
+    // size = size + (ps[3].size - marker_field_size);
+    // size = size + (ps[3].size - 4);
+//    size = size + (3 * page_string03_len_less4);
+    size = size + (3 * ps[3].size_less4;
   }
 #endif // UIP_STATISTICS
 
@@ -1192,8 +1336,10 @@ size = size - 1;
     size = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
 
     // Account for header replacement strings %y04 %y05
-    size = size + page_string04_len_less4
-                + page_string05_len_less4;
+//    size = size + page_string04_len_less4
+//                + page_string05_len_less4;
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
 
     // Account for Statistics fields %e31, %e32, %e33, %e35
     // There are 4 instances of these fields
@@ -1377,7 +1523,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   // would change in webpage forms. When those special characters are found
   // the program inserts the required variables.
     
-  uint16_t nBytes;
   uint8_t nByte;
   uint8_t nParsedNum;
   uint8_t nParsedMode;
@@ -1385,10 +1530,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   int i;
   int no_err;
   unsigned char temp_octet[3];
-
-  nBytes = 0;
+  uint8_t* pBuffer_start;
+  
   nParsedNum = 0;
   nParsedMode = 0;
+  pBuffer_start =  pBuffer;
 
   // The input value "nMaxBytes" provided by the calling routine is based on
   // the MSS (Maximum Segment Size) defined in UIP_TCP_MSS.
@@ -1446,12 +1592,9 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   nMaxBytes = UIP_TCP_MSS - 40;
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-  while (nBytes < nMaxBytes) {
+  while ((pBuffer - pBuffer_start) < nMaxBytes) {
     // This is the main loop for processing the page templates stored in
     // flash and inserting variable data as the webpage is copied to the
-    // transmission buffer.
-    //
-    // The variable nBytes tracks the amount of data written to the
     // transmission buffer.
     //
     // The variable *pDataLeft counts down the amount of data not yet
@@ -1463,7 +1606,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
     // greatly exceed the original size of the template.
     //
     // There are two ways this loop terminates:
-    // 1) If nBytes exceeds nMaxBytes.
+    // 1) If (pBuffer - pBuffer_start) exceeds nMaxBytes.
     // 2) If *pDataLeft reaches a count of zero.
     // If the loop terminates and there is still data left to transmit (as
     // indicated by pDataLeft > 0) the calling routine will call the function
@@ -1586,7 +1729,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         if (nParsedMode == 'a') {
 	  // This displays the device name (up to 19 characters)
           pBuffer=stpcpy(pBuffer, stored_devicename);
-          nBytes += strlen(stored_devicename);
 	}
 
 	
@@ -1627,9 +1769,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  
  	    // Copy OctetArray characters to output. Advance pointers.
             pBuffer=stpcpy(pBuffer, OctetArray);
-	    nBytes += 8;
 	  }
-
 	}
 	
         else if (nParsedMode == 'c') {
@@ -1645,7 +1785,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    
 	  // Copy OctetArray characters to output. Advance pointers.
           pBuffer=stpcpy(pBuffer, OctetArray);
-	  nBytes += 5;
         }
 	
         else if (nParsedMode == 'd') {
@@ -1654,7 +1793,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // than from the uip_ethaddr bytes) as the mac_string is already
 	  // in alphanumeric format.
           pBuffer=stpcpy(pBuffer, mac_string);
-          nBytes += 12;
 	}
 	
 
@@ -1753,8 +1891,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             *pBuffer++ = OctetArray[0];
             *pBuffer++ = OctetArray[1];
 	  }
-
-	  nBytes += 10;
 	}
 #endif // DEBUG_SUPPORT
 
@@ -1797,7 +1933,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    if (i == 0) break;
 	    i--;
           }
-	  nBytes += 16;
 	}
 	
 
@@ -1819,7 +1954,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           int2hex(stored_config_settings);
           *pBuffer++ = OctetArray[0];
           *pBuffer++ = OctetArray[1];
-          nBytes += 2;
 	}
 	
 	
@@ -1849,7 +1983,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
               *pBuffer++ = OctetArray[0];
               *pBuffer++ = OctetArray[1];
             }
-            nBytes += 32;
 	  }
 	}
 	
@@ -1857,13 +1990,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         else if (nParsedMode == 'l') {
 	  // This displays MQTT Username information (0 to 10 characters)
           pBuffer=stpcpy(pBuffer, stored_mqtt_username);
-	  nBytes += strlen(stored_mqtt_username);
 	}
 	
         else if (nParsedMode == 'm') {
 	  // This displays MQTT Password information (0 to 10 characters)
           pBuffer=stpcpy(pBuffer, stored_mqtt_password);
-	  nBytes += strlen(stored_mqtt_password);
 	}
 	
         else if (nParsedMode == 'n') {
@@ -1899,7 +2030,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  if (no_err == 1) *pBuffer = '1'; // Paint a green square
 	  else *pBuffer = '0'; // Paint a red square
           pBuffer++;
-          nBytes++;
 	}
 
         else if ((nParsedMode == 't') && (stored_config_settings & 0x08)) {
@@ -1910,42 +2040,35 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 		case 0:
 		    #define TEMPTEXT "<p>Temperature Sensors<br> 1 "
 		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    nBytes += strlen(TEMPTEXT);
 		    #undef TEMPTEXT
 		break;
 		case 1:
 		    #define TEMPTEXT "&#8451;<br> 2 "
 		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    nBytes += strlen(TEMPTEXT);
 		    #undef TEMPTEXT
 		break;
 		case 2:
 		    #define TEMPTEXT "&#8451;<br> 3 "
 		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    nBytes += strlen(TEMPTEXT);
 		    #undef TEMPTEXT
 		break;
 		case 3:
 		    #define TEMPTEXT "&#8451;<br> 4 "
 		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    nBytes += strlen(TEMPTEXT);
 		    #undef TEMPTEXT
 		break;
 		case 4:
 		    #define TEMPTEXT "&#8451;<br> 5 "
 		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    nBytes += strlen(TEMPTEXT);
 		    #undef TEMPTEXT
 		break;
 	  }
 
 	  
           pBuffer=stpcpy(pBuffer, DS18B20_string[nParsedNum]);
-	  nBytes += 6;
           if (nParsedNum == 4) {
 	    #define TEMPTEXT "&#8451;<br></p>"
             pBuffer=stpcpy(pBuffer, TEMPTEXT);
-	    nBytes += strlen(TEMPTEXT);
             #undef TEMPTEXT
 	  }
 
@@ -1954,7 +2077,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         else if (nParsedMode == 'w') {
 	  // This displays Code Revision information (13 characters)
           pBuffer=stpcpy(pBuffer, code_revision);
-          nBytes += 13;
 	}
 	
         else if (nParsedMode == 'y') {
@@ -2003,11 +2125,34 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  //   is not yet complete. In this case insertion_flag[0] is an index to
 	  //   the next character in the source string that is to be inserted into
 	  //   the transmit buffer.
-
+	  
 	  i = insertion_flag[0];
 	  insertion_flag[1] = nParsedMode;
 	  insertion_flag[2] = nParsedNum;
+	  
+	  // The insertion strings are stored as an array of strings. nParsedNum
+	  // is used as an index to select the needed string, and i is used as
+	  // an index to single characters in each string. Also, the string
+	  // length for each string in the "array of strngs" is stored in an
+	  // "array of string lengths" with nParsedNum again used as an index
+	  // to select the correct value.
 
+
+
+// page_string
+          *pBuffer = (uint8_t)ps[nParsedNum].str[i];
+	  insertion_flag[0]++;
+	  if (insertion_flag[0] == ps[nParsedNum].size) insertion_flag[0] = 0;
+
+// Access the above strings, string length, and (string length - 4) as
+// follows:
+// ps[i].str
+// ps[i].size
+// ps[i].size_less4
+
+
+
+/*
           switch (nParsedNum)
 	  {
 	    case 1:
@@ -2040,8 +2185,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	      
 	    default: break;
 	  }
+*/	  
+	  
+	  
+	  
+	  
           pBuffer++;
-          nBytes++;
 	}
       }
 
@@ -2053,12 +2202,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         *ppData = *ppData + 1;
         *pDataLeft = *pDataLeft - 1;
         pBuffer++;
-        nBytes++;
       }
     }
     else break;
   }
-  return nBytes;
+  return (pBuffer - pBuffer_start);
 }
 
 

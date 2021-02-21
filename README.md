@@ -17,7 +17,9 @@ January 23, 2021 - Latest release series. Provides a much improved Browser inter
 
 February 8, 2021 - Added an interface for up to 5 DS18B20 temperature sensors.
 
-Unfortunately with the new release Help is no longer built into the Network Module firmware. Instead the Configuration page includes a link to the Wiki page on this site. The Network Statistics were also removed from the firmware due to lack of memory.
+February 20, 2021 - Added a UART debug interface for use by developers. Beginning with this release you should obtain Source Code and Executables from the "Release" area of the GitHub page (along the right margin of the page).
+
+Help is avaialble via a link in the Configuration page that will take you to the GitHub Wiki page. The Network Statistics page was removed from the firmware due to lack of memory. A smaller Link Error Statustics page is available for use in diagnosing Half / Full Duplex issues (see the manual).
 
 Current users that upgrade to the new release will find that their Device Name, IP Address, Port Numbers, and MAC address entries are retained. However, since pins are now individually assigned, the pinout settings will have to be re-entered in the Configuration page. Note that firmware downgrade is not supported in an automated way. Check the Network Module Manual for downgrade instructions.
 

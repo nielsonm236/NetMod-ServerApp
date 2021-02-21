@@ -57,7 +57,7 @@ uint8_t connack_received;  // Used to communicate CONNECT CONNACK received
 uint8_t suback_received;   // Used to communicate SUBSCRIBE SUBACK received
                            // from mqtt.c to main.c
 
-uint8_t mqtt_sendbuf[120];	      // Buffer to contain MQTT transmit queue
+uint8_t mqtt_sendbuf[140];	      // Buffer to contain MQTT transmit queue
 				      // and data. Restrict to 200 bytes if
 				      // debug is enabled.
 extern uint8_t mqtt_start;            // Tracks the MQTT startup steps
@@ -446,7 +446,7 @@ int16_t __mqtt_send(struct mqtt_client *client)
         uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((float)(client->keep_alive) * 0.75);
         if ((second_counter > keep_alive_timeout) && (mqtt_start == MQTT_START_COMPLETE)) {
           int16_t rv = __mqtt_ping(client);
-UARTPrintf("queued ping request\r\n");
+// UARTPrintf("queued ping request\r\n");
           if (rv != MQTT_OK) {
             client->error = rv;
             return rv;

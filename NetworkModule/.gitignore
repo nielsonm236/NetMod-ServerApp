@@ -37,4 +37,5 @@
 *.obl
 *.sm8
 *.map
-
+*.sx
+*.stp

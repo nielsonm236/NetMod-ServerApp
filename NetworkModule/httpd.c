@@ -1611,14 +1611,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
     // If the loop terminates and there is still data left to transmit (as
     // indicated by pDataLeft > 0) the calling routine will call the function
     // again.
-    //
-    // Normally one pass of this loop copies one character from the webpage
-    // template to the transmission buffer. However, up to ~75 bytes can be
-    // copied to the transmission buffer (for instance when one of the
-    // "replacement strings" (like %y00) is processed. For this reason nBytes
-    // might exceed nMaxBytes by up to 75 bytes if the code does not pre
-    // compensate for it. This is why nMaxBytes is set well below MAXFRAME.
-    //
     
     if (*pDataLeft > 0) {
       // If pDataLeft > 0 then we are (or are still) processing a page
@@ -2453,12 +2445,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     // "\r\n\r\n" sequence, and we need to be able to handle TCP fragmentation
     // during that search.
     //
-    // If we are parsing a fragment then pSocket->nState may have been restored
-    // to a state further down in the process.
+    // If we are parsing a TCP fragment then pSocket->nState may have been
+    // restored to STATE_PARSEPOST or STATE_PARSEGET. If so the parse code will
+    // run but won't do anything.
+
     {
         // use the structure defined on the top of this function to process
-	// the GET ans the POST
-	uint8_t found = 0;
+	// the GET and the POST
 	// loop trough the table and identify the current state (pSocket->nState)
 	for (i=0; i<=AUTO_PARSE_ELEMENTS ; i++) {
 	  // current table element is our current state?
@@ -2472,17 +2465,76 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      nBytes--;
 	      pBuffer++;
 	      // signals a match found
-	      found = 1;
 	    }
 	  }
 	}
-	// if we tested all possibilities without find a match
-	// move to next character in buffer
-	if (!found) {
-	      nBytes--;
-	      pBuffer++;
-	}
     }
+
+/*
+// This is the old, less efficient parse code that was used to find the POST
+// or GET phrases. The "parse_table" code above replaced this.
+
+    if (pSocket->nState == STATE_CONNECTED) {
+      if (nBytes == 0) return;
+      if (*pBuffer == 'G') {
+        pSocket->nState = STATE_GET_G;
+      }
+      else if (*pBuffer == 'P') {
+        pSocket->nState = STATE_POST_P;
+      }
+      nBytes--;
+      pBuffer++;
+    }
+
+    if (pSocket->nState == STATE_GET_G) {
+      if (nBytes == 0) return;
+      if (*pBuffer == 'E') pSocket->nState = STATE_GET_GE;
+      nBytes--;
+      pBuffer++;
+    }
+
+    if (pSocket->nState == STATE_GET_GE) {
+      if (nBytes == 0) return;
+      if (*pBuffer == 'T') pSocket->nState = STATE_GET_GET;
+      nBytes--;
+      pBuffer++;
+    }
+
+    if (pSocket->nState == STATE_GET_GET) {
+      if (nBytes == 0) return;
+      if (*pBuffer == ' ') pSocket->nState = STATE_GOTGET;
+      nBytes--;
+      pBuffer++;
+    }
+
+    if (pSocket->nState == STATE_POST_P) {
+      if (nBytes == 0) return;
+      if (*pBuffer == 'O') pSocket->nState = STATE_POST_PO;
+      nBytes--;
+      pBuffer++;
+    }
+
+    if (pSocket->nState == STATE_POST_PO) {
+      if (nBytes == 0) return;
+      if (*pBuffer == 'S') pSocket->nState = STATE_POST_POS;
+      nBytes--;
+      pBuffer++;
+    }
+
+    if (pSocket->nState == STATE_POST_POS) {
+      if (nBytes == 0) return;
+      if (*pBuffer == 'T') pSocket->nState = STATE_POST_POST;
+      nBytes--;
+      pBuffer++;
+    }
+
+    if (pSocket->nState == STATE_POST_POST) {
+      if (nBytes == 0) return;
+      if (*pBuffer == ' ') pSocket->nState = STATE_GOTPOST;
+      nBytes--;
+      pBuffer++;
+    }
+*/
 
     if (pSocket->nState == STATE_GOTPOST) {
       //Search for \r\n\r\n
@@ -3075,7 +3127,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    break; // Exit parsing
 	  }
         }
-      }  // end of "while(nBytes != 0)" loop
+      }  // end of "while(1)" loop
       
       // If nParseLeft == 0 we should enter STATE_SENDHEADER204, but we
       // clean up the fragment tracking pointers first.

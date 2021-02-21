@@ -46,6 +46,7 @@ SOFTWARE.
 #include <mqtt.h>
 #include <uip.h>
 #include "main.h"
+#include "uart.h"
 #include "uipopt.h"
 
 extern uint32_t second_counter;
@@ -53,10 +54,14 @@ extern uint16_t uip_slen;
 uint8_t MQTT_error_status; // Global so GUI can show error status indicator
 uint8_t connack_received;  // Used to communicate CONNECT CONNACK received
                            // from mqtt.c to main.c
+uint8_t suback_received;   // Used to communicate SUBSCRIBE SUBACK received
+                           // from mqtt.c to main.c
 
-uint8_t mqtt_sendbuf[200];	      // Buffer to contain MQTT transmit queue
+uint8_t mqtt_sendbuf[140];	      // Buffer to contain MQTT transmit queue
 				      // and data. Restrict to 200 bytes if
 				      // debug is enabled.
+extern uint8_t mqtt_start;            // Tracks the MQTT startup steps
+
 
 #if DEBUG_SUPPORT != 0
 extern uint8_t debug[NUM_DEBUG_BYTES];
@@ -439,8 +444,9 @@ int16_t __mqtt_send(struct mqtt_client *client)
     // check for keep-alive
     {
         uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((float)(client->keep_alive) * 0.75);
-        if (second_counter > keep_alive_timeout) {
+        if ((second_counter > keep_alive_timeout) && (mqtt_start == MQTT_START_COMPLETE)) {
           int16_t rv = __mqtt_ping(client);
+// UARTPrintf("queued ping request\r\n");
           if (rv != MQTT_OK) {
             client->error = rv;
             return rv;
@@ -477,11 +483,15 @@ int16_t __mqtt_recv(struct mqtt_client *client)
         client->error = consumed;
         return consumed;
     }
+
+/*
     else if (consumed == 0) {
         // if curr_sz is 0 then the buffer is too small to ever fit the message
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	// I DON'T THINK THIS CODE IS APPLICABLE TO THIS APPLICATION AS ALL
-	// MESSAGES ARE VERY SHORT
+	// MESSAGES ARE VERY SHORT AND EASILY FIT IN THE UIP_BUF WHICH IS
+	// BEING USED AS THE RECEIVE BUFFER. WE DON'T QUEUE RECEIVE
+	// MESSAGES, AGAIN MAKING AN EASY FIT.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         if (client->recv_buffer.curr_sz == 0) {
             client->error = MQTT_ERROR_RECV_BUFFER_TOO_SMALL;
@@ -491,7 +501,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
         // just need to wait for the rest of the data
         return MQTT_OK;
     }
-    
+*/    
 
     // response was unpacked successfully
 
@@ -527,7 +537,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
         case MQTT_CONTROL_CONNACK:
             // release associated CONNECT
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_CONNECT, NULL);
-	    connack_received = 1; // Communicate CONNACK received to main.c
+            connack_received = 1; // Communicate CONNACK received to main.c
             if (msg == NULL) {
                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
@@ -556,6 +566,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
         case MQTT_CONTROL_SUBACK:
             // release associated SUBSCRIBE
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_SUBSCRIBE, &response.decoded.suback.packet_id);
+	    suback_received = 1; // Communicate SUBACK received to main.c
             if (msg == NULL) {
                 client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
                 mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
@@ -615,17 +626,28 @@ int16_t __mqtt_recv(struct mqtt_client *client)
         // transmit processing is completed.
   
         // we've handled the response, now clean the buffer
-        void* dest = (unsigned char*)client->recv_buffer.mem_start;
-        void* src  = (unsigned char*)client->recv_buffer.mem_start + consumed;
-        uint16_t n = client->recv_buffer.curr - client->recv_buffer.mem_start - consumed;
-        memmove(dest, src, n);
-        client->recv_buffer.curr -= consumed;
-        client->recv_buffer.curr_sz += consumed;
-	// MN: My suggessted replacement code:
-	// client->recv_buffer.mem_start = recvbuf;
-	// client->recv_buffer.mem_size = recvbufsz;
-	// client->recv_buffer.curr = client->recv_buffer.mem_start;
-	// client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// SINCE WE ONLY RECEIVE ON MQTT MESSAGE AT A TIME IN THIS APPLICATION
+	// THERE SHOULD BE NO NEED TO "CLEAN" THE RECEIVE BUFFER. SHOULD BE
+	// ABLE TO JUST RESET THE POINTERS TO THE START OF THE BUFFER AS IN
+	// THE INITIALIZATION CODE.
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+//         void* dest = (unsigned char*)client->recv_buffer.mem_start;
+//         void* src  = (unsigned char*)client->recv_buffer.mem_start + consumed;
+//         uint16_t n = client->recv_buffer.curr - client->recv_buffer.mem_start - consumed;
+//         memmove(dest, src, n);
+//         client->recv_buffer.curr -= consumed;
+//         client->recv_buffer.curr_sz += consumed;
+	
+	// Reset receive pointers to start of buffer. Note: We only receive
+	// one message at a time in this application. There is no receive
+	// queue as in the original mqtt.c code.
+	// Note, since recvbuf and recvbufsz are not global variables we need
+	// to use the structure member copy here
+        // client->recv_buffer.curr = recvbuf;
+        // client->recv_buffer.curr_sz = recvbufsz;
+	client->recv_buffer.curr = client->recv_buffer.mem_start;
+	client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
     }
 
     // In case there was some error handling the (well formed) message, we end up here

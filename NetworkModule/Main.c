@@ -49,7 +49,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210213 0213";
+const char code_revision[] = "20210220 2350";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -292,8 +292,10 @@ uint8_t mqtt_start_ctr2;              // Tracks time for the MQTT startup
 uint8_t mqtt_sanity_ctr;              // Tracks time for the MQTT sanity steps
 extern uint8_t connack_received;      // Used to communicate CONNECT CONNACK
                                       // received from mqtt.c to main.c
+extern uint8_t suback_received;       // Used to communicate SUBSCRIBE SUBACK
+                                      // received from mqtt.c to main.c
 
-extern uint8_t mqtt_sendbuf[200];     // Buffer to contain MQTT transmit queue
+extern uint8_t mqtt_sendbuf[140];     // Buffer to contain MQTT transmit queue
 				      // and data.
 
 struct uip_conn *mqtt_conn;           // mqtt_conn points to the connection
@@ -362,9 +364,7 @@ int main(void)
 #endif // IWDG_ENABLE == 1
   
 // Initialize MQTT variables
-  mqtt_enabled = 0;                      // Initialized to 'disabled', but any
-				         // non-zero MQTT Server IP Adddress will
-				         // cause it to be 'enabled'
+  mqtt_enabled = 0;                      // Initialized to 'disabled'
   mqtt_start = MQTT_START_TCP_CONNECT;	 // Tracks the MQTT startup steps
   mqtt_start_status = MQTT_START_NOT_STARTED; // Tracks error states during
                                          // startup
@@ -482,14 +482,16 @@ int main(void)
   stack_limit1 = 0xaa;
   stack_limit2 = 0x55;
 
+/*
   // Initialize mqtt client
+UARTPrintf("mqtt_init 1\r\n");
   mqtt_init(&mqttclient,
             mqtt_sendbuf,
             sizeof(mqtt_sendbuf),
             &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
             UIP_APPDATA_SIZE,
             publish_callback);
-
+*/
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -524,7 +526,7 @@ int main(void)
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
 
-  UARTPrintf("Reset Status Register Counters:\r\n");
+//  UARTPrintf("Reset Status Register Counters:\r\n");
   UARTPrintf("EMCF: ");
   emb_itoa(debug[25], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
@@ -760,8 +762,6 @@ int main(void)
     // Update temperature data
     if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 30))) {
       check_DS18B20_ctr = second_counter;
-//      get_temperature(15);
-//      get_temperature(16);
       get_temperature();
       send_mqtt_temperature = 4; // Indicates that all 5 temperature sensors
                                  // need to be transmitted.
@@ -897,7 +897,7 @@ void mqtt_startup(void)
       if ((mqtt_conn->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED) {
         mqtt_start_ctr1 = 0; // Clear 100ms counter
         mqtt_start_status |= MQTT_START_TCP_CONNECT_GOOD;
-        mqtt_start = MQTT_START_QUEUE_CONNECT;
+        mqtt_start = MQTT_START_MQTT_INIT;
       }
       else if (mqtt_start_ctr1 > 150) {
         // Wait up to 15 seconds for the TCP connection to complete. If not
@@ -909,7 +909,24 @@ void mqtt_startup(void)
       }
     }
     break;
-      
+
+
+  case MQTT_START_MQTT_INIT:
+    if (mqtt_start_ctr2 > 2) {
+      // Initialize mqtt client
+// UARTPrintf("mqtt_init 1\r\n");
+      mqtt_init(&mqttclient,
+                mqtt_sendbuf,
+                sizeof(mqtt_sendbuf),
+                &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
+                UIP_APPDATA_SIZE,
+                publish_callback);
+      mqtt_start_ctr1 = 0; // Clear 100ms counter
+      mqtt_start = MQTT_START_QUEUE_CONNECT;
+    }
+    break;
+
+
   case MQTT_START_QUEUE_CONNECT:
     if (mqtt_start_ctr2 > 2) {
       // ARP Reply received from the MQTT Server and TCP Connection
@@ -939,6 +956,10 @@ void mqtt_startup(void)
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/availability");
 
+      // When a CONNECT is sent to the broker it should respond with a
+      // CONNACK.
+      connack_received = 0;
+      
       // Queue the message
       mqtt_connect(&mqttclient,
                    client_id,              // Based on MAC address
@@ -950,9 +971,6 @@ void mqtt_startup(void)
                    connect_flags,          // Connect flags
                    mqtt_keep_alive);       // Ping interval
      
-      // When a CONNECT is sent to the broker it should respond with a
-      // CONNACK.
-      connack_received = 0;
       mqtt_start_ctr1 = 0; // Clear 100ms counter
       mqtt_start = MQTT_START_VERIFY_CONNACK;
     }
@@ -961,9 +979,9 @@ void mqtt_startup(void)
   case MQTT_START_VERIFY_CONNACK:
     // Verify that the CONNECT CONNACK was received.
     // When a CONNECT is sent to the broker it should respond with a CONNACK.
-    // Since the Broker won't send us anything else until this CONNACK occurs
-    // this step waits for the CONNACK, but will timeout after X seconds. A
-    // workaround is implemented with the global variable connack_received so
+    // The CONNACK will occur very quickly but we will allow up to 10 seconds
+    // before assuming an error has occurred.
+    // A workaround is implemented with the global variable connack_received so
     // that the mqtt.c code can tell the main.c code that the CONNECT CONNACK
     // was received.
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -977,15 +995,17 @@ void mqtt_startup(void)
     // a clean start vs a reboot.
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-    if (mqtt_start_ctr1 < 30) {
-      // Allow up to 3 seconds for CONNACK
+    if (mqtt_start_ctr1 < 100) {
+      // Allow up to 10 seconds for CONNACK
       if (connack_received == 1) {
+// UARTPrintf("connack received\r\n");
         mqtt_start_ctr2 = 0; // Clear 100ms counter
         mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
         mqtt_start = MQTT_START_QUEUE_SUBSCRIBE1;
       }
     }
     else {
+// UARTPrintf("restart MQTT_START 1\r\n");
       mqtt_start = MQTT_START_TCP_CONNECT;
       // Clear the error indicator flags
       mqtt_start_status = MQTT_START_NOT_STARTED; 
@@ -1012,39 +1032,89 @@ void mqtt_startup(void)
       // transmit, then queue another message.
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	
+      suback_received = 0;
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/output/+/set");
       mqtt_subscribe(&mqttclient, topic_base);
       mqtt_start_ctr2 = 0; // Clear 100ms counter
-      mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
+      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
     }
     break;
     
+  case MQTT_START_VERIFY_SUBSCRIBE1:
+    // Verify that the SUBSCRIBE SUBACK was received.
+    // When a SUBSCRIBE is sent to the broker it should respond with a SUBACK.
+    // The SUBACK will occur very quickly but we will allow up to 10 seconds
+    // before assuming an error has occurred.
+    // A workaround is implemented with the global variable suback_received so
+    // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
+    // was received.
+
+    if (mqtt_start_ctr1 < 100) {
+      // Allow up to 10 seconds for SUBACK
+      if (suback_received == 1) {
+// UARTPrintf("verified SUBSCRIBE1\r\n");
+        mqtt_start_ctr2 = 0; // Clear 100ms counter
+        mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
+      }
+    }
+    else {
+// UARTPrintf("restart MQTT_START 2\r\n");
+      mqtt_start = MQTT_START_TCP_CONNECT;
+      // Clear the error indicator flags
+      mqtt_start_status = MQTT_START_NOT_STARTED; 
+    }
+    break;
+
   case MQTT_START_QUEUE_SUBSCRIBE2:
     if (mqtt_start_ctr2 > 2) {
       // Subscribe to the state-req message
       //
-      // Wait 100ms before queuing the Subscribe message 
+      // Wait 300ms before queuing the Subscribe message 
+      suback_received = 0;
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/state-req");
       mqtt_subscribe(&mqttclient, topic_base);
-      mqtt_start_ctr2 = 0; // Clear 100ms counter
-      if (stored_config_settings & 0x02) {
-        // Home Assistant Auto Discovery enabled
-        mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
-        auto_pub_count = 0;
+      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE2;
+    }
+    break;
+
+  case MQTT_START_VERIFY_SUBSCRIBE2:
+    // Verify that the SUBSCRIBE SUBACK was received.
+    // When a SUBSCRIBE is sent to the broker it should respond with a SUBACK.
+    // The SUBACK will occur very quickly but we will allow up to 10 seconds
+    // before assuming an error has occurred.
+    // A workaround is implemented with the global variable suback_received so
+    // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
+    // was received.
+
+    if (mqtt_start_ctr1 < 100) {
+      // Allow up to 10 seconds for SUBACK
+      if (suback_received == 1) {
+// UARTPrintf("verified SUBSCRIBE2\r\n");
+        mqtt_start_ctr2 = 0; // Clear 100ms counter
+        if (stored_config_settings & 0x02) {
+          // Home Assistant Auto Discovery enabled
+          mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
+          auto_pub_count = 0;
+// UARTPrintf("start HA config\r\n");
+        }
+        else {
+          mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+        }
       }
-      else {
-        mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
-      }
+    }
+    else {
+      mqtt_start = MQTT_START_TCP_CONNECT;
+      // Clear the error indicator flags
+      mqtt_start_status = MQTT_START_NOT_STARTED; 
     }
     break;
 
   case MQTT_START_QUEUE_PUBLISH_AUTO:
     if (mqtt_start_ctr2 > 0) {
-// if (auto_pub_count == 0) fastflash();
       // Publish Home Assistant Auto Discovery messages
       // This step of the state machine is entered multiple times until all
       // Publish messages are sent. The variable auto_pub_count is used to
@@ -1368,7 +1438,10 @@ void mqtt_startup(void)
 	  auto_pub_count++;
 	}
         mqtt_start_ctr2 = 0;
-        if (auto_pub_count == 16) mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+        if (auto_pub_count == 16) {
+	  mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+// UARTPrintf("end HA config\r\n");
+        }
       }
     }
     break;
@@ -1520,13 +1593,16 @@ void mqtt_sanity_check(void)
     break;
     
   case MQTT_RESTART_SIGNAL_STARTUP:
+/*
     // Reinitialize the mqtt client
+UARTPrintf("mqtt_init in sanity check\r\n");
     mqtt_init(&mqttclient,
               mqtt_sendbuf,
 	      sizeof(mqtt_sendbuf),
 	      &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
 	      UIP_APPDATA_SIZE,
 	      publish_callback);
+*/
     // Set mqtt_restart_step and mqtt_start to re-run the MQTT connection
     // steps in the main loop
     mqtt_restart_step = MQTT_RESTART_IDLE;
@@ -1573,20 +1649,31 @@ void mqtt_sanity_check(void)
   // copied to the uip_buf, uip_len is set > 0, and the UIP code will perform
   // the transmission as part of the uip_periodic function.
   //
-  // Maximum size of an MQTT packet (what will appear in the uip_buf) is:
-  //   LLH (14 bytes)
-  //   IP Header (20 bytes)
-  //   TCP Header (20 bytes)
-  //   MQTT Publish Payload (max 52 bytes - see below)
-  //   Total: 106 bytes
+  // The only messages that must be retained in the mqtt_sendbuf are the
+  // CONNECT, SUBSCRIBE, and PINGREQ messages. Since the CONNECT and SUBSCRIBE
+  // messages are only sent by the mqtt_startup state machine we can carefully
+  // manage that state machine to make sure the ACK for each of those messages
+  // is received before continuing the state machine. This means that the only
+  // message that will be retained in the mqtt_sendbuf during normal operation
+  // is the PINGREQ message. That message is two bytes long. So, we can
+  // minimize the size of the mqtt_sendbuf to the point that only that 2 byte
+  // message and the longest of any other MQTT transmit message will fit.
   //
   // Output PUBLISH Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
-  //   Variable Header 43 bytes
-  //     Topic NetworkModule/DeviceName012345678/off01 39 bytes
+  //   Variable Header 47 bytes
+  //     Topic NetworkModule/DeviceName012345678/output/xx 43 bytes
   //     Topic Length 2 bytes
   //     Packet ID 2 bytes
-  //   Total: 45 bytes
+  //   Total: 49 bytes
+  //
+  // Temperature PUBLISH Msg (in the mqtt_sendbuf)
+  //   Fixed Header 2 bytes
+  //   Variable Header 51 bytes
+  //     Topic NetworkModule/DeviceName012345678/temp/xx-000.0 47 bytes
+  //     Topic Length 2 bytes
+  //     Packet ID 2 bytes
+  //   Total: 53 bytes
   //
   // Status PUBLISH Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
@@ -1594,21 +1681,25 @@ void mqtt_sanity_check(void)
   //     Topic NetworkModule/DeviceName123456789/availabilityoffline 53 bytes
   //     Topic Length 2 bytes
   //     Packet ID 2 bytes
-  //   Total: 57 bytes
+  //   Total: 59 bytes
   //   
-  // All Subscribe Msg (in the mqtt_sendbuf)
-  //   Fixed Header 2 bytes
-  //   Variable Header 40 bytes
-  //     Topic NetworkModule/DeviceName012345678/# 35 bytes
-  //     Topic Length 2 bytes
-  //     Packet ID 2 bytes
-  //     QOS 1 byte
-  //   Total: 42 bytes
+  // The implication of the above is that the mqtt_sendbuf needs to be as
+  // large as one PINGREQ message (2 bytes) plus the longest Publish message
+  // (59 bytes), or 61 bytes. I think the structure added to the mqtt_sendbuf
+  // for each message in the queue is 11 bytes (search on
+  //   struct mqtt_queued_message
+  // This would make the requirement for the mqtt_sendbuf = 61 + 22 = 83.
   //
-  // If 200 bytes are allocated for the mqtt_sendbuf it can hold 4 to 20
-  // queued MQTT messages. We need to make sure we stay within the bounds
-  // of the mqtt_sendbuf or messages will be lost.
-  //
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // IMPORTANT IMPORTANT IMPORTANT
+  // An analysis of the MQTT Startup process shows the CONNECT message to be
+  // up to 120 bytes in length. Add the queue management structure of 11
+  // bytes and the mqtt_sendbug needs to be a minimum of 131 bytes. Note that
+  // no PINGREQ can occur during the MQTT Startup process, so the CONNECT
+  // message will occupy the mqtt_sendbuf alone. This sets the required size
+  // of the mqtt_sendbuf at 131 bytes ... will make it 140 to provide a
+  // little flexibility in code for message changes.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //---------------------------------------------------------------------------//
 
 
@@ -1617,7 +1708,6 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   char* pBuffer;
   uint8_t pin_value;
   uint8_t ParseNum;
-//  uint8_t i;
   int i;
   
   pin_value = 0;
@@ -1661,10 +1751,8 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   // Skip the Fixed Header Remaining Length Byte (1 byte)
   // Skip the Topic name length bytes (2 bytes)
   // Skip the NetworkModule/ text (14 bytes)
-//  pBuffer = pBuffer + 18;
   pBuffer += 18;
   // Skip the Devicename/ text
-//  pBuffer = pBuffer + strlen(stored_devicename) + 1;
   pBuffer += strlen(stored_devicename) + 1;
   
   // Determine if the sub-topic is "output" or "state-req"
@@ -1833,8 +1921,8 @@ void publish_outbound(void)
         // Note that any pin reassigned to a DS18B20 can be scanned
 	// without harm - its pin_control ON/OFF will never change.
 	//
-	// If a pin is an Enabled Output and its ON/OFF state changed
-	// a Publish needs to occur.
+	// If a pin is Enabled (either Input or Output) and its ON/OFF
+	// state changed a Publish needs to occur.
 	
 	if (pin_control[i] & 0x01) { // enabled
           if (pin_control[i] & 0x02) publish_pinstate('O', (uint8_t)(i+1), ON_OFF_word, j);
@@ -1882,9 +1970,7 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
   // This function transmits a change in pin state and updates the "sent"
   // value.
   
-//  uint8_t size;
   int size;
-//  uint8_t i;
   int i;
   unsigned char app_message[4];       // Stores the application message (the
                                       // payload) that will be sent in an
@@ -1947,7 +2033,6 @@ void publish_pinstate_all(void)
   // The second byte of the Payload contains the ON/OFF state for IO 8 in the
   // msb of the byte. The ON/OFF state for IO 1 is in the lsb.
   
-//  uint8_t i;
   int i;
   uint16_t j;
   uint16_t k;
@@ -2007,7 +2092,6 @@ void publish_temperature(uint8_t sensor)
   // This function is called to Publish a temperature value collected from
   // a DS18B20 connected to IO 16.
   
-//  uint8_t i;
   int i;
   unsigned char app_message[10];      // Stores the application message (the
                                       // payload) that will be sent in an
@@ -2044,9 +2128,6 @@ void publish_temperature(uint8_t sensor)
     
     // Build the application message
     strcpy(app_message, DS18B20_string[sensor]);
-    // This sequence of characters will send a "degree" symbol
-    // followed by 'C' for "degrees C" display in HA.
-//    strcat(app_message, "\xc2\xb0\x43");
     
     // Queue publish message
     mqtt_publish(&mqttclient,
@@ -2087,7 +2168,6 @@ void upgrade_EEPROM(void)
 {
   // This functions upgrades prior revisions of the EEPROM to the current
   // revision.
-//  uint8_t i;
   int i;
   
   // ----------------------------------------------------------------------//
@@ -2155,7 +2235,6 @@ void upgrade_EEPROM(void)
 
 void check_eeprom_settings(void)
 {
-//  uint8_t i;
   int i;
 
   // Check magic number in EEPROM.
@@ -2428,9 +2507,7 @@ void update_mac_string(void)
 {
   // Function to turn the uip_ethaddr values into a single string containing
   // the MAC address
-//  uint8_t i;
   int i;
-//  uint8_t j;
   int j;
 
   i = 5;
@@ -2854,7 +2931,7 @@ void check_restart_reboot(void)
     
     case RESTART_REBOOT_DISCONNECT:
       if (t100ms_ctr1 > 2) {
-        // We can only get here is mqtt_enabled == 1
+        // We can only get here if mqtt_enabled == 1
         // The offline publish is given up to 200 ms to be communicated
         // before performing mqtt_disconnect
         if (mqtt_start == MQTT_START_COMPLETE) {
@@ -2869,7 +2946,7 @@ void check_restart_reboot(void)
     
     case RESTART_REBOOT_TCPCLOSE:
       if (t100ms_ctr1 > 2) {
-        // We can only get here is mqtt_enabled == 1
+        // We can only get here if mqtt_enabled == 1
         // The mqtt_disconnect() is given up to 200 ms to be communicated
         // before starting TCP close
         // 
@@ -2896,11 +2973,25 @@ void check_restart_reboot(void)
       break;
       
     case RESTART_REBOOT_TCPWAIT:
-      // We can only get here is mqtt_enabled == 1
+      // We can only get here if mqtt_enabled == 1
       // Verify closed ... how?
       // For the moment I'm not sure how to do this, so I will just allow
       // enough time for it to happen. That is probably much faster, but I
-      // will allow 500 ms.
+      // will allow 500ms.
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // This needs to be investigated. It seems that it takes too long
+      // for the TCP connection to close, so I suspect it is not being done
+      // correctly. If the timeout below is shorter than about 4s then the
+      // mqtt startup function has timeouts, likely due to finding the
+      // connection still open ... but then it closes. If the time below
+      // is set to 4s, then the HTML interface times out.
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       if (t100ms_ctr1 > 5) {
 	mqtt_close_tcp = 0;
         restart_reboot_step = RESTART_REBOOT_FINISH;
@@ -2964,14 +3055,16 @@ void restart(void)
   uip_init();              // Initialize uIP
   HttpDInit();             // Initialize httpd; sets up listening ports
 
+/*
   // Initialize mqtt client
+UARTPrintf("mqtt_init 2\r\n");
   mqtt_init(&mqttclient,
             mqtt_sendbuf,
             sizeof(mqtt_sendbuf),
             &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
             UIP_APPDATA_SIZE,
             publish_callback);
-
+*/
   LEDcontrol(1); // Turn LED on
   // From here we return to the main loop and should start running with new
   // settings.
@@ -3105,7 +3198,6 @@ void write_output_pins(void)
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // When DS18B20 mode is enabled do not write Output 16
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-//  if (stored_config_settings & 0x08) j = 14;
   if (stored_config_settings & 0x08) j = 15;
   else j = 16;
 
@@ -3220,8 +3312,6 @@ void fastflash(void)
 
 void oneflash(void)
 {
-  uint8_t i;
-
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // DEBUG - BLINK LED ON/OFF XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

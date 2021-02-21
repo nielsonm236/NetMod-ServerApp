@@ -249,7 +249,7 @@
 //      Last 10 bytes of debug allocated to specific debug data*
 //      No UART
 //      Link Error Stats browser page enabled
-//      USAGE: Most useful production setting. Provides the user with the
+//      USAGE: USE FOR PRODUCTION BUILDS. Provides the user with the
 //      Link Error Stats in a web page without the overhead of the UART
 //      and debug[] bytes functionality.
 // 15 = General purpose debug bytes enabled (visible only via STVP)
@@ -262,7 +262,8 @@
 //      OR the developer is focused on external Link Error Stats information.
 // * Specific debug data: Reset Status Register counters, TXERIF counter,
 //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
-#define DEBUG_SUPPORT 15
+#define DEBUG_SUPPORT 11
+
 
 
 // IWDG_ENABLE

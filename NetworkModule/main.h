@@ -34,6 +34,8 @@ int main(void);
 void init_IWDG(void);
 void unlock_eeprom(void);
 void lock_eeprom(void);
+void unlock_flash(void);
+void lock_flash(void);
 void upgrade_EEPROM(void);
 void check_eeprom_settings(void);
 void check_eeprom_IOpin_settings(void);
@@ -105,7 +107,6 @@ int8_t reverse_bit_order(uint8_t k);
 #define RESTART_REBOOT_IDLE		0
 #define RESTART_REBOOT_ARM		1
 #define RESTART_REBOOT_ARM2		2
-// #define RESTART_REBOOT_DELETE_PIN_LOOP  3
 #define RESTART_REBOOT_SENDOFFLINE	4
 #define RESTART_REBOOT_DISCONNECT	5
 #define RESTART_REBOOT_TCPCLOSE		6

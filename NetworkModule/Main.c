@@ -57,11 +57,12 @@ const char code_revision[] = "20210221 1826";
 //---------------------------------------------------------------------------//
 // Stack overflow detection
 // The following is used to declare two constants at the top of the RAM area.
-// Regular variable assignments start at memory address 0x0000 and grow upwards
-// to 0x5ff. Stack starts at 0x7ff and grows downward to 0x0600. Two constants
-// are placed at 0x5fe and 0x5ff and are monitored to make sure they never
-// change. If they do change it implies that the Stack has grown into the
-// variable storage RAM.
+// Regular variable assignments start at memory address 0x0000 and grow
+// upwards to 0x5ff. Stack starts at 0x7ff and grows downward to 0x0600. Two
+// constants are placed at 0x5fe and 0x5ff and are monitored to make sure
+// they never change. If they do change it implies that the Stack has grown
+// into the variable storage RAM, or that a "wild pointer" may have caused
+// writes to RAM to exceed the space allocated to RAM.
 //
 #pragma section @near [iconst]
 uint8_t stack_limit1;
@@ -194,6 +195,51 @@ uint8_t debug[NUM_DEBUG_BYTES];
 //---------------------------------------------------------------------------//
 #endif // DEBUG_SUPPORT != 0
 
+#if MQTT_SUPPORT == 0
+// Define Flash addresses for IO Names and IO Timers
+/*
+char IO01_NAME[16] @0xff00;
+char IO02_NAME[16] @0xff10;
+char IO03_NAME[16] @0xff20;
+char IO04_NAME[16] @0xff30;
+char IO05_NAME[16] @0xff40;
+char IO06_NAME[16] @0xff50;
+char IO07_NAME[16] @0xff60;
+char IO08_NAME[16] @0xff70;
+char IO09_NAME[16] @0xff80;
+char IO10_NAME[16] @0xff90;
+char IO11_NAME[16] @0xffa0;
+char IO12_NAME[16] @0xffb0;
+char IO13_NAME[16] @0xffc0;
+char IO14_NAME[16] @0xffd0;
+char IO15_NAME[16] @0xffe0;
+char IO16_NAME[16] @0xfff0;
+*/
+char IO_NAME[16][16] @0xff00;
+
+/*
+uint32_t IO01_TIMER @0xfec0;
+uint32_t IO02_TIMER @0xfec4;
+uint32_t IO03_TIMER @0xfec8;
+uint32_t IO04_TIMER @0xfecc;
+uint32_t IO05_TIMER @0xfed0;
+uint32_t IO06_TIMER @0xfed4;
+uint32_t IO07_TIMER @0xfed8;
+uint32_t IO08_TIMER @0xfedc;
+uint32_t IO09_TIMER @0xfee0;
+uint32_t IO10_TIMER @0xfee4;
+uint32_t IO11_TIMER @0xfee8;
+uint32_t IO12_TIMER @0xfeec;
+uint32_t IO13_TIMER @0xfef0;
+uint32_t IO14_TIMER @0xfef4;
+uint32_t IO15_TIMER @0xfef8;
+uint32_t IO16_TIMER @0xfefc;
+*/
+uint32_t IO_TIMER[16] @0xfec0;
+
+#endif // MQTT_SUPPORT
+
+
 
 uint8_t pin_control[16];                // Per pin configuration byte
 uint16_t ON_OFF_word;                   // ON/OFF states of pins in single 16
@@ -251,29 +297,17 @@ extern uint32_t second_counter; // Time in seconds
 
 extern uint8_t OctetArray[11];  // Used in emb_itoa conversions
 
-uint8_t RXERIF_counter;         // Counts RXERIF errors detected by the
-                                // ENC28J60
-uint8_t TXERIF_counter;         // Counts TXERIF errors detected by the
-                                // ENC28J60
-uint32_t TRANSMIT_counter;      // Counts any transmit by the ENC28J60
 
-
-
+#if MQTT_SUPPORT == 1
 // MQTT variables
+// Note: To maintain the same user interface for MQTT compiles and Browser Only
+// compiles the MQTT user interface variables are always compiled.
 uint8_t mqtt_enabled;                 // Used to signal use of MQTT functions
-                                      // Initialized to 'disabled', but any
-				      // non-zero MQTT Server IP Adddress will
-				      // cause it to be 'enabled'
-uint8_t Pending_mqttserveraddr[4];    // Holds a new user entered MQTT Server
-                                      // IP address
-uint16_t Pending_mqttport;            // Holds a new user entered MQTT Port
-                                      // number
-char Pending_mqtt_username[11];       // Holds a new user entered MQTT username
-char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
-
+                                      // Initialized to 'disabled'. This can
+				      // only get set to 1 if the MQTT Enable
+				      // bit is set in the Config settings AND
+				      // at least one IO pin is enabled.
 uint8_t connect_flags;                // Used in MQTT setup
-uint16_t mqttport;             	      // MQTT port number
-uint16_t Port_Mqttd;                  // In use MQTT port number
 uint16_t mqtt_keep_alive;             // Ping interval
 struct mqtt_client mqttclient;        // Declare pointer to the MQTT client
                                       // structure
@@ -283,8 +317,6 @@ char client_id_text[26];              // Client ID comprised of text
 				      // (12 bytes) and terminator (1 byte)
 				      // for a total of 26 bytes.
 uint8_t mqtt_start;                   // Tracks the MQTT startup steps
-uint8_t mqtt_start_status;            // Error (or success) status for startup
-                                      // steps
 uint8_t mqtt_start_ctr1;              // Tracks time for the MQTT startup
                                       // steps
 uint8_t mqtt_start_ctr2;              // Tracks time for the MQTT startup
@@ -304,7 +336,6 @@ struct uip_conn *mqtt_conn;           // mqtt_conn points to the connection
 				      // have to keep looking it up in the
 				      // structure table while setting up MQTT
 				      // operations.
-extern uint8_t MQTT_error_status;     // For MQTT error status display in GUI
 uint8_t mqtt_restart_step;            // Step tracker for restarting MQTT
 
 static const unsigned char devicetype[] = "NetworkModule/"; // Used in
@@ -316,29 +347,55 @@ unsigned char topic_base[51];         // Used for building connect, subscribe,
 				      // NetworkModule/DeviceName123456789/output/+/set
 				      // NetworkModule/DeviceName123456789/temp/15
 				      // homeassistant/binary_sensor/macaddressxx/01/config
-uint8_t MQTT_resp_tout_counter;       // Counts response timeout events in the
-                                      // mqtt_sanity_check() function
-uint8_t MQTT_not_OK_counter;          // Counts MQTT != OK events in the
-                                      // mqtt_sanity_check() function
-uint8_t MQTT_broker_dis_counter;      // Counts broker disconnect events in
-                                      // the mqtt_sanity_check() function
 uint8_t auto_pub_count;               // Tracks the Home Assistant Auto Discovery
                                       // publish msgs
 uint8_t auto_pub_toggle;              // Tracks the dual message count required for
                                       // the Home Assistant Auto Discovery publish msgs
+#endif // MQTT_SUPPORT
 
+// These MQTT variables must always be compiled to maintain a common user
+// interface between the MQTT and Browser Only versions.
+uint8_t mqtt_start_status;            // Error (or success) status for startup
+                                      // steps
+uint8_t MQTT_error_status;            // For MQTT error status display in GUI
+uint8_t Pending_mqttserveraddr[4];    // Holds a new user entered MQTT Server
+                                      // IP address
+uint16_t Pending_mqttport;            // Holds a new user entered MQTT Port
+                                      // number
+char Pending_mqtt_username[11];       // Holds a new user entered MQTT username
+char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
+uint16_t mqttport;             	      // MQTT port number
+uint16_t Port_Mqttd;                  // In use MQTT port number
+
+
+
+
+// The following are diagnostic counters mostly useful for checking for the
+// need for Full Duplex in an MQTT setting, they may still be useful in
+// other scenarios, so they remain functional even if MQTT is not enabled.
+uint8_t RXERIF_counter;          // Counts RXERIF errors detected by the
+                                 // ENC28J60
+uint8_t TXERIF_counter;          // Counts TXERIF errors detected by the
+                                 // ENC28J60
+uint32_t TRANSMIT_counter;       // Counts any transmit by the ENC28J60
+uint8_t MQTT_resp_tout_counter;  // Counts response timeout events in the
+                                 // mqtt_sanity_check() function
+uint8_t MQTT_not_OK_counter;     // Counts MQTT != OK events in the
+                                 // mqtt_sanity_check() function
+uint8_t MQTT_broker_dis_counter; // Counts broker disconnect events in
+                                 // the mqtt_sanity_check() function
 
 // DS18B20 variables
-uint32_t check_DS18B20_ctr;           // Counter used to trigger temperature
-                                      // measurements
-uint8_t DS18B20_string[5][7];         // Stores the temperature measurement for the
-                                      // DS18B20s
-int8_t send_mqtt_temperature;         // Indicates if a new temperature measurement
-                                      // is pending transmit on MQTT. In this
-				      // application there are 5 sensors, so setting
-				      // to 4 will cause all 5 to transmit (4,3,2,1,0).
-				      // -1 indicates nothing to transmit.
-extern int numROMs;                   // Count of DS18B20 devices found
+uint32_t check_DS18B20_ctr;      // Counter used to trigger temperature
+                                 // measurements
+uint8_t DS18B20_string[5][7];    // Stores the temperature measurement for the
+                                 // DS18B20s
+int8_t send_mqtt_temperature;    // Indicates if a new temperature measurement
+                                 // is pending transmit on MQTT. In this
+				 // application there are 5 sensors, so setting
+				 // to 4 will cause all 5 to transmit (4,3,2,1,0).
+				 // -1 indicates nothing to transmit.
+extern int numROMs;              // Count of DS18B20 devices found
 
 
 
@@ -350,24 +407,23 @@ int main(void)
   uip_ipaddr_t IpAddr;
   
   parse_complete = 0;
-  mqtt_parse_complete = 0;
   reboot_request = 0;
   user_reboot_request = 0;
   restart_request = 0;
   t100ms_ctr1 = 0;
   restart_reboot_step = RESTART_REBOOT_IDLE;
-  mqtt_close_tcp = 0;
   stack_error = 0;
   
 #if IWDG_ENABLE == 1
   init_IWDG(); // Initialize the hardware watchdog
 #endif // IWDG_ENABLE == 1
   
+#if MQTT_SUPPORT == 1
 // Initialize MQTT variables
+  mqtt_parse_complete = 0;
+  mqtt_close_tcp = 0;
   mqtt_enabled = 0;                      // Initialized to 'disabled'
   mqtt_start = MQTT_START_TCP_CONNECT;	 // Tracks the MQTT startup steps
-  mqtt_start_status = MQTT_START_NOT_STARTED; // Tracks error states during
-                                         // startup
   mqtt_keep_alive = 60;                  // Ping interval in seconds
   mqtt_start_ctr1 = 0;			 // Tracks time for the MQTT startup
                                          // steps
@@ -375,11 +431,27 @@ int main(void)
                                          // steps
   mqtt_sanity_ctr = 0;			 // Tracks time for the MQTT sanity
                                          // steps
-  MQTT_error_status = 0;                 // For MQTT error status display in
-                                         // GUI
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
   state_request = STATE_REQUEST_IDLE;    // Set the state request received to
                                          // idle
+  auto_pub_count = 0;                    // Initialize Home Assistant Auto
+                                         // Discovery message counter
+  auto_pub_toggle = 0;                   // Initialize dual msg tracker for
+                                         // Home Assistant Auto Discovery
+					 // message counter
+#endif // MQTT_SUPPORT
+
+  // The following are only used for tracking MQTT startup status, but they
+  // must always be compiled in order to maintaing a common user interface
+  // between the MQTT and Browser only compiles.
+  mqtt_start_status = MQTT_START_NOT_STARTED; // Tracks error states during
+                                         // startup
+  MQTT_error_status = 0;                 // For MQTT error status display in
+                                         // GUI
+					 
+  // While the following diagnostic counters are mostly useful for checking for
+  // the need for Full Duplex in an MQTT setting, they may still be useful in
+  // other scenarios, so they remain functional even if MQTT is not enabled.
   TXERIF_counter = 0;                    // Initialize the TXERIF error counter
   RXERIF_counter = 0;                    // Initialize the RXERIF error counter
   TRANSMIT_counter = 0;                  // Initialize the TRANSMIT counter
@@ -389,11 +461,6 @@ int main(void)
                                          // counter
   MQTT_broker_dis_counter = 0;           // Initialize the MQTT broker
                                          // disconnect event counter
-  auto_pub_count = 0;                    // Initialize Home Assistant Auto
-                                         // Discovery message counter
-  auto_pub_toggle = 0;                   // Initialize dual msg tracker for
-                                         // Home Assistant Auto Discovery
-					 // message counter
 
 
   clock_init();            // Initialize and enable clocks and timers
@@ -482,17 +549,6 @@ int main(void)
   stack_limit1 = 0xaa;
   stack_limit2 = 0x55;
 
-/*
-  // Initialize mqtt client
-UARTPrintf("mqtt_init 1\r\n");
-  mqtt_init(&mqttclient,
-            mqtt_sendbuf,
-            sizeof(mqtt_sendbuf),
-            &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
-            UIP_APPDATA_SIZE,
-            publish_callback);
-*/
-
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // Check RST_SR (Reset Status Register)
@@ -526,7 +582,6 @@ UARTPrintf("mqtt_init 1\r\n");
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
 
-//  UARTPrintf("Reset Status Register Counters:\r\n");
   UARTPrintf("EMCF: ");
   emb_itoa(debug[25], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
@@ -658,6 +713,7 @@ UARTPrintf("mqtt_init 1\r\n");
       }
     }
 
+#if MQTT_SUPPORT == 1
     // Perform MQTT startup if 
     // a) MQTT is enabled
     // b) Not already at start complete
@@ -679,6 +735,7 @@ UARTPrintf("mqtt_init 1\r\n");
      && restart_reboot_step == RESTART_REBOOT_IDLE) {
       mqtt_sanity_check();
     }
+#endif // MQTT_SUPPORT
 
     // Update the time keeping function
     timer_update();
@@ -726,6 +783,7 @@ UARTPrintf("mqtt_init 1\r\n");
     }
 
 
+#if MQTT_SUPPORT == 1
     // If MQTT is enabled and connected check for pin state changes and
     // publish a message at 50ms intervals. publish_outbound only places the
     // message in the queue. uip_periodic() will cause the actual
@@ -749,6 +807,7 @@ UARTPrintf("mqtt_init 1\r\n");
                          // used to provide timing for the MQTT Sanity
 		         // Check function.			   
     }
+#endif // MQTT_SUPPORT
 
 
     // Call the ARP timer function every 10 seconds.
@@ -763,8 +822,10 @@ UARTPrintf("mqtt_init 1\r\n");
     if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 30))) {
       check_DS18B20_ctr = second_counter;
       get_temperature();
+#if MQTT_SUPPORT == 1
       send_mqtt_temperature = 4; // Indicates that all 5 temperature sensors
-                                 // need to be transmitted.
+                                 // need to be transmitted via MQTT.
+#endif // MQTT_SUPPORT
     }
 
 
@@ -805,7 +866,7 @@ UARTPrintf("mqtt_init 1\r\n");
 // The user can press the Reset Button for 10 seconds to restore "factory
 // defaults".
 
-
+#if MQTT_SUPPORT == 1
 void mqtt_startup(void)
 {
   // This function walks through the steps needed to get MQTT initialized and
@@ -1593,16 +1654,6 @@ void mqtt_sanity_check(void)
     break;
     
   case MQTT_RESTART_SIGNAL_STARTUP:
-/*
-    // Reinitialize the mqtt client
-UARTPrintf("mqtt_init in sanity check\r\n");
-    mqtt_init(&mqttclient,
-              mqtt_sendbuf,
-	      sizeof(mqtt_sendbuf),
-	      &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
-	      UIP_APPDATA_SIZE,
-	      publish_callback);
-*/
     // Set mqtt_restart_step and mqtt_start to re-run the MQTT connection
     // steps in the main loop
     mqtt_restart_step = MQTT_RESTART_IDLE;
@@ -1694,7 +1745,7 @@ UARTPrintf("mqtt_init in sanity check\r\n");
   // IMPORTANT IMPORTANT IMPORTANT
   // An analysis of the MQTT Startup process shows the CONNECT message to be
   // up to 120 bytes in length. Add the queue management structure of 11
-  // bytes and the mqtt_sendbug needs to be a minimum of 131 bytes. Note that
+  // bytes and the mqtt_sendbuf needs to be a minimum of 131 bytes. Note that
   // no PINGREQ can occur during the MQTT Startup process, so the CONNECT
   // message will occupy the mqtt_sendbuf alone. This sets the required size
   // of the mqtt_sendbuf at 131 bytes ... will make it 140 to provide a
@@ -2137,6 +2188,7 @@ void publish_temperature(uint8_t sensor)
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   }
 }
+#endif // MQTT_SUPPORT
 
 
 void unlock_eeprom(void)
@@ -2161,6 +2213,22 @@ void lock_eeprom(void)
 {
   // Lock the EEPROM so that it cannot be written. This clears the DUL bit.
   FLASH_IAPSR &= (uint8_t)(~0x08);
+}
+
+
+void unlock_flash(void)
+{
+  // Unlock the Flash
+  // The Flash must be unlocked to allow any writes to it.
+  FLASH_PUKR = 0x56; // MASS key 1
+  FLASH_PUKR = 0xAE; // MASS key 2
+}
+
+
+void lock_flash(void)
+{
+  // Lock the Flash so that it cannot be written. This clears the PUL bit.
+  FLASH_IAPSR &= (uint8_t)(~0x02);
 }
 
 
@@ -2236,6 +2304,7 @@ void upgrade_EEPROM(void)
 void check_eeprom_settings(void)
 {
   int i;
+  char temp[10];
 
   // Check magic number in EEPROM.
   // If no magic number is found it is assumed that the EEPROM has never been
@@ -2423,6 +2492,28 @@ void check_eeprom_settings(void)
     magic1 = 0xf0;		// LSB
     
     lock_eeprom();
+    
+
+#if MQTT_SUPPORT == 0
+    // Initialize Flash memory that is used to store IO Timers
+    unlock_flash();
+
+    for (i=0; i<16; i++) {
+      if (IO_TIMER[i] == 0) IO_TIMER[i] = 0;
+    }
+
+    // Initialize Flash memory that is used to store IO Names
+    //
+    for (i=0; i<16; i++) {
+      strcpy(temp, "IO");
+      emb_itoa(i+1, OctetArray, 10, 2);
+      strcat(temp, OctetArray);
+      if (IO_NAME[i][0] == 0) strcpy(IO_NAME[i], temp);
+    }
+
+    lock_flash();
+#endif // MQTT_SUPPORT
+    
   }
 
   // Since this code is run one time at boot, initialize the variables that
@@ -2493,6 +2584,7 @@ void check_eeprom_settings(void)
   // Update the MAC string
   update_mac_string();
   
+#if MQTT_SUPPORT == 1
   // If the MQTT Enable bit is set in the Config settings AND at least
   // one IO pin is enabled set the mqtt_enabled byte.
   if (stored_config_settings & 0x04) {
@@ -2500,6 +2592,7 @@ void check_eeprom_settings(void)
       if (pin_control[i] & 0x01) mqtt_enabled = 1;
     }
   }
+#endif // MQTT_SUPPORT
 }
 
 
@@ -2512,6 +2605,7 @@ void update_mac_string(void)
 
   i = 5;
   j = 0;
+
   while (j<12) {
     int2hex(stored_uip_ethaddr_oct[i]);
     mac_string[j++] = OctetArray[0];
@@ -2759,11 +2853,13 @@ void check_runtime_changes(void)
         stored_devicename[i] = Pending_devicename[i];
         // No restart is required in non-MQTT applications as this does not
 	// affect Ethernet operation.
+#if MQTT_SUPPORT == 1
         if (mqtt_enabled == 1) {
           // If MQTT is enabled a restart is required as this affects the
 	  // MQTT topic name.
           restart_request = 1;
 	}
+#endif // MQTT_SUPPORT
       }
     }
 
@@ -2896,6 +2992,16 @@ void check_restart_reboot(void)
       restart_reboot_step = RESTART_REBOOT_ARM2;
       break;
 
+#if MQTT_SUPPORT == 0
+    case RESTART_REBOOT_ARM2:
+      // Wait 1 second for anything in the process of being transmitted
+      // to fully buffer. Refresh of a page after POST can take a few
+      // seconds.
+      if (t100ms_ctr1 > 9) restart_reboot_step = RESTART_REBOOT_FINISH;
+      break;
+#endif // MQTT_SUPPORT
+
+#if MQTT_SUPPORT == 1
     case RESTART_REBOOT_ARM2:
       // Wait 1 second for anything in the process of being transmitted
       // to fully buffer. Refresh of a page after POST can take a few
@@ -2910,7 +3016,7 @@ void check_restart_reboot(void)
 
     case RESTART_REBOOT_SENDOFFLINE:
       if (t100ms_ctr1 > 1) {
-       // We can only get here is mqtt_enabled == 1
+       // We can only get here if mqtt_enabled == 1
        // Wait at least 100 ms before publishing availability message
        if (mqtt_start == MQTT_START_COMPLETE) {
           // Publish the availability "offline" message
@@ -2997,6 +3103,7 @@ void check_restart_reboot(void)
         restart_reboot_step = RESTART_REBOOT_FINISH;
       }
       break;
+#endif // MQTT_SUPPORT
     
     case RESTART_REBOOT_FINISH:
       if (reboot_request == 1) {
@@ -3039,12 +3146,15 @@ void restart(void)
   restart_request = 0;
   mqtt_close_tcp = 0;
   
+#if MQTT_SUPPORT == 1
   mqtt_start = MQTT_START_TCP_CONNECT;
   mqtt_start_status = MQTT_START_NOT_STARTED;
   mqtt_start_ctr1 = 0;
   mqtt_sanity_ctr = 0;
   MQTT_error_status = 0;
   mqtt_restart_step = MQTT_RESTART_IDLE;
+#endif // MQTT_SUPPORT
+
   state_request = STATE_REQUEST_IDLE;
   
   spi_init();              // Initialize the SPI bit bang interface to the
@@ -3055,16 +3165,6 @@ void restart(void)
   uip_init();              // Initialize uIP
   HttpDInit();             // Initialize httpd; sets up listening ports
 
-/*
-  // Initialize mqtt client
-UARTPrintf("mqtt_init 2\r\n");
-  mqtt_init(&mqttclient,
-            mqtt_sendbuf,
-            sizeof(mqtt_sendbuf),
-            &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
-            UIP_APPDATA_SIZE,
-            publish_callback);
-*/
   LEDcontrol(1); // Turn LED on
   // From here we return to the main loop and should start running with new
   // settings.
@@ -3460,7 +3560,7 @@ void capture_uip_buf_transmit()
 
 
 
-#if DEBUG_SUPPORT != 0
+#if DEBUG_SUPPORT != 0 && MQTT_SUPPORT == 1
 void capture_mqtt_sendbuf()
 {
   uint8_t i;
@@ -3477,7 +3577,7 @@ void capture_mqtt_sendbuf()
     update_debug_storage(); // Write to EEPROM
   }
 }
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT && MQTT_SUPPORT
 
 
 

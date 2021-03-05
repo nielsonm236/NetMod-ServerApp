@@ -78,8 +78,7 @@ char *stpcpy(char * dest, const char * src)
   return --dest;
 }
 
-// Implements mqtt_pal_sendall and mqtt_pal_recvall and any platform-specific 
-// helpers you'd like.
+// Implements mqtt_pal_sendall
 
 // The original LiamBindle code included socket based ethernet interfaces to
 // a Linux-or-Apple like OS, OR to a Microsoft like OS. In this application
@@ -520,25 +519,3 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
               // UIP code uses the uip_slen value.
 }
 
-
-int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz) {
-  // This function will check if there is any data in the receive buffer and
-  // report the size of that data to the MQTT calling process.
-  // The return value is the number of bytes received
-  // There is only one call to this process. It is in the mqtt.c file.
-  //
-  // Receive data should already be in the uip_buf or we wouldn't have been
-  // called. But probably a good idea to verify that something is there. We
-  // only need to reply with the size of the data received. Start of the
-  // application data is at the uip_appdata pointer, and the MQTT client
-  // already knows this because it was given the "uip_appdata" pointer in the
-  // init process.  The size of the application data is the value uip_len.
-  
-  int16_t rv;
-  rv = -1; // Default to return an error if no data present
-  if (uip_len > 0) {  // Indicates data is present
-    rv = uip_len; // Return the size of the data. Data begins at pointer
-                  // uip_appdata.
-  }
-  return rv;
-}

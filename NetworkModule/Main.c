@@ -49,7 +49,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210305 1856";
+const char code_revision[] = "20210321 2317";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -235,7 +235,11 @@ uint32_t IO14_TIMER @0xfef4;
 uint32_t IO15_TIMER @0xfef8;
 uint32_t IO16_TIMER @0xfefc;
 */
-uint32_t IO_TIMER[16] @0xfec0;
+uint16_t IO_TIMER[16] @0xfec0;
+uint16_t Pending_IO_TIMER[16];
+
+// Define pin_timers
+uint32_t pin_timer[16];
 
 #endif // MQTT_SUPPORT
 
@@ -499,15 +503,9 @@ int main(void)
 
   
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // If UART_DEBUG_SUPPORT is enabled the following code forces IO 11 to
+  // If UART debug support is enabled the following code forces IO 11 to
   // an output state and keeps it that way. The UART code will operate
   // the pin for IO 11 as needed for UART transmit to a terminal.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // Set pin 11 to output/enabled
   // Update the stored_pin_control[] variables
   unlock_eeprom();
@@ -522,10 +520,9 @@ int main(void)
 #endif // DEBUG_SUPPORT
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // Initialize the UART for debug output
   InitializeUART();
-#endif // UART_DEBUG_SUPPORT
+#endif // DEBUG_SUPPORT
 
 
   // Initialize DS18B20 temperature storage strings
@@ -772,14 +769,15 @@ int main(void)
     }
 
 
-    // Increment 100ms counters every 100ms
+    // 100ms timer
     if (t100ms_timer_expired()) {
       t100ms_ctr1++;     // Increment the 100ms counter. ctr1 is used in the
                          // restart/reboot process. Normally the counter is
 			 // not used and will just roll over every 256
 			 // counts. Any code that uses crt1 must reset it to
 			 // zero then compare to a value needed for a
-			 // timeout.			   
+			 // timeout.
+      decrement_pin_timers(); // Decrement the pin_timers every 100ms
     }
 
 
@@ -2220,6 +2218,10 @@ void unlock_flash(void)
 {
   // Unlock the Flash
   // The Flash must be unlocked to allow any writes to it.
+  // ----------------------------------------------------------------------//
+  // Note that when Flash is written the hardware will stall code execution
+  // until the write completes. This typically takes 6ms per write since
+  // this application typically writes 1 byte at a time.
   FLASH_PUKR = 0x56; // MASS key 1
   FLASH_PUKR = 0xAE; // MASS key 2
 }
@@ -2496,25 +2498,51 @@ void check_eeprom_settings(void)
 
 #if MQTT_SUPPORT == 0
     // Initialize Flash memory that is used to store IO Timers
+    // Since the magic number didn't match all timers are set
+    // to zero.
     unlock_flash();
-
     for (i=0; i<16; i++) {
       if (IO_TIMER[i] == 0) IO_TIMER[i] = 0;
     }
 
     // Initialize Flash memory that is used to store IO Names
-    //
+    // Since the magic number didn't match all names are set
+    // to defaults
     for (i=0; i<16; i++) {
       strcpy(temp, "IO");
       emb_itoa(i+1, OctetArray, 10, 2);
       strcat(temp, OctetArray);
-      if (IO_NAME[i][0] == 0) strcpy(IO_NAME[i], temp);
+      strcpy(IO_NAME[i], temp);
     }
-
     lock_flash();
 #endif // MQTT_SUPPORT
-    
   }
+
+
+
+
+#if MQTT_SUPPORT == 0
+  // Check the IO Names in Flash to make sure they are not NULL and
+  // initialize the pin_timers.
+  //   IO Names might be NULL if the device is programmed using
+  //   "Program/Current Tab" instead of "Program/Address Range".
+  //   "Program/Current Tab" will zero out the Flash area where these
+  //   variables are stored but will leave a valid magic number in
+  //   the EEPROM. If there is already an IO Name stored this code will
+  //   not change it.
+  unlock_flash();
+  for (i=0; i<16; i++) {
+    strcpy(temp, "IO");
+    emb_itoa(i+1, OctetArray, 10, 2);
+    strcat(temp, OctetArray);
+    if (IO_NAME[i][0] == 0) strcpy(IO_NAME[i], temp);
+    // Initialize pin_timers
+    pin_timer[i] = 0;
+  }
+  lock_flash();
+#endif // MQTT_SUPPORT
+
+
 
   // Since this code is run one time at boot, initialize the variables that
   // are dependent on EEPROM content.
@@ -2618,18 +2646,34 @@ void update_mac_string(void)
 
 void check_runtime_changes(void)
 {
-  // Step 1: Read the input registers and update the pin_control values as
-  // needed.
+  //-------------------------------------------------------------------------//
+  // Step 1:
+  // Read the input registers and update the pin_control values as needed.
   // 
-  // Step 2: Check if the user requested changes to Device Name, Output
-  // States, IP Address, Gateway Address, Netmask, Port, or MAC. If a change
-  // occurred update the appropriate variables and output controls, and store
-  // the new values in EEPROM. Note that the value parse_complete is used to
-  // make sure that a complete POST entry has been received before attempting
-  // to process the changes made by the user.
+  // Step 2:
+  // Check if the UART is enabled via a DEBUG_SUPPORT setting. If yes,
+  // supersede any settings on IO 11 and force it to an Output for use by the
+  // UART.
+  //
+  // Step 3: 
+  // Check if the DS18B20 feature is enabled. If enabled over-ride the
+  // pin_control byte settings for IO 16 to force them to all zero. This
+  // forces the disabled state so the DS18B20 code can utilize the pin for
+  // temperature sensor communication.
+  //
+  // Step 4:
+  // Manage Output pin Timers. Change Output pin states and Timers as
+  // appropriate.
+  //
+  // Step 5:
+  // Check if the user requested changes to Device Name, Output States, IP
+  // Address, Gateway Address, Netmask, Port, or MAC. If a change occurred
+  // update the appropriate variables and output controls, and store the new
+  // values in EEPROM.
 
   int i;
   uint8_t update_EEPROM;
+  uint32_t temp_pin_timer;
 
   unlock_eeprom();
 
@@ -2637,15 +2681,9 @@ void check_runtime_changes(void)
 
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // If UART_DEBUG_SUPPORT is enabled the following code forces IO 11 to
-  // an output state and keeps it that way. The UART code will operate
-  // the pin for IO 11 as needed for UART transmit to a terminal.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // If UART debug support is enabled the following code forces IO 11 to an
+  // output state and keeps it that way. The UART code will operate the pin
+  // for IO 11 as needed for UART transmit to a terminal.
   pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // force to output/enabled
   // Update the stored_pin_control[] variables
   if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
@@ -2667,6 +2705,206 @@ void check_runtime_changes(void)
     if (stored_pin_control[15] != pin_control[15]) stored_pin_control[15] = pin_control[15];
   }
 
+#if MQTT_SUPPORT == 0
+  // Manage Output pin Timers. Change Output pin states and Timers as
+  // appropriate.
+  //
+  // Note that Timers are ignored for any pin that is not defined as an
+  // Output pin.
+  //
+  // Check if the user changed the IO_TIMER to zero while the Timer was
+  // running:
+  // If an Output pin and Retain is NOT set
+  //   and pin has a zero IO_TIMER
+  //   and the pin_timer for that pin is non-zero
+  //     then set the pin_timer for that pin to zero
+  //     and set that pin to the idle state (the Boot State).
+  //
+  // Check for Output pin Timer activate:
+  // If an Output pin and Retain is NOT set
+  //   and pin has a non-zero IO_TIMER
+  //   and the Output pin changed from its idle state to its active state
+  //     then set the pin_timer for that pin to the IO_TIMER
+  //
+  // Check for Timer expiration:
+  // If an Output pin and Retain is NOT set
+  ///  and pin has a non-zero IO_TIMER
+  //   and the Output pin is in its active state
+  //   and the pin_timer for that pin is zero
+  //     then set the Output pin to its idle state
+  //
+  // Some comments:
+  // 1) When the Timer management code changes an Output pin idle/active
+  //    state it only changes the Pending_pin_control byte. Subsequent
+  //    code will interpret this as if the user changed the pin idle/active
+  //    state in the IOControl page.
+  // 2) If the user changes the Output pin from active to idle while a
+  //    pin_timer is running nothing needs to be done. The pin_timer will
+  //    eventually expire and no pin state change will occur.
+  //-------------------------------------------------------------------------//
+
+/*
+  // Check if the user changed the IO_TIMER to zero while the pin_timer was
+  // running:
+  // First collect the Pending IO_TIMER values and write them to Flash
+  //   THEN
+  // If an Output pin has a zero IO_TIMER
+  //   and the pin_timer for that pin is non-zero
+  //     then set the pin_timer for that pin to zero
+  //     and set that pin to the idle state (the Boot State).
+  if (parse_complete == 1) {
+    // Update the IO_TIMER array from the Pending_IO_TIMER
+    unlock_flash();
+
+    for (i=0; i<8; i+=2) {
+      // Check for compare 4 bytes at a time. If any miscompare write to
+      // Flash 4 bytes at a time.
+      if (IO_TIMER[i] != Pending_IO_TIMER[i] || IO_TIMER[i+1] != Pending_IO_TIMER[i+1]) {
+        FLASH_CR2 = 0x40;
+	FLASH_NCR2 = 0xBF;
+	memcpy(&IO_TIMER[i], &Pending_IO_TIMER[i], 4);
+
+UARTPrintf("Writing IO_TIMERs to Flash\r\n");
+
+      }
+    }
+    lock_flash();
+
+    for (i=0; i<16; i++) {
+      if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x04) == 0)) {
+        if (((IO_TIMER[i] & 0x3fff) == 0) && (pin_timer[i] != 0)) {
+          pin_timer[i] = 0x0000;
+          if (pin_control[i] & 0x10) {
+
+UARTPrintf("Writing BOOT STATE ON\r\n");
+
+	    Pending_pin_control[i] |= 0x80;
+	    pin_control[i] |= 0x80;
+            // Update the 16 bit registers with the changed pin states
+            encode_16bit_registers();
+            // Update the Output pins
+            write_output_pins();
+	  }
+          else {
+
+UARTPrintf("Writing BOOT STATE OFF\r\n");
+
+	    Pending_pin_control[i] &= 0x7f;
+	    pin_control[i] &= 0x7f;
+            // Update the 16 bit registers with the changed pin states
+            encode_16bit_registers();
+            // Update the Output pins
+            write_output_pins();
+	  }
+        }
+      }
+    }
+  }
+*/
+
+  // Check if the user changed the IO_TIMER value while the pin_timer
+  // was running. Typically the user is just changing the IO_TIMER value
+  // to zero, but they may also be correcting a user entry mistake - for
+  // example the user may have entered 100 minutes when they meant 10
+  // minutes, so they fix it in Configuration. The code here is intended
+  // to allow the user to change the value to any new value, and the
+  // timer should then continue with that new value.
+  
+  // If an Output pin IO_TIMER value is changed by the user
+  //   and the pin_timer for that pin is non-zero (the timer is running)
+  //     then set the pin_timer for that pin to the IO_TIMER value
+  //     and set that pin to the idle state (the BOOT STATE).
+  // THEN
+  // Collect the Pending IO_TIMER values and write them to Flash
+  if (parse_complete == 1) {
+
+    for (i=0; i<16; i++) {
+      if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x04) == 0)) {
+        if (IO_TIMER[i] != Pending_IO_TIMER[i]) {
+          pin_timer[i] = calculate_timer(Pending_IO_TIMER[i]);
+          if (pin_timer[i] == 0x0000) {
+	    if (pin_control[i] & 0x10) {
+              Pending_pin_control[i] |= 0x80;
+              pin_control[i] |= 0x80;
+            }
+            else {
+              Pending_pin_control[i] &= 0x7f;
+              pin_control[i] &= 0x7f;
+            }
+            // Update the 16 bit registers with the changed pin states
+            encode_16bit_registers();
+            // Update the Output pins
+            write_output_pins();
+	  }
+        }
+      }
+    }
+    
+    // Update the IO_TIMER array in Flash from the Pending_IO_TIMER
+    // array.
+    unlock_flash();
+
+    for (i=0; i<8; i+=2) {
+      // Check for compare 4 bytes at a time. If any miscompare write to
+      // Flash 4 bytes at a time.
+      if (IO_TIMER[i] != Pending_IO_TIMER[i] || IO_TIMER[i+1] != Pending_IO_TIMER[i+1]) {
+        FLASH_CR2 = 0x40;
+	FLASH_NCR2 = 0xBF;
+	memcpy(&IO_TIMER[i], &Pending_IO_TIMER[i], 4);
+      }
+    }
+    lock_flash();
+  }
+  
+  // Check for Output pin Timer activate:
+  // If an Output pin and Retain is NOT set
+  //   and pin has a non-zero IO_TIMER
+  //   and the Output pin changed from its idle state to its active state
+  //     then set the pin_timer for that pin to the IO_TIMER value
+  //
+  for (i=0; i<16; i++) {
+    if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x04) == 0x00)) {
+      if ((IO_TIMER[i] & 0x3fff) != 0) {
+        if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
+	  if (((Pending_pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
+	    pin_timer[i] = calculate_timer(IO_TIMER[i]);
+	  }
+	  if (((Pending_pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
+	    pin_timer[i] = calculate_timer(IO_TIMER[i]);
+	  }
+	}
+      }
+    }
+  }
+
+  // Check for Timer expiration:
+  // If an Output pin and Retain is NOT set
+  ///  and pin has a non-zero IO_TIMER
+  //   and the pin_timer for that pin is zero
+  //   and the Output pin is in its active state
+  //     then set the Output pin to its idle state
+  for (i=0; i<16; i++) {
+    if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x04) == 0x00)) {
+      if (((IO_TIMER[i] & 0x3fff) != 0) && (pin_timer[i] == 0)) {
+	if (((pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
+	  Pending_pin_control[i] &= 0x7f;
+	  pin_control[i] &= 0x7f;
+	}
+	if (((pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
+	  Pending_pin_control[i] |= 0x80;
+	  pin_control[i] |= 0x80;
+	}
+        // Update the 16 bit registers with the changed pin states
+        encode_16bit_registers();
+        // Update the Output pins
+        write_output_pins();
+      }
+    }
+  }
+#endif MQTT_SUPPORT
+
+
+
   if (parse_complete == 1 || mqtt_parse_complete == 1) {
     // Check for changes from the user via the GUI, MQTT, or REST commands.
     // If parse_complete == 1 all TCP Fragments have been received during
@@ -2675,7 +2913,7 @@ void check_runtime_changes(void)
     // received.
 
     // Check all pin_control bytes for changes.
-    // ON/OFF state: If an Output pinÂ’s ON/OFF state changes the EEPROM is
+    // ON/OFF state: If an Output pin’s ON/OFF state changes the EEPROM is
     //   updated only if Retain is set, but a restart must not occur.
     //   IMPORTANT: This routine must only change Output pin ON/OFF states.
     //   The read_input_pins() function is the only place where Input pin
@@ -2741,7 +2979,7 @@ void check_runtime_changes(void)
 	  //   needed if MQTT is enabled, but it will be done even if MQTT is
 	  //   not enabled to simplify code.
           update_EEPROM = 1;
-            user_reboot_request = 1;
+          user_reboot_request = 1;
         }
 
         // Check for change in Invert
@@ -2752,7 +2990,7 @@ void check_runtime_changes(void)
 	  //   needed if MQTT is enabled, but it will be done even if MQTT is
 	  //   not enabled to simplify code.
           update_EEPROM = 1;
-            restart_request = 1;
+          restart_request = 1;
         }
 	
         // Check for change in Retain/On/Off bits
@@ -2816,6 +3054,18 @@ void check_runtime_changes(void)
     // Check for changes in the IP Address, Gateway Address,
     // Netmask, and MQTT Server IP Address. Combined into one
     // loop for code size reduction.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// This performa a lot more EEPROM writes than needed. Since 4 bytes are
+// always written it would be better to reorganize the EEPROM so that all
+// of these values are stored on 4 byte boundaries and, if a write is
+// needed, to write a 4 byte word only once instead of writing a byte at
+// a time. Changing the method may also be overkill, as these bytes change
+// very infrequently.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     for (i=0; i<4; i++) {
       if (stored_hostaddr[i] != Pending_hostaddr[i]) {
         // Write the new octet to the EEPROM and singla a restart
@@ -3309,6 +3559,60 @@ void write_output_pins(void)
       io_reg[ io_map[i].port ].odr &= (uint8_t)(~io_map[i].bit);
   }
 }
+
+
+#if MQTT_SUPPORT == 0
+/*
+void load_timer(uint8_t timer_num)
+{
+  // Load_Timer
+  // Load the Timer follows:
+  //   If units = 0.1s Timer = Timer Value + 1
+  //   If units = 1s   Timer = Timer Value * 10 + 1
+  //   If units = 1m   Timer = Timer Value * 10 * 60
+  //   If units = 1h   Timer = Timer Value * 10 * 60 * 60
+  //   (note for manual: Any setting selected may be up to 100ms
+  //    longer that the selected value)
+  if ((IO_TIMER[timer_num] & 0xc000) == 0x0000)
+    pin_timer[timer_num] = (IO_TIMER[timer_num] & 0x3fff) + 1;
+  if ((IO_TIMER[timer_num] & 0xc000) == 0x4000)
+    pin_timer[timer_num] = ((IO_TIMER[timer_num] & 0x3fff) * 10) + 1;
+  if ((IO_TIMER[timer_num] & 0xc000) == 0x8000)
+    pin_timer[timer_num] = ((IO_TIMER[timer_num] & 0x3fff) * 600) + 1;
+  if ((IO_TIMER[timer_num] & 0xc000) == 0xc000)
+    pin_timer[timer_num] = ((IO_TIMER[timer_num] & 0x3fff) * 36000) + 1;
+}
+*/
+
+uint32_t calculate_timer(uint16_t timer_value)
+{
+  // Calculate the pin_timer value from the IO_TIMER value
+  // as follows:
+  //   If units = 0.1s pin_timer = IO_TIMER Value + 1
+  //   If units = 1s   pin_timer = IO_TIMER Value * 10 + 1
+  //   If units = 1m   pin_timer = IO_TIMER Value * 10 * 60
+  //   If units = 1h   pin_timer = IO_TIMER Value * 10 * 60 * 60
+  //   (note for manual: Any setting selected may be up to 100ms
+  //    longer that the selected value)
+  if ((timer_value & 0xc000) == 0x0000) return (uint32_t)((timer_value & 0x3fff));
+  if ((timer_value & 0xc000) == 0x4000) return (uint32_t)(((timer_value & 0x3fff) * 10));
+  if ((timer_value & 0xc000) == 0x8000) return (uint32_t)(((timer_value & 0x3fff) * 600));
+  if ((timer_value & 0xc000) == 0xc000) return (uint32_t)(((timer_value & 0x3fff) * 36000));
+  return 0;
+}
+
+
+void decrement_pin_timers(void)
+{
+  int i;
+  // This function decrements the pin_timers as needed
+  // This function is called once per 100ms
+  for(i=0; i<16; i++) if (pin_timer[i] > 0) pin_timer[i]--;
+
+// if (pin_timer[0] != 0) UARTPrintf("pin_timer0 is non-zero\r\n");
+
+}
+#endif MQTT_SUPPORT
 
 
 

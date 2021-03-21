@@ -210,7 +210,8 @@ extern uint8_t DS18B20_string[5][7];      // Stores the temperature measurement
 #if MQTT_SUPPORT == 0
 // Define Flash addresses for IO Names and IO Timers
 extern char IO_NAME[16][16] @0xff00;
-extern uint32_t IO_TIMER[16] @0xfec0;
+extern uint16_t IO_TIMER[16] @0xfec0;
+extern uint16_t Pending_IO_TIMER[16];
 #endif // MQTT_SUPPORT
 
 
@@ -766,22 +767,22 @@ static const char g_HtmlPageIOControl[] =
 	 	    
 	 
             "<tr>"
-               "<tr><td>%i00</td></tr>"
-               "<tr><td>%i01</td></tr>"
-               "<tr><td>%i02</td></tr>"
-               "<tr><td>%i03</td></tr>"
-               "<tr><td>%i04</td></tr>"
-               "<tr><td>%i05</td></tr>"
-               "<tr><td>%i06</td></tr>"
-               "<tr><td>%i07</td></tr>"
-               "<tr><td>%i08</td></tr>"
-               "<tr><td>%i09</td></tr>"
-               "<tr><td>%i10</td></tr>"
-               "<tr><td>%i11</td></tr>"
-               "<tr><td>%i12</td></tr>"
-               "<tr><td>%i13</td></tr>"
-               "<tr><td>%i14</td></tr>"
-               "<tr><td>%i15</td></tr>"
+               "<tr><td>%j00</td></tr>"
+               "<tr><td>%j01</td></tr>"
+               "<tr><td>%j02</td></tr>"
+               "<tr><td>%j03</td></tr>"
+               "<tr><td>%j04</td></tr>"
+               "<tr><td>%j05</td></tr>"
+               "<tr><td>%j06</td></tr>"
+               "<tr><td>%j07</td></tr>"
+               "<tr><td>%j08</td></tr>"
+               "<tr><td>%j09</td></tr>"
+               "<tr><td>%j10</td></tr>"
+               "<tr><td>%j11</td></tr>"
+               "<tr><td>%j12</td></tr>"
+               "<tr><td>%j13</td></tr>"
+               "<tr><td>%j14</td></tr>"
+               "<tr><td>%j15</td></tr>"
             "</tr>"
 	    
 	 
@@ -975,43 +976,43 @@ static const char g_HtmlPageConfiguration[] =
 	    
 	    
 	 
-            "<tr>"
-               "<tr><td>IO #01</td><td><input name='i00' value='%i00' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #02</td><td><input name='i01' value='%i01' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #03</td><td><input name='i02' value='%i02' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #04</td><td><input name='i03' value='%i03' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #05</td><td><input name='i04' value='%i04' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #06</td><td><input name='i05' value='%i05' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #07</td><td><input name='i06' value='%i06' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #08</td><td><input name='i07' value='%i07' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #09</td><td><input name='i08' value='%i08' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #10</td><td><input name='i09' value='%i09' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #11</td><td><input name='i10' value='%i10' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #12</td><td><input name='i11' value='%i11' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #13</td><td><input name='i12' value='%i12' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #14</td><td><input name='i13' value='%i13' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #15</td><td><input name='i14' value='%i14' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-               "<tr><td>IO #16</td><td><input name='i15' value='%i15' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-            "</tr>"
-	    
-            "<tr>"
-               "<tr><td>IO #01 Timeout</td><td><input name='j00' value='%j00' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #02 Timeout</td><td><input name='j01' value='%j01' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #03 Timeout</td><td><input name='j02' value='%j02' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #04 Timeout</td><td><input name='j03' value='%j03' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #05 Timeout</td><td><input name='j04' value='%j04' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #06 Timeout</td><td><input name='j05' value='%j05' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #07 Timeout</td><td><input name='j06' value='%j06' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #08 Timeout</td><td><input name='j07' value='%j07' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #09 Timeout</td><td><input name='j08' value='%j08' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #10 Timeout</td><td><input name='j09' value='%j09' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #11 Timeout</td><td><input name='j10' value='%j10' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #12 Timeout</td><td><input name='j11' value='%j11' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #13 Timeout</td><td><input name='j12' value='%j12' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #14 Timeout</td><td><input name='j13' value='%j13' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #15 Timeout</td><td><input name='j14' value='%j14' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-               "<tr><td>IO #16 Timeout</td><td><input name='j15' value='%j15' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-            "</tr>"
+//            "<tr>"
+//               "<tr><td>IO #01</td><td><input name='j00' value='%j00' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #02</td><td><input name='j01' value='%j01' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #03</td><td><input name='j02' value='%j02' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #04</td><td><input name='j03' value='%j03' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #05</td><td><input name='j04' value='%j04' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #06</td><td><input name='j05' value='%j05' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #07</td><td><input name='j06' value='%j06' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #08</td><td><input name='j07' value='%j07' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #09</td><td><input name='j08' value='%j08' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #10</td><td><input name='j09' value='%j09' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #11</td><td><input name='j10' value='%j10' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #12</td><td><input name='j11' value='%j11' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #13</td><td><input name='j12' value='%j12' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #14</td><td><input name='j13' value='%j13' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #15</td><td><input name='j14' value='%j14' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//               "<tr><td>IO #16</td><td><input name='j15' value='%j15' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+//            "</tr>"
+//	    
+//            "<tr>"
+//               "<tr><td>IO #01 Timeout</td><td><input name='i00' value='%i00' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #02 Timeout</td><td><input name='i01' value='%i01' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #03 Timeout</td><td><input name='i02' value='%i02' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #04 Timeout</td><td><input name='i03' value='%i03' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #05 Timeout</td><td><input name='i04' value='%i04' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #06 Timeout</td><td><input name='i05' value='%i05' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #07 Timeout</td><td><input name='i06' value='%i06' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #08 Timeout</td><td><input name='i07' value='%i07' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #09 Timeout</td><td><input name='i08' value='%i08' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #10 Timeout</td><td><input name='i09' value='%i09' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #11 Timeout</td><td><input name='i10' value='%i10' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #12 Timeout</td><td><input name='i11' value='%i11' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #13 Timeout</td><td><input name='i12' value='%i12' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #14 Timeout</td><td><input name='i13' value='%i13' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #15 Timeout</td><td><input name='i14' value='%i14' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//               "<tr><td>IO #16 Timeout</td><td><input name='i15' value='%i15' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+//            "</tr>"
 	 
 	 
 	 
@@ -1085,36 +1086,76 @@ static const char g_HtmlPageConfiguration[] =
             "<tr>"
               "<th>IO</th>"
               "<th>Type</th>"
+              "<th>Name</th>"
               "<th>Invert</th>"
               "<th>Boot state</th>"
+	      "<th>Timer</th>"
             "</tr>"
          "<script>"
 
-         "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},r="
-	 "{retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),l=s('form'),p=Object.entri"
-	 "es,d=parseInt,i=(t,e)=>d(t).toString(16).padStart(e,'0'),u=t=>t.map(t=>i(t,2)).join(''),$=t=>t.ma"
-	 "tch(/.{2}/g).map(t=>d(t,16)),m=t=>encodeURIComponent(t),b=(t,e)=>(t=>s(`input[name=${t}]`))(t).va"
-	 "lue=e,f=(t,e)=>{for(const n of a.querySelectorAll(t))e(n)},h=(t,e)=>{for(const[n,o]of p(e))t.setA"
-	 "ttribute(n,o)},g=(t,e)=>p(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>${t[0]}</opti"
-	 "on>`).join(''),A=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&e)==e?'checked"
-	 "':''}>${o}`,E=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},y=()=>c.reload(),T=("
-	 ")=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0],S={required:!0};return f('.ip'"
-	 ",t=>{h(t,{...S,title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4"
-	 "}'})}),f('.port',t=>{h(t,{...S,title:'Enter 10 to 65535',pattern:'[0-9]{2,5}',maxlength:5})}),f('"
-	 ".up input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',max"
-	 "length:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e]).join('.'))),n.forEach(e=>"
-	 "b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$(t.h00).forEach((t,e)=>{const"
-	 " n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)}</select>`:'',l='#d'==c.hash?"
-	 "`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><select name='p${e}'>${g(o,3&t)}</sel"
-	 "ect></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerHTML=Array.from(p({'Full Duplex':1,"
-	 "'HA Auto':6,MQTT:4,DS18B20:8}),([t,e])=>A('g00',e,j,t)).join('</br>'),{r:()=>{E('GET','/91'),T()}"
-	 ",s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormData(l),r=t=>o.getAll(t).map(t"
-	 "=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t).split('.')))),n.forEach(t=>o."
-	 "set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u($"
-	 "(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})("
-	 ").entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/',r+'&z00=0'),T()},l:y}})({b00:'%b00"
-	 "',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00'});"
-	 
+//       "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},r="
+//	 "{retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),l=s('form'),p=Object.entri"
+//	 "es,d=parseInt,i=(t,e)=>d(t).toString(16).padStart(e,'0'),u=t=>t.map(t=>i(t,2)).join(''),$=t=>t.ma"
+//	 "tch(/.{2}/g).map(t=>d(t,16)),m=t=>encodeURIComponent(t),b=(t,e)=>(t=>s(`input[name=${t}]`))(t).va"
+//	 "lue=e,f=(t,e)=>{for(const n of a.querySelectorAll(t))e(n)},h=(t,e)=>{for(const[n,o]of p(e))t.setA"
+//	 "ttribute(n,o)},g=(t,e)=>p(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>${t[0]}</opti"
+//	 "on>`).join(''),A=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&e)==e?'checked"
+//	 "':''}>${o}`,E=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},y=()=>c.reload(),T=("
+//	 ")=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0],S={required:!0};return f('.ip'"
+//	 ",t=>{h(t,{...S,title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4"
+//	 "}'})}),f('.port',t=>{h(t,{...S,title:'Enter 10 to 65535',pattern:'[0-9]{2,5}',maxlength:5})}),f('"
+//	 ".up input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',max"
+//	 "length:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e]).join('.'))),n.forEach(e=>"
+//	 "b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$(t.h00).forEach((t,e)=>{const"
+//	 " n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)}</select>`:'',l='#d'==c.hash?"
+//	 "`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><select name='p${e}'>${g(o,3&t)}</sel"
+//	 "ect></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerHTML=Array.from(p({'Full Duplex':1,"
+//	 "'HA Auto':6,MQTT:4,DS18B20:8}),([t,e])=>A('g00',e,j,t)).join('</br>'),{r:()=>{E('GET','/91'),T()}"
+//	 ",s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormData(l),r=t=>o.getAll(t).map(t"
+//	 "=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t).split('.')))),n.forEach(t=>o."
+//	 "set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u($"
+//	 "(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})("
+//	 ").entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/',r+'&z00=0'),T()},l:y}})({b00:'%b00"
+//	 "',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00'});"
+
+
+         "const m=(e=>{const t=['b00','b04','b08','b12'],i=['c00','c01'],n={disabled:0,input:1,output:3},r="
+	 "{retain:8,on:16,off:0},a={'0.1s':0,'1s':16384,'1m':32768,'1h':49152},o=document,s=location,c=o.qu"
+	 "erySelector.bind(o),d=c('form'),l=Object.entries,p=parseInt,j=(e,t)=>p(e).toString(16).padStart(t"
+	 ",'0'),u=e=>e.map(e=>j(e,2)).join(''),m=e=>e.match(/.{2}/g).map(e=>p(e,16)),$=e=>encodeURIComponen"
+	 "t(e),b=(e,t)=>(e=>c(`input[name=${e}]`))(e).value=t,f=(e,t)=>{for(const i of o.querySelectorAll(e"
+	 "))t(i)},h=(e,t)=>{for(const[i,n]of l(t))e.setAttribute(i,n)},g=(e,t)=>l(e).map(e=>`<option value="
+	 "${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),y=(e,t,i,n='')=>`<input type='checkb"
+	 "ox' name='${e}' value=${t} ${(i&t)==t?'checked':''}>${n}`,A=(e,t,i)=>{const n=new XMLHttpRequest;"
+	 "n.open(e,t,!1),n.send(i)},S=()=>s.reload(),v=()=>{o.body.innerText='Wait 5s...',setTimeout(S,5e3)"
+	 "},x=m(e.g00)[0],E={required:!0};return f('.ip',e=>{h(e,{...E,title:'Enter valid',pattern:'((25[0-"
+	 "5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),f('.port',e=>{h(e,{...E,type:'number',min:10"
+	 ",max:65535})}),f('.up input',e=>{h(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank "
+	 "for no entry.',maxlength:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>b(t,m(e[t]).join('."
+	 "'))),i.forEach(t=>b(t,p(e[t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),m(e.h00).for"
+	 "Each((t,i)=>{const c=1&t?y('p'+i,4,t):'',d=(e,i)=>3==(3&t)?e:i,l=(''+i).padStart(2,'0'),p=d(m(e['"
+	 "i'+l]).reduce((e,t)=>(e<<8)+t),0),j=d(`<select name='p${i}'>${g(r,24&t)}</select>`,''),u='#d'==s."
+	 "hash?`<td>${t}</td>`:'',$=d(`<input type=number class=t8 name='i${l}' value='${16383&p}' min=0 ma"
+	 "x=16383><select name='i${l}'>${g(a,49152&p)}</select>`,'');(e=>o.write(e))(`<tr><td>#${i+1}</td><"
+	 "td><select name='p${i}'>${g(n,3&t)}</select></td><td><input name='j${l}' value='${e['j'+l]}' patt"
+	 "ern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, and -_. no spaces' maxlengt"
+	 "h=15/></td><td>${c}</td><td>${j}</td><td>${$}</td>${u}</tr>`)}),c('.f').innerHTML=Array.from(l({'"
+	 "Full Duplex':1,'HA Auto':6,MQTT:4,DS18B20:8}),([e,t])=>y('g00',t,x,e)).join('</br>'),{r:()=>{A('G"
+	 "ET','/91'),v()},s:n=>{n.preventDefault();const r=Array.from((()=>{const n=new FormData(d),r=e=>n."
+	 "getAll(e).map(e=>p(e)).reduce((e,t)=>e|t,0);t.forEach(e=>n.set(e,u(n.get(e).split('.')))),i.forEa"
+	 "ch(e=>n.set(e,j(n.get(e),4))),n.set('d00',n.get('d00').toLowerCase().replace(/[:-]/g,'')),n.set('"
+	 "h00',u(m(e.h00).map((e,t)=>{const i='p'+t,a=r(i);return n.delete(i),a})));for(let e=0;e<16;e++){l"
+	 "et t=(''+e).padStart(2,'0');n.set('i'+t,j(65535&r('i'+t),4))}return n.set('g00',u([r('g00')])),n}"
+	 ")().entries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');A('POST','/',r+'&z00=0'),v()},l:S}})({b00:'%b"
+	 "00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00',j00:'"
+	 "%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j07',j08:'%j08',j09"
+	 ":'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j15',i00:'%i00',i01:'%i01',i"
+	 "02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%i07',i08:'%i08',i09:'%i09',i10:'%i10'"
+	 ",i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'%i15'});"
+
+
+
+
             "%y01"
 	    
       "<p>Code Revision %w00<br/>"
@@ -1366,12 +1407,21 @@ static const char g_HtmlPageSstate[] =
 // String for %y04 replacement in web page templates
 //  "<!DOCTYPE html>"
 //  "<html lang='en-US'>"
+
+//  "<html>"\
+//  "<head>" \
+//  "<link rel='icon' href='data:,'>" \
+//  "<meta name='viewport' content='user-scalable=no," \
+//  "initial-scale=1.0,maximum-scale=1.0,width=device-width'>" \
+//  "<style>" \
+//  ".s0{background:red;}" \
+//  ".s1{background:green;}"
+
 #define s4  "" \
   "<html>"\
   "<head>" \
   "<link rel='icon' href='data:,'>" \
-  "<meta name='viewport' content='user-scalable=no," \
-  "initial-scale=1.0,maximum-scale=1.0,width=device-width'>" \
+  "<meta name='viewport' content='width=device-width'>" \
   "<style>" \
   ".s0{background:red;}" \
   ".s1{background:green;}"
@@ -1380,7 +1430,7 @@ static const char g_HtmlPageSstate[] =
 #define s5 "" \
   "table{border-spacing:8px2px}" \
   ".t3{width:30px;}" \
-  ".t8{width:40px;}" \
+  ".t8{width:55px;}" \
   ".c{text-align:center;}" \
   ".ip input{width:27px;}" \
   ".mac input{width:14px;}" \
@@ -1490,7 +1540,7 @@ uint16_t adjust_template_size()
     size = size + (2 * (strlen(stored_devicename) - 4));
     
 #if MQTT_SUPPORT == 0
-    // Account for IO Name fields %i00 to %i15
+    // Account for IO Name fields %j00 to %j15
     // Each can be variable in size during run time so we have to calculate
     // them  each time we display the web page.
     {
@@ -1664,7 +1714,7 @@ size = size - 1;
     size = size + 28;
 
 #if MQTT_SUPPORT == 0
-    // Account for IO Name fields %i00 to %i15
+    // Account for IO Name fields %j00 to %j15
     // Each can be variable in size during run time so we have to calculate
     // them  each time we display the web page.
     {
@@ -1674,7 +1724,7 @@ size = size - 1;
       }
     }
 
-    // Account for IO Timer field %j00 to %j15
+    // Account for IO Timer field %i00 to %i15
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances x (10 - 4));
     // size = size + (16 x 6);
@@ -2093,6 +2143,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	//      characters representing 16 hex bytes of information in text
 	//      format. Each byte is the pin_control character for each IO
 	//      pin. Input and Output.
+	// %i - IO Timer values
+	// %j - IO Names
         // %l - MQTT Username - This is a user entered text field with a
 	//      Username. Used in MQTT communication. Input and output.
         // %m - MQTT Password - This is a user entered text field with a
@@ -2407,15 +2459,31 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 #if MQTT_SUPPORT == 0	
         else if (nParsedMode == 'i') {
+	  // This sends the IO Timer units and IO Timer values to the Browser
+	  // defined as follows:
+	  // 2 bytes represented as hex encoded strings (4 nibbles)
+	  // Upper 2 bits are units
+	  // Lower 14 bits are value
+	  {
+	    int i;
+	    uint8_t j;
+	    for (i = 0; i <16; i++) {
+	      j = (uint8_t)((IO_TIMER[nParsedNum] & 0xff00) >> 8);
+	      int2hex(j);
+              *pBuffer++ = OctetArray[0];
+              *pBuffer++ = OctetArray[1];
+	      j = (uint8_t)(IO_TIMER[nParsedNum] & 0x00ff);
+	      int2hex(j);
+              *pBuffer++ = OctetArray[0];
+              *pBuffer++ = OctetArray[1];
+            }
+	  }
+	}
+	
+	
+        else if (nParsedMode == 'j') {
 	  // This displays IO Names in user friendly format (1 to 15 characters)
           pBuffer=stpcpy(pBuffer, IO_NAME[nParsedNum]); break;
-	}
-
-
-        else if (nParsedMode == 'j') {
-	  // This displays IO Timer values (10 decimal characters)
-	  emb_itoa(IO_TIMER[nParsedNum], OctetArray, 10, 10);
-	  pBuffer=stpcpy(pBuffer, OctetArray);
 	}
 #endif // MQTT_SUPPORT
 
@@ -3453,30 +3521,30 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
     }
     
     else if (pSocket->ParseState == PARSE_VAL) {
-      // 'a' is submit data for the Device Name
-      // 'b' is submit data for the IP/Gateway/Netmask
-      // 'c' is submit data for the Port number
-      // 'd' is submit data for the MAC
-      // 'g' is submit data for the Config settings string
-      // 'h' is submit data for the Pin Control String
-      // 'i' is submit data for the IO Names
-      // 'j' is submit data for the IO Timers
-      // 'l' is submit data for the MQTT Username
-      // 'm' is submit data for the MQTT Password
-      // 'z' is submit data for a hidden input used as an end-of-POST
+      // 'a' is POST data for the Device Name
+      // 'b' is POST data for the IP/Gateway/Netmask
+      // 'c' is POST data for the Port number
+      // 'd' is POST data for the MAC
+      // 'g' is POST data for the Config settings string
+      // 'h' is POST data for the Pin Control String
+      // 'i' is POST data for the IO Timers
+      // 'j' is POST data for the IO Names
+      // 'l' is POST data for the MQTT Username
+      // 'm' is POST data for the MQTT Password
+      // 'z' is POST data for a hidden input used as an end-of-POST
       //     indicator
       
-      // Parse 'a' 'l' 'm' 'i' ----------------------------------------------//
+      // Parse 'a' 'l' 'm' 'j' ----------------------------------------------//
       if (pSocket->ParseCmd == 'a'
        || pSocket->ParseCmd == 'l'
        || pSocket->ParseCmd == 'm'
-       || pSocket->ParseCmd == 'i' ) {
+       || pSocket->ParseCmd == 'j' ) {
         // a = Update the Device Name field
         // l = Update the MQTT Username field
         // m = Update the MQTT Password field
-        // i = Update the IO Name field
+        // j = Update the IO Name field
         
-        // If parsing 'a' 'l' 'm' 'i' we know we are parsing a Configuration
+        // If parsing 'a' 'l' 'm' 'j' we know we are parsing a Configuration
         // page. Set current_webpage to WEBPAGE_CONFIGURATION so that the
         // browser will display this page after Save is clicked. This is a
         // workaround for the "multiple browser page interference" issue
@@ -3496,7 +3564,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             case 'a': num_chars = 19; break;
             case 'l':
             case 'm': num_chars = 10; break;
-            case 'i': num_chars = 15; break;
+            case 'j': num_chars = 15; break;
           }
           
           // This function processes POST data for one of several string fields:
@@ -3546,11 +3614,33 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	    case 'm':
 	      memcpy(Pending_mqtt_password, tmp_Pending, num_chars);
 	      break;
-	    case 'i':
+	    case 'j':
 #if MQTT_SUPPORT == 0
 	      unlock_flash();
+	      
+	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	      // Need to replace this with 4 Word writes to reduce wear
+	      // on the Flash.
+	      // I think of the form:
+	      // if (strcmp(IO_NAME[pSocket->ParseNum], tmp_Pending) != 0) {
+	      //   i = 0;
+	      //   while(1) {
+	      //     FLASH_CR2 = 0x40; FLASH_NCR2 = 0xBF; memcpy(IO_NAME[pSocket->ParseNum][i],  tmp_Pending, 4);
+	      //     i += 4;
+	      //   }
+	      // }
+	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	      if (strcmp(IO_NAME[pSocket->ParseNum], tmp_Pending) != 0) {
 	        memcpy(IO_NAME[pSocket->ParseNum], tmp_Pending, num_chars);
+
+UARTPrintf("Writing IO_NAMEs to Flash\r\n");
+
               }
 	      lock_flash();
 #endif // MQTT_SUPPORT
@@ -3674,7 +3764,8 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
           }
         }
       }
-	  
+
+
       // Parse 'g' ------------------------------------------------------//
       else if (pSocket->ParseCmd == 'g') {
         {
@@ -3747,29 +3838,47 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 
 
 #if MQTT_SUPPORT == 0
-      // Parse 'j' ------------------------------------------------------//
-      else if (pSocket->ParseCmd == 'j') {
-        // This code updates the IO Timer values in Flash.
-        // The value following the 'jxx=' ParseCmd & ParseNum consists
-        // of five alpha characters with the timer value in decimal
-	// form (0 to 999 999 999). The value needs to be converted to a 4
-	// byte unsigned integer before storing.
+      // Parse 'i' ------------------------------------------------------//
+      else if (pSocket->ParseCmd == 'i') {
+        // This code updates the IO Timer units and values in Flash.
+        // The value following the 'ixx=' ParseCmd & ParseNum consists of
+	// 2 bytes represented as hex encoded strings (4 nibbles).
+	// Upper 2 bits are units
+	// Lower 14 bits are value
+	// The bytes are converted from the hex encoded string to a 16
+	// bit integer for storage in Flash.
         {
-          int i;
-          uint32_t temp;
+          uint16_t temp;
 
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// For now I just put a default value in the IO_TIMER storage.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  unlock_flash();
-	  if (IO_TIMER[pSocket->ParseNum] != 0x00000010) {
-	    IO_TIMER[pSocket->ParseNum] = 0x00000010;
-	  }
-	  lock_flash();
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // Need to replace this with a Word write to reduce wear
+	  // on the Flash.
+	  // This may require storing all received IO Timer values in
+	  // RAM (requires 32 bytes) then checking them for changes
+	  // before writing to Flash in the main.c "parse complete"
+	  // code.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  
+          // Sort the alpha characters into the IO Timer bytes
+          // Collect upper byte
+          // Convert two bytes of the string buffer into numeric bytes
+          // two characters at a time.
+          temp = (uint8_t)(two_hex2int(local_buf[lbi], local_buf[lbi+1]));
+	  temp = (temp << 8);
+	  lbi += 2;
+          pSocket->nParseLeft -= 2;
+          // Collect lower byte
+          temp |= (uint8_t)(two_hex2int(local_buf[lbi], local_buf[lbi+1]));
+	  lbi += 2;
+          pSocket->nParseLeft -= 2;
+	  // Store in Pending_IO_TIMER array
+	  Pending_IO_TIMER[pSocket->ParseNum] = temp;
         }
       }
 #endif // MQTT_SUPPORT

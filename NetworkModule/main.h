@@ -57,6 +57,9 @@ void capture_uip_buf_transmit(void);
 void capture_uip_buf_receive(void);
 void capture_mqtt_sendbuf(void);
 
+// void load_timer(uint8_t timer_num);
+uint32_t calculate_timer(uint16_t timer_value);
+void decrement_pin_timers(void);
 
 void mqtt_startup(void);
 void mqtt_sanity_check(void);

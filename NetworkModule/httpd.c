@@ -53,6 +53,7 @@
 #include "mqtt_pal.h"
 #include "uipopt.h"
 #include "uart.h"
+#include "iostm8s005.h"
 
 // #include "stdlib.h"
 #include "string.h"
@@ -3617,30 +3618,20 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	    case 'j':
 #if MQTT_SUPPORT == 0
 	      unlock_flash();
-	      
-	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	      // Need to replace this with 4 Word writes to reduce wear
-	      // on the Flash.
-	      // I think of the form:
-	      // if (strcmp(IO_NAME[pSocket->ParseNum], tmp_Pending) != 0) {
-	      //   i = 0;
-	      //   while(1) {
-	      //     FLASH_CR2 = 0x40; FLASH_NCR2 = 0xBF; memcpy(IO_NAME[pSocket->ParseNum][i],  tmp_Pending, 4);
-	      //     i += 4;
-	      //   }
-	      // }
-	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	      if (strcmp(IO_NAME[pSocket->ParseNum], tmp_Pending) != 0) {
-	        memcpy(IO_NAME[pSocket->ParseNum], tmp_Pending, num_chars);
-
+	        // The write to Flash will occur 4 bytes at a time to
+		// reduce Flash wear. All 16 bytes reserved in the Flash
+		// for a given IO Name will be written at one time in a
+		// sequence of 4 byte "word" writes.
 UARTPrintf("Writing IO_NAMEs to Flash\r\n");
-
+//	        memcpy(IO_NAME[pSocket->ParseNum], tmp_Pending, num_chars);
+	        i = 0;
+	        while(i<16) {
+	          FLASH_CR2 = 0x40;
+	          FLASH_NCR2 = 0xBF;
+	          memcpy(&IO_NAME[pSocket->ParseNum][i], &tmp_Pending[i], 4);
+	          i += 4;
+	        }
               }
 	      lock_flash();
 #endif // MQTT_SUPPORT

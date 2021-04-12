@@ -26,7 +26,7 @@ Feature Comparison of the MQTT and Browser builds:
 |:------------------------|:------------:|:------------------:|
 |MQTT Support             |      x       |                    |
 |Home Assistant Support   |      x       |                    |
-|Full/Half Duple          |      x       |       x            |
+|Full/Half Duplex         |      x       |       x            |
 |Link Error Statistics    |      x       |       x            |
 |DS18B20 Temp Sensor      |      x       |       x            |
 |IO Naming                |              |       x            |

@@ -32,14 +32,17 @@
 #include "DS18B20.h"
 #include "main.h"
 #include "timer.h"
+#include "uart.h"
 #include "uipopt.h"
 
 
 extern uint8_t DS18B20_scratch_byte[2]; // Array to store scratchpad bytes
                                         // read from DS18B20
 extern uint8_t OctetArray[11];		// Used in conversion of integer
-                                        // values to character values
+                                        // values to character values and
+					// used to store generic strings
 
+// Table used for rounding the decimal part of temperatures
 static const uint8_t dec_temp[] = {
   '0',  // 0x0000 0.0000 rounded off = 0.0
   '1',  // 0x0001 0.0625 rounded off = 0.1
@@ -57,7 +60,6 @@ static const uint8_t dec_temp[] = {
   '8',  // 0x1101 0.8125 rounded off = 0.8
   '9',  // 0x1110 0.8750 rounded off = 0.9
   '9'}; // 0x1111 0.9375 rounded off = 0.9
-
 
 // GLOBAL VARIABLES FOR MAXIM DS18B20 CODE CONTRIBUTION
 // Derived from Maxim code
@@ -91,14 +93,14 @@ int numROMs;             // Count of DS18B20 devices found
 //    voltage on the pull up resistor.
 //---------------------------------------------------------------------------//
 
-// void get_temperature(uint8_t IO)
+
 void get_temperature()
 {
   // This function will be called by main every 30 seconds. The function
   // reads the current temperature from all devices, then signals the
   // DS18B20s to start a new conversion so that a new temperature reading
   // will be ready the next time this function is called. Then the function
-  // returns leaving the temperature values in the DS18B20_string array.
+  // returns leaving the temperature values in the DS18B20_scratch array.
   //
   // Note that the first time the temperature is read from the DS18B20s the
   // value will be indeterminate, but on the next read the value will be
@@ -130,15 +132,11 @@ void get_temperature()
   //   "nop_cnt<20" yields a 10us delay
   //   The delay is actually about 95% of the calculated value, but this is
   //   close enough for this application.
-
   
   int i;
   uint8_t j;
   uint8_t device_num;
-  uint8_t DS18B20_scratch_byte[9];
-  uint16_t whole_temp;
-  uint8_t decimal_temp;
-  extern uint8_t DS18B20_string[5][7];
+  extern uint8_t DS18B20_scratch[5][2];
 
   // Read current temperature from up to 5 devices
   for (device_num = 0; device_num < 5; device_num++) {
@@ -184,7 +182,7 @@ void get_temperature()
       //   Send 8 bit read scratchpad command - about 75us per bit
       //   Read 72 bit scratchpad -  about 75us per bit
       //   80 x 75us = 6000us = 6ms
-      // Approximate time spend in this routine when only the first 2 bytes
+      // Approximate time spent in this routine when only the first 2 bytes
       // are read:
       //   Send 8 bit read scratchpad command - about 75us per bit
       //   Read 16 bit scratchpad -  about 75us per bit
@@ -193,8 +191,8 @@ void get_temperature()
       for (i=0; i<2; i++) {
         j = 0x01;
         while(1) {
-          if (read_bit() == 1) DS18B20_scratch_byte[i] |= j;
-          else DS18B20_scratch_byte[i] &= (uint8_t)~j;
+          if (read_bit() == 1) DS18B20_scratch[device_num][i] |= j;
+          else DS18B20_scratch[device_num][i] &= (uint8_t)~j;
           if (j == 0x80) break;
           j = (uint8_t)(j << 1);
         }
@@ -207,78 +205,237 @@ void get_temperature()
       // search_ROM process, starting with bit 0 of byte 0.
       for (i = 0; i < 8; i++) transmit_byte(FoundROM[device_num][i]);
       transmit_byte(0x44); // convert_temp command
-      
-      // Convert temperature reading to string.
-      // DS18B20_temp_xx is a 16 bit signed value. Bits are organized as
-      // follows:
-      //   Bits 15,14,13,12,11 are all the sign bit
-      //   Bits 10,9,8,7,6,5,4 are the digits of the temperature whole number
-      //     If positive value these bits can be converted to the decimal
-      //     whole number
-      //     If negative value these bits should be inverted, then converted
-      //     to the decimal whole number and an "-" should be added
-      //   Bits 3,2,1,0 are the decimal part of the temperature
-      //     If positive value and a single decimal is wanted the following
-      //     round off table applies:
-      //     0x0000 0.0000 rounded off = 0.0
-      //     0x0001 0.0625 rounded off = 0.1
-      //     0x0010 0.1250 rounded off = 0.1
-      //     0x0011 0.1875 rounded off = 0.2
-      //     0x0100 0.2500 rounded off = 0.3
-      //     0x0101 0.3125 rounded off = 0.3
-      //     0x0110 0.3750 rounded off = 0.4
-      //     0x0111 0.4375 rounded off = 0.4
-      //     0x1000 0.5000 rounded off = 0.5
-      //     0x1001 0.5625 rounded off = 0.6
-      //     0x1010 0.6250 rounded off = 0.6
-      //     0x1011 0.6875 rounded off = 0.7
-      //     0x1100 0.7500 rounded off = 0.8
-      //     0x1101 0.8125 rounded off = 0.8
-      //     0x1110 0.8750 rounded off = 0.9
-      //     0x1111 0.9375 rounded off = 0.9
-      //     If negative the four bits need to be inverted, then 1 added. The
-      //     above table will then apply.
-      //     The decimal part of the conversion is generated with a lookup
-      //     table static const uint8_t dec_temp[]
-      
-      whole_temp = DS18B20_scratch_byte[1];
-      whole_temp = whole_temp << 8;
-      whole_temp |= DS18B20_scratch_byte[0];
-      whole_temp &= 0x07f0;
-      whole_temp = whole_temp >> 4;
-      
-      decimal_temp = (uint8_t)DS18B20_scratch_byte[0];
-      decimal_temp &= 0x0f;
-      
-      if (DS18B20_scratch_byte[1] & 0xF8) {
-        // Negative number conversion
-        whole_temp = whole_temp ^ 0x007f;
-        decimal_temp = (uint8_t)(decimal_temp ^ 0x0f);
-        decimal_temp++;
-        decimal_temp = (uint8_t)(decimal_temp & 0x0f);
-        DS18B20_string[device_num][0] = '-';
-      }
-      else {
-        DS18B20_string[device_num][0] = ' ';
-      }
-      
-      // Build string
-      emb_itoa(whole_temp, OctetArray, 10, 3);
-      DS18B20_string[device_num][1] = OctetArray[0];
-      DS18B20_string[device_num][2] = OctetArray[1];
-      DS18B20_string[device_num][3] = OctetArray[2];
-      DS18B20_string[device_num][4] = '.';
-      DS18B20_string[device_num][5] = dec_temp[decimal_temp];
-      DS18B20_string[device_num][6] = '\0';
     }
   }
 }
 
 
-// IO 15 is Port G bit 0 (of 0-7)
-//   PG_DDR 1 is output, 0 is input
-//   PG_ODR
-//   PG_IDR
+void convert_temperature(uint8_t device_num, uint8_t degCorF)
+{
+//---------------------------------------------------------------------------//
+  // This function will convert a temperature value stored in the
+  // DS18B20_scratch array into a string in degrees C or degrees F. The
+  // function leaves the converted result in the global OctetArray string.
+  // 
+  int16_t whole_temp;
+  uint8_t decimal_temp;
+  extern uint8_t DS18B20_scratch[5][2];
+  uint8_t temp_string[7];
+  
+  // Convert temperature reading to string.
+  // DS18B20_temp_xx is a 16 bit signed value. Bits are organized as
+  // follows:
+  //   Bits 15,14,13,12,11 are all the sign bit
+  //   Bits 10,9,8,7,6,5,4 are the digits of the temperature whole number
+  //     If positive value these bits can be converted to the decimal
+  //     whole number
+  //     If negative value these bits should be inverted, then converted
+  //     to the decimal whole number and an "-" should be added
+  //   Bits 3,2,1,0 are the decimal part of the temperature
+  //     If positive value and a single decimal is wanted the round-off
+  //     table declared in this file applies (static const uint8_t dec_temp[]).
+  //     If negative the four "decimal" bits need to be inverted, then 1
+  //     added (twos complement). The round-off table then applies.
+  
+  // Test tables
+  // These can be enabled one set at a time to test any code changes made
+  // to the C and F conversion code. If enabled these test values will
+  // over-ride any values read from the temperature sensors.
+/*
+  DS18B20_scratch[0][1] = 0x07; // +125.0000C +257.0F
+  DS18B20_scratch[0][0] = 0xd0;
+  DS18B20_scratch[1][1] = 0x05; // +85.0000C  +185.0F
+  DS18B20_scratch[1][0] = 0x50;
+  DS18B20_scratch[2][1] = 0x01; // +25.0625C  +77.1F
+  DS18B20_scratch[2][0] = 0x91;
+  DS18B20_scratch[3][1] = 0x00; // +10.1250C  +50.2F
+  DS18B20_scratch[3][0] = 0xa2;
+  DS18B20_scratch[4][1] = 0x00; // +0.5000C   +32.9F
+  DS18B20_scratch[4][0] = 0x08;
+
+  DS18B20_scratch[0][1] = 0x00; // +0.0000C   +32.0F
+  DS18B20_scratch[0][0] = 0x00;
+  DS18B20_scratch[1][1] = 0xff; // -0.5000C   +31.1F
+  DS18B20_scratch[1][0] = 0xf8;
+  DS18B20_scratch[2][1] = 0xff; // -10.1250C  +13.8F
+  DS18B20_scratch[2][0] = 0x5e;
+  DS18B20_scratch[3][1] = 0xfe; // -25.0625C  -13.1F
+  DS18B20_scratch[3][0] = 0x6f;
+  DS18B20_scratch[4][1] = 0xfc; // -55.0000C  -67.0F
+  DS18B20_scratch[4][0] = 0x90;
+
+  DS18B20_scratch[0][1] = 0x00; // +1.0000C   +33.8F
+  DS18B20_scratch[0][0] = 0x10;
+  DS18B20_scratch[1][1] = 0x00; // +1.0625C   +33.9F
+  DS18B20_scratch[1][0] = 0x11;
+  DS18B20_scratch[2][1] = 0x00; // +1.1250C   +34.0F
+  DS18B20_scratch[2][0] = 0x12;
+  DS18B20_scratch[3][1] = 0x00; // +1.1875C   +34.1F
+  DS18B20_scratch[3][0] = 0x13;
+  DS18B20_scratch[4][1] = 0x00; // +1.2500C   +34.3F
+  DS18B20_scratch[4][0] = 0x14;
+
+  DS18B20_scratch[0][1] = 0x00; // +1.6875C   +35.0F
+  DS18B20_scratch[0][0] = 0x1b;
+  DS18B20_scratch[1][1] = 0x00; // +1.7500C   +35.2F
+  DS18B20_scratch[1][0] = 0x1c;
+  DS18B20_scratch[2][1] = 0x00; // +1.8125C   +35.3F
+  DS18B20_scratch[2][0] = 0x1d;
+  DS18B20_scratch[3][1] = 0x00; // +1.8750C   +35.4F
+  DS18B20_scratch[3][0] = 0x1e;
+  DS18B20_scratch[4][1] = 0x00; // +1.9375C   +35.5F
+  DS18B20_scratch[4][0] = 0x1f;
+
+  DS18B20_scratch[0][1] = 0xff; // -1.0000C   +30.2F
+  DS18B20_scratch[0][0] = 0xf0;
+  DS18B20_scratch[1][1] = 0xff; // -1.0625C   +30.1F
+  DS18B20_scratch[1][0] = 0xef;
+  DS18B20_scratch[2][1] = 0xff; // -1.1250C   +30.0F
+  DS18B20_scratch[2][0] = 0xee;
+  DS18B20_scratch[3][1] = 0xff; // -1.1875C   +29.9F
+  DS18B20_scratch[3][0] = 0xed;
+  DS18B20_scratch[4][1] = 0xff; // -1.2500C   +29.8F
+  DS18B20_scratch[4][0] = 0xec;
+
+  DS18B20_scratch[0][1] = 0xff; // -1.6875C   +29.0F
+  DS18B20_scratch[0][0] = 0xe5;
+  DS18B20_scratch[1][1] = 0xff; // -1.7500C   +28.9F
+  DS18B20_scratch[1][0] = 0xe4;
+  DS18B20_scratch[2][1] = 0xff; // -1.8125C   +28.7F
+  DS18B20_scratch[2][0] = 0xe3;
+  DS18B20_scratch[3][1] = 0xff; // -1.8750C   +28.6F
+  DS18B20_scratch[3][0] = 0xe2;
+  DS18B20_scratch[4][1] = 0xff; // -1.9375C   +28.5F
+  DS18B20_scratch[4][0] = 0xe1;
+
+  DS18B20_scratch[0][1] = 0xfe; // -17.6875C  +00.2F
+  DS18B20_scratch[0][0] = 0xe5;
+  DS18B20_scratch[1][1] = 0xfe; // -17.7500C  +00.1F
+  DS18B20_scratch[1][0] = 0xe4;
+  DS18B20_scratch[2][1] = 0xfe; // -17.8125C  -00.1F
+  DS18B20_scratch[2][0] = 0xe3;
+  DS18B20_scratch[3][1] = 0xfe; // -17.8750C  -00.2F
+  DS18B20_scratch[3][0] = 0xe2;
+  DS18B20_scratch[4][1] = 0xfe; // -17.9375C  -00.3F
+  DS18B20_scratch[4][0] = 0xe1;
+
+  DS18B20_scratch[0][1] = 0xfe; // -18.1875C  -00.7F
+  DS18B20_scratch[0][0] = 0xdd;
+  DS18B20_scratch[1][1] = 0xfe; // -18.2500C  -00.9F
+  DS18B20_scratch[1][0] = 0xdc;
+  DS18B20_scratch[2][1] = 0xfe; // -18.3125C  -01.0F
+  DS18B20_scratch[2][0] = 0xdb;
+  DS18B20_scratch[3][1] = 0xfe; // -18.3750C  -01.0F
+  DS18B20_scratch[3][0] = 0xda;
+  DS18B20_scratch[4][1] = 0xfe; // -18.4375C  -01.2F
+  DS18B20_scratch[4][0] = 0xd9;
+*/
+
+
+  if (DS18B20_scratch[device_num][1] != 0x55) { // Check that sensor exists
+  
+    if (degCorF == 0) {
+      // Convert to degrees C
+      // Extract whole temp and decimal temp parts of the DS18B20
+      // values
+      whole_temp = DS18B20_scratch[device_num][1];
+      whole_temp = whole_temp << 8;
+      whole_temp |= DS18B20_scratch[device_num][0];
+      whole_temp &= 0x07f0;
+      whole_temp = whole_temp >> 4;
+      decimal_temp = (uint8_t)DS18B20_scratch[device_num][0];
+      decimal_temp &= 0x0f;
+        
+      if ((DS18B20_scratch[device_num][1] & 0x80) == 0x80) {
+        // Negative number conversion. Convert to positive
+	// number.
+        whole_temp = whole_temp ^ 0x007f;
+        decimal_temp = (uint8_t)(decimal_temp ^ 0x0f);
+        decimal_temp++;
+        decimal_temp = (uint8_t)(decimal_temp & 0x0f);
+        temp_string[0] = '-';
+      }
+      else {
+        // Positive number
+        temp_string[0] = ' ';
+      }
+    }
+    
+
+    else {
+      // Convert to degrees F
+      // This routine avoids the use of float variables to perform
+      // C to F conversion in order to reduce code size. The result
+      // is that some conversions are off by 0.1 degree - but this
+      // is adequate for this application.
+      {
+        uint16_t raw_temp;
+        int16_t F_temp0;
+        int32_t F_temp1;
+        int32_t F_temp2;
+        
+        // Use the raw number from the DS18B20 including the decimal
+        raw_temp = DS18B20_scratch[device_num][1];
+        raw_temp = raw_temp << 8;
+        raw_temp |= DS18B20_scratch[device_num][0];
+	// Recast raw_temp for subsequent calculations. Why two steps
+	// here? Recast of a uint16 to a int32 did not work properly,
+	// but recast of the uint16 to int16, then recast of the int16
+	// to the int32 DID work.
+        F_temp0 = (int16_t)raw_temp;
+        F_temp1 = (int32_t)F_temp0;
+        // Add 55 C to the value so math is always positive
+        // We actually add 55 * 16, or 880, since we are working
+	// with the raw number which includes 4 bits of decimal
+	// This next equation also includes the "9" part of the
+	// "9 / 5" calculation. We use 180 / 100 to avoid loss
+	// of precision in the integer arithmatic.
+        F_temp1 = (int32_t)((F_temp1 + 880) * 180);
+	// It is necessary to separate the "100" part of the
+	// "180 / 100" arithmatic so the compiler doesn't optimize
+	// and cause loss of precision.
+        F_temp2 = F_temp1 / 100;
+	// Now subtract 1072. This is the combination of the "+32"
+	// part of the C = (F * 9 / 5) + 32 equation, plus the removal
+	// of the 55 C offset. Again we are using values mulitplied
+	// by 16 since we are working with the raw number.
+	// +32 = 32 * 16 = +512
+	// The 55 C offset must be removed in terms of degrees F
+	// F = (-55 * 9 / 5) * 16 = -1584
+	// + 512 - 1584 = -1072
+        F_temp2 = F_temp2 - 1072;
+        // Now divide by 16 to get the "whole number" part of the 
+	// display in degrees F
+        whole_temp = (int16_t)(F_temp2 / 16);
+        // Now calculate the "decimal" part of the display in degrees F
+        decimal_temp = (uint8_t)(F_temp2 & 0xf);
+        temp_string[0] = ' ';
+        if (F_temp2 < 0) {
+	  // Must use twos complement if the result is negative
+          whole_temp = whole_temp * -1;
+          decimal_temp = (uint8_t)(((decimal_temp ^ 0xf) + 1) & 0x0f);
+          temp_string[0] = '-';
+        }
+      }
+    }
+
+    // Build string
+    emb_itoa(whole_temp, OctetArray, 10, 3);
+    temp_string[1] = OctetArray[0];
+    temp_string[2] = OctetArray[1];
+    temp_string[3] = OctetArray[2];
+    temp_string[4] = '.';
+    temp_string[5] = dec_temp[decimal_temp];
+    temp_string[6] = '\0';
+    strcpy(OctetArray, temp_string);
+  }
+  else {
+    // Sensor does not exist - return ------ string
+    strcpy(OctetArray, "------");
+  }
+}
+
+
 // IO 16 is Port C bit 6 (of 0-7)
 //   PC_DDR 1 is output, 0 is input
 //   PC_ODR
@@ -294,15 +451,15 @@ int reset_pulse()
   PC_ODR |= 0x40;           // write IO ODR to 1
   PC_DDR |= 0x40;           // write IO DDR to output
   PC_ODR &= (uint8_t)~0x40; // write IO ODR to 0
-  wait_timer(500);
+  wait_timer(500);          // wait 500us
   PC_DDR &= (uint8_t)~0x40; // write IO DDR to input
-  wait_timer(100);
+  wait_timer(100);          // wait 100us
   
   // Check for "presence" state on the 1-wire. 0 = device(s) present.
   rtn = 0;
   if (PC_IDR & 0x40) rtn = 1;
 
-  wait_timer(200);
+  wait_timer(200);          // wait 200us
   return rtn;
 }
 
@@ -389,8 +546,6 @@ void write_bit(uint8_t transmit_bit)
   wait_timer(60); // Wait 60us before returning. This is needed to provide a
                   // pause brfore sending the next bit.
 }
-
-
 
 
 void FindDevices(void)

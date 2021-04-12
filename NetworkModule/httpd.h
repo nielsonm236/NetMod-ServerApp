@@ -68,6 +68,7 @@ uint16_t adjust_template_size(void);
 static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString);
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen);
 static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pDataLeft, uint16_t nMaxBytes);
+char *show_temperature_string(char * pBuffer, uint8_t nParsedNum);
 
 void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad);
 int hex2int(char ch);

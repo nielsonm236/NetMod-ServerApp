@@ -49,7 +49,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210321 2317";
+const char code_revision[] = "20210409 2358";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -138,7 +138,7 @@ uint8_t stack_limit2;
                                         // 30 debug bytes
 					// Byte 128 stored_debug[29]
                                         // Byte 99 stored_debug[0]
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 // 98 bytes used below
 // >>> Add new variables HERE <<<
@@ -193,7 +193,7 @@ uint8_t stack_limit2;
 uint8_t *pBuffer2;
 uint8_t debug[NUM_DEBUG_BYTES];
 //---------------------------------------------------------------------------//
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 #if MQTT_SUPPORT == 0
 // Define Flash addresses for IO Names and IO Timers
@@ -268,7 +268,7 @@ extern uint8_t OctetArray[11];  // Used in emb_itoa conversions
 #if MQTT_SUPPORT == 1
 // MQTT variables
 // Note: To maintain the same user interface for MQTT compiles and Browser Only
-// compiles the MQTT user interface variables are always compiled.
+// versions the MQTT user interface variables are always compiled.
 uint8_t mqtt_enabled;                 // Used to signal use of MQTT functions
                                       // Initialized to 'disabled'. This can
 				      // only get set to 1 if the MQTT Enable
@@ -355,7 +355,7 @@ uint8_t MQTT_broker_dis_counter; // Counts broker disconnect events in
 // DS18B20 variables
 uint32_t check_DS18B20_ctr;      // Counter used to trigger temperature
                                  // measurements
-uint8_t DS18B20_string[5][7];    // Stores the temperature measurement for the
+uint8_t DS18B20_scratch[5][2];   // Stores the temperature measurement for the
                                  // DS18B20s
 int8_t send_mqtt_temperature;    // Indicates if a new temperature measurement
                                  // is pending transmit on MQTT. In this
@@ -383,7 +383,7 @@ int main(void)
   
 #if IWDG_ENABLE == 1
   init_IWDG(); // Initialize the hardware watchdog
-#endif // IWDG_ENABLE == 1
+#endif // IWDG_ENABLE
   
 #if MQTT_SUPPORT == 1
 // Initialize MQTT variables
@@ -488,8 +488,10 @@ int main(void)
 #endif // DEBUG_SUPPORT
 
 
-  // Initialize DS18B20 temperature storage strings
-  for (i=0; i<5; i++) strcpy(DS18B20_string[i], "------");
+  // Initialize DS18B20 temperature storage values. Scratch byte 1 = 0x55
+  // cannot be produced by the DS18B20, so code will recognize this as a
+  // marker that the temperature has not been read from the DS18B20.
+  for (i=0; i<5; i++) DS18B20_scratch[i][1] = 0x55;
   // Initialize DS18B20 devices (if enabled) 
   if (stored_config_settings & 0x08) {
     // Find all devices
@@ -740,7 +742,9 @@ int main(void)
 			 // counts. Any code that uses crt1 must reset it to
 			 // zero then compare to a value needed for a
 			 // timeout.
+#if MQTT_SUPPORT == 0
       decrement_pin_timers(); // Decrement the pin_timers every 100ms
+#endif // MQTT_SUPPORT
     }
 
 
@@ -936,7 +940,6 @@ void mqtt_startup(void)
   case MQTT_START_MQTT_INIT:
     if (mqtt_start_ctr2 > 2) {
       // Initialize mqtt client
-// UARTPrintf("mqtt_init 1\r\n");
       mqtt_init(&mqttclient,
                 mqtt_sendbuf,
                 sizeof(mqtt_sendbuf),
@@ -1020,14 +1023,12 @@ void mqtt_startup(void)
     if (mqtt_start_ctr1 < 100) {
       // Allow up to 10 seconds for CONNACK
       if (connack_received == 1) {
-// UARTPrintf("connack received\r\n");
         mqtt_start_ctr2 = 0; // Clear 100ms counter
         mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
         mqtt_start = MQTT_START_QUEUE_SUBSCRIBE1;
       }
     }
     else {
-// UARTPrintf("restart MQTT_START 1\r\n");
       mqtt_start = MQTT_START_TCP_CONNECT;
       // Clear the error indicator flags
       mqtt_start_status = MQTT_START_NOT_STARTED; 
@@ -1076,13 +1077,11 @@ void mqtt_startup(void)
     if (mqtt_start_ctr1 < 100) {
       // Allow up to 10 seconds for SUBACK
       if (suback_received == 1) {
-// UARTPrintf("verified SUBSCRIBE1\r\n");
         mqtt_start_ctr2 = 0; // Clear 100ms counter
         mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
       }
     }
     else {
-// UARTPrintf("restart MQTT_START 2\r\n");
       mqtt_start = MQTT_START_TCP_CONNECT;
       // Clear the error indicator flags
       mqtt_start_status = MQTT_START_NOT_STARTED; 
@@ -1115,13 +1114,11 @@ void mqtt_startup(void)
     if (mqtt_start_ctr1 < 100) {
       // Allow up to 10 seconds for SUBACK
       if (suback_received == 1) {
-// UARTPrintf("verified SUBSCRIBE2\r\n");
         mqtt_start_ctr2 = 0; // Clear 100ms counter
         if (stored_config_settings & 0x02) {
           // Home Assistant Auto Discovery enabled
           mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
           auto_pub_count = 0;
-// UARTPrintf("start HA config\r\n");
         }
         else {
           mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
@@ -1462,7 +1459,6 @@ void mqtt_startup(void)
         mqtt_start_ctr2 = 0;
         if (auto_pub_count == 16) {
 	  mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
-// UARTPrintf("end HA config\r\n");
         }
       }
     }
@@ -2139,7 +2135,7 @@ void publish_temperature(uint8_t sensor)
     topic_base[i] = '\0';
     
     // Build the application message
-    strcpy(app_message, DS18B20_string[sensor]);
+    convert_temperature(sensor, 0); // Convert to degress C in OctetArray
     
     // Queue publish message
     mqtt_publish(&mqttclient,
@@ -2466,10 +2462,6 @@ void check_eeprom_settings(void)
     // Since the magic number didn't match all timers are set
     // to zero.
     unlock_flash();
-//    for (i=0; i<16; i++) {
-//      if (IO_TIMER[i] != 0) IO_TIMER[i] = 0;
-//    }
-
     // IO_TIMER bytes are written 4 bytes at a time to reduce
     // Flash wear
     i = 0;
@@ -2480,19 +2472,12 @@ void check_eeprom_settings(void)
       i += 4;
     }
 
-
     // Initialize Flash memory that is used to store IO Names
     // Since the magic number didn't match all names are set
     // to defaults. 4 byte writes are used to reduce Flash wear.
     // Even though 16 bytes are allocated in Flash, only 8 bytes
     // are written here (a 4 byte IO Name and a 4 byte set of
     // NULL characters to provide a string terminator).
-//    for (i=0; i<16; i++) {
-//      strcpy(temp, "IO");
-//      emb_itoa(i+1, OctetArray, 10, 2);
-//      strcat(temp, OctetArray);
-//      strcpy(IO_NAME[i], temp);
-//    }
     for (i=0; i<16; i++) {
       strcpy(temp, "IO");
       emb_itoa(i+1, OctetArray, 10, 2);
@@ -2521,17 +2506,6 @@ void check_eeprom_settings(void)
   //   the EEPROM. If there is already an IO Name stored this code will
   //   not change it.
   unlock_flash();
-  
-//  for (i=0; i<16; i++) {
-//    strcpy(temp, "IO");
-//    emb_itoa(i+1, OctetArray, 10, 2);
-//    strcat(temp, OctetArray);
-//    if (IO_NAME[i][0] == 0) strcpy(IO_NAME[i], temp);
-//    // Initialize pin_timers
-//    pin_timer[i] = 0;
-//  }
-
-
   for (i=0; i<16; i++) {
     strcpy(temp, "IO");
     emb_itoa(i+1, OctetArray, 10, 2);
@@ -3012,7 +2986,8 @@ void check_runtime_changes(void)
 // of these values are stored on 4 byte boundaries and, if a write is
 // needed, to write a 4 byte word only once instead of writing a byte at
 // a time. Changing the method may also be overkill, as these bytes change
-// very infrequently.
+// very infrequently, and the EEPROM can be written hundreds of thousands
+// of times.
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -3337,7 +3312,7 @@ void restart(void)
 // oneflash();
 // #else
 //  oneflash(); // Quick flash for normal operation
-// #endif DEBUG_SUPPORT != 0
+// #endif DEBUG_SUPPORT
 
   LEDcontrol(0); // Turn LED off
 
@@ -3512,28 +3487,6 @@ void write_output_pins(void)
 
 
 #if MQTT_SUPPORT == 0
-/*
-void load_timer(uint8_t timer_num)
-{
-  // Load_Timer
-  // Load the Timer follows:
-  //   If units = 0.1s Timer = Timer Value + 1
-  //   If units = 1s   Timer = Timer Value * 10 + 1
-  //   If units = 1m   Timer = Timer Value * 10 * 60
-  //   If units = 1h   Timer = Timer Value * 10 * 60 * 60
-  //   (note for manual: Any setting selected may be up to 100ms
-  //    longer that the selected value)
-  if ((IO_TIMER[timer_num] & 0xc000) == 0x0000)
-    pin_timer[timer_num] = (IO_TIMER[timer_num] & 0x3fff) + 1;
-  if ((IO_TIMER[timer_num] & 0xc000) == 0x4000)
-    pin_timer[timer_num] = ((IO_TIMER[timer_num] & 0x3fff) * 10) + 1;
-  if ((IO_TIMER[timer_num] & 0xc000) == 0x8000)
-    pin_timer[timer_num] = ((IO_TIMER[timer_num] & 0x3fff) * 600) + 1;
-  if ((IO_TIMER[timer_num] & 0xc000) == 0xc000)
-    pin_timer[timer_num] = ((IO_TIMER[timer_num] & 0x3fff) * 36000) + 1;
-}
-*/
-
 uint32_t calculate_timer(uint16_t timer_value)
 {
   // Calculate the pin_timer value from the IO_TIMER value
@@ -3738,7 +3691,7 @@ void update_debug_storage() {
 //    // This loop can be enabled if you want the program to
 //    // hang after capturing data.
 }
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 
 #if DEBUG_SUPPORT != 0
@@ -3765,7 +3718,7 @@ void update_debug_storage1() {
   lock_eeprom();
   
 }
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 
 #if DEBUG_SUPPORT != 0
@@ -3808,7 +3761,7 @@ void capture_uip_buf_transmit()
     update_debug_storage();
   }
 }
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 
 
@@ -3866,4 +3819,4 @@ void capture_uip_buf_receive()
     update_debug_storage();
   }
 }
-#endif // DEBUG_SUPPORT != 0      
+#endif // DEBUG_SUPPORT

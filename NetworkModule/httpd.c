@@ -53,6 +53,7 @@
 #include "mqtt_pal.h"
 #include "uipopt.h"
 #include "uart.h"
+#include "ds18b20.h"
 #include "iostm8s005.h"
 
 // #include "stdlib.h"
@@ -92,7 +93,7 @@
 extern uint8_t *pBuffer2;
 extern uint8_t debug[NUM_DEBUG_BYTES];
 extern uint8_t stored_debug[NUM_DEBUG_BYTES];
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 extern uint16_t Port_Httpd;               // Port number in use
 
@@ -203,7 +204,7 @@ extern uint8_t MQTT_broker_dis_counter;   // Counts broker disconnect events
 extern uint32_t second_counter;           // Counts seconds since boot
 
 // DS18B20 variables
-extern uint8_t DS18B20_string[5][7];      // Stores the temperature measurement
+extern uint8_t DS18B20_scratch[5][2];     // Stores the temperature measurement
                                           // for the DS18B20s
 
 // Variables stored in Flash
@@ -231,18 +232,18 @@ extern uint16_t Pending_IO_TIMER[16];
 //   code should insert data as the web page constant is copied from flash
 //   memory into the output data buffer.
 //
-// - An example marker is %i01, wherein the CopyHttpData() function in the
-//   application code will replace the "%i01" characters with a single "0" or
+// - An example marker is %n01, wherein the CopyHttpData() function in the
+//   application code will replace the "%n01" characters with a single "0" or
 //   "1" character to signal the browser to paint a red or green box
-//   indicating pin status.
+//   indicating mqtt status.
 //
 // - Additional markers are inserted to help with compression of the web page
 //   templates to reduce the amount of flash memory required. In these cases
 //   the markers tell the application code to insert strings that are repeated
 //   many times in the web page HTML text, rather than have them repeatedly
-//   appear in flash memory. For instance %y00 is used to signal the
+//   appear in flash memory. For instance %y00 could be used to signal the
 //   application code to insert the string
-//   "pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'>"
+//   "this is a test string"
 //   While this makes the code harder to read, it makes the web page templates
 //   much smaller.
 //
@@ -266,7 +267,8 @@ extern uint16_t Pending_IO_TIMER[16];
 //
 // - IMPORTANT: Be sure to carefully update the adjust_template_size function
 //   if any changes are made to the %xxx text replacement markers and strings
-//   in the templates.
+//   in the templates. Use CURL to verify that pages sizes are reported
+//   correctly.
 //
 // - The templates include the line
 //   "<link rel='icon' href='data:,'>".
@@ -334,19 +336,19 @@ static const char g_HtmlPageIOControl[] =
                "<td colspan=2 style='text-align: left'>%a00</td>"
             "</tr>"
             "<script>"
-	    
-	    "const m=(t=>{const e=document,n=e.querySelector.bind(e)('form'),r=(Object.entries,parseInt),"
-	    "o=t=>e.write(t),s=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join(''),a=t="
-	    ">t.match(/.{2}/g).map(t=>r(t,16)),c=t=>encodeURIComponent(t),d=[],h=[],p=(t,e,n)=>{return`<i"
-	    "nput type=radio name=o${e} value=${t} ${n==t?'checked':''}/><label>${(t?'on':'off').toUpperC"
-	    "ase()}</label>`},l=()=>location.reload();return a(t.h00).forEach((t,e)=>{3==(3&t)?h.push(`<t"
-	    "r><td>Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>${p(1,e,t>>7)}${p(0,e,t>>7"
-	    ")}</td></tr>`):1==(3&t)&&d.push(`<tr><td>Input #${e+1}</td><td class='s${t>>7} t3'></td><td/"
-	    "></tr>`)}),o(d.join('')),o(`<tr><th></th><th></th>${h.length>0?'<th class=c>SET</th>':''}</t"
-	    "r>`),o(h.join('')),{s:e=>{e.preventDefault();const r=new XMLHttpRequest,o=Array.from((()=>{c"
-	    "onst e=new FormData(n);return e.set('h00',s(a(t.h00).map((t,n)=>{const r='o'+n,o=e.get(r)<<7"
-	    ";return e.delete(r),o}))),e})().entries(),([t,e])=>`${c(t)}=${c(e)}`).join('&');r.open('POST"
-	    "','/',!1),r.send(o+'&z00=0'),l()},l:l}})({h00:'%h00'});"
+"const m=(t=>{const e=document,n=e.querySelector.bind(e)('form'),r=(Object.entries,parseI"
+"nt),o=t=>e.write(t),s=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join("
+"''),a=t=>t.match(/.{2}/g).map(t=>r(t,16)),c=t=>encodeURIComponent(t),d=[],h=[],p=(t,e,n)"
+"=>{return`<input type=radio name=o${e} value=${t} ${n==t?'checked':''}/><label>${(t?'on'"
+":'off').toUpperCase()}</label>`},l=()=>location.reload();return a(t.h00).forEach((t,e)=>"
+"{3==(3&t)?h.push(`<tr><td>Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>${"
+"p(1,e,t>>7)}${p(0,e,t>>7)}</td></tr>`):1==(3&t)&&d.push(`<tr><td>Input #${e+1}</td><td c"
+"lass='s${t>>7} t3'></td><td/></tr>`)}),o(d.join('')),o(`<tr><th></th><th></th>${h.length"
+">0?'<th class=c>SET</th>':''}</tr>`),o(h.join('')),{s:e=>{e.preventDefault();const r=new"
+" XMLHttpRequest,o=Array.from((()=>{const e=new FormData(n);return e.set('h00',s(a(t.h00)"
+".map((t,n)=>{const r='o'+n,o=e.get(r)<<7;return e.delete(r),o}))),e})().entries(),([t,e]"
+")=>`${c(t)}=${c(e)}`).join('&');r.open('POST','/',!1),r.send(o+'&z00=0'),l()},l:l}})({h0"
+"0:'%h00'});"
 
             "%y01"
       "<p/>"
@@ -570,32 +572,33 @@ static const char g_HtmlPageConfiguration[] =
               "<th>Boot state</th>"
             "</tr>"
          "<script>"
-
-         "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},r="
-	 "{retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),l=s('form'),p=Object.entri"
-	 "es,d=parseInt,i=(t,e)=>d(t).toString(16).padStart(e,'0'),u=t=>t.map(t=>i(t,2)).join(''),$=t=>t.ma"
-	 "tch(/.{2}/g).map(t=>d(t,16)),m=t=>encodeURIComponent(t),b=(t,e)=>(t=>s(`input[name=${t}]`))(t).va"
-	 "lue=e,f=(t,e)=>{for(const n of a.querySelectorAll(t))e(n)},h=(t,e)=>{for(const[n,o]of p(e))t.setA"
-	 "ttribute(n,o)},g=(t,e)=>p(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>${t[0]}</opti"
-	 "on>`).join(''),A=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&e)==e?'checked"
-	 "':''}>${o}`,E=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},y=()=>c.reload(),T=("
-	 ")=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0],S={required:!0};return f('.ip'"
-	 ",t=>{h(t,{...S,title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4"
-	 "}'})}),f('.port',t=>{h(t,{...S,title:'Enter 10 to 65535',pattern:'[0-9]{2,5}',maxlength:5})}),f('"
-	 ".up input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',max"
-	 "length:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e]).join('.'))),n.forEach(e=>"
-	 "b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$(t.h00).forEach((t,e)=>{const"
-	 " n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)}</select>`:'',l='#d'==c.hash?"
-	 "`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><select name='p${e}'>${g(o,3&t)}</sel"
-	 "ect></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerHTML=Array.from(p({'Full Duplex':1,"
-	 "'HA Auto':6,MQTT:4,DS18B20:8}),([t,e])=>A('g00',e,j,t)).join('</br>'),{r:()=>{E('GET','/91'),T()}"
-	 ",s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormData(l),r=t=>o.getAll(t).map(t"
-	 "=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t).split('.')))),n.forEach(t=>o."
-	 "set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u($"
-	 "(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})("
-	 ").entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/',r+'&z00=0'),T()},l:y}})({b00:'%b00"
-	 "',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00'});"
-
+"const m=(e=>{const t=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,out"
+"put:3},r={retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),p=s('for"
+"m'),d=Object.entries,l=parseInt,i=(e,t)=>l(e).toString(16).padStart(t,'0'),u=e=>e.map(e="
+">i(e,2)).join(''),m=e=>e.match(/.{2}/g).map(e=>l(e,16)),$=e=>encodeURIComponent(e),b=(e,"
+"t)=>(e=>s(`input[name=${e}]`))(e).value=t,f=(e,t)=>{for(const n of a.querySelectorAll(e)"
+")t(n)},h=(e,t)=>{for(const[n,o]of d(t))e.setAttribute(n,o)},g=(e,t)=>d(e).map(e=>`<optio"
+"n value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),x=(e,t,n,o='')=>`<i"
+"nput type='checkbox' name='${e}' value=${t} ${(n&t)==t?'checked':''}>${o}`,y=(e,t,n)=>{c"
+"onst o=new XMLHttpRequest;o.open(e,t,!1),o.send(n)},A=()=>c.reload(),T=()=>{a.body.inner"
+"Text='Wait 5s...',setTimeout(A,5e3)},j=m(e.g00)[0],E={required:!0};return f('.ip',e=>{h("
+"e,{...E,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|"
+"$)){4}'})}),f('.port',e=>{h(e,{...E,type:'number',min:10,max:65535})}),f('.up input',e=>"
+"{h(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',maxlengt"
+"h:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>b(t,m(e[t]).join('.'))),n.forEach"
+"(t=>b(t,l(e[t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),m(e.h00).forEach("
+"(e,t)=>{const n=1&e?x('p'+t,4,e):'',s=3==(3&e)?`<select name='p${t}'>${g(r,24&e)}</selec"
+"t>`:'',p='#d'==c.hash?`<td>${e}</td>`:'';(e=>a.write(e))(`<tr><td>#${t+1}</td><td><selec"
+"t name='p${t}'>${g(o,3&e)}</select></td><td>${n}</td><td>${s}</td>${p}</tr>`)}),s('.f')."
+"innerHTML=Array.from(d({'Full Duplex':1,'HA Auto':6,MQTT:4,DS18B20:8}),([e,t])=>x('g00',"
+"t,j,e)).join('</br>'),{r:()=>{y('GET','/91'),T()},s:o=>{o.preventDefault();const r=Array"
+".from((()=>{const o=new FormData(p),r=e=>o.getAll(e).map(e=>l(e)).reduce((e,t)=>e|t,0);r"
+"eturn t.forEach(e=>o.set(e,u(o.get(e).split('.')))),n.forEach(e=>o.set(e,i(o.get(e),4)))"
+",o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u(m(e.h00).map("
+"(e,t)=>{const n='p'+t,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})().e"
+"ntries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0'),T()},l:A}})({b00"
+":'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00"
+":'%g00'});"
             "%y01"
       "<p>Code Revision %w00<br/>"
         "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
@@ -623,9 +626,9 @@ static const char g_HtmlPageConfiguration[] =
 const m = (data => {
     const ip_input_names = ['b00', 'b04', 'b08', 'b12'],
         port_input_names = ['c00', 'c01'],
-        features = { "Full Duplex": 1, "HA Auto": 6, "MQTT": 4, "DS18B20": 8 },
-        pin_types = { "disabled": 0, "input": 1, "output": 3 },
-        boot_state = { "retain": 8, "on": 16, "off": 0 },
+        features = { 'Full Duplex': 1, 'HA Auto': 6, 'MQTT': 4, 'DS18B20': 8 },
+        pin_types = { 'disabled': 0, 'input': 1, 'output': 3 },
+        boot_state = { 'retain': 8, 'on': 16, 'off': 0 },
         doc=document,
         loc=location,
         selector=doc.querySelector.bind(doc),
@@ -642,7 +645,7 @@ const m = (data => {
         selector_apply_fn = (query, fn) => { for (const e of doc.querySelectorAll(query)) { fn(e) } },
         set_attributes = (e, d) => { for (const [k, v] of get_entries(d)) { e.setAttribute(k, v); } },
         make_options = (o, v) => get_entries(o).map((o) => `<option value=${o[1]} ${o[1] == v ? 'selected' : ''}>${o[0]}</option>`).join(''),
-        make_checkbox = (name, bit, value, title='') => `<input type="checkbox" name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
+        make_checkbox = (name, bit, value, title='') => `<input type='checkbox' name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
         get_form_data = () => {
             const form_data = new FormData(form),
             	collect_bits = (name) => form_data.getAll(name).map(v => parse_int(v)).reduce((a, b) => a | b, 0);
@@ -669,24 +672,24 @@ const m = (data => {
         },
         reload_page = () => loc.reload(),
         wait_reboot = () => {
-          doc.body.innerText = "Wait 5s...";
+          doc.body.innerText = 'Wait 5s...';
           setTimeout(reload_page, 5000);
         },
         reboot = () => {
-          send_request("GET", "/91");
+          send_request('GET', '/91');
           wait_reboot();
         },
         submitForm = (event) => {
         	event.preventDefault();
-          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join("&");
-          send_request("POST", "/", string_data + '&z00=0');
+          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
+          send_request('POST', '/', string_data + '&z00=0');
           wait_reboot();
         },
         features_data = convert_from_hex(data.g00)[0],
         common_attributes = {required: true};
 
-    selector_apply_fn('.ip', (e) => { set_attributes(e, {...common_attributes, title: 'Enter valid', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
-    selector_apply_fn('.port', (e) => { set_attributes(e, {...common_attributes, title: 'Enter 10 to 65535', pattern: '[0-9]{2,5}', maxlength: 5 }); });
+    selector_apply_fn('.ip', (e) => { set_attributes(e, {...common_attributes, title: 'x.x.x.x format', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
+    selector_apply_fn('.port', (e) => { set_attributes(e, {...common_attributes, type: 'number', min: 10, max: 65535 }); });
     selector_apply_fn('.up input', (e) => { set_attributes(e, {title: '0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.', maxlength: 10, pattern: '[0-9a-zA-Z-_*.]{0,10}$' }); });
 
     ip_input_names.forEach((n) => set_input_value(n, convert_from_hex(data[n]).join('.')));
@@ -700,9 +703,9 @@ const m = (data => {
         document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
     });
     
-    selector(".f").innerHTML = Array.from(
+    selector('.f').innerHTML = Array.from(
     	get_entries(features),
-      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join("</br>"
+      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join('</br>'
     );
     
     
@@ -726,6 +729,7 @@ const m = (data => {
 
 
 //---------------------------------------------------------------------------//
+
 #if MQTT_SUPPORT == 0
 // IO Control Template
 //
@@ -734,27 +738,25 @@ const m = (data => {
 // replies. These replies need to be parsed to extract the data from them. We
 // need to stop parsing the reply POST data after all update bytes are parsed.
 // The formula for determining the stop value is as follows:
-//   For 1 of the replies (Pin Control):
-//   POST consists of a ParseCmd (a "h" in this case) in 1 byte
-//     Followed by the ParseNum in 2 bytes
-//     Followed by an equal sign in 1 byte
-//     Followed by a state value in 32 bytea
-//     Followed by a parse delimiter in 1 byte
+//   Each POST has a "wrapper" consisting of
+//     1 byte ParseCmd
+//     2 byte ParseNum
+//     1 byte egual sign
+//     1 byte Delimiter
+//     So, add 5 bytes to each POST as defined here:
+//
+//     For 1 of the replies (Pin Control):
+//     POST consists of 32 bytes data plus 5 byte wrapper (37 bytes)
 //   PLUS
-//   For 1 of the replies (hidden):
-//   POST consists of a ParseCmd (a "z" in this case) in 1 byte
-//     Followed by the ParseNum in 2 bytes
-//     Followed by an equal sign in 1 byte
-//     Followed by a state value in 1 byte
-//     Followed by a parse delimiter in 1 byte
+//     For 1 of the replies (hidden):
+//     example: z00=x where x is 1 byte (note no &)
+//     POST consists of a 1 byte data plus 4 byte wrapper (5 bytes)
 // THUS
-// For 1 of the replies there are 37 bytes in the reply
-// For 1 of the replies there are 6 bytes per reply
 // The formula in this case is
 //     PARSEBYTES = (1 x 37)
-//                + (1 x 6) - 1
+//                + (1 x 5)
 //     PARSEBYTES = 37
-//                + 6 - 1 = 42
+//                + 5 = 42
 #define WEBPAGE_IOCONTROL		0
 #define PARSEBYTES_IOCONTROL		42
 static const char g_HtmlPageIOControl[] =
@@ -765,47 +767,26 @@ static const char g_HtmlPageIOControl[] =
       "<h1>IO Control</h1>"
       "<form onsubmit='return m.s(event);return false'>"
          "<table>"
-	 	    
-	 
-            "<tr>"
-               "<tr><td>%j00</td></tr>"
-               "<tr><td>%j01</td></tr>"
-               "<tr><td>%j02</td></tr>"
-               "<tr><td>%j03</td></tr>"
-               "<tr><td>%j04</td></tr>"
-               "<tr><td>%j05</td></tr>"
-               "<tr><td>%j06</td></tr>"
-               "<tr><td>%j07</td></tr>"
-               "<tr><td>%j08</td></tr>"
-               "<tr><td>%j09</td></tr>"
-               "<tr><td>%j10</td></tr>"
-               "<tr><td>%j11</td></tr>"
-               "<tr><td>%j12</td></tr>"
-               "<tr><td>%j13</td></tr>"
-               "<tr><td>%j14</td></tr>"
-               "<tr><td>%j15</td></tr>"
-            "</tr>"
-	    
-	 
             "<tr>"
                "<th>Name:</th>"
                "<td colspan=2 style='text-align: left'>%a00</td>"
             "</tr>"
             "<script>"
-	    
-	    "const m=(t=>{const e=document,n=e.querySelector.bind(e)('form'),r=(Object.entries,parseInt),"
-	    "o=t=>e.write(t),s=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join(''),a=t="
-	    ">t.match(/.{2}/g).map(t=>r(t,16)),c=t=>encodeURIComponent(t),d=[],h=[],p=(t,e,n)=>{return`<i"
-	    "nput type=radio name=o${e} value=${t} ${n==t?'checked':''}/><label>${(t?'on':'off').toUpperC"
-	    "ase()}</label>`},l=()=>location.reload();return a(t.h00).forEach((t,e)=>{3==(3&t)?h.push(`<t"
-	    "r><td>Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>${p(1,e,t>>7)}${p(0,e,t>>7"
-	    ")}</td></tr>`):1==(3&t)&&d.push(`<tr><td>Input #${e+1}</td><td class='s${t>>7} t3'></td><td/"
-	    "></tr>`)}),o(d.join('')),o(`<tr><th></th><th></th>${h.length>0?'<th class=c>SET</th>':''}</t"
-	    "r>`),o(h.join('')),{s:e=>{e.preventDefault();const r=new XMLHttpRequest,o=Array.from((()=>{c"
-	    "onst e=new FormData(n);return e.set('h00',s(a(t.h00).map((t,n)=>{const r='o'+n,o=e.get(r)<<7"
-	    ";return e.delete(r),o}))),e})().entries(),([t,e])=>`${c(t)}=${c(e)}`).join('&');r.open('POST"
-	    "','/',!1),r.send(o+'&z00=0'),l()},l:l}})({h00:'%h00'});"
-
+"const m=(t=>{const e=document,j=e.querySelector.bind(e)('form'),r=(Object.entries,parseI"
+"nt),n=t=>e.write(t),o=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join("
+"''),a=t=>t.match(/.{2}/g).map(t=>r(t,16)),s=t=>encodeURIComponent(t),d=[],c=[],h=(t,e,j)"
+"=>{return`<input type=radio name=o${e} value=${t} ${j==t?'checked':''}/><label>${(t?'on'"
+":'off').toUpperCase()}</label>`},l=()=>location.reload();return a(t.h00).forEach((e,j)=>"
+"{var r=t['j'+(j+'').padStart(2,'0')];3==(3&e)?c.push(`<tr><td>${r}</td><td class='s${e>>"
+"7} t3'></td><td class=c>${h(1,j,e>>7)}${h(0,j,e>>7)}</td></tr>`):1==(3&e)&&d.push(`<tr><"
+"td>${r}</td><td class='s${e>>7} t3'></td><td/></tr>`)}),n(d.join('')),n(`<tr><th></th><t"
+"h></th>${c.length>0?'<th class=c>SET</th>':''}</tr>`),n(c.join('')),{s:e=>{e.preventDefa"
+"ult();const r=new XMLHttpRequest,n=Array.from((()=>{const e=new FormData(j);return e.set"
+"('h00',o(a(t.h00).map((t,j)=>{const r='o'+j,n=e.get(r)<<7;return e.delete(r),n}))),e})()"
+".entries(),([t,e])=>`${s(t)}=${s(e)}`).join('&');r.open('POST','/',!1),r.send(n+'&z00=0'"
+"),l()},l:l}})({h00:'%h00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j"
+"05',j06:'%j06',j07:'%j07',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j"
+"13',j14:'%j14',j15:'%j15'});"
             "%y01"
       "<p/>"
       "%y02`/61`'>Configuration</button>"
@@ -868,10 +849,11 @@ const m = (data => {
         
 
     convert_from_hex(data.h00).forEach((cfg, i) => {
+    		var name = data['j'+(i+'').padStart(2, '0')];
         if ((cfg & 3) == 3) { //output
-            outputs.push(`<tr><td>Output #${i + 1}</td><td class='s${cfg >> 7} t3'></td><td class=c>${make_radio_input(1, i, cfg >> 7)}${make_radio_input(0, i, cfg >> 7)}</td></tr>`);
+            outputs.push(`<tr><td>${name}</td><td class='s${cfg >> 7} t3'></td><td class=c>${make_radio_input(1, i, cfg >> 7)}${make_radio_input(0, i, cfg >> 7)}</td></tr>`);
         } else if ((cfg & 3) == 1) { // input
-            inputs.push(`<tr><td>Input #${i + 1}</td><td class='s${cfg >> 7} t3'></td><td/></tr>`);
+            inputs.push(`<tr><td>${name}</td><td class='s${cfg >> 7} t3'></td><td/></tr>`);
         }
     });
 
@@ -880,8 +862,25 @@ const m = (data => {
     document_write(outputs.join(''));
     
     return {s: submit_form, l:reload_page}
-})({ h00: '%h00' });
-
+})({
+  h00: '%h00',
+  j00: '%j00',
+  j01: '%j01',
+  j02: '%j02',
+  j03: '%j03',
+  j04: '%j04',
+  j05: '%j05',
+  j06: '%j06',
+  j07: '%j07',
+  j08: '%j08',
+  j09: '%j09',
+  j10: '%j10',
+  j11: '%j11',
+  j12: '%j12',
+  j13: '%j13',
+  j14: '%j14',
+  j15: '%j15',
+});
 
 */
 
@@ -894,78 +893,70 @@ const m = (data => {
 // replies. These replies need to be parsed to extract the data from them. We
 // need to stop parsing the reply POST data after all update bytes are parsed.
 // The formula for determining the stop value is as follows:
+//   Each POST has a "wrapper" consisting of
+//     1 byte ParseCmd
+//     2 byte ParseNum
+//     1 byte egual sign
+//     1 byte Delimiter
+//     So, add 5 bytes to each POST as defined here:
+//
 //     For 1 of the replies (device name):
-//     example: a00=xxxxxxxxxxxxxxxxxxx&
-//     where xxxxxxxxxxxxxxxxxxx is 1 to 19 bytes
+//     example: a00=xxxxxxxxxxxxxxxxxxx& where xxxxxxxxxxxxxxxxxxx is 1 to 19 bytes
+//     POST consists of 19 bytes data plus 5 byte wrapper (24 bytes)
 //   PLUS
-//     For 4 of the replies (HTML IP, MQTT IP, Gateway, and Netmask fields):
-//     example: b00=xxxxxxxx&
-//     where xxxxxxxx is 8 bytes
+//     For 3 of the replies (HTML IP, Gateway, and Netmask fields):
+//     example: b00=xxxxxxxx& where xxxxxxxx is 8 bytes
+//     POST consists of 8 bytes data plus 5 byte wrapper (13 bytes)
 //   PLUS
-//     For 2 of the replies (HTML and MQTT Port numbers):
-//     example: c00=xxxx&
-//     where xxxx is 4 bytes
+//     For 1 of the replies (HTML Port number):
+//     example: c00=xxxx& where xxxx is 4 bytes
+//     POST consists of 4 bytes data plus 5 byte wrapper (9 bytes)
 //   PLUS
 //     For 1 of the replies (MAC):
-//     example: d00=xxxxxxxxxxxx&
-//     where xxxxxxxxxxxx is 12 bytes
+//     example: d00=xxxxxxxxxxxx& where xxxxxxxxxxxx is 12 bytes
+//     POST consists of 12 bytes data plus 5 byte wrapper (17 bytes)
 //   PLUS
-//   For 1 of the replies (Config):
-//     example: g00=xxxxxx&
-//     where xxxxxx is 6 bytes
+//     For 1 of the replies (Config):
+//     example: g00=xx& where xx is 2 bytes
+//     POST consists of 2 bytes data plus 5 byte wrapper (7 bytes)
 //   PLUS
-//   For 2 of the replies (MQTT Username and Password):
-//     example: m00=xxxxxxxxxx&
-//     where xxxxxxxxxx is 1 to 10 bytes
-//   PLUS
-//   For 1 of the replies (Pin Control):
+//     For 1 of the replies (Pin Control):
 //     example: h00=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&
 //     where xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx is 32 bytes
-
+//     POST consists of 32 bytes data plus 5 byte wrapper (37 bytes)
 //   PLUS
-//   For 16 of the replies (IO Name):
-//     example: i00=xxxxxxxxxxxxxxx&
-//     where xxxxxxxxxxxxxxx is 15 bytes
-
+//     For 16 of the replies (IO Name):
+//     example: j00=xxxxxxxxxxxxxxx& where xxxxxxxxxxxxxxx is 15 bytes
+//     POST consists of 15 bytes data plus 5 byte wrapper (20 bytes)
 //   PLUS
-//   For 16 of the replies (IO Timer):
-//     example: j00=xxxxxxxxxx&
-//     where xxxxxxxxxx is 10 bytes
-
+//     For 16 of the replies (IO Timer):
+//     example: i00=xxxx& where xxxx is 4 bytes
+//     POST consists of 4 bytes data plus 5 byte wrapper (9 bytes)
 //   PLUS
-//   For 1 of the replies (hidden):
-//   POST consists of a ParseCmd (a "z" in this case) in 1 byte
-//     example: z00=x&
-//     where x is 1 byte
+//     For 1 of the replies (hidden):
+//     example: z00=x where x is 1 byte (note no &)
+//     POST consists of 1 byte data plus 4 byte wrapper (5 bytes)
 // The formula in this case is
 //     PARSEBYTES = (1 x 24)
-//                + (4 x 13)
-//                + (2 x 9)
-//                + (1 x 17) 
-//                + (1 x 11) 
-//                + (2 x 15)
+//                + (3 x 13)
+//                + (1 x 9)
+//                + (1 x 17)
+//                + (1 x 7)
 //                + (1 x 37)
-
-//                + (16 x 15)
-//                + (16 x 10)
-
-//                + (1 x 6) - 1
+//                + (16 x 20)
+//                + (16 x 9)
+//                + (1 x 5)
 //     PARSEBYTES = 24
-//                + 52
-//                + 18
+//                + 39
+//                + 9
 //                + 17
-//                + 11
-//                + 30
+//                + 7
 //                + 37
-
-//                + 240
-//                + 160
-
-//                + 6 - 1 = 594
-// Note: PARSEBYTES_X and PARSEBYTES_X_ADDL must each be less than 255 and
-// the sum of the two must not exceed 482.
+//                + 320
+//                + 144
+//                + 5 = 602
 #define WEBPAGE_CONFIGURATION		1
-#define PARSEBYTES_CONFIGURATION	594
+#define PARSEBYTES_CONFIGURATION	602
 static const char g_HtmlPageConfiguration[] =
 "%y04%y05"
       "<title>%a00: Configuration</title>"
@@ -974,50 +965,6 @@ static const char g_HtmlPageConfiguration[] =
       "<h1>Configuration</h1>"
       "<form onsubmit='return m.s(event);return false'>"
          "<table>"
-	    
-	    
-	 
-//            "<tr>"
-//               "<tr><td>IO #01</td><td><input name='j00' value='%j00' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #02</td><td><input name='j01' value='%j01' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #03</td><td><input name='j02' value='%j02' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #04</td><td><input name='j03' value='%j03' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #05</td><td><input name='j04' value='%j04' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #06</td><td><input name='j05' value='%j05' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #07</td><td><input name='j06' value='%j06' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #08</td><td><input name='j07' value='%j07' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #09</td><td><input name='j08' value='%j08' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #10</td><td><input name='j09' value='%j09' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #11</td><td><input name='j10' value='%j10' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #12</td><td><input name='j11' value='%j11' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #13</td><td><input name='j12' value='%j12' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #14</td><td><input name='j13' value='%j13' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #15</td><td><input name='j14' value='%j14' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//               "<tr><td>IO #16</td><td><input name='j15' value='%j15' pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
-//            "</tr>"
-//	    
-//            "<tr>"
-//               "<tr><td>IO #01 Timeout</td><td><input name='i00' value='%i00' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #02 Timeout</td><td><input name='i01' value='%i01' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #03 Timeout</td><td><input name='i02' value='%i02' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #04 Timeout</td><td><input name='i03' value='%i03' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #05 Timeout</td><td><input name='i04' value='%i04' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #06 Timeout</td><td><input name='i05' value='%i05' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #07 Timeout</td><td><input name='i06' value='%i06' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #08 Timeout</td><td><input name='i07' value='%i07' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #09 Timeout</td><td><input name='i08' value='%i08' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #10 Timeout</td><td><input name='i09' value='%i09' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #11 Timeout</td><td><input name='i10' value='%i10' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #12 Timeout</td><td><input name='i11' value='%i11' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #13 Timeout</td><td><input name='i12' value='%i12' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #14 Timeout</td><td><input name='i13' value='%i13' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #15 Timeout</td><td><input name='i14' value='%i14' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//               "<tr><td>IO #16 Timeout</td><td><input name='i15' value='%i15' pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
-//            "</tr>"
-	 
-	 
-	 
-	 
             "<tr>"
                "<td>Name</td>"
                "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'/></td>"
@@ -1056,32 +1003,6 @@ static const char g_HtmlPageConfiguration[] =
                "<td class='f'></td>"
             "</tr>"
             "<tr class='hs'/>"
-            "<tr>"
-               "<td>MQTT Server</td>"
-               "<td>"
-                 "<input name='b12' class='ip'/>"
-               "</td>"
-            "</tr>"
-            "<tr>"
-               "<td>MQTT Port</td>"
-               "<td><input name='c01' class='t8 port'></td>"
-            "</tr>"
-            "<tr>"
-               "<td>MQTT Username</td>"
-               "<td class='up'><input name='l00' value='%l00'></td>"
-            "</tr>"
-            "<tr>"
-               "<td>MQTT Password</td>"
-               "<td class='up'><input name='m00' value='%m00'></td>"
-            "</tr>"
-            "<tr class='hs'/>"
-            "<tr>"
-               "<td>MQTT Status</td>"
-               "<td class='s'>"
-                 "<div class='s%n00'></div> <div class='s%n01'></div> <div class='s%n02'></div> <div class='s%n03'></div> <div class='s%n04'></div>"
-               "</td>"
-            "</tr>"
-            "<tr class='hs'/>"
          "</table>"
          "<table>"
             "<tr>"
@@ -1090,75 +1011,45 @@ static const char g_HtmlPageConfiguration[] =
               "<th>Name</th>"
               "<th>Invert</th>"
               "<th>Boot state</th>"
-	      "<th>Timer</th>"
+              "<th>Timer</th>"
             "</tr>"
          "<script>"
-
-//       "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},r="
-//	 "{retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),l=s('form'),p=Object.entri"
-//	 "es,d=parseInt,i=(t,e)=>d(t).toString(16).padStart(e,'0'),u=t=>t.map(t=>i(t,2)).join(''),$=t=>t.ma"
-//	 "tch(/.{2}/g).map(t=>d(t,16)),m=t=>encodeURIComponent(t),b=(t,e)=>(t=>s(`input[name=${t}]`))(t).va"
-//	 "lue=e,f=(t,e)=>{for(const n of a.querySelectorAll(t))e(n)},h=(t,e)=>{for(const[n,o]of p(e))t.setA"
-//	 "ttribute(n,o)},g=(t,e)=>p(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>${t[0]}</opti"
-//	 "on>`).join(''),A=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&e)==e?'checked"
-//	 "':''}>${o}`,E=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},y=()=>c.reload(),T=("
-//	 ")=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0],S={required:!0};return f('.ip'"
-//	 ",t=>{h(t,{...S,title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4"
-//	 "}'})}),f('.port',t=>{h(t,{...S,title:'Enter 10 to 65535',pattern:'[0-9]{2,5}',maxlength:5})}),f('"
-//	 ".up input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',max"
-//	 "length:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e]).join('.'))),n.forEach(e=>"
-//	 "b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$(t.h00).forEach((t,e)=>{const"
-//	 " n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)}</select>`:'',l='#d'==c.hash?"
-//	 "`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><select name='p${e}'>${g(o,3&t)}</sel"
-//	 "ect></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerHTML=Array.from(p({'Full Duplex':1,"
-//	 "'HA Auto':6,MQTT:4,DS18B20:8}),([t,e])=>A('g00',e,j,t)).join('</br>'),{r:()=>{E('GET','/91'),T()}"
-//	 ",s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormData(l),r=t=>o.getAll(t).map(t"
-//	 "=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t).split('.')))),n.forEach(t=>o."
-//	 "set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u($"
-//	 "(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})("
-//	 ").entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/',r+'&z00=0'),T()},l:y}})({b00:'%b00"
-//	 "',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00'});"
-
-
-         "const m=(e=>{const t=['b00','b04','b08','b12'],i=['c00','c01'],n={disabled:0,input:1,output:3},r="
-	 "{retain:8,on:16,off:0},a={'0.1s':0,'1s':16384,'1m':32768,'1h':49152},o=document,s=location,c=o.qu"
-	 "erySelector.bind(o),d=c('form'),l=Object.entries,p=parseInt,j=(e,t)=>p(e).toString(16).padStart(t"
-	 ",'0'),u=e=>e.map(e=>j(e,2)).join(''),m=e=>e.match(/.{2}/g).map(e=>p(e,16)),$=e=>encodeURIComponen"
-	 "t(e),b=(e,t)=>(e=>c(`input[name=${e}]`))(e).value=t,f=(e,t)=>{for(const i of o.querySelectorAll(e"
-	 "))t(i)},h=(e,t)=>{for(const[i,n]of l(t))e.setAttribute(i,n)},g=(e,t)=>l(e).map(e=>`<option value="
-	 "${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),y=(e,t,i,n='')=>`<input type='checkb"
-	 "ox' name='${e}' value=${t} ${(i&t)==t?'checked':''}>${n}`,A=(e,t,i)=>{const n=new XMLHttpRequest;"
-	 "n.open(e,t,!1),n.send(i)},S=()=>s.reload(),v=()=>{o.body.innerText='Wait 5s...',setTimeout(S,5e3)"
-	 "},x=m(e.g00)[0],E={required:!0};return f('.ip',e=>{h(e,{...E,title:'Enter valid',pattern:'((25[0-"
-	 "5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),f('.port',e=>{h(e,{...E,type:'number',min:10"
-	 ",max:65535})}),f('.up input',e=>{h(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank "
-	 "for no entry.',maxlength:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>b(t,m(e[t]).join('."
-	 "'))),i.forEach(t=>b(t,p(e[t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),m(e.h00).for"
-	 "Each((t,i)=>{const c=1&t?y('p'+i,4,t):'',d=(e,i)=>3==(3&t)?e:i,l=(''+i).padStart(2,'0'),p=d(m(e['"
-	 "i'+l]).reduce((e,t)=>(e<<8)+t),0),j=d(`<select name='p${i}'>${g(r,24&t)}</select>`,''),u='#d'==s."
-	 "hash?`<td>${t}</td>`:'',$=d(`<input type=number class=t8 name='i${l}' value='${16383&p}' min=0 ma"
-	 "x=16383><select name='i${l}'>${g(a,49152&p)}</select>`,'');(e=>o.write(e))(`<tr><td>#${i+1}</td><"
-	 "td><select name='p${i}'>${g(n,3&t)}</select></td><td><input name='j${l}' value='${e['j'+l]}' patt"
-	 "ern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, and -_. no spaces' maxlengt"
-	 "h=15/></td><td>${c}</td><td>${j}</td><td>${$}</td>${u}</tr>`)}),c('.f').innerHTML=Array.from(l({'"
-	 "Full Duplex':1,'HA Auto':6,MQTT:4,DS18B20:8}),([e,t])=>y('g00',t,x,e)).join('</br>'),{r:()=>{A('G"
-	 "ET','/91'),v()},s:n=>{n.preventDefault();const r=Array.from((()=>{const n=new FormData(d),r=e=>n."
-	 "getAll(e).map(e=>p(e)).reduce((e,t)=>e|t,0);t.forEach(e=>n.set(e,u(n.get(e).split('.')))),i.forEa"
-	 "ch(e=>n.set(e,j(n.get(e),4))),n.set('d00',n.get('d00').toLowerCase().replace(/[:-]/g,'')),n.set('"
-	 "h00',u(m(e.h00).map((e,t)=>{const i='p'+t,a=r(i);return n.delete(i),a})));for(let e=0;e<16;e++){l"
-	 "et t=(''+e).padStart(2,'0');n.set('i'+t,j(65535&r('i'+t),4))}return n.set('g00',u([r('g00')])),n}"
-	 ")().entries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');A('POST','/',r+'&z00=0'),v()},l:S}})({b00:'%b"
-	 "00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00',j00:'"
-	 "%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j07',j08:'%j08',j09"
-	 ":'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j15',i00:'%i00',i01:'%i01',i"
-	 "02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%i07',i08:'%i08',i09:'%i09',i10:'%i10'"
-	 ",i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'%i15'});"
-
-
-
-
+"const m=(e=>{const t=['b00','b04','b08'],i=['c00'],n={disabled:0,input:1,output:3},r={r"
+"etain:8,on:16,off:0},a={'0.1s':0,'1s':16384,'1m':32768,'1h':49152},o=document,s=locatio"
+"n,c=o.querySelector.bind(o),d=c('form'),j=Object.entries,l=parseInt,p=(e,t)=>l(e).toStr"
+"ing(16).padStart(t,'0'),m=e=>e.map(e=>p(e,2)).join(''),u=e=>e.match(/.{2}/g).map(e=>l(e"
+",16)),$=e=>encodeURIComponent(e),b=(e,t)=>(e=>c(`input[name=${e}]`))(e).value=t,f=(e,t)"
+"=>{for(const i of o.querySelectorAll(e))t(i)},h=(e,t)=>{for(const[i,n]of j(t))e.setAttr"
+"ibute(i,n)},g=(e,t)=>j(e).map(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]"
+"}</option>`).join(''),x=(e,t,i,n='')=>`<input type='checkbox' name='${e}' value=${t} ${"
+"(i&t)==t?'checked':''}>${n}`,y=(e,t,i)=>{const n=new XMLHttpRequest;n.open(e,t,!1),n.se"
+"nd(i)},S=()=>s.reload(),v=()=>{o.body.innerText='Wait 5s...',setTimeout(S,5e3)},A=u(e.g"
+"00)[0],E={required:!0};return f('.ip',e=>{h(e,{...E,title:'x.x.x.x format',pattern:'((2"
+"5[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),f('.port',e=>{h(e,{...E,type:'"
+"number',min:10,max:65535})}),t.forEach(t=>b(t,u(e[t]).join('.'))),i.forEach(t=>b(t,l(e["
+"t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),u(e.h00).forEach((t,i)=>{con"
+"st c=1&t?x('p'+i,4,t):'',d=(e,i)=>3==(3&t)?e:i,j=(''+i).padStart(2,'0'),l=d(u(e['i'+j])"
+".reduce((e,t)=>(e<<8)+t),0),p=d(`<select name='p${i}'>${g(r,24&t)}</select>`,''),m='#d'"
+"==s.hash?`<td>${t}</td>`:'',$=d(`<input type=number class=t8 name='i${j}' value='${1638"
+"3&l}' min=0 max=16383><select name='i${j}'>${g(a,49152&l)}</select>`,'');(e=>o.write(e)"
+")(`<tr><td>#${i+1}</td><td><select name='p${i}'>${g(n,3&t)}</select></td><td><input nam"
+"e='j${j}' value='${e['j'+j]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 l"
+"etters, numbers, and -*_. no spaces' maxlength=15/></td><td>${c}</td><td>${p}</td><td>$"
+"{$}</td>${m}</tr>`)}),c('.f').innerHTML=Array.from(j({'Full Duplex':1,DS18B20:8}),([e,t"
+"])=>x('g00',t,A,e)).join('</br>'),{r:()=>{y('GET','/91'),v()},s:n=>{n.preventDefault();"
+"const r=Array.from((()=>{const n=new FormData(d),r=e=>n.getAll(e).map(e=>l(e)).reduce(("
+"e,t)=>e|t,0);t.forEach(e=>n.set(e,m(n.get(e).split('.')))),i.forEach(e=>n.set(e,p(n.get"
+"(e),4))),n.set('d00',n.get('d00').toLowerCase().replace(/[:-]/g,'')),n.set('h00',m(u(e."
+"h00).map((e,t)=>{const i='p'+t,a=r(i);return n.delete(i),a})));for(let e=0;e<16;e++){le"
+"t t=(''+e).padStart(2,'0');n.set('i'+t,p(65535&r('i'+t),4))}return n.set('g00',m([r('g0"
+"0')])),n})().entries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0'),v"
+"()},l:S}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00',g00:'%g00"
+"',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j0"
+"7',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j"
+"15',i00:'%i00',i01:'%i01',i02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%"
+"i07',i08:'%i08',i09:'%i09',i10:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'"
+"%i15'});"
             "%y01"
-	    
       "<p>Code Revision %w00<br/>"
         "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
       "</p>"
@@ -1183,11 +1074,12 @@ static const char g_HtmlPageConfiguration[] =
 //    removed from the minified script.
 
 const m = (data => {
-    const ip_input_names = ['b00', 'b04', 'b08', 'b12'],
-        port_input_names = ['c00', 'c01'],
-        features = { "Full Duplex": 1, "HA Auto": 6, "MQTT": 4, "DS18B20": 8 },
-        pin_types = { "disabled": 0, "input": 1, "output": 3 },
-        boot_state = { "retain": 8, "on": 16, "off": 0 },
+    const ip_input_names = ['b00', 'b04', 'b08'],
+        port_input_names = ['c00'],
+        features = { 'Full Duplex': 1, 'DS18B20': 8 },
+        pin_types = { 'disabled': 0, 'input': 1, 'output': 3 },
+        boot_state = { 'retain': 8, 'on': 16, 'off': 0 },
+        timer_unit = { '0.1s': 0, '1s': 0x4000, '1m': 0x8000, '1h': 0xc000 },
         doc=document,
         loc=location,
         selector=doc.querySelector.bind(doc),
@@ -1204,7 +1096,7 @@ const m = (data => {
         selector_apply_fn = (query, fn) => { for (const e of doc.querySelectorAll(query)) { fn(e) } },
         set_attributes = (e, d) => { for (const [k, v] of get_entries(d)) { e.setAttribute(k, v); } },
         make_options = (o, v) => get_entries(o).map((o) => `<option value=${o[1]} ${o[1] == v ? 'selected' : ''}>${o[0]}</option>`).join(''),
-        make_checkbox = (name, bit, value, title='') => `<input type="checkbox" name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
+        make_checkbox = (name, bit, value, title='') => `<input type='checkbox' name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
         get_form_data = () => {
             const form_data = new FormData(form),
             	collect_bits = (name) => form_data.getAll(name).map(v => parse_int(v)).reduce((a, b) => a | b, 0);
@@ -1219,6 +1111,10 @@ const m = (data => {
                 form_data.delete(name);
                 return result;
             })));
+            for (let i=0;i<16;i++) {
+              let input_nr = (''+i).padStart(2, '0');
+            	form_data.set('i'+input_nr, pad_hex(collect_bits('i'+input_nr) & 0xffff, 4));
+            }
             
             form_data.set('g00', convert_to_hex([collect_bits('g00')]));
             
@@ -1231,40 +1127,43 @@ const m = (data => {
         },
         reload_page = () => loc.reload(),
         wait_reboot = () => {
-          doc.body.innerText = "Wait 5s...";
+          doc.body.innerText = 'Wait 5s...';
           setTimeout(reload_page, 5000);
         },
         reboot = () => {
-          send_request("GET", "/91");
+          send_request('GET', '/91');
           wait_reboot();
         },
         submitForm = (event) => {
         	event.preventDefault();
-          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join("&");
-          send_request("POST", "/", string_data + '&z00=0');
+          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
+          send_request('POST', '/', string_data + '&z00=0');
           wait_reboot();
         },
         features_data = convert_from_hex(data.g00)[0],
         common_attributes = {required: true};
 
-    selector_apply_fn('.ip', (e) => { set_attributes(e, {...common_attributes, title: 'Enter valid', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
-    selector_apply_fn('.port', (e) => { set_attributes(e, {...common_attributes, title: 'Enter 10 to 65535', pattern: '[0-9]{2,5}', maxlength: 5 }); });
-    selector_apply_fn('.up input', (e) => { set_attributes(e, {title: '0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.', maxlength: 10, pattern: '[0-9a-zA-Z-_*.]{0,10}$' }); });
+    selector_apply_fn('.ip', (e) => { set_attributes(e, {...common_attributes, title: 'x.x.x.x format', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
+    selector_apply_fn('.port', (e) => { set_attributes(e, {...common_attributes, type: 'number', min: 10, max: 65535 }); });
 
     ip_input_names.forEach((n) => set_input_value(n, convert_from_hex(data[n]).join('.')));
     port_input_names.forEach((n) => set_input_value(n, parse_int(data[n], 16)));
     set_input_value('d00', data.d00.replace(/[0-9a-z]{2}(?!$)/g, '$&:'));
 
     convert_from_hex(data.h00).forEach((n, i) => {
-        const checkbox = n & 1 ? make_checkbox('p'+i, 4, n) : '',
-            make_select = (n & 3) == 3 ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '',
-            debug_column = (loc.hash == '#d'?`<td>${n}</td>`:'');
-        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
+        const invert_checkbox = n & 1 ? make_checkbox('p'+i, 4, n) : '',
+            if_output = (a,b) => (n & 3) == 3 ? a: b,
+        		input_nr = (''+i).padStart(2, '0'),
+            timer_int_value = if_output(convert_from_hex(data['i'+input_nr]).reduce((prev, cur)=>(prev<<8)+cur), 0),
+            boot_state_select = if_output(`<select name='p${i}'>${make_options(boot_state, n & 24)}</select>`,''),
+            debug_column = (loc.hash == '#d'?`<td>${n}</td>`:''),
+            timer_column = if_output(`<input type=number class=t8 name='i${input_nr}' value='${timer_int_value & 0x3fff}' min=0 max=16383><select name='i${input_nr}'>${make_options(timer_unit, timer_int_value & 0xc000)}</select>`,'');
+        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td><input name='j${input_nr}' value='${data['j'+input_nr]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, and -*_. no spaces' maxlength=15/></td><td>${invert_checkbox}</td><td>${boot_state_select}</td><td>${timer_column}</td>${debug_column}</tr>`);
     });
     
-    selector(".f").innerHTML = Array.from(
+    selector('.f').innerHTML = Array.from(
     	get_entries(features),
-      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join("</br>"
+      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join('</br>'
     );
     
     
@@ -1275,35 +1174,52 @@ const m = (data => {
     b08: '%b08',
     c00: '%c00',
     d00: '%d00',
-    b12: '%b12',
-    c01: '%c01',
     h00: '%h00',
-    g00: '%g00'
+    g00: '%g00',
+    j00: '%j00',
+    j01: '%j01',
+    j02: '%j02',
+    j03: '%j03',
+    j04: '%j04',
+    j05: '%j05',
+    j06: '%j06',
+    j07: '%j07',
+    j08: '%j08',
+    j09: '%j09',
+    j10: '%j10',
+    j11: '%j11',
+    j12: '%j12',
+    j13: '%j13',
+    j14: '%j14',
+    j15: '%j15',
+    i00: '%i00',
+    i01: '%i01',
+    i02: '%i02',
+    i03: '%i03',
+    i04: '%i04',
+    i05: '%i05',
+    i06: '%i06',
+    i07: '%i07',
+    i08: '%i08',
+    i09: '%i09',
+    i10: '%i10',
+    i11: '%i11',
+    i12: '%i12',
+    i13: '%i13',
+    i14: '%i14',
+    i15: '%i15',
 });
 
 */
 #endif // MQTT_SUPPORT
 
 
-// .........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6
-
-
-#if UIP_STATISTICS == 1
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
 // Statistics page Template
 #define WEBPAGE_STATS1		5
 static const char g_HtmlPageStats1[] =
-//  "<!DOCTYPE html>"
-//  "<html lang='en-US'>"
-  "<html>"
-  "<head>"
-  "<title>Network Statistics</title>"
-  "<link rel='icon' href='data:,'>"
-  "<meta name='viewport' content='width=device-width'>"
-  "<style>"
-  ".t1 { width: 100px; }"
-  ".t2 { width: 450px; }"
-  "td { border: 1px black solid; }"
-  "</style>"
+"%y04%y05"
+  "<title>%a00: Network Statistics</title>"
   "</head>"
   "<body>"
   "<h1>Network Statistics</h1>"
@@ -1332,12 +1248,13 @@ static const char g_HtmlPageStats1[] =
   "<tr><td class='t1'>%e20</td><td class='t2'>Dropped SYNs due to too few connections avaliable</td></tr>"
   "<tr><td class='t1'>%e21</td><td class='t2'>SYNs for closed ports, triggering a RST</td></tr>"
   "</table>"
-  "%y03/61' method='GET'><button>Configuration</button></form>"
-  "%y03/68' method='GET'><button>Refresh</button></form>"
-  "%y03/69' method='GET'><button>Clear Statistics</button></form>"
+  "<br>"
+  "<button onclick='location=`/61`'>Configuration</button>"
+  "<button onclick='location=`/68`'>Refresh</button>"
+  "<button onclick='location=`/69`'>Clear</button>"
   "</body>"
   "</html>";
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
 
 
 
@@ -1346,14 +1263,17 @@ static const char g_HtmlPageStats1[] =
 #define WEBPAGE_STATS2		6
 static const char g_HtmlPageStats2[] =
   "%y04%y05"
+  "<title>%a00: Link Error Statistics</title>"
   "</head>"
   "<body>"
+  "<h1>Link Error Statistics</h1>"
   "<table>"
   "<tr><td>31 %e31</td></tr>"
   "<tr><td>32 %e32</td></tr>"
   "<tr><td>33 %e33</td></tr>"
   "<tr><td>35 %e35</td></tr>"
   "</table>"
+  "<br>"
   "<button onclick='location=`/61`'>Configuration</button>"
   "<button onclick='location=`/66`'>Refresh</button>"
   "<button onclick='location=`/67`'>Clear</button>"
@@ -1386,7 +1306,7 @@ static const char g_HtmlPageSstate[] =
 
 // String for %y00 replacement in web page templates
 #define s0 "" \
-" pattern='[0-9]{1,10}' required title='0 to 999999999 in 10ths of seconds' maxlength='10'/></td></tr>"
+  "placeholder"
 
 // String for %y01 replacement in web page templates
 #define s1 "" \
@@ -1403,21 +1323,9 @@ static const char g_HtmlPageSstate[] =
 
 // String for %y03 replacement in web page templates
 #define s3 "" \
-" pattern='[0-9a-zA-Z-_*.]{1,15}' required title='1 to 15 letters, numbers, and -_*. no spaces' maxlength='15'/></td></tr>"
+"placeholder"
 
 // String for %y04 replacement in web page templates
-//  "<!DOCTYPE html>"
-//  "<html lang='en-US'>"
-
-//  "<html>"\
-//  "<head>" \
-//  "<link rel='icon' href='data:,'>" \
-//  "<meta name='viewport' content='user-scalable=no," \
-//  "initial-scale=1.0,maximum-scale=1.0,width=device-width'>" \
-//  "<style>" \
-//  ".s0{background:red;}" \
-//  ".s1{background:green;}"
-
 #define s4  "" \
   "<html>"\
   "<head>" \
@@ -1430,8 +1338,10 @@ static const char g_HtmlPageSstate[] =
 // String for %y05 replacement in web page templates
 #define s5 "" \
   "table{border-spacing:8px2px}" \
+  ".t1{width:100px;}" \
+  ".t2{width:450px;}" \
   ".t3{width:30px;}" \
-  ".t8{width:55px;}" \
+  ".t8{width:60px;}" \
   ".c{text-align:center;}" \
   ".ip input{width:27px;}" \
   ".mac input{width:14px;}" \
@@ -1466,9 +1376,10 @@ const struct page_string ps[6] = {
 // ps[i].size_less4
 
 
-// The following compile time pre-processor statements test the
-// string lengths to make sure they are within valid limits. All
-// string lengths must be less than 256.
+//---------------------------------------------------------------------------//
+// The following compile time pre-processor statements test the string
+// lengths to make sure they are within valid limits. All string lengths
+// must be less than 256.
 #if (sizeof(s0) > 255)
   #error "string s0 is too big"
 #endif
@@ -1566,36 +1477,41 @@ uint16_t adjust_template_size()
     if (stored_config_settings & 0x08) {
       //  %t00 "<p>Temperature Sensors<br> 1 "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
-      //    29 bytes of text plus 13 bytes of data = 42
-      //    size = size + 42 - 4
-      size = size + 38;
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+      //    29 bytes of text plus 27 bytes of data = 56
+      //    size = size + 56 - 4
+      size = size + 52;
       //
       //  %t01 "<br> 2 " 
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
-      //    7 bytes of text plus 13 bytes of data = 20
-      //    size = size + 20 - 4
-      size = size + 16;
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+      //    7 bytes of text plus 27 bytes of data = 34
+      //    size = size + 34 - 4
+      size = size + 30;
       //
       //  %t02 "<br> 3 "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
-      //    7 bytes of text plus 13 bytes of data = 20
-      //    size = size + 20 - 4
-      size = size + 16;
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+      //    7 bytes of text plus 27 bytes of data = 34
+      //    size = size + 34 - 4
+      size = size + 30;
       //
       //  %t03 "<br> 4 "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
-      //    7 bytes of text plus 13 bytes of data = 20
-      //    size = size + 20 - 4
-      size = size + 16;
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+      //    7 bytes of text plus 27 bytes of data = 34
+      //    size = size + 34 - 4
+      size = size + 30;
       //
       //  %t04 "<br> 5 "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
       //      plus "<br></p>"
       //    7 bytes of text
-      //    plus 13 bytes of data
-      //    plus 8 bytes of text = 28
-      //    size = size + 28 - 4
-      size = size + 24;
+      //    plus 27 bytes of data
+      //    plus 8 bytes of text = 42
+      //    size = size + 42 - 4
+      size = size + 38;
     }
     else {
       // Subtract the size of the placeholders as they won't be used
@@ -1628,39 +1544,49 @@ uint16_t adjust_template_size()
   //
   else if (current_webpage == WEBPAGE_CONFIGURATION) {
     size = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
-
     // Account for header replacement strings %y04 %y05
     size = size + ps[4].size_less4
                 + ps[5].size_less4;
-
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// Once again the math comes up different than the actual transmission,
-// and I can't figure out why. It only happens with the Configuration
-// page, where I send one less character than I calculated would be
-// sent. I'm putting in a workaround here until I figure it out.
-size = size - 1;
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
     // Account for Device Name field %a00 in <title> and in body
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
     size = size + (2 * (strlen(stored_devicename) - 4));
-    
-    // Account for HTML IP Address, MQTT IP Address, Gateway Address, and
-    // Netmask fields %b00, %b04, %b08, %b12
-    // There are 4 instances of these fields
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (4 x (8 - 4));
-    // size = size + (4 x (4));
-    size = size + 16;
 
-    // Account for HTML Port and MQTT Port fields %c00, %c01
-    // There are 2 instances of this field
+    // Account for HTML IP Address, Gateway Address, and
+    // Netmask fields %b00, %b04, %b08
+    // There are 3 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (2 x (5 - 4));
-    // size = size + (2 x (1));
-    // size = size + 2;
-    size = size + 2;
+    // size = size + (3 x (8 - 4));
+    // size = size + (3 x (4));
+    size = size + 12;
+
+#if MQTT_SUPPORT == 1
+    // Account for MQTT IP Address field %b12
+    // There is 1 instance
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (1 x (8 - 4));
+    // size = size + (1 x (4));
+    size = size + 4;
+#endif // MQTT_SUPPORT
+
+    // Account for HTML Port field %c00
+    // There is 1 instance
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (1 x (5 - 4));
+    // size = size + (1 x (1));
+    // size = size + 1;
+    size = size + 1;
+
+#if MQTT_SUPPORT == 1
+    // Account for MQTT Port field %c01
+    // There is 1 instance
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (1 x (5 - 4));
+    // size = size + (1 x (1));
+    // size = size + 1;
+    size = size + 1;
+#endif // MQTT_SUPPORT
 
     // Account for MAC field %d00
     // There is 1 instance of this field
@@ -1674,17 +1600,10 @@ size = size - 1;
     // value_size is 2 (2 characters)
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances x (2 - 4));
-    // size = size + (1 x (-22));
+    // size = size + (1 x (-2));
     size = size - 2;
 
-    // Account for MQTT Port field %c01
-    // There is 1 instance of this field
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (1 x (5 - 4));
-    // size = size + (1 x (1));
-    // size = size + 1;
-    size = size + 1;
-    
+#if MQTT_SUPPORT == 1
     // Account for Username field %l00
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
@@ -1701,6 +1620,7 @@ size = size - 1;
     // size = size + (#instances x (1 - 4));
     // size = size + (5 x (-3));
     size = size - 15;
+#endif // MQTT_SUPPORT
 
     // Account for Code Revision insertion %w00
     // size = size + (#instances x (value_size - marker_field_size));
@@ -1727,9 +1647,9 @@ size = size - 1;
 
     // Account for IO Timer field %i00 to %i15
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (10 - 4));
-    // size = size + (16 x 6);
-    size = size + 96;
+    // size = size + (#instances x (4 - 4));
+    // size = size + (16 x 0);
+    // size = size + 0;
 #endif MQTT_SUPPORT
  
     // Account for Text Replacement insertion
@@ -1750,31 +1670,24 @@ size = size - 1;
     // size = size + (#instances) x (ps[2].size - 4);
     // size = size + (1) x ps[2].size_less4;
     size = size + ps[2].size_less4;
-
-#if MQTT_SUPPORT == 0
-    // String for %y00 in web page template
-    // There are 16 instances (IO Timers)
-    // size = size + (#instances) x (ps[0].size - marker_field_size);
-    // size = size + (16) x ps[0].size_less4;
-    size = size + (16 * ps[0].size_less4);
-    
-    // String for %y03 in web page templates
-    // There are 16 instances (IO Names)
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances) x (ps[4].size - 4);
-    // size = size + (16) x ps[3].size_less4;
-    size = size + (16 * ps[3].size_less4);
-#endif MQTT_SUPPORT
-
   }
 
 
-#if UIP_STATISTICS == 1
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
   //---------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_STATS1 template
   //
   else if (current_webpage == WEBPAGE_STATS1) {
     size = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
+
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+
+    // Account for Device Name field %a00 in <title>
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + (strlen(stored_devicename) - 4);
 
     // Account for Statistics fields %e00 to %e21
     // There are 22 instances of these fields
@@ -1782,15 +1695,6 @@ size = size - 1;
     // size = size + (22 x (10 - 4));
     // size = size + (22 x (6));
     size = size + 132;
-
-    // Account for IP Address insertion - Configuration Button
-    // AND
-    // Account for IP Address insertion - Refresh Button
-    // AND
-    // Account for IP Address insertion - Clear Statistics Button
-    // size = size + (ps[3].size - marker_field_size);
-    // size = size + (ps[3].size - 4);
-    size = size + (3 * ps[3].size_less4);
   }
 #endif // UIP_STATISTICS
 
@@ -1805,6 +1709,11 @@ size = size - 1;
     // Account for header replacement strings %y04 %y05
     size = size + ps[4].size_less4
                 + ps[5].size_less4;
+
+    // Account for Device Name field %a00 in <title>
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + (strlen(stored_devicename) - 4);
 
     // Account for Statistics fields %e31, %e32, %e33, %e35
     // There are 4 instances of these fields
@@ -1937,6 +1846,7 @@ void int2hex(uint8_t i)
   j = (uint8_t)(i & 0x0f);
   if(j<=9) OctetArray[1] = (uint8_t)(j + '0');
   else OctetArray[1] = (uint8_t)(j - 10 + 'a');
+  OctetArray[2] = '\0';
 }
 
 
@@ -2267,8 +2177,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	}
 	
 
-#if UIP_STATISTICS == 1
-        else if (nParsedMode == 'e') {
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
+        else if ((nParsedMode == 'e') && (nParsedNum < 22)) {
 	  // This displays the statistics information (10 characters per
 	  // data item). We need to get a single uint32_t from storage but
 	  // put it in the output stream as a character representation of
@@ -2332,7 +2242,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-        else if (nParsedMode == 'e') {
+        else if ((nParsedMode == 'e') && (nParsedNum > 22)) {
           if (nParsedNum == 31) emb_itoa(second_counter, OctetArray, 10, 10);
 	  if (nParsedNum == 32) emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
           if (nParsedNum == 31 || nParsedNum == 32) {
@@ -2458,7 +2368,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	}
 
 
-#if MQTT_SUPPORT == 0	
+#if MQTT_SUPPORT == 0
         else if (nParsedMode == 'i') {
 	  // This sends the IO Timer units and IO Timer values to the Browser
 	  // defined as follows:
@@ -2466,19 +2376,16 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // Upper 2 bits are units
 	  // Lower 14 bits are value
 	  {
-	    int i;
 	    uint8_t j;
-	    for (i = 0; i <16; i++) {
-	      j = (uint8_t)((IO_TIMER[nParsedNum] & 0xff00) >> 8);
-	      int2hex(j);
-              *pBuffer++ = OctetArray[0];
-              *pBuffer++ = OctetArray[1];
-	      j = (uint8_t)(IO_TIMER[nParsedNum] & 0x00ff);
-	      int2hex(j);
-              *pBuffer++ = OctetArray[0];
-              *pBuffer++ = OctetArray[1];
-            }
-	  }
+	    j = (uint8_t)((IO_TIMER[nParsedNum] & 0xff00) >> 8);
+	    int2hex(j);
+            *pBuffer++ = OctetArray[0];
+            *pBuffer++ = OctetArray[1];
+	    j = (uint8_t)(IO_TIMER[nParsedNum] & 0x00ff);
+	    int2hex(j);
+            *pBuffer++ = OctetArray[0];
+            *pBuffer++ = OctetArray[1];
+          }
 	}
 	
 	
@@ -2538,45 +2445,25 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 
         else if ((nParsedMode == 't') && (stored_config_settings & 0x08)) {
-	  // This displays temperature sensor data (5 sets of 6 characters)
+	  // This displays temperature sensor data (5 sets of 13 characters)
 	  // and the text fields around that data IF DS18B20 mode is enabled.
-	  // Note: &#8451; inserts a degree symbol followed by C.
-	  switch (nParsedNum) {
-		case 0:
-		    #define TEMPTEXT "<p>Temperature Sensors<br> 1 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-		case 1:
-		    #define TEMPTEXT "&#8451;<br> 2 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-		case 2:
-		    #define TEMPTEXT "&#8451;<br> 3 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-		case 3:
-		    #define TEMPTEXT "&#8451;<br> 4 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-		case 4:
-		    #define TEMPTEXT "&#8451;<br> 5 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-	  }
-
 	  
-          pBuffer=stpcpy(pBuffer, DS18B20_string[nParsedNum]);
-          if (nParsedNum == 4) {
-	    #define TEMPTEXT "&#8451;<br></p>"
-            pBuffer=stpcpy(pBuffer, TEMPTEXT);
-            #undef TEMPTEXT
+	  if (nParsedNum == 0) {
+	    #define TEMPTEXT "<p>Temperature Sensors<br>"
+	    pBuffer=stpcpy(pBuffer, TEMPTEXT);
+	    #undef TEMPTEXT
 	  }
-
+	    
+	  *pBuffer++ = ' ';
+	  *pBuffer++ = (uint8_t)('1' + nParsedNum);
+	  *pBuffer++ = ' ';
+	  
+          pBuffer = show_temperature_string(pBuffer, nParsedNum);
+	  if (nParsedNum == 4) {
+	    #define TEMPTEXT "</p>"
+	    pBuffer=stpcpy(pBuffer, TEMPTEXT);
+	    #undef TEMPTEXT
+	  }
 	}
 
 
@@ -2670,6 +2557,27 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 }
 
 
+char *show_temperature_string(char *pBuffer, uint8_t nParsedNum)
+{
+  // Display temperature strings in degrees C and degrees F
+  // Note: &#8451; inserts a degree symbol followed by C.
+  // Note: &#8457; inserts a degree symbol followed by F.
+  convert_temperature(nParsedNum, 0);      // Convert to degrees C in OctetArray
+  pBuffer=stpcpy(pBuffer, OctetArray);     // Display sensor value
+  #define TEMPTEXT "&#8451; "              // Display degress C symbol
+  pBuffer=stpcpy(pBuffer, TEMPTEXT);
+  #undef TEMPTEXT
+  
+  convert_temperature(nParsedNum, 1);      // Convert to degrees F in OctetArray
+  pBuffer=stpcpy(pBuffer, OctetArray);     // Display sensor value
+  #define TEMPTEXT "&#8457;<br>"           // Display degress F symbol
+  pBuffer=stpcpy(pBuffer, TEMPTEXT);
+  #undef TEMPTEXT
+  
+  return pBuffer;
+}
+
+
 void HttpDInit()
 {
   //Start listening on our port
@@ -2715,7 +2623,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
     }
 
-#if UIP_STATISTICS == 1
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
     else if (current_webpage == WEBPAGE_STATS1) {
       pSocket->pData = g_HtmlPageStats1;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
@@ -2844,8 +2752,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	//   STATE_SENDDATA
 	//   STATE_PARSEGET
       pSocket->nParseLeft = saved_nparseleft;
-        // The number of bytes left to parse in the POST data
+        // nParseLeft is the number of bytes left to parse in the POST data
       pSocket->nNewlines = saved_newlines;
+        // nNewlines tracks where we are in detecting the \r\n\r\n sequence
+	// that indicates start of POST data
     }
 
       
@@ -2982,7 +2892,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	if (nBytes == 0) {
 	  // Hit end of packet
 	  if (strcmp(parse_tail, "&z00=0") == 0) {
-	    // If this is also the end of the POST (as indicated by post_tail
+	    // If this is also the end of the POST (as indicated by parse_tail
 	    // equal to "&z00=0") then send the entire local_buf to parsing.
 	    // Parse the local_buf
 	    parse_local_buf(pSocket, local_buf, strlen(local_buf));
@@ -2993,12 +2903,17 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // We don't have all the POST data - it will be arriving in
 	    // subsequent packets
 	    // Back up the NULL terminator in the local_buf to the point where
-	    // the last POST component ended.
+	    // the last POST component ended. Note that this will eliminate
+	    // one delimiter search in POST parsing so we need to decrement
+	    // the nParseLeft value by one for this case.
 	    i = i - strlen(parse_tail);
 	    local_buf[i] = '\0';
+	    pSocket->nParseLeft--;
 	    
 	    // Parse the local_buf
 	    parse_local_buf(pSocket, local_buf, strlen(local_buf));
+	    // Save the nParseLeft value for the next pass
+	    saved_nparseleft = pSocket->nParseLeft;
 	    
 	    // Shift the content of parse_tail to eliminate the '&'
             strcpy(parse_tail, &parse_tail[1]);
@@ -3010,10 +2925,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // Hit end of local_buf
 	  // We don't yet have all the data from this packet but need to
 	  // parse what we have so far.
-	  // Back up the NULL terminator in the local_buf to the point where
-	  // the last POST component ended.
-	  i = i - strlen(parse_tail);
-	  local_buf[i] = '\0';
+	    // Back up the NULL terminator in the local_buf to the point where
+	    // the last POST component ended. Note that this will eliminate
+	    // one delimiter search in POST parsing so we need to decrement
+	    // the nParseLeft value by one for this case.
+	    i = i - strlen(parse_tail);
+	    local_buf[i] = '\0';
+	    pSocket->nParseLeft--;
 	  
 	  // Parse the local_buf
 	  parse_local_buf(pSocket, local_buf, strlen(local_buf));
@@ -3200,10 +3118,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/63  Show Help page
 	  // http://IP/64  Show Help2 page
 	  // http://IP/65  Flash LED 3 times
-	  // http://IP/66  Show MQTT Statistics page
-	  // http://IP/67  Clear Statistics and return to MQTT Stats
+	  // http://IP/66  Show Link Error Statistics page
+	  // http://IP/67  Clear Link Error Statistics and refresh page
 	  // http://IP/68  Show Network Statistics page
-	  // http://IP/69  Clear Statistics and return to Net Stats
+	  // http://IP/69  Clear Network Statistics and refresh page
+          // http://IP/70  Clear the "Reset Status Register" counters
 	  // http://IP/91  Reboot
 	  // http://IP/98  Show Very Short Form IO States page
 	  // http://IP/99  Show Short Form IO States page
@@ -3263,7 +3182,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-            case 66: // Show statistics page
+            case 66: // Show Link Error Statistics page
 	      current_webpage = WEBPAGE_STATS2;
               pSocket->pData = g_HtmlPageStats2;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
@@ -3271,17 +3190,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
 	      
-            case 67: // Clear statistics
-	      uip_init_stats();
-	      // Clear the "Reset Status Register" counters and the
-	      // Link Error Stats bytes.
+            case 67: // Clear Link Error Statistics
+	      // Clear the the Link Error Statistics bytes.
 	      // Important: 
 	      // The debug[] byte indexes used may change if the
 	      // number of debug bytes changes.
-	      for (i = 20; i < 30; i++) debug[i] = 0;
+	      debug[23] = 0; // Clear TXERIF counter
+	      debug[24] = 0; // Clear RXERIF counter
 	      update_debug_storage1();
-	      // Clear the statistics that are part of Link Error
-	      // Stats
 	      TRANSMIT_counter = 0;
 	      MQTT_resp_tout_counter = 0;
 	      MQTT_not_OK_counter = 0;
@@ -3295,8 +3211,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 #endif // DEBUG_SUPPORT
 
-#if UIP_STATISTICS == 1
-            case 68: // Show statistics page
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
+            case 68: // Show Network Statistics page
 	      current_webpage = WEBPAGE_STATS1;
               pSocket->pData = g_HtmlPageStats1;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
@@ -3304,22 +3220,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
 	      
-            case 69: // Clear statistics
+            case 69: // Clear Network Statistics and refresh page
 	      uip_init_stats();
-	      // Clear the "Reset Status Register" counters and the
-	      // Link Error Stats bytes.
-	      // Important: 
-	      // The debug[] byte indexes used may change if the
-	      // number of debug bytes changes.
-	      for (i = 20; i < 30; i++) debug[i] = 0;
-	      update_debug_storage1();
-	      // Clear the statistics that are part of Link Error
-	      // Stats
-	      TRANSMIT_counter = 0;
-	      MQTT_resp_tout_counter = 0;
-	      MQTT_not_OK_counter = 0;
-	      MQTT_broker_dis_counter = 0;
-	      
 	      current_webpage = WEBPAGE_STATS1;
               pSocket->pData = g_HtmlPageStats1;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
@@ -3327,6 +3229,18 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
 #endif // UIP_STATISTICS
+
+#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+            case 70: // Clear the "Reset Status Register" counters
+	      // Clear the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
+	      // These only display via the UART
+	      // Important: 
+	      // The debug[] byte indexes used may change if the
+	      // number of debug bytes changes.
+	      for (i = 25; i < 30; i++) debug[i] = 0;
+	      update_debug_storage1();
+	      break;
+#endif // DEBUG_SUPPORT
 
 	    case 91: // Reboot
 	      user_reboot_request = 1;
@@ -3341,7 +3255,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // pointer prevents "page interference" between normal browser
 	      // activity and the automated functions that normally use this
 	      // page.
-	      // current_webpage = WEBPAGE_SSTATE;
+	      current_webpage = WEBPAGE_SSTATE;
               pSocket->pData = g_HtmlPageSstate;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
               pSocket->nState = STATE_CONNECTED;
@@ -3603,7 +3517,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
               pSocket->nParseLeft--;
             }
           }
-
+  
           switch (pSocket->ParseCmd)
 	  {
 	    case 'a':
@@ -3623,8 +3537,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 		// reduce Flash wear. All 16 bytes reserved in the Flash
 		// for a given IO Name will be written at one time in a
 		// sequence of 4 byte "word" writes.
-UARTPrintf("Writing IO_NAMEs to Flash\r\n");
-//	        memcpy(IO_NAME[pSocket->ParseNum], tmp_Pending, num_chars);
 	        i = 0;
 	        while(i<16) {
 	          FLASH_CR2 = 0x40;

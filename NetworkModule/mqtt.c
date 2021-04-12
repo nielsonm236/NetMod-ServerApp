@@ -433,10 +433,13 @@ int16_t __mqtt_send(struct mqtt_client *client)
 
     // check for keep-alive
     {
-        uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((float)(client->keep_alive) * 0.75);
+        // At about 3/4 of the timeout period perform a ping. This calculation
+	// uses integer arithmatic so it is only an approximation. It is assumed
+	// that timeouts are not a small number (for instance, the timeout should
+	// be at least 15 seconds).
+        uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((client->keep_alive * 3) / 4);
         if ((second_counter > keep_alive_timeout) && (mqtt_start == MQTT_START_COMPLETE)) {
           int16_t rv = __mqtt_ping(client);
-// UARTPrintf("queued ping request\r\n");
           if (rv != MQTT_OK) {
             client->error = rv;
             return rv;
@@ -1244,4 +1247,4 @@ int16_t __mqtt_pack_str(uint8_t *buf, const char* str)
     return length + 2;
 }
 
-#endif MQTT_SUPPORT == 1
+#endif // MQTT_SUPPORT

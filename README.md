@@ -19,7 +19,7 @@ February 8, 2021 - Added an interface for up to 5 DS18B20 temperature sensors.
 
 February 20, 2021 - Added a UART debug interface for use by developers. Beginning with this release you should obtain Source Code and Executables from the "Release" area of the GitHub page (along the right margin of the page).
 
-April 7, 2021 - Released a parallel build for "Browser Only" users that does not include MQTT, but adds some requested features for users that do not want MQTT. The "Browser Only" version includes individual IO Names, IO Timers, and restores the Network Statistics page.
+April 12, 2021 - Released a parallel build for "Browser Only" users that does not include MQTT, but adds some requested features for users that do not want MQTT. The "Browser Only" version includes individual IO Names, IO Timers, and restores the Network Statistics page.
 
 Feature Comparison of the MQTT and Browser builds:
 Feature				MQTT Build		Browser Only Build 

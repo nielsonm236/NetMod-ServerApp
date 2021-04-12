@@ -196,10 +196,12 @@
 //---------------------------------------------------------------------------//
 // Application specific compile controls
 //
-// Controls whether the options for code compile. For instance:
+// Controls the options for code compile. For instance:
 //  - Controls inclusion of the Network Statistics web page
 //  - Controls inclusion of Debug support
 //  - Controls inclusion of the Independent Watchdog
+//  - Controls inclusion of MQTT functionality
+//  - Controls "Browser Only" build type
 
 
 // UIP_STATISTICS
@@ -207,9 +209,12 @@
 // Statistics are useful for debugging Network related problems. If you are
 // modifying the project and need more program space eliminating the Network
 // Statistics pages and processes will free up considerable space.
+// Note that Network Statistics will not fit in the memory when an MQTT build
+// is created. It will only fit if a Browser Only build is created. So,
+// MQTT_SUPPORT = 1 will override this setting and force it to disabled.
 // 0 = disabled
 // 1 = included
-#define UIP_STATISTICS  0
+#define UIP_STATISTICS  1
 
 
 // DEBUG_SUPPORT
@@ -265,7 +270,6 @@
 #define DEBUG_SUPPORT 11
 
 
-
 // IWDG_ENABLE
 // Determines if the Independent Watchdog is to be enabled
 // For production code this should me enabled. It turns on the IWDG to cause a
@@ -277,6 +281,14 @@
 // 0 = disable
 // 1 = enable
 #define IWDG_ENABLE 1
+
+
+// MQTT_SUPPORT
+// Determines if MQTT Support and Home Assistant Support is to be compiled
+// into the build.
+// 0 = Browser Only Support
+// 1 = MQTT Support
+#define MQTT_SUPPORT 1
 
 
 //---------------------------------------------------------------------------//

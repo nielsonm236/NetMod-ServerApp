@@ -34,6 +34,8 @@ int main(void);
 void init_IWDG(void);
 void unlock_eeprom(void);
 void lock_eeprom(void);
+void unlock_flash(void);
+void lock_flash(void);
 void upgrade_EEPROM(void);
 void check_eeprom_settings(void);
 void check_eeprom_IOpin_settings(void);
@@ -55,6 +57,9 @@ void capture_uip_buf_transmit(void);
 void capture_uip_buf_receive(void);
 void capture_mqtt_sendbuf(void);
 
+// void load_timer(uint8_t timer_num);
+uint32_t calculate_timer(uint16_t timer_value);
+void decrement_pin_timers(void);
 
 void mqtt_startup(void);
 void mqtt_sanity_check(void);
@@ -105,7 +110,6 @@ int8_t reverse_bit_order(uint8_t k);
 #define RESTART_REBOOT_IDLE		0
 #define RESTART_REBOOT_ARM		1
 #define RESTART_REBOOT_ARM2		2
-// #define RESTART_REBOOT_DELETE_PIN_LOOP  3
 #define RESTART_REBOOT_SENDOFFLINE	4
 #define RESTART_REBOOT_DISCONNECT	5
 #define RESTART_REBOOT_TCPCLOSE		6

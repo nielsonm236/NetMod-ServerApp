@@ -47,34 +47,6 @@ SOFTWARE.
 */
 
 
-/**
- * Includes/supports the types/calls required by the MQTT-C client.
- * 
- * This is the only file included in mqtt.h, and mqtt.c. It is therefore 
- * responsible for including/supporting all the required types and calls. 
- * 
- * Platform abstraction layer
- * Documentation of the types and calls required to port MQTT-C to a new platform.
- * 
- * mqtt_pal.h is the only header file included in mqtt.c. Therefore, to port MQTT-C to a 
- * new platform the following types, functions, constants, and macros must be defined in 
- * mqtt_pal.h:
- *  - Types:
- *      - int8_t, int16_t, int32_t
- *      - uint8_t, uint16_t, uint32_t
- *  - Functions:
- *      - memcpy, strlen
- *  - Constants:
- *      - INT_MIN
- * 
- * Additionally, these macro's are required:
- *  - HTONS(s) : host-to-network endian conversion for uint16_t.
- * 
- * Lastly, mqtt_pal_sendall and mqtt_pal_recvall, must be implemented in mqtt_pal.c 
- * for sending and receiving data.
- */
-
-
 #include <limits.h>
 #include <string.h>
 #include <stdint.h>
@@ -85,12 +57,6 @@ SOFTWARE.
 // returns - The number of bytes sent if successful, an MQTTErrors otherwise.
 int16_t mqtt_pal_sendall(const void* buf, uint16_t len);
 
-
-// Non-blocking receive all the byte available.
-// buf - A pointer to the receive buffer.
-// bufsz - The max number of bytes that can be put into buf.
-// returns - The number of bytes received if successful, an MQTTErrors otherwise.
-int16_t mqtt_pal_recvall(void* buf, uint16_t bufsz);
 
 char *stpcpy(char * dest, const char * src);
 

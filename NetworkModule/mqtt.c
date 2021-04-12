@@ -49,18 +49,21 @@ SOFTWARE.
 #include "uart.h"
 #include "uipopt.h"
 
+#if MQTT_SUPPORT == 1
+
 extern uint32_t second_counter;
 extern uint16_t uip_slen;
-uint8_t MQTT_error_status; // Global so GUI can show error status indicator
+extern uint8_t MQTT_error_status; // Global so GUI can show error status
+                                  // indicator
 uint8_t connack_received;  // Used to communicate CONNECT CONNACK received
                            // from mqtt.c to main.c
 uint8_t suback_received;   // Used to communicate SUBSCRIBE SUBACK received
                            // from mqtt.c to main.c
 
-uint8_t mqtt_sendbuf[140];	      // Buffer to contain MQTT transmit queue
-				      // and data. Restrict to 200 bytes if
-				      // debug is enabled.
-extern uint8_t mqtt_start;            // Tracks the MQTT startup steps
+uint8_t mqtt_sendbuf[140]; // Buffer to contain MQTT transmit queue
+			   // and data. Restrict to 200 bytes if
+			   // debug is enabled.
+extern uint8_t mqtt_start; // Tracks the MQTT startup steps
 
 
 #if DEBUG_SUPPORT != 0
@@ -353,19 +356,6 @@ int16_t __mqtt_send(struct mqtt_client *client)
     // loop through all messages in the queue
     len = mqtt_mq_length(&client->mq);
 
-
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // The following is a debug statement designed to show how many messages
-    // are held in the mqtt transmit queue. Initial experiments showed that
-    // the queue regularly held up to 3 messages, but never 4 or more.
-//    if (len > 3) oneflash();
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    
-    
     for(; i < len; ++i) {
         struct mqtt_queued_message *msg = mqtt_mq_get(&client->mq, i);
         int16_t resend = 0;
@@ -443,10 +433,13 @@ int16_t __mqtt_send(struct mqtt_client *client)
 
     // check for keep-alive
     {
-        uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((float)(client->keep_alive) * 0.75);
+        // At about 3/4 of the timeout period perform a ping. This calculation
+	// uses integer arithmatic so it is only an approximation. It is assumed
+	// that timeouts are not a small number (for instance, the timeout should
+	// be at least 15 seconds).
+        uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((client->keep_alive * 3) / 4);
         if ((second_counter > keep_alive_timeout) && (mqtt_start == MQTT_START_COMPLETE)) {
           int16_t rv = __mqtt_ping(client);
-// UARTPrintf("queued ping request\r\n");
           if (rv != MQTT_OK) {
             client->error = rv;
             return rv;
@@ -467,12 +460,15 @@ int16_t __mqtt_recv(struct mqtt_client *client)
 
     // Read the input buffer and check for errors
 
-    // The original MQTT code used the mqtt_pal_recvall() function to move
+    // The original MQTT code used a mqtt_pal_recvall() function to move
     // data from an OS host buffer into an MQTT dedicated receive buffer.
-    // In this application that process has already been performed, so the
-    // mqtt_pal_recvall() function only returns the length of the data.
-    rv = mqtt_pal_recvall(client->recv_buffer.curr, client->recv_buffer.curr_sz);
-    
+    // In this application that process is not needed and we only need to
+    // check if there is any receive data in the uip_buf. To do this we
+    // only need to check if uip_len is > 0. If it is not we need to
+    // generate an error by setting rv = -1.
+    if (uip_len > 0) rv = uip_len;
+    else rv = -1;
+
     client->recv_buffer.curr += rv;
     client->recv_buffer.curr_sz -= rv;
 
@@ -483,25 +479,6 @@ int16_t __mqtt_recv(struct mqtt_client *client)
         client->error = consumed;
         return consumed;
     }
-
-/*
-    else if (consumed == 0) {
-        // if curr_sz is 0 then the buffer is too small to ever fit the message
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	// I DON'T THINK THIS CODE IS APPLICABLE TO THIS APPLICATION AS ALL
-	// MESSAGES ARE VERY SHORT AND EASILY FIT IN THE UIP_BUF WHICH IS
-	// BEING USED AS THE RECEIVE BUFFER. WE DON'T QUEUE RECEIVE
-	// MESSAGES, AGAIN MAKING AN EASY FIT.
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        if (client->recv_buffer.curr_sz == 0) {
-            client->error = MQTT_ERROR_RECV_BUFFER_TOO_SMALL;
-            return MQTT_ERROR_RECV_BUFFER_TOO_SMALL;
-        }
-
-        // just need to wait for the rest of the data
-        return MQTT_OK;
-    }
-*/    
 
     // response was unpacked successfully
 
@@ -600,57 +577,26 @@ int16_t __mqtt_recv(struct mqtt_client *client)
     }
     
     {
-        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         // Because we have the UIP code as the front end to MQTT there will
         // never be more than one receive msg in the uip_buf, so the
-        // processing above will have "consumed" it.
+        // processing above will have "consumed" it. If a new receive message
+	// comes in on the ethernet while this code is operating it will be
+	// held in the enc28j60 hardware buffer until the application gets
+	// back around to receiving it.
         //
         // The original code was set up to let several messages get queued in
         // the receive buffer, then those messages are read out. When a
-        // message is read this code "cleans the buffer" by moving any
+        // message is read the original code "cleans the buffer" by moving any
         // remaining messages toward the beginning of the buffer, over-writing
         // the messages consumed. Or at least that's what I think it's doing.
         //
-        // I need to understand this better and perhaps eliminate or simplify
-        // the "cleanup".
-        //
-        // I'm trying to maintain a notion that only one receive message makes
-        // it into this process and is completely consumed and (perhaps) a
-        // transmit message queued before any new message can be received. IF
-	// a new receive message comes in on the ethernet while this code is
-        // operating it will be held in the enc28j60 hardware buffer until the
-        // application gets back around to receiving it - likely AFTER
-        // transmit processing is completed.
-  
-        // we've handled the response, now clean the buffer
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	// SINCE WE ONLY RECEIVE ON MQTT MESSAGE AT A TIME IN THIS APPLICATION
-	// THERE SHOULD BE NO NEED TO "CLEAN" THE RECEIVE BUFFER. SHOULD BE
-	// ABLE TO JUST RESET THE POINTERS TO THE START OF THE BUFFER AS IN
-	// THE INITIALIZATION CODE.
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-//         void* dest = (unsigned char*)client->recv_buffer.mem_start;
-//         void* src  = (unsigned char*)client->recv_buffer.mem_start + consumed;
-//         uint16_t n = client->recv_buffer.curr - client->recv_buffer.mem_start - consumed;
-//         memmove(dest, src, n);
-//         client->recv_buffer.curr -= consumed;
-//         client->recv_buffer.curr_sz += consumed;
-	
-	// Reset receive pointers to start of buffer. Note: We only receive
-	// one message at a time in this application. There is no receive
-	// queue as in the original mqtt.c code.
-	// Note, since recvbuf and recvbufsz are not global variables we need
-	// to use the structure member copy here
-        // client->recv_buffer.curr = recvbuf;
-        // client->recv_buffer.curr_sz = recvbufsz;
+	// Reset receive pointers to start of buffer.
 	client->recv_buffer.curr = client->recv_buffer.mem_start;
 	client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
     }
 
-    // In case there was some error handling the (well formed) message, we end up here
+    // In case there was some error handling the (well formed) message, we end
+    // up here
     return mqtt_recv_ret;
 }
 
@@ -1301,3 +1247,4 @@ int16_t __mqtt_pack_str(uint8_t *buf, const char* str)
     return length + 2;
 }
 
+#endif // MQTT_SUPPORT

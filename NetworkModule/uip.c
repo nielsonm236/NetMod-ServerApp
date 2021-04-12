@@ -116,7 +116,7 @@
 // Variables used to store debug information
 extern uint8_t *pBuffer2;
 extern uint8_t debug[NUM_DEBUG_BYTES];
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 
 /* The IP address of this host */
@@ -216,12 +216,12 @@ static uint16_t tmp16;
 #define FBUF ((struct uip_tcpip_hdr *)&uip_reassbuf[0])
 #define ICMPBUF ((struct uip_icmpip_hdr *)&uip_buf[UIP_LLH_LEN])
 
-#if UIP_STATISTICS == 1
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
 struct uip_stats uip_stat;
 #define UIP_STAT(s) s
 #else
 #define UIP_STAT(s)
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
 
 #if ! UIP_ARCH_ADD32
 void uip_add32(uint8_t *op32, uint16_t op16)
@@ -337,10 +337,10 @@ void uip_init(void)
   for (c = 0; c < UIP_CONNS; ++c) uip_conns[c].tcpstateflags = UIP_CLOSED;
   /* IPv4 initialization. */
 
-#if UIP_STATISTICS == 1
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
   // Initialize statistics
   uip_init_stats();
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
 }
 
 
@@ -398,7 +398,7 @@ uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
 //---------------------------------------------------------------------------//
 void uip_init_stats(void)
 {
-#if UIP_STATISTICS == 1
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
   // Initialize statistics
   uip_stat.ip.drop = 0;
   uip_stat.ip.recv = 0;
@@ -422,7 +422,7 @@ void uip_init_stats(void)
   uip_stat.tcp.rexmit = 0;
   uip_stat.tcp.syndrop = 0;
   uip_stat.tcp.synrst = 0;
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
 }
 
 

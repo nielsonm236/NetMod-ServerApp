@@ -53,21 +53,16 @@
 #include "mqtt_pal.h"
 #include "uipopt.h"
 #include "uart.h"
+#include "ds18b20.h"
+#include "iostm8s005.h"
 
 // #include "stdlib.h"
 #include "string.h"
 #include <ctype.h>
 
 #define STATE_CONNECTED		0	// Client has just connected
-#define STATE_GET_G		1	// G
-#define STATE_GET_GE		2	// GE
-#define STATE_GET_GET		3	// GET
-#define STATE_POST_P		4	// P
-#define STATE_POST_PO		5	// PO
-#define STATE_POST_POS		6	// POS
-#define STATE_POST_POST		7	// POST
-#define STATE_GOTGET		8	// Client just sent a GET request
-#define STATE_GOTPOST		9	// Client just sent a POST request
+#define STATE_GOTGET		1	// Client just sent a GET request
+#define STATE_GOTPOST		2	// Client just sent a POST request
 #define STATE_PARSEPOST		10	// We are currently parsing the
                                         // client's POST-data
 #define STATE_SENDHEADER200	11	// Next we send the HTTP 200 header
@@ -98,7 +93,7 @@
 extern uint8_t *pBuffer2;
 extern uint8_t debug[NUM_DEBUG_BYTES];
 extern uint8_t stored_debug[NUM_DEBUG_BYTES];
-#endif // DEBUG_SUPPORT != 0
+#endif // DEBUG_SUPPORT
 
 extern uint16_t Port_Httpd;               // Port number in use
 
@@ -158,80 +153,72 @@ uint8_t saved_nstate;         // Saved nState used during TCP Fragment
 			      // when a TCP fragmentation boundary occurred:
 			      //   STATE_NULL       - indicates not
 			      //                      processing fragment
-			      //   STATE_GET_G
-			      //   STATE_GET_GE
-			      //   STATE_GET_GET
-			      //   STATE_POST_P
-			      //   STATE_POST_PO
-			      //   STATE_POST_POS
-			      //   STATE_POST_POST
 			      //   STATE_GOTGET
 			      //   STATE_GOTPOST
                               //   STATE_PARSEPOST  - parsing POST data
-uint8_t saved_parsestate;     // Saved ParseState used during TCP Fragment
-                              // recovery. If not STATE_NULL saved_parsestate
-			      // will contain one of the following to
-			      // indicate the ParseState we were in when a
-			      // TCP fragmentation boundary occurred:
-                              //   PARSE_CMD    - STATE_PARSEPOST, seeking command character (a, b, c etc)
-                              //   PARSE_NUM10  - STATE_PARSEPOST, seeking tens digit of command
-                              //   PARSE_NUM1   - STATE_PARSEPOST, seeking ones digit of command
-                              //   PARSE_EQUAL  - STATE_PARSEPOST, seeking equal sign delimiter
-                              //   PARSE_VAL    - STATE_PARSEPOST, seeking data value following equal sign
-                              //   PARSE_DELIM  - STATE_PARSEPOST, seeking '&' delimiter
-uint8_t saved_nparseleft;     // Saved nParseLeft during TCP Fragment recovery
-uint8_t saved_postpartial[36]; // If POST packet TCP fragmentation occurs saved_postpartial will
-                              // contain the that part of a POST value that was parsed in
-                              // the previous TCP Fragment as follows:
-                              // saved_postpartial[0] - the parsed ParseCmd
-                              // saved_postpartial[1] - the tens digit of the ParseNum
-                              // saved_postpartial[2] - the ones digit of the ParseNum
-                              // saved_postpartial[3] - the equal sign
-                              // saved_postpartial[4] - the first character of data
-                              // saved_postpartial[5] - the second character of data
-                              // saved_postpartial[x] - more characters of data
-uint8_t saved_postpartial_previous[36]; // When TCP Fragments are processed after the first
-                              // packet the saved_postpartial values are copied into the
-			      // saved_postpartial_previous values so that the new parsing
-			      // can use the saved_postpartial space for new data that might
-			      // get interrupted. The saved_postpartial_previous values are
-			      // used to restore the state of parsing from the previous 
-			      // TCP Fragment.
-uint8_t saved_newlines;       // Saved nNewlines value in case TCP fragmentation occurs during
-                              // the /r/n/r/n search.
-uint8_t z_diag;               // The last value in a POST (hidden), used for diagnostics
-
-uint8_t break_while;          // Used to indicate that a parsing "while loop" break is required
-uint8_t alpha[32];            // Used in parsing of multi-character values
-
-uint8_t current_webpage;      // Tracks the web page that is currently displayed
+uint16_t saved_nparseleft;    // Saved nParseLeft during TCP Fragment
+                              // recovery
+uint8_t saved_newlines;       // Saved nNewlines value in case TCP
+                              // fragmentation occurs during the /r/n/r/n
+			      // search.
+uint8_t parse_tail[38];       // If POST packet TCP fragmentation occurs
+                              // parse_tail will contain partial POST value
+			      // that was at the end of the packet. The
+			      // size of this array is determined by the
+			      // longest POST component. At this time that
+			      // longest component is the &h00 POST reply.
+uint8_t z_diag;               // The last value in a POST (hidden), used for
+                              // diagnostics
+uint8_t break_while;          // Used to indicate that a parsing "while loop"
+                              // break is required
+uint8_t current_webpage;      // Tracks the web page that is currently
+                              // displayed
 
 // MQTT variables
 extern uint8_t mqtt_enabled;              // Signals if MQTT has been enabled
 extern uint8_t stored_mqttserveraddr[4];  // mqttserveraddr stored in EEPROM
-extern uint16_t stored_mqttport;	  // MQTT Port number  stored in EEPROM
+extern uint16_t stored_mqttport;	  // MQTT Port number  stored in
+                                          // EEPROM
 extern char stored_mqtt_username[11];     // MQTT Username  stored in EEPROM
 extern char stored_mqtt_password[11];     // MQTT Password  stored in EEPROM
 
-extern uint8_t Pending_mqttserveraddr[4]; // Temp storage for new MQTT IP Address
+extern uint8_t Pending_mqttserveraddr[4]; // Temp storage for new MQTT IP
+                                          // Address
 extern uint16_t Pending_mqttport;	  // Temp storage for new MQTT Port
-extern char Pending_mqtt_username[11];    // Temp storage for new MQTT Username
-extern char Pending_mqtt_password[11];    // Temp storage for new MQTT Password
+extern char Pending_mqtt_username[11];    // Temp storage for new MQTT
+                                          // Username
+extern char Pending_mqtt_password[11];    // Temp storage for new MQTT
+                                          // Password
 
-extern uint8_t mqtt_start_status;         // Contains error status from the MQTT start process
-extern uint8_t MQTT_error_status;         // For MQTT error status display in GUI
+extern uint8_t mqtt_start_status;         // Contains error status from the
+                                          // MQTT start process
+extern uint8_t MQTT_error_status;         // For MQTT error status display in
+                                          // GUI
 
-extern uint8_t RXERIF_counter;           // Counts RXERIF errors
-extern uint8_t TXERIF_counter;           // Counts TXERIF errors
+extern uint8_t RXERIF_counter;            // Counts RXERIF errors
+extern uint8_t TXERIF_counter;            // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;         // Counts any transmit
-extern uint8_t MQTT_resp_tout_counter;   // Counts response timeout events
-extern uint8_t MQTT_not_OK_counter;      // Counts MQTT != OK events
-extern uint8_t MQTT_broker_dis_counter;  // Counts broker disconnect events
+extern uint8_t MQTT_resp_tout_counter;    // Counts response timeout events
+extern uint8_t MQTT_not_OK_counter;       // Counts MQTT != OK events
+extern uint8_t MQTT_broker_dis_counter;   // Counts broker disconnect events
 extern uint32_t second_counter;           // Counts seconds since boot
 
 // DS18B20 variables
-extern uint8_t DS18B20_string[5][7];  // Stores the temperature measurement for the
-                                      // DS18B20s
+extern uint8_t DS18B20_scratch[5][2];     // Stores the temperature measurement
+                                          // for the DS18B20s
+
+// Variables stored in Flash
+
+#if MQTT_SUPPORT == 0
+// Define Flash addresses for IO Names and IO Timers
+extern char IO_NAME[16][16] @0xff00;
+extern uint16_t IO_TIMER[16] @0xfec0;
+extern uint16_t Pending_IO_TIMER[16];
+#endif // MQTT_SUPPORT
+
+
+
+
 
 
 //---------------------------------------------------------------------------//
@@ -245,18 +232,18 @@ extern uint8_t DS18B20_string[5][7];  // Stores the temperature measurement for 
 //   code should insert data as the web page constant is copied from flash
 //   memory into the output data buffer.
 //
-// - An example marker is %i01, wherein the CopyHttpData() function in the
-//   application code will replace the "%i01" characters with a single "0" or
+// - An example marker is %n01, wherein the CopyHttpData() function in the
+//   application code will replace the "%n01" characters with a single "0" or
 //   "1" character to signal the browser to paint a red or green box
-//   indicating pin status.
+//   indicating mqtt status.
 //
 // - Additional markers are inserted to help with compression of the web page
 //   templates to reduce the amount of flash memory required. In these cases
 //   the markers tell the application code to insert strings that are repeated
 //   many times in the web page HTML text, rather than have them repeatedly
-//   appear in flash memory. For instance %y00 is used to signal the
+//   appear in flash memory. For instance %y00 could be used to signal the
 //   application code to insert the string
-//   "pattern='[0-9]{3}' title='Enter 000 to 255' maxlength='3'>"
+//   "this is a test string"
 //   While this makes the code harder to read, it makes the web page templates
 //   much smaller.
 //
@@ -280,7 +267,8 @@ extern uint8_t DS18B20_string[5][7];  // Stores the temperature measurement for 
 //
 // - IMPORTANT: Be sure to carefully update the adjust_template_size function
 //   if any changes are made to the %xxx text replacement markers and strings
-//   in the templates.
+//   in the templates. Use CURL to verify that pages sizes are reported
+//   correctly.
 //
 // - The templates include the line
 //   "<link rel='icon' href='data:,'>".
@@ -304,7 +292,7 @@ extern uint8_t DS18B20_string[5][7];  // Stores the temperature measurement for 
 
 
 //---------------------------------------------------------------------------//
-
+#if MQTT_SUPPORT == 1
 // IO Control Template
 //
 // PARSE_BYTES calculation:
@@ -335,10 +323,9 @@ extern uint8_t DS18B20_string[5][7];  // Stores the temperature measurement for 
 //                + 6 - 1 = 42
 #define WEBPAGE_IOCONTROL		0
 #define PARSEBYTES_IOCONTROL		42
-#define PARSEBYTES_IOCONTROL_ADDL	0
 static const char g_HtmlPageIOControl[] =
 "%y04%y05"
-      "<title>IO Control</title>"
+      "<title>%a00: IO Control</title>"
    "</head>"
    "<body>"
       "<h1>IO Control</h1>"
@@ -349,19 +336,19 @@ static const char g_HtmlPageIOControl[] =
                "<td colspan=2 style='text-align: left'>%a00</td>"
             "</tr>"
             "<script>"
-	    
-	    "const m=(t=>{const e=document,n=e.querySelector.bind(e)('form'),r=(Object.entries,parseInt),"
-	    "o=t=>e.write(t),s=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join(''),a=t="
-	    ">t.match(/.{2}/g).map(t=>r(t,16)),c=t=>encodeURIComponent(t),d=[],h=[],p=(t,e,n)=>{return`<i"
-	    "nput type=radio name=o${e} value=${t} ${n==t?'checked':''}/><label>${(t?'on':'off').toUpperC"
-	    "ase()}</label>`},l=()=>location.reload();return a(t.h00).forEach((t,e)=>{3==(3&t)?h.push(`<t"
-	    "r><td>Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>${p(1,e,t>>7)}${p(0,e,t>>7"
-	    ")}</td></tr>`):1==(3&t)&&d.push(`<tr><td>Input #${e+1}</td><td class='s${t>>7} t3'></td><td/"
-	    "></tr>`)}),o(d.join('')),o(`<tr><th></th><th></th>${h.length>0?'<th class=c>SET</th>':''}</t"
-	    "r>`),o(h.join('')),{s:e=>{e.preventDefault();const r=new XMLHttpRequest,o=Array.from((()=>{c"
-	    "onst e=new FormData(n);return e.set('h00',s(a(t.h00).map((t,n)=>{const r='o'+n,o=e.get(r)<<7"
-	    ";return e.delete(r),o}))),e})().entries(),([t,e])=>`${c(t)}=${c(e)}`).join('&');r.open('POST"
-	    "','/',!1),r.send(o+'&z00=0'),l()},l:l}})({h00:'%h00'});"
+"const m=(t=>{const e=document,n=e.querySelector.bind(e)('form'),r=(Object.entries,parseI"
+"nt),o=t=>e.write(t),s=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join("
+"''),a=t=>t.match(/.{2}/g).map(t=>r(t,16)),c=t=>encodeURIComponent(t),d=[],h=[],p=(t,e,n)"
+"=>{return`<input type=radio name=o${e} value=${t} ${n==t?'checked':''}/><label>${(t?'on'"
+":'off').toUpperCase()}</label>`},l=()=>location.reload();return a(t.h00).forEach((t,e)=>"
+"{3==(3&t)?h.push(`<tr><td>Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>${"
+"p(1,e,t>>7)}${p(0,e,t>>7)}</td></tr>`):1==(3&t)&&d.push(`<tr><td>Input #${e+1}</td><td c"
+"lass='s${t>>7} t3'></td><td/></tr>`)}),o(d.join('')),o(`<tr><th></th><th></th>${h.length"
+">0?'<th class=c>SET</th>':''}</tr>`),o(h.join('')),{s:e=>{e.preventDefault();const r=new"
+" XMLHttpRequest,o=Array.from((()=>{const e=new FormData(n);return e.set('h00',s(a(t.h00)"
+".map((t,n)=>{const r='o'+n,o=e.get(r)<<7;return e.delete(r),o}))),e})().entries(),([t,e]"
+")=>`${c(t)}=${c(e)}`).join('&');r.open('POST','/',!1),r.send(o+'&z00=0'),l()},l:l}})({h0"
+"0:'%h00'});"
 
             "%y01"
       "<p/>"
@@ -377,7 +364,7 @@ static const char g_HtmlPageIOControl[] =
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
 // 2) Copy the resulting minified script to an editor and replace all double quotes with
-//    single quotes.
+//    single quotes. THIS STEP IS VERY IMPORTANT.
 // 3) Copy the result to the above between the <script> and </script> lines.
 // 4) Add double quotes at the start and end of the minfied script to make it part of the
 //    constant string.
@@ -504,10 +491,9 @@ const m = (data => {
 // the sum of the two must not exceed 482.
 #define WEBPAGE_CONFIGURATION		1
 #define PARSEBYTES_CONFIGURATION	194
-#define PARSEBYTES_CONFIGURATION_ADDL	0
 static const char g_HtmlPageConfiguration[] =
 "%y04%y05"
-      "<title>Configuration</title>"
+      "<title>%a00: Configuration</title>"
    "</head>"
    "<body>"
       "<h1>Configuration</h1>"
@@ -586,32 +572,33 @@ static const char g_HtmlPageConfiguration[] =
               "<th>Boot state</th>"
             "</tr>"
          "<script>"
-
-         "const m=(t=>{const e=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,output:3},r="
-	 "{retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),l=s('form'),p=Object.entri"
-	 "es,d=parseInt,i=(t,e)=>d(t).toString(16).padStart(e,'0'),u=t=>t.map(t=>i(t,2)).join(''),$=t=>t.ma"
-	 "tch(/.{2}/g).map(t=>d(t,16)),m=t=>encodeURIComponent(t),b=(t,e)=>(t=>s(`input[name=${t}]`))(t).va"
-	 "lue=e,f=(t,e)=>{for(const n of a.querySelectorAll(t))e(n)},h=(t,e)=>{for(const[n,o]of p(e))t.setA"
-	 "ttribute(n,o)},g=(t,e)=>p(t).map(t=>`<option value=${t[1]} ${t[1]==e?'selected':''}>${t[0]}</opti"
-	 "on>`).join(''),A=(t,e,n,o='')=>`<input type='checkbox' name='${t}' value=${e} ${(n&e)==e?'checked"
-	 "':''}>${o}`,E=(t,e,n)=>{const o=new XMLHttpRequest;o.open(t,e,!1),o.send(n)},y=()=>c.reload(),T=("
-	 ")=>{a.body.innerText='Wait 5s...',setTimeout(y,5e3)},j=$(t.g00)[0],S={required:!0};return f('.ip'"
-	 ",t=>{h(t,{...S,title:'Enter valid',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4"
-	 "}'})}),f('.port',t=>{h(t,{...S,title:'Enter 10 to 65535',pattern:'[0-9]{2,5}',maxlength:5})}),f('"
-	 ".up input',t=>{h(t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',max"
-	 "length:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),e.forEach(e=>b(e,$(t[e]).join('.'))),n.forEach(e=>"
-	 "b(e,d(t[e],16))),b('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),$(t.h00).forEach((t,e)=>{const"
-	 " n=1&t?A('p'+e,4,t):'',s=3==(3&t)?`<select name='p${e}'>${g(r,24&t)}</select>`:'',l='#d'==c.hash?"
-	 "`<td>${t}</td>`:'';(t=>a.write(t))(`<tr><td>#${e+1}</td><td><select name='p${e}'>${g(o,3&t)}</sel"
-	 "ect></td><td>${n}</td><td>${s}</td>${l}</tr>`)}),s('.f').innerHTML=Array.from(p({'Full Duplex':1,"
-	 "'HA Auto':6,MQTT:4,DS18B20:8}),([t,e])=>A('g00',e,j,t)).join('</br>'),{r:()=>{E('GET','/91'),T()}"
-	 ",s:o=>{o.preventDefault();const r=Array.from((()=>{const o=new FormData(l),r=t=>o.getAll(t).map(t"
-	 "=>d(t)).reduce((t,e)=>t|e,0);return e.forEach(t=>o.set(t,u(o.get(t).split('.')))),n.forEach(t=>o."
-	 "set(t,i(o.get(t),4))),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u($"
-	 "(t.h00).map((t,e)=>{const n='p'+e,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})("
-	 ").entries(),([t,e])=>`${m(t)}=${m(e)}`).join('&');E('POST','/',r+'&z00=0'),T()},l:y}})({b00:'%b00"
-	 "',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00'});"
-
+"const m=(e=>{const t=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,out"
+"put:3},r={retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),p=s('for"
+"m'),d=Object.entries,l=parseInt,i=(e,t)=>l(e).toString(16).padStart(t,'0'),u=e=>e.map(e="
+">i(e,2)).join(''),m=e=>e.match(/.{2}/g).map(e=>l(e,16)),$=e=>encodeURIComponent(e),b=(e,"
+"t)=>(e=>s(`input[name=${e}]`))(e).value=t,f=(e,t)=>{for(const n of a.querySelectorAll(e)"
+")t(n)},h=(e,t)=>{for(const[n,o]of d(t))e.setAttribute(n,o)},g=(e,t)=>d(e).map(e=>`<optio"
+"n value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),x=(e,t,n,o='')=>`<i"
+"nput type='checkbox' name='${e}' value=${t} ${(n&t)==t?'checked':''}>${o}`,y=(e,t,n)=>{c"
+"onst o=new XMLHttpRequest;o.open(e,t,!1),o.send(n)},A=()=>c.reload(),T=()=>{a.body.inner"
+"Text='Wait 5s...',setTimeout(A,5e3)},j=m(e.g00)[0],E={required:!0};return f('.ip',e=>{h("
+"e,{...E,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|"
+"$)){4}'})}),f('.port',e=>{h(e,{...E,type:'number',min:10,max:65535})}),f('.up input',e=>"
+"{h(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',maxlengt"
+"h:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>b(t,m(e[t]).join('.'))),n.forEach"
+"(t=>b(t,l(e[t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),m(e.h00).forEach("
+"(e,t)=>{const n=1&e?x('p'+t,4,e):'',s=3==(3&e)?`<select name='p${t}'>${g(r,24&e)}</selec"
+"t>`:'',p='#d'==c.hash?`<td>${e}</td>`:'';(e=>a.write(e))(`<tr><td>#${t+1}</td><td><selec"
+"t name='p${t}'>${g(o,3&e)}</select></td><td>${n}</td><td>${s}</td>${p}</tr>`)}),s('.f')."
+"innerHTML=Array.from(d({'Full Duplex':1,'HA Auto':6,MQTT:4,DS18B20:8}),([e,t])=>x('g00',"
+"t,j,e)).join('</br>'),{r:()=>{y('GET','/91'),T()},s:o=>{o.preventDefault();const r=Array"
+".from((()=>{const o=new FormData(p),r=e=>o.getAll(e).map(e=>l(e)).reduce((e,t)=>e|t,0);r"
+"eturn t.forEach(e=>o.set(e,u(o.get(e).split('.')))),n.forEach(e=>o.set(e,i(o.get(e),4)))"
+",o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u(m(e.h00).map("
+"(e,t)=>{const n='p'+t,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})().e"
+"ntries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0'),T()},l:A}})({b00"
+":'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00"
+":'%g00'});"
             "%y01"
       "<p>Code Revision %w00<br/>"
         "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
@@ -628,7 +615,7 @@ static const char g_HtmlPageConfiguration[] =
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
 // 2) Copy the resulting minified script to an editor and replace all double quotes with
-//    single quotes.
+//    single quotes. THIS STEP IS VERY IMPORTANT.
 // 3) Copy the result to the above between the <script> and </script> lines.
 // 4) Add double quotes at the start and end of the minfied script to make it part of the
 //    constant string.
@@ -639,9 +626,9 @@ static const char g_HtmlPageConfiguration[] =
 const m = (data => {
     const ip_input_names = ['b00', 'b04', 'b08', 'b12'],
         port_input_names = ['c00', 'c01'],
-        features = { "Full Duplex": 1, "HA Auto": 6, "MQTT": 4, "DS18B20": 8 },
-        pin_types = { "disabled": 0, "input": 1, "output": 3 },
-        boot_state = { "retain": 8, "on": 16, "off": 0 },
+        features = { 'Full Duplex': 1, 'HA Auto': 6, 'MQTT': 4, 'DS18B20': 8 },
+        pin_types = { 'disabled': 0, 'input': 1, 'output': 3 },
+        boot_state = { 'retain': 8, 'on': 16, 'off': 0 },
         doc=document,
         loc=location,
         selector=doc.querySelector.bind(doc),
@@ -658,7 +645,7 @@ const m = (data => {
         selector_apply_fn = (query, fn) => { for (const e of doc.querySelectorAll(query)) { fn(e) } },
         set_attributes = (e, d) => { for (const [k, v] of get_entries(d)) { e.setAttribute(k, v); } },
         make_options = (o, v) => get_entries(o).map((o) => `<option value=${o[1]} ${o[1] == v ? 'selected' : ''}>${o[0]}</option>`).join(''),
-        make_checkbox = (name, bit, value, title='') => `<input type="checkbox" name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
+        make_checkbox = (name, bit, value, title='') => `<input type='checkbox' name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
         get_form_data = () => {
             const form_data = new FormData(form),
             	collect_bits = (name) => form_data.getAll(name).map(v => parse_int(v)).reduce((a, b) => a | b, 0);
@@ -685,24 +672,24 @@ const m = (data => {
         },
         reload_page = () => loc.reload(),
         wait_reboot = () => {
-          doc.body.innerText = "Wait 5s...";
+          doc.body.innerText = 'Wait 5s...';
           setTimeout(reload_page, 5000);
         },
         reboot = () => {
-          send_request("GET", "/91");
+          send_request('GET', '/91');
           wait_reboot();
         },
         submitForm = (event) => {
         	event.preventDefault();
-          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join("&");
-          send_request("POST", "/", string_data + '&z00=0');
+          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
+          send_request('POST', '/', string_data + '&z00=0');
           wait_reboot();
         },
         features_data = convert_from_hex(data.g00)[0],
         common_attributes = {required: true};
 
-    selector_apply_fn('.ip', (e) => { set_attributes(e, {...common_attributes, title: 'Enter valid', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
-    selector_apply_fn('.port', (e) => { set_attributes(e, {...common_attributes, title: 'Enter 10 to 65535', pattern: '[0-9]{2,5}', maxlength: 5 }); });
+    selector_apply_fn('.ip', (e) => { set_attributes(e, {...common_attributes, title: 'x.x.x.x format', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
+    selector_apply_fn('.port', (e) => { set_attributes(e, {...common_attributes, type: 'number', min: 10, max: 65535 }); });
     selector_apply_fn('.up input', (e) => { set_attributes(e, {title: '0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.', maxlength: 10, pattern: '[0-9a-zA-Z-_*.]{0,10}$' }); });
 
     ip_input_names.forEach((n) => set_input_value(n, convert_from_hex(data[n]).join('.')));
@@ -716,9 +703,9 @@ const m = (data => {
         document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
     });
     
-    selector(".f").innerHTML = Array.from(
+    selector('.f').innerHTML = Array.from(
     	get_entries(features),
-      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join("</br>"
+      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join('</br>'
     );
     
     
@@ -736,27 +723,503 @@ const m = (data => {
 });
 
 */
+#endif // MQTT_SUPPORT
 
 
-// .........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6.........7.........8.........9.........0.........1.........2.........3.........4.........5.........6
 
 
-#if UIP_STATISTICS == 1
+//---------------------------------------------------------------------------//
+
+#if MQTT_SUPPORT == 0
+// IO Control Template
+//
+// PARSE_BYTES calculation:
+// The form contained in this webpage will generate several data update
+// replies. These replies need to be parsed to extract the data from them. We
+// need to stop parsing the reply POST data after all update bytes are parsed.
+// The formula for determining the stop value is as follows:
+//   Each POST has a "wrapper" consisting of
+//     1 byte ParseCmd
+//     2 byte ParseNum
+//     1 byte egual sign
+//     1 byte Delimiter
+//     So, add 5 bytes to each POST as defined here:
+//
+//     For 1 of the replies (Pin Control):
+//     POST consists of 32 bytes data plus 5 byte wrapper (37 bytes)
+//   PLUS
+//     For 1 of the replies (hidden):
+//     example: z00=x where x is 1 byte (note no &)
+//     POST consists of a 1 byte data plus 4 byte wrapper (5 bytes)
+// THUS
+// The formula in this case is
+//     PARSEBYTES = (1 x 37)
+//                + (1 x 5)
+//     PARSEBYTES = 37
+//                + 5 = 42
+#define WEBPAGE_IOCONTROL		0
+#define PARSEBYTES_IOCONTROL		42
+static const char g_HtmlPageIOControl[] =
+"%y04%y05"
+      "<title>%a00: IO Control</title>"
+   "</head>"
+   "<body>"
+      "<h1>IO Control</h1>"
+      "<form onsubmit='return m.s(event);return false'>"
+         "<table>"
+            "<tr>"
+               "<th>Name:</th>"
+               "<td colspan=2 style='text-align: left'>%a00</td>"
+            "</tr>"
+            "<script>"
+"const m=(t=>{const e=document,j=e.querySelector.bind(e)('form'),r=(Object.entries,parseI"
+"nt),n=t=>e.write(t),o=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join("
+"''),a=t=>t.match(/.{2}/g).map(t=>r(t,16)),s=t=>encodeURIComponent(t),d=[],c=[],h=(t,e,j)"
+"=>{return`<input type=radio name=o${e} value=${t} ${j==t?'checked':''}/><label>${(t?'on'"
+":'off').toUpperCase()}</label>`},l=()=>location.reload();return a(t.h00).forEach((e,j)=>"
+"{var r=t['j'+(j+'').padStart(2,'0')];3==(3&e)?c.push(`<tr><td>${r}</td><td class='s${e>>"
+"7} t3'></td><td class=c>${h(1,j,e>>7)}${h(0,j,e>>7)}</td></tr>`):1==(3&e)&&d.push(`<tr><"
+"td>${r}</td><td class='s${e>>7} t3'></td><td/></tr>`)}),n(d.join('')),n(`<tr><th></th><t"
+"h></th>${c.length>0?'<th class=c>SET</th>':''}</tr>`),n(c.join('')),{s:e=>{e.preventDefa"
+"ult();const r=new XMLHttpRequest,n=Array.from((()=>{const e=new FormData(j);return e.set"
+"('h00',o(a(t.h00).map((t,j)=>{const r='o'+j,n=e.get(r)<<7;return e.delete(r),n}))),e})()"
+".entries(),([t,e])=>`${s(t)}=${s(e)}`).join('&');r.open('POST','/',!1),r.send(n+'&z00=0'"
+"),l()},l:l}})({h00:'%h00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j"
+"05',j06:'%j06',j07:'%j07',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j"
+"13',j14:'%j14',j15:'%j15'});"
+            "%y01"
+      "<p/>"
+      "%y02`/61`'>Configuration</button>"
+      "%t00%t01%t02%t03%t04"
+   "</body>"
+"</html>";
+
+
+
+/*
+// Credit to Jevdeni Kiski for the javascript work and html improvements.
+// Below is the raw script used above before minify.
+// 1) Copy raw script to minify website, for example https://javascript-minifier.com/
+// 2) Copy the resulting minified script to an editor and replace all double quotes with
+//    single quotes. THIS STEP IS VERY IMPORTANT.
+// 3) Copy the result to the above between the <script> and </script> lines.
+// 4) Add double quotes at the start and end of the minfied script to make it part of the
+//    constant string.
+// 5) It is OK to break up the minified script into lines enclosed by double quotes (just
+//    to make it all visible in the code editors). But make sure no spaces are inadvertantly
+//    removed from the minified script.
+
+const m = (data => {
+    const doc = document,
+        selector = doc.querySelector.bind(doc),
+        form = selector('form'),
+        get_entries = Object.entries,
+        parse_int = parseInt,
+        document_write = text => doc.write(text),
+        pad_hex = (s, l) => parse_int(s).toString(16).padStart(l, '0'),
+        convert_to_hex = v => v.map(p => pad_hex(p, 2)).join(''),
+        convert_from_hex = v => v.match(/.{2}/g).map(p => parse_int(p, 16)),
+        encode = v => encodeURIComponent(v),
+        inputs = [],
+        outputs = [],
+        make_radio_input = (type, id, checked_type) => {
+            var type_str = type ? 'on' : 'off';
+            return `<input type=radio name=o${id} value=${type} ${checked_type == type ? 'checked' : ''}/><label>${type_str.toUpperCase()}</label>`;
+        },
+        get_form_data = () => {
+            const form_data = new FormData(form);
+            form_data.set('h00', convert_to_hex(convert_from_hex(data.h00).map((_, i) => {
+                const name = 'o' + i,
+                    result = form_data.get(name) << 7;
+                form_data.delete(name);
+                return result;
+            })));
+            return form_data;
+        },
+        reload_page = () => location.reload(),
+        submit_form = (event) => {
+        	event.preventDefault();
+
+          const request = new XMLHttpRequest(),
+              string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
+          request.open('POST', '/', false);
+          request.send(string_data + '&z00=0');
+          reload_page();
+        };
+        
+
+    convert_from_hex(data.h00).forEach((cfg, i) => {
+    		var name = data['j'+(i+'').padStart(2, '0')];
+        if ((cfg & 3) == 3) { //output
+            outputs.push(`<tr><td>${name}</td><td class='s${cfg >> 7} t3'></td><td class=c>${make_radio_input(1, i, cfg >> 7)}${make_radio_input(0, i, cfg >> 7)}</td></tr>`);
+        } else if ((cfg & 3) == 1) { // input
+            inputs.push(`<tr><td>${name}</td><td class='s${cfg >> 7} t3'></td><td/></tr>`);
+        }
+    });
+
+    document_write(inputs.join(''));
+    document_write(`<tr><th></th><th></th>${outputs.length > 0 ? '<th class=c>SET</th>' : ''}</tr>`);
+    document_write(outputs.join(''));
+    
+    return {s: submit_form, l:reload_page}
+})({
+  h00: '%h00',
+  j00: '%j00',
+  j01: '%j01',
+  j02: '%j02',
+  j03: '%j03',
+  j04: '%j04',
+  j05: '%j05',
+  j06: '%j06',
+  j07: '%j07',
+  j08: '%j08',
+  j09: '%j09',
+  j10: '%j10',
+  j11: '%j11',
+  j12: '%j12',
+  j13: '%j13',
+  j14: '%j14',
+  j15: '%j15',
+});
+
+*/
+
+
+
+// Configuration webpage Template
+//
+// PARSE_BYTES calculation:
+// The form contained in this webpage will generate several data update
+// replies. These replies need to be parsed to extract the data from them. We
+// need to stop parsing the reply POST data after all update bytes are parsed.
+// The formula for determining the stop value is as follows:
+//   Each POST has a "wrapper" consisting of
+//     1 byte ParseCmd
+//     2 byte ParseNum
+//     1 byte egual sign
+//     1 byte Delimiter
+//     So, add 5 bytes to each POST as defined here:
+//
+//     For 1 of the replies (device name):
+//     example: a00=xxxxxxxxxxxxxxxxxxx& where xxxxxxxxxxxxxxxxxxx is 1 to 19 bytes
+//     POST consists of 19 bytes data plus 5 byte wrapper (24 bytes)
+//   PLUS
+//     For 3 of the replies (HTML IP, Gateway, and Netmask fields):
+//     example: b00=xxxxxxxx& where xxxxxxxx is 8 bytes
+//     POST consists of 8 bytes data plus 5 byte wrapper (13 bytes)
+//   PLUS
+//     For 1 of the replies (HTML Port number):
+//     example: c00=xxxx& where xxxx is 4 bytes
+//     POST consists of 4 bytes data plus 5 byte wrapper (9 bytes)
+//   PLUS
+//     For 1 of the replies (MAC):
+//     example: d00=xxxxxxxxxxxx& where xxxxxxxxxxxx is 12 bytes
+//     POST consists of 12 bytes data plus 5 byte wrapper (17 bytes)
+//   PLUS
+//     For 1 of the replies (Config):
+//     example: g00=xx& where xx is 2 bytes
+//     POST consists of 2 bytes data plus 5 byte wrapper (7 bytes)
+//   PLUS
+//     For 1 of the replies (Pin Control):
+//     example: h00=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&
+//     where xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx is 32 bytes
+//     POST consists of 32 bytes data plus 5 byte wrapper (37 bytes)
+//   PLUS
+//     For 16 of the replies (IO Name):
+//     example: j00=xxxxxxxxxxxxxxx& where xxxxxxxxxxxxxxx is 15 bytes
+//     POST consists of 15 bytes data plus 5 byte wrapper (20 bytes)
+//   PLUS
+//     For 16 of the replies (IO Timer):
+//     example: i00=xxxx& where xxxx is 4 bytes
+//     POST consists of 4 bytes data plus 5 byte wrapper (9 bytes)
+//   PLUS
+//     For 1 of the replies (hidden):
+//     example: z00=x where x is 1 byte (note no &)
+//     POST consists of 1 byte data plus 4 byte wrapper (5 bytes)
+// The formula in this case is
+//     PARSEBYTES = (1 x 24)
+//                + (3 x 13)
+//                + (1 x 9)
+//                + (1 x 17)
+//                + (1 x 7)
+//                + (1 x 37)
+//                + (16 x 20)
+//                + (16 x 9)
+//                + (1 x 5)
+//     PARSEBYTES = 24
+//                + 39
+//                + 9
+//                + 17
+//                + 7
+//                + 37
+//                + 320
+//                + 144
+//                + 5 = 602
+#define WEBPAGE_CONFIGURATION		1
+#define PARSEBYTES_CONFIGURATION	602
+static const char g_HtmlPageConfiguration[] =
+"%y04%y05"
+      "<title>%a00: Configuration</title>"
+   "</head>"
+   "<body>"
+      "<h1>Configuration</h1>"
+      "<form onsubmit='return m.s(event);return false'>"
+         "<table>"
+            "<tr>"
+               "<td>Name</td>"
+               "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'/></td>"
+            "</tr>"
+            "<tr class='hs'/>"
+            "<tr>"
+               "<td>IP Address</td>"
+               "<td>"
+                 "<input name='b00' class='ip'/>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Gateway</td>"
+               "<td>"
+                 "<input name='b04' class='ip'/>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Netmask</td>"
+               "<td>"
+                 "<input name='b08' class='ip'/>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Port</td>"
+               "<td><input name='c00' class='t8 port'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>MAC Address</td>"
+               "<td>"
+                 "<input name='d00' required pattern='([0-9a-fA-F]{2}[:-]?){5}([0-9a-fA-F]{2})' title='aa:bb:cc:dd:ee:ff format' maxlength=17/>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Features</td>"
+               "<td class='f'></td>"
+            "</tr>"
+            "<tr class='hs'/>"
+         "</table>"
+         "<table>"
+            "<tr>"
+              "<th>IO</th>"
+              "<th>Type</th>"
+              "<th>Name</th>"
+              "<th>Invert</th>"
+              "<th>Boot state</th>"
+              "<th>Timer</th>"
+            "</tr>"
+         "<script>"
+"const m=(e=>{const t=['b00','b04','b08'],i=['c00'],n={disabled:0,input:1,output:3},r={r"
+"etain:8,on:16,off:0},a={'0.1s':0,'1s':16384,'1m':32768,'1h':49152},o=document,s=locatio"
+"n,c=o.querySelector.bind(o),d=c('form'),j=Object.entries,l=parseInt,p=(e,t)=>l(e).toStr"
+"ing(16).padStart(t,'0'),m=e=>e.map(e=>p(e,2)).join(''),u=e=>e.match(/.{2}/g).map(e=>l(e"
+",16)),$=e=>encodeURIComponent(e),b=(e,t)=>(e=>c(`input[name=${e}]`))(e).value=t,f=(e,t)"
+"=>{for(const i of o.querySelectorAll(e))t(i)},h=(e,t)=>{for(const[i,n]of j(t))e.setAttr"
+"ibute(i,n)},g=(e,t)=>j(e).map(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]"
+"}</option>`).join(''),x=(e,t,i,n='')=>`<input type='checkbox' name='${e}' value=${t} ${"
+"(i&t)==t?'checked':''}>${n}`,y=(e,t,i)=>{const n=new XMLHttpRequest;n.open(e,t,!1),n.se"
+"nd(i)},S=()=>s.reload(),v=()=>{o.body.innerText='Wait 5s...',setTimeout(S,5e3)},A=u(e.g"
+"00)[0],E={required:!0};return f('.ip',e=>{h(e,{...E,title:'x.x.x.x format',pattern:'((2"
+"5[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),f('.port',e=>{h(e,{...E,type:'"
+"number',min:10,max:65535})}),t.forEach(t=>b(t,u(e[t]).join('.'))),i.forEach(t=>b(t,l(e["
+"t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),u(e.h00).forEach((t,i)=>{con"
+"st c=1&t?x('p'+i,4,t):'',d=(e,i)=>3==(3&t)?e:i,j=(''+i).padStart(2,'0'),l=d(u(e['i'+j])"
+".reduce((e,t)=>(e<<8)+t),0),p=d(`<select name='p${i}'>${g(r,24&t)}</select>`,''),m='#d'"
+"==s.hash?`<td>${t}</td>`:'',$=d(`<input type=number class=t8 name='i${j}' value='${1638"
+"3&l}' min=0 max=16383><select name='i${j}'>${g(a,49152&l)}</select>`,'');(e=>o.write(e)"
+")(`<tr><td>#${i+1}</td><td><select name='p${i}'>${g(n,3&t)}</select></td><td><input nam"
+"e='j${j}' value='${e['j'+j]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 l"
+"etters, numbers, and -*_. no spaces' maxlength=15/></td><td>${c}</td><td>${p}</td><td>$"
+"{$}</td>${m}</tr>`)}),c('.f').innerHTML=Array.from(j({'Full Duplex':1,DS18B20:8}),([e,t"
+"])=>x('g00',t,A,e)).join('</br>'),{r:()=>{y('GET','/91'),v()},s:n=>{n.preventDefault();"
+"const r=Array.from((()=>{const n=new FormData(d),r=e=>n.getAll(e).map(e=>l(e)).reduce(("
+"e,t)=>e|t,0);t.forEach(e=>n.set(e,m(n.get(e).split('.')))),i.forEach(e=>n.set(e,p(n.get"
+"(e),4))),n.set('d00',n.get('d00').toLowerCase().replace(/[:-]/g,'')),n.set('h00',m(u(e."
+"h00).map((e,t)=>{const i='p'+t,a=r(i);return n.delete(i),a})));for(let e=0;e<16;e++){le"
+"t t=(''+e).padStart(2,'0');n.set('i'+t,p(65535&r('i'+t),4))}return n.set('g00',m([r('g0"
+"0')])),n})().entries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0'),v"
+"()},l:S}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00',g00:'%g00"
+"',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j0"
+"7',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j"
+"15',i00:'%i00',i01:'%i01',i02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%"
+"i07',i08:'%i08',i09:'%i09',i10:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'"
+"%i15'});"
+            "%y01"
+      "<p>Code Revision %w00<br/>"
+        "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
+      "</p>"
+      "<button title='Save first!' onclick='m.r()'>Reboot</button>"
+      "<br><br>"
+      "%y02`/60`'>IO Control</button>"
+   "</body>"
+"</html>";
+
+
+/*
+// Credit to Jevdeni Kiski for the javascript work and html improvements.
+// Below is the raw script used above before minify.
+// 1) Copy raw script to minify website, for example https://javascript-minifier.com/
+// 2) Copy the resulting minified script to an editor and replace all double quotes with
+//    single quotes. THIS STEP IS VERY IMPORTANT.
+// 3) Copy the result to the above between the <script> and </script> lines.
+// 4) Add double quotes at the start and end of the minfied script to make it part of the
+//    constant string.
+// 5) It is OK to break up the minified script into lines enclosed by double quotes (just
+//    to make it all visible in the code editors). But make sure no spaces are inadvertantly
+//    removed from the minified script.
+
+const m = (data => {
+    const ip_input_names = ['b00', 'b04', 'b08'],
+        port_input_names = ['c00'],
+        features = { 'Full Duplex': 1, 'DS18B20': 8 },
+        pin_types = { 'disabled': 0, 'input': 1, 'output': 3 },
+        boot_state = { 'retain': 8, 'on': 16, 'off': 0 },
+        timer_unit = { '0.1s': 0, '1s': 0x4000, '1m': 0x8000, '1h': 0xc000 },
+        doc=document,
+        loc=location,
+        selector=doc.querySelector.bind(doc),
+        form=selector('form'),
+        get_entries=Object.entries,
+        parse_int = parseInt,
+        document_write = text => doc.write(text),
+        pad_hex = (s, l) => parse_int(s).toString(16).padStart(l, '0'),
+        convert_to_hex = v => v.map(p => pad_hex(p, 2)).join(''),
+        convert_from_hex = v => v.match(/.{2}/g).map(p => parse_int(p, 16)),
+        encode = v => encodeURIComponent(v),
+        query_input_by_name = n => selector(`input[name=${n}]`),
+        set_input_value = (n, v) => query_input_by_name(n).value = v,
+        selector_apply_fn = (query, fn) => { for (const e of doc.querySelectorAll(query)) { fn(e) } },
+        set_attributes = (e, d) => { for (const [k, v] of get_entries(d)) { e.setAttribute(k, v); } },
+        make_options = (o, v) => get_entries(o).map((o) => `<option value=${o[1]} ${o[1] == v ? 'selected' : ''}>${o[0]}</option>`).join(''),
+        make_checkbox = (name, bit, value, title='') => `<input type='checkbox' name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
+        get_form_data = () => {
+            const form_data = new FormData(form),
+            	collect_bits = (name) => form_data.getAll(name).map(v => parse_int(v)).reduce((a, b) => a | b, 0);
+              
+            ip_input_names.forEach((n) => form_data.set(n, convert_to_hex(form_data.get(n).split('.'))));
+            port_input_names.forEach((n) => form_data.set(n, pad_hex(form_data.get(n), 4)));
+            
+            form_data.set('d00', form_data.get('d00').toLowerCase().replace(/[:-]/g, ''));
+            form_data.set('h00', convert_to_hex(convert_from_hex(data.h00).map((_, i) => {
+                const name = 'p' + i,
+                    result = collect_bits(name);
+                form_data.delete(name);
+                return result;
+            })));
+            for (let i=0;i<16;i++) {
+              let input_nr = (''+i).padStart(2, '0');
+            	form_data.set('i'+input_nr, pad_hex(collect_bits('i'+input_nr) & 0xffff, 4));
+            }
+            
+            form_data.set('g00', convert_to_hex([collect_bits('g00')]));
+            
+            return form_data;
+        },
+        send_request = (method, url, data) => {
+        	const request = new XMLHttpRequest();
+          request.open(method, url, false);
+          request.send(data);
+        },
+        reload_page = () => loc.reload(),
+        wait_reboot = () => {
+          doc.body.innerText = 'Wait 5s...';
+          setTimeout(reload_page, 5000);
+        },
+        reboot = () => {
+          send_request('GET', '/91');
+          wait_reboot();
+        },
+        submitForm = (event) => {
+        	event.preventDefault();
+          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
+          send_request('POST', '/', string_data + '&z00=0');
+          wait_reboot();
+        },
+        features_data = convert_from_hex(data.g00)[0],
+        common_attributes = {required: true};
+
+    selector_apply_fn('.ip', (e) => { set_attributes(e, {...common_attributes, title: 'x.x.x.x format', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
+    selector_apply_fn('.port', (e) => { set_attributes(e, {...common_attributes, type: 'number', min: 10, max: 65535 }); });
+
+    ip_input_names.forEach((n) => set_input_value(n, convert_from_hex(data[n]).join('.')));
+    port_input_names.forEach((n) => set_input_value(n, parse_int(data[n], 16)));
+    set_input_value('d00', data.d00.replace(/[0-9a-z]{2}(?!$)/g, '$&:'));
+
+    convert_from_hex(data.h00).forEach((n, i) => {
+        const invert_checkbox = n & 1 ? make_checkbox('p'+i, 4, n) : '',
+            if_output = (a,b) => (n & 3) == 3 ? a: b,
+        		input_nr = (''+i).padStart(2, '0'),
+            timer_int_value = if_output(convert_from_hex(data['i'+input_nr]).reduce((prev, cur)=>(prev<<8)+cur), 0),
+            boot_state_select = if_output(`<select name='p${i}'>${make_options(boot_state, n & 24)}</select>`,''),
+            debug_column = (loc.hash == '#d'?`<td>${n}</td>`:''),
+            timer_column = if_output(`<input type=number class=t8 name='i${input_nr}' value='${timer_int_value & 0x3fff}' min=0 max=16383><select name='i${input_nr}'>${make_options(timer_unit, timer_int_value & 0xc000)}</select>`,'');
+        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td><input name='j${input_nr}' value='${data['j'+input_nr]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, and -*_. no spaces' maxlength=15/></td><td>${invert_checkbox}</td><td>${boot_state_select}</td><td>${timer_column}</td>${debug_column}</tr>`);
+    });
+    
+    selector('.f').innerHTML = Array.from(
+    	get_entries(features),
+      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join('</br>'
+    );
+    
+    
+    return {r:reboot, s: submitForm, l:reload_page};
+})({
+    b00: '%b00',
+    b04: '%b04',
+    b08: '%b08',
+    c00: '%c00',
+    d00: '%d00',
+    h00: '%h00',
+    g00: '%g00',
+    j00: '%j00',
+    j01: '%j01',
+    j02: '%j02',
+    j03: '%j03',
+    j04: '%j04',
+    j05: '%j05',
+    j06: '%j06',
+    j07: '%j07',
+    j08: '%j08',
+    j09: '%j09',
+    j10: '%j10',
+    j11: '%j11',
+    j12: '%j12',
+    j13: '%j13',
+    j14: '%j14',
+    j15: '%j15',
+    i00: '%i00',
+    i01: '%i01',
+    i02: '%i02',
+    i03: '%i03',
+    i04: '%i04',
+    i05: '%i05',
+    i06: '%i06',
+    i07: '%i07',
+    i08: '%i08',
+    i09: '%i09',
+    i10: '%i10',
+    i11: '%i11',
+    i12: '%i12',
+    i13: '%i13',
+    i14: '%i14',
+    i15: '%i15',
+});
+
+*/
+#endif // MQTT_SUPPORT
+
+
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
 // Statistics page Template
-#define WEBPAGE_STATS		5
-static const char g_HtmlPageStats[] =
-//  "<!DOCTYPE html>"
-//  "<html lang='en-US'>"
-  "<html>"
-  "<head>"
-  "<title>Network Statistics</title>"
-  "<link rel='icon' href='data:,'>"
-  "<meta name='viewport' content='width=device-width'>"
-  "<style>"
-  ".t1 { width: 100px; }"
-  ".t2 { width: 450px; }"
-  "td { border: 1px black solid; }"
-  "</style>"
+#define WEBPAGE_STATS1		5
+static const char g_HtmlPageStats1[] =
+"%y04%y05"
+  "<title>%a00: Network Statistics</title>"
   "</head>"
   "<body>"
   "<h1>Network Statistics</h1>"
@@ -785,34 +1248,38 @@ static const char g_HtmlPageStats[] =
   "<tr><td class='t1'>%e20</td><td class='t2'>Dropped SYNs due to too few connections avaliable</td></tr>"
   "<tr><td class='t1'>%e21</td><td class='t2'>SYNs for closed ports, triggering a RST</td></tr>"
   "</table>"
-  "%y03/61' method='GET'><button>Configuration</button></form>"
-  "%y03/66' method='GET'><button>Refresh</button></form>"
-  "%y03/67' method='GET'><button>Clear Statistics</button></form>"
+  "<br>"
+  "<button onclick='location=`/61`'>Configuration</button>"
+  "<button onclick='location=`/68`'>Refresh</button>"
+  "<button onclick='location=`/69`'>Clear</button>"
   "</body>"
   "</html>";
-#endif // UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
 
 
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
 // Link Error Statistics page Template
-#define WEBPAGE_STATS		5
-static const char g_HtmlPageStats[] =
+#define WEBPAGE_STATS2		6
+static const char g_HtmlPageStats2[] =
   "%y04%y05"
+  "<title>%a00: Link Error Statistics</title>"
   "</head>"
   "<body>"
+  "<h1>Link Error Statistics</h1>"
   "<table>"
   "<tr><td>31 %e31</td></tr>"
   "<tr><td>32 %e32</td></tr>"
   "<tr><td>33 %e33</td></tr>"
   "<tr><td>35 %e35</td></tr>"
   "</table>"
+  "<br>"
   "<button onclick='location=`/61`'>Configuration</button>"
-  "<button onclick='location=`/67`'>Clear</button>"
   "<button onclick='location=`/66`'>Refresh</button>"
+  "<button onclick='location=`/67`'>Clear</button>"
   "</body>"
   "</html>";
-#endif // UIP_STATISTICS
+#endif // DEBUG_SUPPORT
 
 
 // Very Short IO state page Template
@@ -823,84 +1290,6 @@ static const char g_HtmlPageStats[] =
 #define WEBPAGE_SSTATE		7
 static const char g_HtmlPageSstate[] =
   "%f00";
-
-/*
-// Commonly used strings in the HTML pages. These strings are inserted in
-// the HTML page during copy of the HTML page template to the transmit
-// buffer when the associated "%yxx" placeholder is encountered in the
-// template. The length of each string is manually counted and put in the
-// _len value. When the _len value is needed it often has 4 subtracted
-// (as the strings are replacing the 4 character placeholder), so that
-// subtraction is done once here.
-
-// String for %y01 replacement in web page templates
-static const char page_string01[] =
-  "</script>"
-  "</table>"
-  "<p/>"
-  "<button type=submit>Save</button> <button type=reset onclick='m.l()'>Undo All</button>"
-  "</form>";
-static const uint8_t page_string01_len = sizeof(page_string01) - 1;
-static const uint8_t page_string01_len_less4 = sizeof(page_string01) - 5;
-// STRING LENGTH MUST BE LESS THAN 256
-#if (page_string01_len > 255)
-  #error "page_string01 is too big"
-#endif
-
-
-// String for %y02 replacement in web page templates
-static const char page_string02[] =
-  "<button title='Save first!' onclick='location.reload()'>Refresh</button> "
-  "<button title='Save first!' onclick='location=";
-static const uint8_t page_string02_len = sizeof(page_string02) - 1;
-static const uint8_t page_string02_len_less4 = sizeof(page_string02) - 5;
-// STRING LENGTH MUST BE LESS THAN 256
-#if (page_string02_len > 255)
-  #error "page_string02 is too big"
-#endif
-
-
-// String for %y04 replacement in web page templates. When used this
-// string is always followed by the %y05 string
-static const char page_string04[] =
-//  "<!DOCTYPE html>"
-//  "<html lang='en-US'>"
-  "<html>"
-  "<head>"
-  "<link rel='icon' href='data:,'>"
-  "<meta name='viewport' content='user-scalable=no,"
-  "initial-scale=1.0,maximum-scale=1.0,width=device-width'>"
-  "<style>"
-  ".s0{background:red;}"
-  ".s1{background:green;}";
-static const uint8_t page_string04_len = sizeof(page_string04) - 1;
-static const uint8_t page_string04_len_less4 = sizeof(page_string04) - 5;
-// STRING LENGTH MUST BE LESS THAN 256
-#if (page_string04_len > 255)
-  #error "page_string04 is too big"
-#endif
-
-
-// String for %y05 replacement in web page templates. When used this
-// string is always follows the %y04 string.
-static const char page_string05[] =
-  "table{border-spacing:8px2px}"
-  ".t3{width:30px;}"
-  ".t8{width:40px;}"
-  ".c{text-align:center;}"
-  ".ip input{width:27px;}"
-  ".mac input{width:14px;}"
-  ".s div{width:13px;height:13px;display:inline-block;}"
-  ".hs{height:9px;}"
-  "</style>";
-static const uint8_t page_string05_len = sizeof(page_string05) - 1;
-static const uint8_t page_string05_len_less4 = sizeof(page_string05) - 5;
-// STRING LENGTH MUST BE LESS THAN 256
-#if (page_string05_len > 255)
-  #error "page_string05 is too big"
-#endif
-*/
-
 
 
 //---------------------------------------------------------------------------//
@@ -916,10 +1305,11 @@ static const uint8_t page_string05_len_less4 = sizeof(page_string05) - 5;
 // The following creates an array of 6 strings of variable length
 
 // String for %y00 replacement in web page templates
-#define s1 " "
+#define s0 "" \
+  "placeholder"
 
 // String for %y01 replacement in web page templates
-#define s2 "" \
+#define s1 "" \
   "</script>" \
   "</table>" \
   "<p/>" \
@@ -927,31 +1317,31 @@ static const uint8_t page_string05_len_less4 = sizeof(page_string05) - 5;
   "</form>"
 
 // String for %y02 replacement in web page templates
-#define s3 "" \
+#define s2 "" \
   "<button title='Save first!' onclick='location.reload()'>Refresh</button> " \
   "<button title='Save first!' onclick='location="
 
 // String for %y03 replacement in web page templates
-#define s4 " "
+#define s3 "" \
+"placeholder"
 
 // String for %y04 replacement in web page templates
-//  "<!DOCTYPE html>"
-//  "<html lang='en-US'>"
-#define s5  "" \
+#define s4  "" \
   "<html>"\
   "<head>" \
   "<link rel='icon' href='data:,'>" \
-  "<meta name='viewport' content='user-scalable=no," \
-  "initial-scale=1.0,maximum-scale=1.0,width=device-width'>" \
+  "<meta name='viewport' content='width=device-width'>" \
   "<style>" \
   ".s0{background:red;}" \
   ".s1{background:green;}"
 
 // String for %y05 replacement in web page templates
-#define s6 "" \
+#define s5 "" \
   "table{border-spacing:8px2px}" \
+  ".t1{width:100px;}" \
+  ".t2{width:450px;}" \
   ".t3{width:30px;}" \
-  ".t8{width:40px;}" \
+  ".t8{width:60px;}" \
   ".c{text-align:center;}" \
   ".ip input{width:27px;}" \
   ".mac input{width:14px;}" \
@@ -960,7 +1350,7 @@ static const uint8_t page_string05_len_less4 = sizeof(page_string05) - 5;
   "</style>"
 
 // The following creates an array of string lengths corresponding to
-// the strings above
+// the strings in the #define statements above
 // AND
 // Creates an array of string lengths (less 4) corresponding to the
 // strings above
@@ -971,12 +1361,12 @@ struct page_string {
 };
 
 const struct page_string ps[6] = {
-    { s1, 1, 1 },
+    { s0, sizeof(s0)-1, sizeof(s0)-5 },
+    { s1, sizeof(s1)-1, sizeof(s1)-5 },
     { s2, sizeof(s2)-1, sizeof(s2)-5 },
     { s3, sizeof(s3)-1, sizeof(s3)-5 },
-    { s4, 1, 1 },
-    { s5, sizeof(s5)-1, sizeof(s5)-5 },
-    { s6, sizeof(s6)-1, sizeof(s6)-5 }
+    { s4, sizeof(s4)-1, sizeof(s4)-5 },
+    { s5, sizeof(s5)-1, sizeof(s5)-5 }
 };
 
 // Access the above strings, string length, and (string length - 4) as
@@ -986,32 +1376,33 @@ const struct page_string ps[6] = {
 // ps[i].size_less4
 
 
-
-
-
-
-
-/*
-
-// The following tests the string lengths to make sure they are within
-// valid limits. All string lengths must be less than 256.
-#if (sizeof(page_string[1]) > 255)
-  #error "page_string01 is too big"
+//---------------------------------------------------------------------------//
+// The following compile time pre-processor statements test the string
+// lengths to make sure they are within valid limits. All string lengths
+// must be less than 256.
+#if (sizeof(s0) > 255)
+  #error "string s0 is too big"
 #endif
 
-#if (sizeof(page_string[2]) > 255)
-  #error "page_string02 is too big"
+#if (sizeof(s1) > 255)
+  #error "string s1 is too big"
 #endif
 
-#if (sizeof(page_string[4]) > 255)
-  #error "page_string04 is too big"
+#if (sizeof(s2) > 255)
+  #error "string s2 is too big"
 #endif
 
-#if (sizeof(page_string[5]) > 255)
-  #error "page_string05 is too big"
+#if (sizeof(s3) > 255)
+  #error "string s3 is too big"
 #endif
 
-*/
+#if (sizeof(s4) > 255)
+  #error "string s4 is too big"
+#endif
+
+#if (sizeof(s5) > 255)
+  #error "string s5 is too big"
+#endif
 
 
 // insertion_flag is used in continuing transmission of a "%yxx" insertion
@@ -1048,39 +1439,36 @@ uint16_t adjust_template_size()
   // Adjust the size reported by the WEBPAGE_IOCONTROL template
   //
   
-//  UARTPrintf(page_string[0]);
-//  UARTPrintf("\r\n");
-
   if (current_webpage == WEBPAGE_IOCONTROL) {
     size = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
 
     // Account for header replacement strings %y04 %y05
-//    size = size + page_string04_len_less4]
-//                + page_string05_len_less4;
     size = size + ps[4].size_less4
                 + ps[5].size_less4;
 
-    // Account for Device Name field %a00
+    // Account for Device Name field %a00 in <title> and in body
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
-    size = size + strlen(stored_devicename) - 4;
+    size = size + (2 * (strlen(stored_devicename) - 4));
     
+#if MQTT_SUPPORT == 0
+    // Account for IO Name fields %j00 to %j15
+    // Each can be variable in size during run time so we have to calculate
+    // them  each time we display the web page.
+    {
+      int i;
+      for (i=0; i<15; i++) {
+        size = size + (strlen(IO_NAME[i]) - 4);
+      }
+    }
+#endif MQTT_SUPPORT
+
     // Account for pin control field %h00
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances x (32 - 4));
     // size = size + (1 x 28);
     size = size + 28;
  
-#if UIP_STATISTICS == 1
-    // Account for IP Address insertion %y03 - Network Statistics Button
-//    // size = size + (strlen(page_string03) - marker_field_size);
-//    // size = size + (strlen(page_string03) - 4);
-    // size = size + (ps[3].size - marker_field_size);
-    // size = size + ps[3].size_less4;
-//    size = size + page_string03_len_less4;
-    size = size + ps[3].size_less4;
-#endif // UIP_STATISTICS
-
     // Account for Temperature Sensor insertion %t00 to %t04
     // Each of these insertions can have a different length due to the
     // text around them. If DS18B20 is NOT enabled we only need to
@@ -1089,36 +1477,41 @@ uint16_t adjust_template_size()
     if (stored_config_settings & 0x08) {
       //  %t00 "<p>Temperature Sensors<br> 1 "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
-      //    29 bytes of text plus 13 bytes of data = 42
-      //    size = size + 42 - 4
-      size = size + 38;
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+      //    29 bytes of text plus 27 bytes of data = 56
+      //    size = size + 56 - 4
+      size = size + 52;
       //
       //  %t01 "<br> 2 " 
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
-      //    7 bytes of text plus 13 bytes of data = 20
-      //    size = size + 20 - 4
-      size = size + 16;
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+      //    7 bytes of text plus 27 bytes of data = 34
+      //    size = size + 34 - 4
+      size = size + 30;
       //
       //  %t02 "<br> 3 "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
-      //    7 bytes of text plus 13 bytes of data = 20
-      //    size = size + 20 - 4
-      size = size + 16;
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+      //    7 bytes of text plus 27 bytes of data = 34
+      //    size = size + 34 - 4
+      size = size + 30;
       //
       //  %t03 "<br> 4 "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
-      //    7 bytes of text plus 13 bytes of data = 20
-      //    size = size + 20 - 4
-      size = size + 16;
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+      //    7 bytes of text plus 27 bytes of data = 34
+      //    size = size + 34 - 4
+      size = size + 30;
       //
       //  %t04 "<br> 5 "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
       //      plus "<br></p>"
       //    7 bytes of text
-      //    plus 13 bytes of data
-      //    plus 8 bytes of text = 28
-      //    size = size + 28 - 4
-      size = size + 24;
+      //    plus 27 bytes of data
+      //    plus 8 bytes of text = 42
+      //    size = size + 42 - 4
+      size = size + 38;
     }
     else {
       // Subtract the size of the placeholders as they won't be used
@@ -1134,29 +1527,15 @@ uint16_t adjust_template_size()
     
     // String for %y01 in web page template
     // There 1 instance (Save and Undo All buttons)
-//    // size = size + (#instances) x ((strlen(page_string01) - marker_field_size);
-//    // size = size + ((strlen(page_string01) - 4);
     // size = size + (#instances) x (ps[1].size - marker_field_size);
     // size = size + ps[1].size_less4;
-//    size = size + (page_string01_len_less4);
     size = size + ps[1].size_less4;
     
     // String for %y02 in web page template
     // There 1 instance (Refresh and Configuration buttons)
-//    // size = size + (#instances) x ((strlen(page_string02) - marker_field_size);
-//    // size = size + ((strlen(page_string02) - 4);
     // size = size + (#instances) x (ps[2].size - marker_field_size);
     // size = size + ps[2].size_less4;
-//    size = size + (page_string02_len_less4);
     size = size + ps[2].size_less4;
-    
-#if UIP_STATISTICS == 1
-    // There is 1 more %y02 instance (Statistics button)
-//    // size = size + (1) x (page_string02_len_less4);
-    // size = size + (1) x ps[2].size_less4;
-//    size = size + page_string02_len_less4;
-    size = size + ps[2].size_less4;
-#endif // UIP_STATISTICS
   }
 
 
@@ -1165,41 +1544,49 @@ uint16_t adjust_template_size()
   //
   else if (current_webpage == WEBPAGE_CONFIGURATION) {
     size = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
-
     // Account for header replacement strings %y04 %y05
-//    size = size + page_string04_len_less4
-//                + page_string05_len_less4;
     size = size + ps[4].size_less4
                 + ps[5].size_less4;
 
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// Once again the math comes up different than the actual transmission,
-// and I can't figure out why. It only happens with the Configuration
-// page, where I send one less character than I calculated would be
-// sent. I'm putting in a workaround here until I figure it out.
-size = size - 1;
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-    // Account for Device Name field %a00
+    // Account for Device Name field %a00 in <title> and in body
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
-    size = size + strlen(stored_devicename) - 4 ;
+    size = size + (2 * (strlen(stored_devicename) - 4));
 
-    // Account for HTML IP Address, MQTT IP Address, Gateway Address, and
-    // Netmask fields %b00, %b04, %b08, %b12
-    // There are 4 instances of these fields
+    // Account for HTML IP Address, Gateway Address, and
+    // Netmask fields %b00, %b04, %b08
+    // There are 3 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (4 x (8 - 4));
-    // size = size + (4 x (4));
-    size = size + 16;
+    // size = size + (3 x (8 - 4));
+    // size = size + (3 x (4));
+    size = size + 12;
 
-    // Account for HTML Port and MQTT Port fields %c00, %c01
-    // There are 2 instances of this field
+#if MQTT_SUPPORT == 1
+    // Account for MQTT IP Address field %b12
+    // There is 1 instance
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (2 x (5 - 4));
-    // size = size + (2 x (1));
-    // size = size + 2;
-    size = size + 2;
+    // size = size + (1 x (8 - 4));
+    // size = size + (1 x (4));
+    size = size + 4;
+#endif // MQTT_SUPPORT
+
+    // Account for HTML Port field %c00
+    // There is 1 instance
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (1 x (5 - 4));
+    // size = size + (1 x (1));
+    // size = size + 1;
+    size = size + 1;
+
+#if MQTT_SUPPORT == 1
+    // Account for MQTT Port field %c01
+    // There is 1 instance
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (1 x (5 - 4));
+    // size = size + (1 x (1));
+    // size = size + 1;
+    size = size + 1;
+#endif // MQTT_SUPPORT
 
     // Account for MAC field %d00
     // There is 1 instance of this field
@@ -1213,17 +1600,10 @@ size = size - 1;
     // value_size is 2 (2 characters)
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances x (2 - 4));
-    // size = size + (1 x (-22));
+    // size = size + (1 x (-2));
     size = size - 2;
 
-    // Account for MQTT Port field %c01
-    // There is 1 instance of this field
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (1 x (5 - 4));
-    // size = size + (1 x (1));
-    // size = size + 1;
-    size = size + 1;
-    
+#if MQTT_SUPPORT == 1
     // Account for Username field %l00
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
@@ -1240,6 +1620,7 @@ size = size - 1;
     // size = size + (#instances x (1 - 4));
     // size = size + (5 x (-3));
     size = size - 15;
+#endif // MQTT_SUPPORT
 
     // Account for Code Revision insertion %w00
     // size = size + (#instances x (value_size - marker_field_size));
@@ -1252,17 +1633,25 @@ size = size - 1;
     // size = size + (#instances x (32 - 4));
     // size = size + (1 x 28);
     size = size + 28;
- 
-#if UIP_STATISTICS == 1
-    // Account for IP Address insertion %y03 - Network Statistics Button
-//    // size = size + (strlen(page_string03) - marker_field_size);
-//    // size = size + (strlen(page_string03) - 4);
-    // size = size + (ps[3].size - marker_field_size);
-    // size = size + ps[3].size_less4;
-//    size = size + page_string03_len_less4;
-    size = size + ps[3].size_less4;
-#endif // UIP_STATISTICS == 1
 
+#if MQTT_SUPPORT == 0
+    // Account for IO Name fields %j00 to %j15
+    // Each can be variable in size during run time so we have to calculate
+    // them  each time we display the web page.
+    {
+      int i;
+      for (i=0; i<15; i++) {
+        size = size + (strlen(IO_NAME[i]) - 4);
+      }
+    }
+
+    // Account for IO Timer field %i00 to %i15
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (4 - 4));
+    // size = size + (16 x 0);
+    // size = size + 0;
+#endif MQTT_SUPPORT
+ 
     // Account for Text Replacement insertion
     // Some strings appear frequently in the templates - things like the
     // button titles which appear when hovering over a button. These strings
@@ -1271,40 +1660,34 @@ size = size - 1;
     
     // String for %y01 in web page template
     // There 1 instance (Save and Undo All buttons)
-//    // size = size + (#instances) x ((strlen(page_string01) - marker_field_size);
-//    // size = size + ((strlen(page_string01) - 4);
     // size = size + (#instances) x (ps[1].size - marker_field_size);
     // size = size + ps[1].size_less4;
-//    size = size + (page_string01_len_less4);
     size = size + ps[1].size_less4;
     
     // String for %y02 in web page templates
     // There is 1 instance (Refresh and IO Control buttons)
     // size = size + (#instances x (value_size - marker_field_size));
-//    // size = size + (#instances) x ((strlen(page_string02) - 4);
-//    // size = size + (1) x (page_string02_len_less4);
     // size = size + (#instances) x (ps[2].size - 4);
     // size = size + (1) x ps[2].size_less4;
-//    size = size + page_string02_len_less4;
     size = size + ps[2].size_less4;
-    
-#if UIP_STATISTICS == 1
-    // There is 1 more %y02 instance (Statistics button)
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (1) x (67 - 4);
-    // size = size + (1) x (63);
-//    size = size + page_string02_len_less4;
-    size = size + ps[2].size_less4;
-#endif // UIP_STATISTICS
   }
 
 
-#if UIP_STATISTICS == 1
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
   //---------------------------------------------------------------------------//
-  // Adjust the size reported by the WEBPAGE_STATS template
+  // Adjust the size reported by the WEBPAGE_STATS1 template
   //
-  else if (current_webpage == WEBPAGE_STATS) {
-    size = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
+  else if (current_webpage == WEBPAGE_STATS1) {
+    size = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
+
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+
+    // Account for Device Name field %a00 in <title>
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + (strlen(stored_devicename) - 4);
 
     // Account for Statistics fields %e00 to %e21
     // There are 22 instances of these fields
@@ -1312,18 +1695,6 @@ size = size - 1;
     // size = size + (22 x (10 - 4));
     // size = size + (22 x (6));
     size = size + 132;
-
-    // Account for IP Address insertion - Configuration Button
-    // AND
-    // Account for IP Address insertion - Refresh Button
-    // AND
-    // Account for IP Address insertion - Clear Statistics Button
-//    // size = size + (strlen(page_string03) - marker_field_size);
-//    // size = size + (strlen(page_string03) - 4);
-    // size = size + (ps[3].size - marker_field_size);
-    // size = size + (ps[3].size - 4);
-//    size = size + (3 * page_string03_len_less4);
-    size = size + (3 * ps[3].size_less4;
   }
 #endif // UIP_STATISTICS
 
@@ -1332,14 +1703,17 @@ size = size - 1;
   //---------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_STATS template
   //
-  else if (current_webpage == WEBPAGE_STATS) {
-    size = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
+  else if (current_webpage == WEBPAGE_STATS2) {
+    size = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
 
     // Account for header replacement strings %y04 %y05
-//    size = size + page_string04_len_less4
-//                + page_string05_len_less4;
     size = size + ps[4].size_less4
                 + ps[5].size_less4;
+
+    // Account for Device Name field %a00 in <title>
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + (strlen(stored_devicename) - 4);
 
     // Account for Statistics fields %e31, %e32, %e33, %e35
     // There are 4 instances of these fields
@@ -1450,6 +1824,17 @@ int hex2int(char ch)
 }
 
 
+uint8_t two_hex2int(char chmsb, char chlsb)
+{
+  uint8_t temp;
+  // Convert two hex characters to an integer (an unsigned byte)
+  temp = (uint8_t)hex2int(chmsb);
+  temp = (uint8_t)(temp<<4);
+  temp = (uint8_t)(temp | hex2int(chlsb));
+  return temp;
+}
+
+
 void int2hex(uint8_t i)
 {
   uint8_t j;
@@ -1461,6 +1846,7 @@ void int2hex(uint8_t i)
   j = (uint8_t)(i & 0x0f);
   if(j<=9) OctetArray[1] = (uint8_t)(j + '0');
   else OctetArray[1] = (uint8_t)(j - 10 + 'a');
+  OctetArray[2] = '\0';
 }
 
 
@@ -1649,8 +2035,9 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	// start of one of these special fields:
         // %a - A user entered text field with a device name. Used for GUI
 	//      display so the user can easily tell what device they are
-	//      connected to. Also used as part of the MQTT Topic name. Input
-	//      and output. Max 19 chars.
+	//      connected to. Also used as part of the MQTT Topic name. Also
+	//      displayed in the tab "title" field of a browser. Input and
+	//      output. Max 19 chars.
         // %b - Address values - in the GUI the user will change these values
 	//      if they want to change the IP Address, Gateway Address,
 	//      Netmask or MQTT Server IP Address. Input and output.
@@ -1667,6 +2054,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	//      characters representing 16 hex bytes of information in text
 	//      format. Each byte is the pin_control character for each IO
 	//      pin. Input and Output.
+	// %i - IO Timer values
+	// %j - IO Names
         // %l - MQTT Username - This is a user entered text field with a
 	//      Username. Used in MQTT communication. Input and output.
         // %m - MQTT Password - This is a user entered text field with a
@@ -1788,8 +2177,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	}
 	
 
-#if UIP_STATISTICS == 1
-        else if (nParsedMode == 'e') {
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
+        else if ((nParsedMode == 'e') && (nParsedNum < 22)) {
 	  // This displays the statistics information (10 characters per
 	  // data item). We need to get a single uint32_t from storage but
 	  // put it in the output stream as a character representation of
@@ -1853,7 +2242,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-        else if (nParsedMode == 'e') {
+        else if ((nParsedMode == 'e') && (nParsedNum > 22)) {
           if (nParsedNum == 31) emb_itoa(second_counter, OctetArray, 10, 10);
 	  if (nParsedNum == 32) emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
           if (nParsedNum == 31 || nParsedNum == 32) {
@@ -1977,18 +2366,48 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             }
 	  }
 	}
+
+
+#if MQTT_SUPPORT == 0
+        else if (nParsedMode == 'i') {
+	  // This sends the IO Timer units and IO Timer values to the Browser
+	  // defined as follows:
+	  // 2 bytes represented as hex encoded strings (4 nibbles)
+	  // Upper 2 bits are units
+	  // Lower 14 bits are value
+	  {
+	    uint8_t j;
+	    j = (uint8_t)((IO_TIMER[nParsedNum] & 0xff00) >> 8);
+	    int2hex(j);
+            *pBuffer++ = OctetArray[0];
+            *pBuffer++ = OctetArray[1];
+	    j = (uint8_t)(IO_TIMER[nParsedNum] & 0x00ff);
+	    int2hex(j);
+            *pBuffer++ = OctetArray[0];
+            *pBuffer++ = OctetArray[1];
+          }
+	}
 	
 	
+        else if (nParsedMode == 'j') {
+	  // This displays IO Names in user friendly format (1 to 15 characters)
+          pBuffer=stpcpy(pBuffer, IO_NAME[nParsedNum]); break;
+	}
+#endif // MQTT_SUPPORT
+
+
         else if (nParsedMode == 'l') {
 	  // This displays MQTT Username information (0 to 10 characters)
           pBuffer=stpcpy(pBuffer, stored_mqtt_username);
 	}
-	
+
+
         else if (nParsedMode == 'm') {
 	  // This displays MQTT Password information (0 to 10 characters)
           pBuffer=stpcpy(pBuffer, stored_mqtt_password);
 	}
-	
+
+
         else if (nParsedMode == 'n') {
 	  // This displays the MQTT Start Status information as five
 	  // red/green boxes showing Connections available, ARP status,
@@ -2024,53 +2443,36 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           pBuffer++;
 	}
 
+
         else if ((nParsedMode == 't') && (stored_config_settings & 0x08)) {
-	  // This displays temperature sensor data (5 sets of 6 characters)
+	  // This displays temperature sensor data (5 sets of 13 characters)
 	  // and the text fields around that data IF DS18B20 mode is enabled.
-	  // Note: &#8451; inserts a degree symbol followed by C.
-	  switch (nParsedNum) {
-		case 0:
-		    #define TEMPTEXT "<p>Temperature Sensors<br> 1 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-		case 1:
-		    #define TEMPTEXT "&#8451;<br> 2 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-		case 2:
-		    #define TEMPTEXT "&#8451;<br> 3 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-		case 3:
-		    #define TEMPTEXT "&#8451;<br> 4 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-		case 4:
-		    #define TEMPTEXT "&#8451;<br> 5 "
-		    pBuffer=stpcpy(pBuffer, TEMPTEXT);
-		    #undef TEMPTEXT
-		break;
-	  }
-
 	  
-          pBuffer=stpcpy(pBuffer, DS18B20_string[nParsedNum]);
-          if (nParsedNum == 4) {
-	    #define TEMPTEXT "&#8451;<br></p>"
-            pBuffer=stpcpy(pBuffer, TEMPTEXT);
-            #undef TEMPTEXT
+	  if (nParsedNum == 0) {
+	    #define TEMPTEXT "<p>Temperature Sensors<br>"
+	    pBuffer=stpcpy(pBuffer, TEMPTEXT);
+	    #undef TEMPTEXT
 	  }
-
+	    
+	  *pBuffer++ = ' ';
+	  *pBuffer++ = (uint8_t)('1' + nParsedNum);
+	  *pBuffer++ = ' ';
+	  
+          pBuffer = show_temperature_string(pBuffer, nParsedNum);
+	  if (nParsedNum == 4) {
+	    #define TEMPTEXT "</p>"
+	    pBuffer=stpcpy(pBuffer, TEMPTEXT);
+	    #undef TEMPTEXT
+	  }
 	}
+
 
         else if (nParsedMode == 'w') {
 	  // This displays Code Revision information (13 characters)
           pBuffer=stpcpy(pBuffer, code_revision);
 	}
-	
+
+
         else if (nParsedMode == 'y') {
           // Indicates the need to insert one of several commonly occuring HTML
           // strings. These strings were created to aid in compressing the web
@@ -2128,63 +2530,16 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // length for each string in the "array of strngs" is stored in an
 	  // "array of string lengths" with nParsedNum again used as an index
 	  // to select the correct value.
-
-
-
-// page_string
+          // Access the strings and string lengths as follows:
+          // ps[i].str
+          // ps[i].size
           *pBuffer = (uint8_t)ps[nParsedNum].str[i];
 	  insertion_flag[0]++;
 	  if (insertion_flag[0] == ps[nParsedNum].size) insertion_flag[0] = 0;
-
-// Access the above strings, string length, and (string length - 4) as
-// follows:
-// ps[i].str
-// ps[i].size
-// ps[i].size_less4
-
-
-
-/*
-          switch (nParsedNum)
-	  {
-	    case 1:
-	      // %y01 replaced with string 
-              *pBuffer = (uint8_t)page_string01[i];
-	      insertion_flag[0]++;
-	      if (insertion_flag[0] == page_string01_len) insertion_flag[0] = 0;
-	      break;
-	  
-	    case 2:
-	      // %y02 replaced with string 
-              *pBuffer = (uint8_t)page_string02[i];
-	      insertion_flag[0]++;
-	      if (insertion_flag[0] == page_string02_len) insertion_flag[0] = 0;
-	      break;
-
-            case 4:
-	      // %y04 replaced with first header string 
-              *pBuffer = (uint8_t)page_string04[i];
-	      insertion_flag[0]++;
-	      if (insertion_flag[0] == page_string04_len) insertion_flag[0] = 0;
-	      break;
-	      
-	    case 5:
-	      // %y05 replaced with second header string
-              *pBuffer = (uint8_t)page_string05[i];
-	      insertion_flag[0]++;
-	      if (insertion_flag[0] == page_string05_len) insertion_flag[0] = 0;
-	      break;
-	      
-	    default: break;
-	  }
-*/	  
-	  
-	  
-	  
-	  
           pBuffer++;
 	}
       }
+
 
       else {
         // If the above code did not process a "%" nParsedMode code and we were
@@ -2202,6 +2557,27 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 }
 
 
+char *show_temperature_string(char *pBuffer, uint8_t nParsedNum)
+{
+  // Display temperature strings in degrees C and degrees F
+  // Note: &#8451; inserts a degree symbol followed by C.
+  // Note: &#8457; inserts a degree symbol followed by F.
+  convert_temperature(nParsedNum, 0);      // Convert to degrees C in OctetArray
+  pBuffer=stpcpy(pBuffer, OctetArray);     // Display sensor value
+  #define TEMPTEXT "&#8451; "              // Display degress C symbol
+  pBuffer=stpcpy(pBuffer, TEMPTEXT);
+  #undef TEMPTEXT
+  
+  convert_temperature(nParsedNum, 1);      // Convert to degrees F in OctetArray
+  pBuffer=stpcpy(pBuffer, OctetArray);     // Display sensor value
+  #define TEMPTEXT "&#8457;<br>"           // Display degress F symbol
+  pBuffer=stpcpy(pBuffer, TEMPTEXT);
+  #undef TEMPTEXT
+  
+  return pBuffer;
+}
+
+
 void HttpDInit()
 {
   //Start listening on our port
@@ -2216,47 +2592,21 @@ void HttpDInit()
   
   // Initialize fragment reassembly values
   saved_nstate = STATE_NULL;
-  saved_parsestate = PARSE_CMD;
   saved_nparseleft = 0;
-  clear_saved_postpartial_all();
 }
 
-
-// define a structure that will help in terms of code reduction
-// when we process the GET and the POST
-struct STATES_TABLE {
-  uint8_t current_state;
-  char ch;
-  uint8_t next_state;
-};
-
-// define number of states represented inside the table below
-#define AUTO_PARSE_ELEMENTS  9
-
-// allocate this in .const segment
-const struct STATES_TABLE parse_table[AUTO_PARSE_ELEMENTS] = {
-//  current state    char   next state
-  { STATE_CONNECTED, 'G',   STATE_GET_G },
-  { STATE_GET_G,     'E',   STATE_GET_GE },
-  { STATE_GET_GE,    'T',   STATE_GET_GET },
-  { STATE_GET_GET,   ' ',   STATE_GOTGET },
-  
-  { STATE_CONNECTED, 'P',   STATE_POST_P },
-  { STATE_POST_P,    'O',   STATE_POST_PO },
-  { STATE_POST_PO,   'S',   STATE_POST_POS },
-  { STATE_POST_POS,  'T',   STATE_POST_POST },
-  { STATE_POST_POST, ' ',   STATE_GOTPOST }
-};
 
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 {
   uint16_t nBufSize;
-//  uint8_t i;
   int i;
   uint8_t j;
+  char local_buf[300];
+  uint16_t local_buf_index_max;
   
   i = 0;
   j = 0;
+  local_buf_index_max = 290; // local_buf index maximum
 
   if (uip_connected()) {
     //Initialize this connection
@@ -2267,18 +2617,25 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       // nDataLeft above is used when we get around to calling CopyHttpData
       // in state STATE_SENDDATA
     }
+    
     else if (current_webpage == WEBPAGE_CONFIGURATION) {
       pSocket->pData = g_HtmlPageConfiguration;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
     }
 
-#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15 || UIP_STATISTICS == 1
-    else if (current_webpage == WEBPAGE_STATS) {
-      pSocket->pData = g_HtmlPageStats;
-      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
+    else if (current_webpage == WEBPAGE_STATS1) {
+      pSocket->pData = g_HtmlPageStats1;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
     }
-#endif // DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15 || UIP_STATISTICS == 1
+#endif // UIP_STATISTICS
 
+#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+    else if (current_webpage == WEBPAGE_STATS2) {
+      pSocket->pData = g_HtmlPageStats2;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
+    }
+#endif // DEBUG_SUPPORT
 
     else if (current_webpage == WEBPAGE_SSTATE) {
       pSocket->pData = g_HtmlPageSstate;
@@ -2374,69 +2731,33 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     //
     if (saved_nstate != STATE_NULL) {
       // This point in the code will only be entered if we are parsing a TCP
-      // Fragment after the first packet in a POST. While processing a prior
-      // packet the parse was interrupted by the end of the packet. This code
-      // will restore where we were in the parsing loop. This process relies
-      // on no "out of order" packets.
+      // Fragment (a "continuation" packet that comes after the first packet
+      // in a POST). While processing a prior packet the parse was interrupted
+      // by the end of the packet. This code will restore where we were in the
+      // parsing loop. This process relies on no "out of order" packets.
+      //
+      // Note: This restoration is only needed if we hit a packet boundary
+      // while searching for the \r\n\r\n sequence in a POST. All other packet
+      // boundaries do not require any restoration as the boundary will be
+      // handled in the STATE_PARSEPOST code.
       pSocket->nState = saved_nstate;
-        // saved_nstate can be one of these: STATE_GOTPOST, STATE_PARSEPOST,
-	// STATE_NULL. A TCP Fragment break can occur in any of these states.
-	// A TCP Fragment cannot occur in pSocket->nState states
-	// STATE_CONNECTED, STATE_GET_G, STATE_GET_GE, STATE_GET_GET,
-	// STATE_POST_P, STATE_POST_PO, STATE_POST_POS, STATE_POST_POST,
-	// STATE_GOTGET, STATE_SENDHEADER200, STATE_SENDHEADER204,
-	// STATE_SENDDATA, STATE_PARSEGET.
-      pSocket->ParseState = saved_parsestate;
-        // saved_parsestate can be one of these: PARSE_CMD, PARSE_NUM10,
-	// PARSE_NUM1, PARSE_EQUAL, PARSE_VAL, PARSE_DELIM, PARSE_SLASH1,
-	// PARSE_FAIL
+        // saved_nstate can be one of these:
+	//   STATE_GOTPOST
+	//   STATE_PARSEPOST
+	//   STATE_NULL
+	//   A TCP Fragment break can occur in any of these states.
+	// A TCP Fragment cannot occur in these states:
+	//   STATE_CONNECTED
+	//   STATE_SENDHEADER204,
+	//   STATE_SENDDATA
+	//   STATE_PARSEGET
       pSocket->nParseLeft = saved_nparseleft;
-        // The number of bytes left to parse in the POST
+        // nParseLeft is the number of bytes left to parse in the POST data
       pSocket->nNewlines = saved_newlines;
-      // Next we'll capture the previous fragment's ParseCmd state data for
-      // use in fragment reassembly. We need to do this because the
-      // saved_postpartial[0] value will be reused below to capture any new
-      // fragmentation state data.
-      // In the following values:
-      // [0] = ParseCmd
-      // [1] = ParseNum ten's
-      // [2] = ParseNum one's
-      // [3] = Equal sign
-      // [4] = 1st byte of value
-      // [5] and up = More bytes of value
-      for (i=0; i<36; i++) saved_postpartial_previous[i] = saved_postpartial[i];
-      
-      // If we had previously saved any partial input data we need to restore
-      // it so the routines below can finish filling it in. What we saved will
-      // vary depending on which command we were parsing.
-      if (saved_nstate == STATE_PARSEPOST) {
-        if (saved_parsestate == PARSE_CMD) {
-          // No further restore needed
-        }
-        else if (saved_parsestate == PARSE_NUM10) {
-	  // Restore the ParseCmd
-	  pSocket->ParseCmd = saved_postpartial_previous[0];
-        }
-        else if (saved_parsestate == PARSE_NUM1) {
-	  // Restore the ParseCmd and tens digit of the ParseNum
-	  pSocket->ParseCmd = saved_postpartial_previous[0];
-          pSocket->ParseNum = (uint8_t)((saved_postpartial_previous[1] - '0') * 10);
-        }
-        else if (saved_parsestate == PARSE_EQUAL || saved_parsestate == PARSE_VAL) {
-	  // Restore the ParseCmd and the entire ParseNum
-	  pSocket->ParseCmd = saved_postpartial_previous[0];
-          pSocket->ParseNum = (uint8_t)((saved_postpartial_previous[1] - '0') * 10);
-          pSocket->ParseNum += (uint8_t)(saved_postpartial_previous[2] - '0');
-        }
-	else if (saved_parsestate == PARSE_DELIM) {
-	  // No further restore needed
-	}
-      }
-      // Note for TCP Fragmentation: No restore like that shown above is
-      // required for saved_nstate == STATE_PARSEGET because the data searched
-      // in the PARSE_GET parsing cannot be fragmented (it is all contained
-      // within the first 100 bytes of the first packet).
+        // nNewlines tracks where we are in detecting the \r\n\r\n sequence
+	// that indicates start of POST data
     }
+
       
     // In the code below we are parsing for the "POST" or "GET " phrase. We do
     // not need to worry about TCP fragmentation because the phrase will appear
@@ -2448,93 +2769,21 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     // If we are parsing a TCP fragment then pSocket->nState may have been
     // restored to STATE_PARSEPOST or STATE_PARSEGET. If so the parse code will
     // run but won't do anything.
-
-    {
-        // use the structure defined on the top of this function to process
-	// the GET and the POST
-	// loop trough the table and identify the current state (pSocket->nState)
-	for (i=0; i<=AUTO_PARSE_ELEMENTS ; i++) {
-	  // current table element is our current state?
-	  if (pSocket->nState == parse_table[i].current_state) {
-	    // if no more bytes left, return
-	    if (nBytes == 0) return;
-	    // if we get the expected character in the buffer, move to next state
-	    if (*pBuffer == parse_table[i].ch) {
-	      pSocket->nState = parse_table[i].next_state;
-	      // adjust counters
-	      nBytes--;
-	      pBuffer++;
-	      // signals a match found
-	    }
-	  }
-	}
-    }
-
-/*
-// This is the old, less efficient parse code that was used to find the POST
-// or GET phrases. The "parse_table" code above replaced this.
-
+    
+    // If we are in STATE_CONNECTED (meaning we are reading the
+    // first and perhaps only packet in a series) check the first
+    // five characters of the uip_buf to see if this is a POST or
+    // GET request.
     if (pSocket->nState == STATE_CONNECTED) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'G') {
-        pSocket->nState = STATE_GET_G;
-      }
-      else if (*pBuffer == 'P') {
-        pSocket->nState = STATE_POST_P;
-      }
-      nBytes--;
-      pBuffer++;
+      if (memcmp("POST", &pBuffer[0], 4) == 0) pSocket->nState = STATE_GOTPOST;
+      if (memcmp("GET", &pBuffer[0], 3) == 0)  pSocket->nState = STATE_GOTGET;
+      pBuffer += 4;
+      nBytes -= 4;
+      // We are in STATE_NULL, which means we are collecting the first packet.
+      // Clear parse_tail so it will be ready if there is a TCP Fragment.
+      parse_tail[0] = '\0';
     }
-
-    if (pSocket->nState == STATE_GET_G) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'E') pSocket->nState = STATE_GET_GE;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_GET_GE) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'T') pSocket->nState = STATE_GET_GET;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_GET_GET) {
-      if (nBytes == 0) return;
-      if (*pBuffer == ' ') pSocket->nState = STATE_GOTGET;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_POST_P) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'O') pSocket->nState = STATE_POST_PO;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_POST_PO) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'S') pSocket->nState = STATE_POST_POS;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_POST_POS) {
-      if (nBytes == 0) return;
-      if (*pBuffer == 'T') pSocket->nState = STATE_POST_POST;
-      nBytes--;
-      pBuffer++;
-    }
-
-    if (pSocket->nState == STATE_POST_POST) {
-      if (nBytes == 0) return;
-      if (*pBuffer == ' ') pSocket->nState = STATE_GOTPOST;
-      nBytes--;
-      pBuffer++;
-    }
-*/
+    
 
     if (pSocket->nState == STATE_GOTPOST) {
       //Search for \r\n\r\n
@@ -2579,27 +2828,25 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
           // Initialize Parsing variables
           if (current_webpage == WEBPAGE_IOCONTROL) {
 	    pSocket->nParseLeft = PARSEBYTES_IOCONTROL;
-	    pSocket->nParseLeftAddl = PARSEBYTES_IOCONTROL_ADDL;
 	  }
           if (current_webpage == WEBPAGE_CONFIGURATION) {
 	    pSocket->nParseLeft = PARSEBYTES_CONFIGURATION;
-	    pSocket->nParseLeftAddl = PARSEBYTES_CONFIGURATION_ADDL;
 	  }
-          pSocket->ParseState = saved_parsestate = PARSE_CMD;
 	  saved_nparseleft = pSocket->nParseLeft;
           // Start parsing
           pSocket->nState = STATE_PARSEPOST;
 	  saved_nstate = STATE_PARSEPOST;
 	  if (nBytes == 0) {
 	    // If we are at end of fragment here we exit and will return in
-	    // STATE_PARSEPOST / PARSE_CMD
+	    // STATE_PARSEPOST
 	    return;
 	  }
           break;
         }
       }
     }
-    
+
+
     if (pSocket->nState == STATE_GOTGET) {
       // Don't search for \r\n\r\n ... instead parse what we've got
       // Initialize Parsing variables
@@ -2609,601 +2856,110 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       // Start parsing
       pSocket->nState = STATE_PARSEGET;
     }
-    
+
+
     if (pSocket->nState == STATE_PARSEPOST) {
-      // This section will parse a POST sent by the user (usually when they
-      // click on the "submit" button on a webpage). POST data will consist
-      // of:
-      //  One digit with a ParseCmd
-      //  Two digits with a ParseNum indicating the item to be changed
-      //  One digit with an equal sign
-      //  A variable number of characters with a ParseState indicating the
-      //    new value of the item
-      //  One digit with a Parse Delimiter (an '&')
+      // Parse pre-process
+      // Copy the POST from the uip_buf to the local_buf until one of two
+      // things happens:
+      // a) The local_buf is full
+      // b) The end of the uip_buf is reached (end of the packet)
       //
-      while (1) {
-        // When appropriate conditions are met a break will occur to leave
-	// the while loop.
-        if (pSocket->ParseState == PARSE_CMD) {
-          pSocket->ParseCmd = *pBuffer;
-	  saved_postpartial[0] = *pBuffer;
-          pSocket->ParseState = saved_parsestate = PARSE_NUM10;
-	  if (pSocket->nParseLeft > 0) { // Prevent underflow
-	    pSocket->nParseLeft--;
-          }
-	  else {
-	    // Something out of sync - escape
-	    pSocket->ParseState = PARSE_DELIM;
-	  }
-	  saved_nparseleft = pSocket->nParseLeft;
-          pBuffer++;
-	  nBytes --;
-	  if (nBytes == 0) { // Hit end of fragment. Break out of while()
-	                     // loop.
-	    break;
-	  }
-        }
-	
-        else if (pSocket->ParseState == PARSE_NUM10) {
-          pSocket->ParseNum = (uint8_t)((*pBuffer - '0') * 10);
-	  saved_postpartial[1] = *pBuffer;
-          pSocket->ParseState = saved_parsestate = PARSE_NUM1;
-	  if (pSocket->nParseLeft > 0) { // Prevent underflow
-	    pSocket->nParseLeft--;
-	  }
-	  else {
-	    // Something out of sync - escape
-	    pSocket->ParseState = PARSE_DELIM;
-	  }
-	  saved_nparseleft = pSocket->nParseLeft;
-          pBuffer++;
-	  nBytes--;
-	  if (nBytes == 0) {
-	    // Hit end of TCP Fragment. Break out of while() loop.
-	    break;
-	  }
-        }
-	
-        else if (pSocket->ParseState == PARSE_NUM1) {
-          pSocket->ParseNum += (uint8_t)(*pBuffer - '0');
-	  saved_postpartial[2] = *pBuffer;
-          pSocket->ParseState = saved_parsestate = PARSE_EQUAL;
-	  if (pSocket->nParseLeft > 0) { // Prevent underflow
-	    pSocket->nParseLeft--;
-	  }
-	  else {
-	    // Something out of sync - escape
-	    pSocket->ParseState = PARSE_DELIM;
-	  }
-	  saved_nparseleft = pSocket->nParseLeft;
-          pBuffer++;
-	  nBytes--;
-	  if (nBytes == 0) {
-	    // Hit end of TCP Fragment. Break out of while() loop.
-	    break;
-	  }
-        }
-	
-        else if (pSocket->ParseState == PARSE_EQUAL) {
-          pSocket->ParseState = saved_parsestate = PARSE_VAL;
-	  saved_postpartial[3] = *pBuffer;
-	  if (pSocket->nParseLeft > 0) { // Prevent underflow
-	    pSocket->nParseLeft--;
-	  }
-	  else {
-	    // Something out of sync - escape
-	    pSocket->ParseState = PARSE_DELIM;
-	  }
-	  saved_nparseleft = pSocket->nParseLeft;
-          pBuffer++;
-	  nBytes--;
-	  if (nBytes == 0) {
-	    // Hit end of TCP Fragment. Break out of while() loop.
-	    break;
-	  }
-        }
-
-        else if (pSocket->ParseState == PARSE_VAL) {
-	  // 'a' is submit data for the Device Name
-	  // 'b' is submit data for the IP/Gateway/Netmask
-	  // 'c' is submit data for the Port number
-	  // 'd' is submit data for the MAC
-	  // 'g' is submit data for the Config settings string
-	  // 'h' is submit data for the Pin Control String
-	  // 'l' is submit data for the MQTT Username
-	  // 'm' is submit data for the MQTT Password
-	  // 'z' is submit data for a hidden input used for a diagnostic
-	  //     indicator that all POST processing completed
-	  
-	  
-	  // Parse 'a' 'l' 'm' ----------------------------------------------//
-          if (pSocket->ParseCmd == 'a'
-                || pSocket->ParseCmd == 'l'
-                || pSocket->ParseCmd == 'm' ) {
-            // a = Update the Device Name field
-            // l = Update the MQTT Username field
-            // m = Update the MQTT Password field
-	    	    
-	    // If parsing 'a' 'l' or 'm' we know we are parsing a Configuration
-	    // page. Set current_webpage to WEBPAGE_CONFIGURATION so that the
-	    // browser will display this page after Save is clicked. This is a
-	    // workaround for the "multiple browser page interference" issue
-	    // where another browser might have changed the current_webpage
-	    // value.
-	    current_webpage = WEBPAGE_CONFIGURATION;
-	    
-	    break_while = 0; // Clear the break switch in case a TCP Fragment
-	                     // occurs.
-            switch (pSocket->ParseCmd) {
-              case 'a': j = 19; break;
-              case 'l':
-              case 'm': j = 10; break;
-            }
-            parse_POST_string(&pBuffer, &nBytes, pSocket, j);
-            if (break_while == 1) {
-	      // Hit end of TCP Fragment. Break out of while() loop.
-	      // The parse_POST_string() routine will have loaded the
-	      // saved_parsestate value with the next pSocket->ParseState.
-	      pSocket->ParseState = saved_parsestate;
-	      break;
-	    }
-	    // Else we didn't hit the end of a TCP Fragment so we fall through
-	    // to the PARSE_DELIM state
-          }
-	  
-	  // Parse 'b' ------------------------------------------------------//
-          else if (pSocket->ParseCmd == 'b') {
-            // This code updates the "pending" IP address, Gateway address,
-	    // Netmask, and MQTT Host IP address which will then cause the
-	    // main.c functions to restart the software.
-            // The value following the 'bxx=' ParseCmd and ParseNum consists
-            // of eight alpha digits representing the value in hex. The
-	    // function call collects the alpha digits, validates them, and
-	    // converts them to the numeric value used by the other firmware
-	    // functions.
-	    break_while = 0; // Clear the break switch in case a TCP Fragment
-	                     // occurs.
-            parse_POST_address(&pBuffer, &nBytes, pSocket);
-            if (break_while == 1) {
-	      // Hit end of TCP Fragment but still have characters to collect.
-	      // Break out of while() loop.
-	      // The next line shouldn't be needed because the values shouldn't have changed
-              pSocket->ParseState = saved_parsestate = PARSE_VAL;
-	      break;
-	    }
-            if (break_while == 2) {
-	      // Hit end of TCP Fragment just before &. Break out of while()
-	      // loop.
-              pSocket->ParseState = saved_parsestate = PARSE_DELIM;
-	      break;
-	    }
-	    // Else we didn't hit the end of a TCP Fragment so we fall through
-	    // to the PARSE_DELIM state
-          }
-	  
-	  // Parse 'c' ------------------------------------------------------//
-          else if (pSocket->ParseCmd == 'c') {
-            // This code updates the "pending" HTTP Port number or MQTT Port
-	    // number which will then cause the main.c functions to restart
-	    // the software.
-            // ParseNum == 0 indicates the HTTP Port number.
-	    // ParseNum == 1 indicates the MQTT Port number.
-	    // The value following the 'cxx=' ParseCmd & ParseNum consists
-            // of four alpha digits with the port number in hex form. The
-	    // function call collects the digits, validates them, and updates
-	    // the pending port number.
-	    break_while = 0; // Clear the break switch in case a TCP Fragment
-	                     // occurs.
-            parse_POST_port(&pBuffer, &nBytes, pSocket);
-            if (break_while == 1) {
-	      // Hit end of TCP Fragment but still have characters to collect.
-	      // Break out of while() loop.
-              pSocket->ParseState = saved_parsestate = PARSE_VAL;
-	      break;
-	    }
-            if (break_while == 2) {
-	      // Hit end of TCP Fragment just before &. Break out of while()
-	      // loop.
-              pSocket->ParseState = saved_parsestate = PARSE_DELIM;
-	      break;
-	    }
-	    // Else we didn't hit the end of a TCP Fragment so we fall through
-	    // to the PARSE_DELIM state
-          }
-	  
-	  // Parse 'd' ------------------------------------------------------//
-          else if (pSocket->ParseCmd == 'd') {
-            // This code updates the "pending" MAC address which will then
-	    // cause the main.c functions to restart the software.
-	    // The value following the 'dxx=' ParseCmd and ParseNum consists
-	    // of twelve alpha digits in hex form ('0' to '9' and 'a' to 'f').
-            // The function call collects the digits, validates them, and
-	    // updates the pending MAC number.
-	    
-	    break_while = 0; // Clear the break switch in case a TCP Fragment
-	                     // occurs.
-            parse_POST_MAC(&pBuffer, &nBytes, pSocket);
-            if (break_while == 1) {
-	      // Hit end of TCP Fragment but still have characters to collect.
-	      // Break out of while() loop.
-              pSocket->ParseState = saved_parsestate = PARSE_VAL;
-	      break;
-	    }
-            if (break_while == 2) {
-	      // Hit end of TCP Fragment just before &. Break out of while()
-	      // loop.
-              pSocket->ParseState = saved_parsestate = PARSE_DELIM;
-	      break;
-	    }
-	    // Else we didn't hit the end of a TCP Fragment so we fall through
-	    // to the PARSE_DELIM state
-          }
-	  
-	  // Parse 'g' ------------------------------------------------------//
-	  else if (pSocket->ParseCmd == 'g') {
-            // This code sets the Config Settings bytes which define the
-	    // DS18B20, MQTT, Full/Half Duplex, and Home Assistant Auto
-	    // Discovery functionality.
-	    //
-	    // There are always 2 characters in the string which represent a
-	    // hex encoded byte. Each is collected and saved for later
-	    // processing.
-
-            preload_alphas();
-
-	    break_while = 0; // Clear the break switch in case a TCP Fragment
-	                     // occurs.
-	    
-	    if (saved_postpartial_previous[0] == 'g') {
-	      // Clear the saved_postpartial_prevous[0] byte (the ParseCmd
-	      // byte) as it should only get used once on processing a given
-	      // TCP Fragment.
-	      saved_postpartial_previous[0] = '\0';
-	      // We are re-assembling a fragment that occurred during this
-	      // command. The ParseCmd and ParseNum values are already
-	      // restored. We need to determine where in this command the
-	      // fragmentation break occurred and continue from there.
-	      // Check alphas
-	      check_alphas();
-	    }
-	    
-	    else {
-	      // We are not doing a reassembly. Clear the data part of the
-	      // saved_postpartial values in case a fragment break occurs
-	      // during this parse
-              clear_saved_postpartial_data(); // Clear [4] and higher
-            }
-	    
-            for (i=0; i<2; i++) {
-	      // Examine each 'alpha' character to see if it was already found
-	      // in a prior TCP Fragment. If not collect it now.
-	      // If collecting characters from the POST break the while() loop
-	      // if a TCP Fragment boundary is found unless the character
-	      // collected is the last 'alpha'.
-              if (alpha[i] == '-') {
-	        alpha[i] = (uint8_t)(*pBuffer);
-                saved_postpartial[i+4] = *pBuffer;
-                pSocket->nParseLeft--;
-                saved_nparseleft = pSocket->nParseLeft;
-                pBuffer++;
-	        nBytes--;
-                if (i != 1 && nBytes == 0) {
-		  break_while = 1; // Hit end of fragment. Break out of
-		                   // while() loop.
-		  break; // Break out of for() loop
-		}
-	      }
-	    }
-	    if (break_while == 1) {
-	      // Hit end of TCP Fragment. Break out of while() loop.
-	      break;
-	    }
-	    
-	    // If we get this far we no longer need the saved_postpartial
-	    // values and must clear them to prevent interference with
-	    // subsequent restores.
-            clear_saved_postpartial_all();
-	    
-	    // Validate entries?
-	    // Check if they are hex characters?
-	    
-	    // Convert hex nibbles to a byte and store in Config settings
-            Pending_config_settings = (uint8_t)(hex2int(alpha[0]));
-	    Pending_config_settings = (uint8_t)(Pending_config_settings<<4);
-	    Pending_config_settings |= (uint8_t)(hex2int((uint8_t)alpha[1]));;
-	    
-            if (nBytes == 0) {
-	      // Hit end of fragment. Break out of while() loop. The next
-	      // character will be '&' so we need to set PARSE_DELIM.
-	      pSocket->ParseState = saved_parsestate = PARSE_DELIM;
-	      break;
-	    }
-	    // Else we didn't hit the end of a TCP Fragment so we fall through
-	    // to the PARSE_DELIM state
-          }
-
-	  // Parse 'h' ------------------------------------------------------//
-	  else if (pSocket->ParseCmd == 'h') {
-            // This code sets the Pending_pin_control bytes based on the information
-	    // in the 32 character string sent in the h00 field.
-	    //
-	    // There are always 32 characters in the string in 16 pairs of
-	    // hex encoded nibbles, each pair representing a hex encoded pin
-	    // control byte. The character pairs are extracted one set at a
-	    // time, converted to a numeric byte, and stored in their
-	    // corresponding Pending_pin_control byte.
-	    
-            preload_alphas();
-	    
-	    break_while = 0; // Clear the break switch in case a TCP Fragment
-	                     // occurs.
-	    
-	    if (saved_postpartial_previous[0] == 'h') {
-	      // Clear the saved_postpartial_prevous[0] byte (the ParseCmd
-	      // byte) as it should only get used once on processing a given
-	      // TCP Fragment.
-	      saved_postpartial_previous[0] = '\0';
-	      // We are re-assembling a fragment that occurred during this
-	      // command. The ParseCmd and ParseNum values are already
-	      // restored. We need to determine where in this command the
-	      // fragmentation break occurred and continue from there.
-	      // Check alphas
-	      check_alphas();
-	    }
-	    
-	    else {
-	      // We are not doing a reassembly. Clear the data part of the
-	      // saved_postpartial values in case a fragment break occurs
-	      // during this parse
-              clear_saved_postpartial_data(); // Clear [4] and higher
-            }
-	    
-            for (i=0; i<32; i++) {
-	      // Examine each 'alpha' character to see if it was already found
-	      // in a prior TCP Fragment. If not collect it now.
-	      // If collecting characters from the POST break the while() loop
-	      // if a TCP Fragment boundary is found unless the character
-	      // collected is the last 'alpha'.
-              if (alpha[i] == '-') {
-	        alpha[i] = (uint8_t)(*pBuffer);
-                saved_postpartial[i+4] = *pBuffer;
-                pSocket->nParseLeft--;
-                saved_nparseleft = pSocket->nParseLeft;
-                pBuffer++;
-	        nBytes--;
-                if (i != 31 && nBytes == 0) {
-		  break_while = 1; // Hit end of fragment. Break out of
-		                   // while() loop.
-		  break; // Break out of for() loop
-		}
-	      }
-	    }
-	    if (break_while == 1) {
-	      // Hit end of TCP Fragment. Break out of while() loop.
-	      break;
-	    }
-	    
-	    // If we get this far we no longer need the saved_postpartial
-	    // values and must clear them to prevent interference with
-	    // subsequent restores.
-            clear_saved_postpartial_all();
-	    
-            // Sort the alpha characters into the pin control bytes
-	    {
-              int i;
-              int j;
-	      uint8_t k;
-              i = 0;
-              j = 0;
-              while( i<32 ) {
-	        // The Configuration page updates all bits except the
-		// ON/OFF bit
-		// The IOControl page only updates the ON/OFF bit
-		Pending_pin_control[j] = pin_control[j];
-		// Convert the pin control string into numeric bytes
-		// two characters at a time. "k" will contain the byte
-		// after conversion.
-                k = (uint8_t)hex2int(alpha[i]);
-                k = (uint8_t)(k << 4);
-                i++;
-                k = (uint8_t)(k | hex2int(alpha[i]));
-                i++;
-                if (current_webpage == WEBPAGE_CONFIGURATION) {
-		  // Keep the ON/OFF bit as-is
-		  Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x80);
-		  // Mask out the ON/OFF bit in the temp variable
-		  k = (uint8_t)(k & 0x7f);
-		}
-                else {
-		  // current_webpage is WEBPAGE_IOCONTROL
-		  // Keep the configuration bits as-is
-		  Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x7f);
-		  // Mask out the configuration bits in the temp variable
-		  k = (uint8_t)(k & 0x80);
-		}
-		// "OR" in the changed bits
-		Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] | k);
-                j++;
-              }
-	    }
-	    
-            if (nBytes == 0) {
-	      // Hit end of fragment. Break out of while() loop. The next
-	      // character will be '&' so we need to set PARSE_DELIM.
-	      pSocket->ParseState = saved_parsestate = PARSE_DELIM;
-	      break;
-	    }
-	    // Else we didn't hit the end of a TCP Fragment so we fall through
-	    // to the PARSE_DELIM state
-          }
-
-	  // Parse 'z' ------------------------------------------------------//
-	  else if (pSocket->ParseCmd == 'z') {
-            // This code signals that a "hidden" post was received. This is a
-	    // diagnostic POST reply only, indicating that all data was
-	    // posted.
-	    //
-	    // Note on TCP Fragment reassembly: Once this value is collected
-	    // we no longer need to track anything for fragment reassembly as
-	    // we've already collected all useful information. nBytes may
-	    // still be > 0, but it won't be checked. nParseLeft will be zero,
-	    // causing us to enter STATE_SENDHEADER204.
-	    //
-	    // There is no '&' delimiter after this POST value.
-	    //
-            // The next two lines aren't needed because we are going to zero
-	    // out the values.
-	    // if (pSocket->nParseLeft > 0) pSocket->nParseLeft--;
-            // pBuffer++;
-	    // nBytes--;
-	    // Even if there was some error prior to this point we know we
-	    // just read the last allowable byte in a parsing. So:
-	    // Zero out the byte counters
-	    nBytes = 0;
-	    pSocket->nParseLeft = 0;
-            break; // Break out of the while loop. We're done with POST.
-          }
-	  
-	  // If we got to this point one of the "if/else if" above should have
-	  // executed leaving the pointers pointing at the "&" delimiter in
-	  // the POST data as the next character to be processed. So we set
-	  // the ParseState to PARSE_DELM and let the while() do its next pass.
-	  //
-	  // Note on TCP Fragment reassembly: We could check for
-	  // saved_parsestate == PARSE_DELIM, but that is its only remaining
-	  // possible value if we got here.
-          pSocket->ParseState = saved_parsestate = PARSE_DELIM;
-	  
-          if (pSocket->nParseLeft < 30) {
-	    // This snippet of code was necessary to enable a POST greater than
-	    // 255 bytes yet keep all math to 8 bits. As the nParseLeft value
-	    // counts down during POST processing it is checked when it goes
-	    // below a count of 30, and at that point the nParseLeftAddl value
-	    // is added ONCE to enable a longer down count. Using this scheme
-	    // the total POST can be up to 512 - 30 =  482 bytes. Makes the code
-	    // harder to follow, but eliminates the need for 16 bit values (and
-	    // math) which requires much more code space in flash. FYI, the
-	    // check point at "30" was arbitrary. With some thought about how
-	    // the content of the POST values it could probably be smaller.
-	    //
-	    // We've got got to make sure we don't add the 'additional' amount
-	    // on while we're procerssing a TCP Fragment. The way to be sure is
-	    // to only add to nParseLeft while processing a PARSE_DELIM.
-	    if (pSocket->nParseLeftAddl > 0) {
-	      pSocket->nParseLeft += pSocket->nParseLeftAddl;
-	      pSocket->nParseLeftAddl = 0;
-	      saved_nparseleft = pSocket->nParseLeft;
-	    }
-	  }
-        }
-	
-        else if (pSocket->ParseState == PARSE_DELIM) {
-          if (pSocket->nParseLeft > 0) {
-	    // Parse the next character, which must be a '&' delimiter. From
-	    // here we go parse the next command byte.
-            pSocket->ParseState = saved_parsestate = PARSE_CMD;
-            pSocket->nParseLeft--;
-            saved_nparseleft = pSocket->nParseLeft;
-            pBuffer++;
-	    nBytes--;
-	    // Since we just parsed a '&' clear the saved_postpartial bytes
-	    clear_saved_postpartial_all();
-	    // If the '&' delimiter was the last POST byte in this packet we
-	    // will exit the while loop and fall through to an exit without
-	    // going to STATE_SENDHEADER204
-            if (nBytes == 0) {
-	      break; // Hit end of fragment but still have more to parse in
-	             // the next TCP Fragment. The next TCP Fragment will
-		     // start with a command byte.
-	    }
-          }
-	  else {
-	    // If we came to PARSE_DELIM and there was nothing left to parse
-	    // in this or any subsequent packet (the normal exit state for
-	    // POST data) then we just make sure nParseLeft is zero (not
-	    // negative), nBytes is zero, and go on to exit.
-            pSocket->nParseLeft = 0; // End the parsing
-	    nBytes = 0;
-	    break; // Exit parsing
-	  }
-        }
-      }  // end of "while(1)" loop
+      // Copy each POST component to the parse_tail as they are found.
+      // As each POST component is found it will replace the prior POST
+      // component. The objective is to let the parse_tail contain any
+      // partial POST that appears at the tail of the current packet.
       
-      // If nParseLeft == 0 we should enter STATE_SENDHEADER204, but we
-      // clean up the fragment tracking pointers first.
-      //
-      // If nParseLeft is > 0 we haven't received the whole POST yet. In that
-      // case we should not enter STATE_SENDHEADER204 until we finish
-      // receiving and parsing the whole POST.
-      //
-      // We also do not want the main.c loop to do any processing of the
-      // Pending values collected so far until we've completed collecting ALL
-      // POST data. We can tell we still have processing to do because:
-      //   saved_nstate != STATE_NULL
-      //   saved_nparseleft != 0.
-      // I will use a global "parse_complete" variable to pass the state to
-      // the main.c functions.
-      //
-      // What if we still have a fragment outstanding, some dangling part of 
-      // the TCP datagram that follows the POST data? That shouldn't happen
-      // as the POST data is the last thing in the datagram. But even if it
-      // did it should get dropped by the UIP processes and won't cause any
-      // action to be taken.
-      //
+      uint16_t i = 0;
+      uint16_t j = 0;
 
-      if (pSocket->nParseLeft == 0) {
-        // Finished parsing ... even if nBytes is not zero
-        // Clear the saved states
-	saved_nstate = STATE_NULL;
-	saved_parsestate = PARSE_CMD;
-        saved_nparseleft = 0;
-        saved_newlines = 0;
-	for (i=0; i<36; i++) saved_postpartial_previous[i] = saved_postpartial[i] = '\0';
+      // If we are continuing data collection due to a TCP Fragment
+      // parse_tail will have any fragment of the previous POST in
+      // it. Otherwise parse_tail is NULL.
+      strcpy(local_buf, parse_tail);
+      i = strlen(parse_tail);
+      
+      while (1) {
+        local_buf[i] = *pBuffer;
+	local_buf[i+1] = '\0';
+	parse_tail[j] = *pBuffer;
+	parse_tail[j+1] = '\0';
+	pBuffer++;
+	nBytes--;
+	i++;
+	j++;
 	
-	// Signal the main.c processes that parsing is complete
-	parse_complete = 1;
-	pSocket->nState = STATE_SENDHEADER204;
+	if (nBytes == 0) {
+	  // Hit end of packet
+	  if (strcmp(parse_tail, "&z00=0") == 0) {
+	    // If this is also the end of the POST (as indicated by parse_tail
+	    // equal to "&z00=0") then send the entire local_buf to parsing.
+	    // Parse the local_buf
+	    parse_local_buf(pSocket, local_buf, strlen(local_buf));
+	    break;
+	  }
+	  
+	  else {
+	    // We don't have all the POST data - it will be arriving in
+	    // subsequent packets
+	    // Back up the NULL terminator in the local_buf to the point where
+	    // the last POST component ended. Note that this will eliminate
+	    // one delimiter search in POST parsing so we need to decrement
+	    // the nParseLeft value by one for this case.
+	    i = i - strlen(parse_tail);
+	    local_buf[i] = '\0';
+	    pSocket->nParseLeft--;
+	    
+	    // Parse the local_buf
+	    parse_local_buf(pSocket, local_buf, strlen(local_buf));
+	    // Save the nParseLeft value for the next pass
+	    saved_nparseleft = pSocket->nParseLeft;
+	    
+	    // Shift the content of parse_tail to eliminate the '&'
+            strcpy(parse_tail, &parse_tail[1]);
+	    break;
+	  }
+	}
 	
-	// Patch: ON CHROME ONLY: When 'Save' is clicked after changing from
-	// the IOControl page to the Configuration page for some reason no
-	// Configuration page refresh occurs. At one time the wrong page
-	// would display, but that does not seem to happen anymore. The next
-	// steps are a workaround to get Chrome to behave better. I am not
-	// sure why this happens as the 'if (uip_connected()' steps at the
-	// start of this function call should have already done this. Note
-	// that if the page change is done, then the 'Refresh' button is
-	// clicked, then the 'Save' button is clicked this problem does not
-	// appear. This problem was not seen with FireFox, Edge, or IE.
-
-        if (current_webpage == WEBPAGE_IOCONTROL) {
-          pSocket->pData = g_HtmlPageIOControl;
-          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
-        }
-        if (current_webpage == WEBPAGE_CONFIGURATION) {
-          pSocket->pData = g_HtmlPageConfiguration;
-          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
-        }
-      }
-
-      else {
-        // Else nParseLeft > 0 so we are still waiting on the remote host to
-	// send more POST data. This should arrive in subsequent packets. The
-	// remote host is not expecting a CLOSE connection until we are done
-	// receiving all POST data. The CLOSE will happen as part of the
-	// STATE_SENDHEADER204 process.
-	//
-        // Note on TCP Fragment reassembly: When the MSS is smaller than the
-	// size of the packets that the remote host wants to send it will
-	// simply send multiple packets of size MSS or smaller. We are
-	// entirely dependent on nParseLeft to determine when to go to
-	// STATE_SEND_HEADER, and we must assume that any additional fragments
-	// that are sent after we get all the POST data are disposed of by the
-	// UIP code. FYI, there shouldn't be any TCP Fragments after
-	// nParseLeft = 0.
-	//
-	uip_len = 0;
+	if (i == local_buf_index_max) {
+	  // Hit end of local_buf
+	  // We don't yet have all the data from this packet but need to
+	  // parse what we have so far.
+	    // Back up the NULL terminator in the local_buf to the point where
+	    // the last POST component ended. Note that this will eliminate
+	    // one delimiter search in POST parsing so we need to decrement
+	    // the nParseLeft value by one for this case.
+	    i = i - strlen(parse_tail);
+	    local_buf[i] = '\0';
+	    pSocket->nParseLeft--;
+	  
+	  // Parse the local_buf
+	  parse_local_buf(pSocket, local_buf, strlen(local_buf));
+	  
+	  // Shift the content of parse_tail to eliminate the '&'
+          strcpy(parse_tail, &parse_tail[1]);
+	  
+	  // There is still more POST data in the uip_buf. Restore the
+	  // partial POST component to the local_buf and reset the index
+	  // values so the while() loop can continue data collection.
+          strcpy(local_buf, parse_tail);
+          i = strlen(parse_tail); // Note: parse_tail might be empty
+	  // Note: the "j" index into parse_tail is not reset in this
+	  // case as the packet might end before the parse_tail is
+	  // completely collected.
+	  continue;
+	}
+	
+	if (*pBuffer == '&') {
+	  // Starting a new POST component collection.
+	  // Reset j so the parse_tail will fill with the new POST component.
+	  j = 0;
+	  parse_tail[0] = '\0';
+	  continue;
+	}
       }
     }
+    
 
     if (pSocket->nState == STATE_PARSEGET) {
       // This section will parse a GET request sent by the user. Normally in a
@@ -3362,8 +3118,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/63  Show Help page
 	  // http://IP/64  Show Help2 page
 	  // http://IP/65  Flash LED 3 times
-	  // http://IP/66  Show Statistics page
-	  // http://IP/67  Clear Statistics
+	  // http://IP/66  Show Link Error Statistics page
+	  // http://IP/67  Clear Link Error Statistics and refresh page
+	  // http://IP/68  Show Network Statistics page
+	  // http://IP/69  Clear Network Statistics and refresh page
+          // http://IP/70  Clear the "Reset Status Register" counters
 	  // http://IP/91  Reboot
 	  // http://IP/98  Show Very Short Form IO States page
 	  // http://IP/99  Show Short Form IO States page
@@ -3422,38 +3181,66 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // XXXXXXXXXXXXXXXXXXXXXX
 	      break;
 
-#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15 || UIP_STATISTICS == 1
-            case 66: // Show statistics page
-	      current_webpage = WEBPAGE_STATS;
-              pSocket->pData = g_HtmlPageStats;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
+#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+            case 66: // Show Link Error Statistics page
+	      current_webpage = WEBPAGE_STATS2;
+              pSocket->pData = g_HtmlPageStats2;
+              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
               pSocket->nState = STATE_CONNECTED;
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
 	      
-            case 67: // Clear statistics
-	      uip_init_stats();
-	      // Clear the "Reset Status Register" counters and the
-	      // Link Error Stats bytes.
+            case 67: // Clear Link Error Statistics
+	      // Clear the the Link Error Statistics bytes.
 	      // Important: 
 	      // The debug[] byte indexes used may change if the
 	      // number of debug bytes changes.
-	      for (i = 20; i < 30; i++) debug[i] = 0;
+	      debug[23] = 0; // Clear TXERIF counter
+	      debug[24] = 0; // Clear RXERIF counter
 	      update_debug_storage1();
-	      // Clear the statistics that are part of Link Error
-	      // Stats
 	      TRANSMIT_counter = 0;
 	      MQTT_resp_tout_counter = 0;
 	      MQTT_not_OK_counter = 0;
 	      MQTT_broker_dis_counter = 0;
 	      
-	      current_webpage = WEBPAGE_STATS;
-              pSocket->pData = g_HtmlPageStats;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats) - 1);
+	      current_webpage = WEBPAGE_STATS2;
+              pSocket->pData = g_HtmlPageStats2;
+              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
               pSocket->nState = STATE_CONNECTED;
               pSocket->nPrevBytes = 0xFFFF;
 	      break;
-#endif // DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15 || UIP_STATISTICS == 1
+#endif // DEBUG_SUPPORT
+
+#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
+            case 68: // Show Network Statistics page
+	      current_webpage = WEBPAGE_STATS1;
+              pSocket->pData = g_HtmlPageStats1;
+              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
+              pSocket->nState = STATE_CONNECTED;
+              pSocket->nPrevBytes = 0xFFFF;
+	      break;
+	      
+            case 69: // Clear Network Statistics and refresh page
+	      uip_init_stats();
+	      current_webpage = WEBPAGE_STATS1;
+              pSocket->pData = g_HtmlPageStats1;
+              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
+              pSocket->nState = STATE_CONNECTED;
+              pSocket->nPrevBytes = 0xFFFF;
+	      break;
+#endif // UIP_STATISTICS
+
+#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+            case 70: // Clear the "Reset Status Register" counters
+	      // Clear the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
+	      // These only display via the UART
+	      // Important: 
+	      // The debug[] byte indexes used may change if the
+	      // number of debug bytes changes.
+	      for (i = 25; i < 30; i++) debug[i] = 0;
+	      update_debug_storage1();
+	      break;
+#endif // DEBUG_SUPPORT
 
 	    case 91: // Reboot
 	      user_reboot_request = 1;
@@ -3468,7 +3255,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // pointer prevents "page interference" between normal browser
 	      // activity and the automated functions that normally use this
 	      // page.
-	      // current_webpage = WEBPAGE_SSTATE;
+	      current_webpage = WEBPAGE_SSTATE;
               pSocket->pData = g_HtmlPageSstate;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
               pSocket->nState = STATE_CONNECTED;
@@ -3595,6 +3382,523 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 }
 
 
+void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
+{
+  uint16_t lbi; // Local buffer index
+  
+  // This function will parse a POST sent by the user (usually when they
+  // click on the "submit" button on a webpage). POST data will consist
+  // of:
+  //  One digit with a ParseCmd
+  //  Two digits with a ParseNum indicating the item to be changed
+  //  One digit with an equal sign
+  //  A variable number of characters with a ParseState indicating the
+  //    new value of the item
+  //  One digit with a Parse Delimiter (an '&')
+  //
+  // The parse pre-process has placed as much of the POST as possible
+  // in the local_buf. This routine will parse that data and will seek
+  // the end of the data as indicated by finding the &z00=0 POST
+  // component.
+
+  // When we parse the local_buf we always start in state PARSE_CMD
+  pSocket->ParseState = PARSE_CMD;
+
+  lbi = 0; // local buf index
+  while (1) {
+    // When appropriate conditions are met a break will occur to leave
+    // the while loop.
+    if (pSocket->ParseState == PARSE_CMD) {
+      pSocket->ParseCmd = (uint8_t)(local_buf[lbi]);
+      pSocket->ParseState = PARSE_NUM10;
+      pSocket->nParseLeft--;
+      lbi++;
+    }
+    
+    else if (pSocket->ParseState == PARSE_NUM10) {
+      pSocket->ParseNum = (uint8_t)((local_buf[lbi] - '0') * 10);
+      pSocket->ParseState = PARSE_NUM1;
+      pSocket->nParseLeft--;
+      lbi++;
+    }
+    
+    else if (pSocket->ParseState == PARSE_NUM1) {
+      pSocket->ParseNum += (uint8_t)(local_buf[lbi] - '0');
+      pSocket->ParseState = PARSE_EQUAL;
+      pSocket->nParseLeft--;
+      lbi++;
+    }
+    
+    else if (pSocket->ParseState == PARSE_EQUAL) {
+      pSocket->ParseState = PARSE_VAL;
+      pSocket->nParseLeft--;
+      lbi++;
+    }
+    
+    else if (pSocket->ParseState == PARSE_VAL) {
+      // 'a' is POST data for the Device Name
+      // 'b' is POST data for the IP/Gateway/Netmask
+      // 'c' is POST data for the Port number
+      // 'd' is POST data for the MAC
+      // 'g' is POST data for the Config settings string
+      // 'h' is POST data for the Pin Control String
+      // 'i' is POST data for the IO Timers
+      // 'j' is POST data for the IO Names
+      // 'l' is POST data for the MQTT Username
+      // 'm' is POST data for the MQTT Password
+      // 'z' is POST data for a hidden input used as an end-of-POST
+      //     indicator
+      
+      // Parse 'a' 'l' 'm' 'j' ----------------------------------------------//
+      if (pSocket->ParseCmd == 'a'
+       || pSocket->ParseCmd == 'l'
+       || pSocket->ParseCmd == 'm'
+       || pSocket->ParseCmd == 'j' ) {
+        // a = Update the Device Name field
+        // l = Update the MQTT Username field
+        // m = Update the MQTT Password field
+        // j = Update the IO Name field
+        
+        // If parsing 'a' 'l' 'm' 'j' we know we are parsing a Configuration
+        // page. Set current_webpage to WEBPAGE_CONFIGURATION so that the
+        // browser will display this page after Save is clicked. This is a
+        // workaround for the "multiple browser page interference" issue
+        // where another browser might have changed the current_webpage
+        // value.
+        current_webpage = WEBPAGE_CONFIGURATION;
+
+        {
+          int i;
+          uint8_t amp_found;
+          char tmp_Pending[20];
+          int num_chars;
+	  
+	  num_chars = 0;
+          
+          switch (pSocket->ParseCmd) {
+            case 'a': num_chars = 19; break;
+            case 'l':
+            case 'm': num_chars = 10; break;
+            case 'j': num_chars = 15; break;
+          }
+          
+          // This function processes POST data for one of several string fields:
+          //   Device Name field
+          //   MQTT Username field
+          //   MQTT Password field
+          //   IO Name field
+          //
+          // POST data for strings are a special case case in that the resulting
+          // string can consist of anything from 0 to X number of characters. So, we
+          // have to parse until the POST delimiter '&' is found.
+          //
+          amp_found = 0;
+          memset(tmp_Pending, '\0', 20);
+
+          for (i = 0; i < num_chars; i++) {
+            // Collect characters until num_chars are collected or '&' is found.
+            if (amp_found == 0) {
+              // Collect a byte of the devicename from the local_buf until the '&' is
+              // found.
+              if (local_buf[lbi] == '&') amp_found = 1;
+              else {
+                tmp_Pending[i] = local_buf[lbi];
+                pSocket->nParseLeft--;
+                lbi++;
+              }
+            }
+            if (amp_found == 1) {
+              // We must reduce nParseLeft here because it is based on the PARESEBYTES_
+              // value which assumes num_chars bytes for the string field. If the
+              // POSTed string field is less than num_chars bytes then nParseLeft is
+              // too big by the number of characters omitted and must be corrected
+              // here. When we exit the loop the buffer index is left pointing at the
+              // '&' which starts the next field.
+              pSocket->nParseLeft--;
+            }
+          }
+  
+          switch (pSocket->ParseCmd)
+	  {
+	    case 'a':
+	      memcpy(Pending_devicename, tmp_Pending, num_chars);
+	      break;
+	    case 'l':
+	      memcpy(Pending_mqtt_username, tmp_Pending, num_chars);
+	      break;
+	    case 'm':
+	      memcpy(Pending_mqtt_password, tmp_Pending, num_chars);
+	      break;
+	    case 'j':
+#if MQTT_SUPPORT == 0
+	      unlock_flash();
+	      if (strcmp(IO_NAME[pSocket->ParseNum], tmp_Pending) != 0) {
+	        // The write to Flash will occur 4 bytes at a time to
+		// reduce Flash wear. All 16 bytes reserved in the Flash
+		// for a given IO Name will be written at one time in a
+		// sequence of 4 byte "word" writes.
+	        i = 0;
+	        while(i<16) {
+	          FLASH_CR2 = 0x40;
+	          FLASH_NCR2 = 0xBF;
+	          memcpy(&IO_NAME[pSocket->ParseNum][i], &tmp_Pending[i], 4);
+	          i += 4;
+	        }
+              }
+	      lock_flash();
+#endif // MQTT_SUPPORT
+	      break;
+	  }
+        }
+      }
+
+
+      // Parse 'b' ------------------------------------------------------//
+      else if (pSocket->ParseCmd == 'b') {
+        // This code updates the "pending" IP address, Gateway address,
+        // Netmask, and MQTT Host IP address which will then cause the
+        // main.c functions to restart the software.
+        // The value following the 'bxx=' ParseCmd and ParseNum consists
+        // of eight alpha nibbles representing the value in hex. The
+        // function call collects the alpha nibbles and converts them to
+	// the numeric value used by the other firmware functions.
+        {
+          int i;
+          int j;
+          uint8_t temp;
+          
+          // The following updates the IP address, Gateway address, NetMask, and MQTT
+          // IP Address based on GUI input.
+          // The code converts eight alpha fields with hex alphas ('0' to 'f') into
+          // 4 octets representing the new setting.
+            
+          // Convert characters of the hex string to numbers two characters
+          // at a time and store the result.
+          temp = 0;
+          i = 0;
+          j = 0;
+          while (i < 8) {
+            // Create a number from two hex characters
+            temp = two_hex2int(local_buf[lbi], local_buf[lbi+1]);
+	    lbi +=2;
+            pSocket->nParseLeft -= 2;
+	    i += 2;
+	    
+            j = (8 - i) / 2;
+          	  
+            switch(pSocket->ParseNum)
+            {
+              case 0:  Pending_hostaddr[j]       = (uint8_t)temp; break;
+              case 4:  Pending_draddr[j]         = (uint8_t)temp; break;
+              case 8:  Pending_netmask[j]        = (uint8_t)temp; break;
+              case 12: Pending_mqttserveraddr[j] = (uint8_t)temp; break;
+              default: break;
+            }
+          }
+        }
+      }
+
+
+      // Parse 'c' ------------------------------------------------------//
+      else if (pSocket->ParseCmd == 'c') {
+        // This code updates the "pending" HTTP Port number or MQTT Port
+        // number which will then cause the main.c functions to restart
+        // the software.
+        // ParseNum == 0 indicates the HTTP Port number.
+        // ParseNum == 1 indicates the MQTT Port number.
+        // The value following the 'cxx=' ParseCmd & ParseNum consists
+        // of four alpha nibbles with the port number in hex form. The
+        // function call collects the nibbles, validates them, and updates
+        // the pending port number.
+        {
+          int i;
+          uint16_t temp;
+            
+          // Code to update the Port number based on GUI input.
+          // The code converts four alpha fields with hex alphas ('0' to 'f')
+          // into a 16 bit number, and validates that the number is within the
+          // valid range.
+            
+          // Convert string to 16 bit integer
+          temp = 0;
+          for (i=0; i<4; i++) {
+            temp |= hex2int((uint8_t)local_buf[lbi]) << (12 - i*4);
+	    lbi++;
+            pSocket->nParseLeft--;
+          }
+
+          if (temp > 9) { // Make change only if valid entry
+            if (pSocket->ParseNum == 0) Pending_port = (uint16_t)temp;
+            else Pending_mqttport = (uint16_t)temp;
+          }
+        }
+      }
+
+
+      // Parse 'd' ------------------------------------------------------//
+      else if (pSocket->ParseCmd == 'd') {
+        // This code updates the "pending" MAC address which will then
+        // cause the main.c functions to restart the software.
+        // The value following the 'dxx=' ParseCmd and ParseNum consists
+        // of twelve alpha nibbles in hex form ('0' to '9' and 'a' to 'f').
+        // The function call collects the nibbles, validates them, and
+        // updates the pending MAC number.
+        {
+          int i;
+          uint16_t temp;
+            
+          // Code to update the MAC number based on GUI input.
+          // The code converts twelve alpha fields with hex alphas ('0' to 'f')
+          // into 6 octets representing the new setting.
+	  
+          // Convert characters of the hex string to numbers two
+          // at a time and store the result.
+          i = 0;
+          while (i < 12) {
+            temp = 0;
+            // Create a number from two hex characters
+            temp = two_hex2int(local_buf[lbi], local_buf[lbi+1]);
+	    lbi +=2;
+            pSocket->nParseLeft -= 2;
+	    i += 2;
+            // Store result in Pending_uip_ethaddr_oct. Note that order is
+            // reversed in this variable.
+            Pending_uip_ethaddr_oct[ (12-i)/2 ] = (uint8_t)temp;
+          }
+        }
+      }
+
+
+      // Parse 'g' ------------------------------------------------------//
+      else if (pSocket->ParseCmd == 'g') {
+        {
+          // This code sets the Config Settings bytes which define the
+          // DS18B20, MQTT, Full/Half Duplex, and Home Assistant Auto
+          // Discovery functionality.
+          //
+          // There are always 2 characters in the string which represent a
+          // hex encoded byte. Each is collected and saved for later
+          // processing.
+	  //
+          // Convert hex nibbles to a byte and store in Config settings
+	  Pending_config_settings = two_hex2int(local_buf[lbi], local_buf[lbi+1]);
+	  lbi +=2;
+          pSocket->nParseLeft -= 2;
+        }
+      }
+
+
+      // Parse 'h' ------------------------------------------------------//
+      else if (pSocket->ParseCmd == 'h') {
+        // This code sets the Pending_pin_control bytes based on the
+        // information in the 32 character string sent in the h00 field.
+        //
+        // There are always 32 characters in the string in 16 pairs of
+        // hex encoded nibbles, each pair representing a hex encoded pin
+        // control byte. The character pairs are extracted one set at a
+        // time, converted to a numeric byte, and stored in their
+        // corresponding Pending_pin_control byte.
+        {
+          int i;
+          int j;
+          uint8_t k;
+
+          // Sort the alpha characters into the pin control bytes
+          i = 0;
+          j = 0;
+          while( i<32 ) {
+            // The Configuration page updates all bits except the
+            // ON/OFF bit
+            // The IOControl page only updates the ON/OFF bit
+            Pending_pin_control[j] = pin_control[j];
+            // Convert the pin control string into numeric bytes
+            // two characters at a time. "k" will contain the byte
+            // after conversion.
+            k = two_hex2int(local_buf[lbi], local_buf[lbi+1]);
+	    lbi +=2;
+            pSocket->nParseLeft -= 2;
+	    i += 2;
+	    
+            if (current_webpage == WEBPAGE_CONFIGURATION) {
+              // Keep the ON/OFF bit as-is
+              Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x80);
+              // Mask out the ON/OFF bit in the temp variable
+              k = (uint8_t)(k & 0x7f);
+            }
+            else {
+              // current_webpage is WEBPAGE_IOCONTROL
+              // Keep the configuration bits as-is
+              Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x7f);
+              // Mask out the configuration bits in the temp variable
+              k = (uint8_t)(k & 0x80);
+            }
+            // "OR" in the changed bits
+            Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] | k);
+            j++;
+          }
+        }
+      }
+
+
+#if MQTT_SUPPORT == 0
+      // Parse 'i' ------------------------------------------------------//
+      else if (pSocket->ParseCmd == 'i') {
+        // This code updates the IO Timer units and values in Flash.
+        // The value following the 'ixx=' ParseCmd & ParseNum consists of
+	// 2 bytes represented as hex encoded strings (4 nibbles).
+	// Upper 2 bits are units
+	// Lower 14 bits are value
+	// The bytes are converted from the hex encoded string to a 16
+	// bit integer for storage in Flash.
+        {
+          uint16_t temp;
+
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // Need to replace this with a Word write to reduce wear
+	  // on the Flash.
+	  // This may require storing all received IO Timer values in
+	  // RAM (requires 32 bytes) then checking them for changes
+	  // before writing to Flash in the main.c "parse complete"
+	  // code.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  
+          // Sort the alpha characters into the IO Timer bytes
+          // Collect upper byte
+          // Convert two bytes of the string buffer into numeric bytes
+          // two characters at a time.
+          temp = (uint8_t)(two_hex2int(local_buf[lbi], local_buf[lbi+1]));
+	  temp = (temp << 8);
+	  lbi += 2;
+          pSocket->nParseLeft -= 2;
+          // Collect lower byte
+          temp |= (uint8_t)(two_hex2int(local_buf[lbi], local_buf[lbi+1]));
+	  lbi += 2;
+          pSocket->nParseLeft -= 2;
+	  // Store in Pending_IO_TIMER array
+	  Pending_IO_TIMER[pSocket->ParseNum] = temp;
+        }
+      }
+#endif // MQTT_SUPPORT
+
+
+      // Parse 'z' ------------------------------------------------------//
+      else if (pSocket->ParseCmd == 'z') {
+        // This code signals that the "hidden" post was received. This
+        // is an indicaor that the entire POST was received.
+        //
+        // There is no '&' delimiter after this POST value.
+        //
+        pSocket->nParseLeft = 0;
+        break; // Break out of the while loop. We're done with POST.
+      }
+	  
+      // If we got to this point one of the "if/else if" above should have
+      // executed leaving the pointers pointing at the "&" delimiter in
+      // the POST data as the next character to be processed. So we set
+      // the ParseState to PARSE_DELM and let the while() do its next pass.
+      //
+      pSocket->ParseState = PARSE_DELIM;
+    }
+	
+    else if (pSocket->ParseState == PARSE_DELIM) {
+      if ((pSocket->nParseLeft > 0) && (lbi < lbi_max)) {
+        // Parse the next character, which must be a '&' delimiter. From
+        // here we go parse the next command byte.
+        pSocket->ParseState = PARSE_CMD;
+        pSocket->nParseLeft--;
+        lbi++;
+      }
+      else if ((pSocket->nParseLeft > 0) && (lbi >= lbi_max)) {
+        // We hit the end of the data in the local_buf but there is still
+	// more POST data. Break out of the while(1) loop so we'll return
+	// to collect more data from the uip_buf.
+	break; // Exit parsing
+      }
+      else {
+        // If we came to PARSE_DELIM and there was nothing left to parse
+        // in this or any subsequent packet (the normal exit state for
+        // POST data) then we just make sure nParseLeft is zero (not
+        // negative) and go on to exit.
+        pSocket->nParseLeft = 0; // End the parsing
+        break; // Exit parsing
+      }
+    }
+  }  // end of "while(1)" loop
+      
+  // If nParseLeft == 0 we should enter STATE_SENDHEADER204, but we
+  // clean up the fragment tracking pointers first.
+  //
+  // If nParseLeft is > 0 we haven't received the whole POST yet. In that
+  // case we should not enter STATE_SENDHEADER204 until we finish
+  // receiving and parsing the whole POST.
+  //
+  // We also do not want the main.c loop to do any processing of the
+  // Pending values collected so far until we've completed collecting ALL
+  // POST data. We can tell we still have processing to do because:
+  //   saved_nparseleft != 0.
+  // I will use a global "parse_complete" variable to pass the state to
+  // the main.c functions.
+  //
+
+  if (pSocket->nParseLeft == 0) {
+    // Finished parsing
+    // Clear the saved states
+    saved_nstate = STATE_NULL;
+    saved_nparseleft = 0;
+    saved_newlines = 0;
+	
+    // Signal the main.c processes that parsing is complete
+    parse_complete = 1;
+    pSocket->nState = STATE_SENDHEADER204;
+	
+    // Patch: ON CHROME ONLY: When 'Save' is clicked after changing from
+    // the IOControl page to the Configuration page for some reason no
+    // Configuration page refresh occurs. At one time the wrong page
+    // would display, but that does not seem to happen anymore. The next
+    // steps are a workaround to get Chrome to behave better. I am not
+    // sure why this happens as the 'if (uip_connected()' steps at the
+    // start of this function call should have already done this. Note
+    // that if the page change is done, then the 'Refresh' button is
+    // clicked, then the 'Save' button is clicked this problem does not
+    // appear. This problem was not seen with FireFox, Edge, or IE.
+
+    if (current_webpage == WEBPAGE_IOCONTROL) {
+      pSocket->pData = g_HtmlPageIOControl;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
+    }
+    if (current_webpage == WEBPAGE_CONFIGURATION) {
+      pSocket->pData = g_HtmlPageConfiguration;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
+    }
+  }
+
+  else {
+    // Else nParseLeft > 0 so we are still waiting on the remote host to
+    // send more POST data. This should arrive in subsequent packets. The
+    // remote host is not expecting a CLOSE connection until we are done
+    // receiving all POST data. The CLOSE will happen as part of the
+    // STATE_SENDHEADER204 process.
+    //
+    // Note on TCP Fragment reassembly: When the MSS is smaller than the
+    // size of the packets that the remote host wants to send it will
+    // simply send multiple packets of size MSS or smaller. We are
+    // entirely dependent on nParseLeft to determine when to go to
+    // STATE_SEND_HEADER, and we must assume that any additional fragments
+    // that are sent after we get all the POST data are disposed of by the
+    // UIP code. FYI, there shouldn't be any TCP Fragments after
+    // nParseLeft = 0.
+    //
+    uip_len = 0;
+  }
+}
+
+
 void update_ON_OFF(uint8_t i, uint8_t j)
 {
   // Verify that pin is an output and it is enabled. If so
@@ -3605,571 +3909,6 @@ void update_ON_OFF(uint8_t i, uint8_t j)
     else Pending_pin_control[i] |= (uint8_t)0x80;
     parse_complete = 1;
   }
-}
-
-
-void clear_saved_postpartial_all(void)
-{
-  int i;
-  for (i=0; i<36; i++) saved_postpartial[i] = '\0';
-}
-
-
-void clear_saved_postpartial_data(void)
-{
-  int i;
-  for (i=4; i<36; i++) saved_postpartial[i] = '\0';
-}
-
-
-void clear_saved_postpartial_previous(void)
-{
-  int i;
-  for (i=0; i<36; i++) saved_postpartial_previous[i] = '\0';
-}
-
-
-void preload_alphas(void)
-{
-  int i;
-  for (i=0; i<32; i++) alpha[i] = '-';
-}
-
-
-void check_alphas(void)
-{
-  int i;
-  for (i=0; i<32; i++) {
-    if (saved_postpartial_previous[i+4] != '\0') alpha[i] = saved_postpartial_previous[i+4];
-    else break;
-  }
-}
-
-
-void parse_POST_string(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket, uint8_t num_chars)
-{
-  int i;
-  uint8_t amp_found;
-  uint8_t frag_flag;
-  uint8_t resume;
-  char tmp_Pending[20];
-  // This function processes POST data for one of several string fields:
-  //   Device Name field
-  //   MQTT Username field
-  //   MQTT Password field
-  //
-  // The POST data for the string field is saved in Pending_tmp, and the
-  // calling function must copy tmp_Pending to Pending_devicename,
-  // Pending_mqtt_username, or Pending_mqtt_password as appropriate.
-  //
-  // ParseNum isn't used in the processing of this ParseCmd as a string field
-  // is the only item assigned to the ParseCmd (for example there will be an
-  // 'a00' but no 'a01').
-  //
-  // POST data for strings are a special case case in that the resulting
-  // string can consist of anything from 0 to X number of characters. So, we
-  // have to parse until the POST delimiter '&' is found.
-  //
-  amp_found = 0;
-  //for (i=0; i<20; i++) tmp_Pending[i] = '\0';
-  memset(tmp_Pending, '\0', 20);
-  
-  if (saved_postpartial_previous[0] == pSocket->ParseCmd) {
-    // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
-    // should only get used once on processing a given TCP Fragment.
-    saved_postpartial_previous[0] = '\0';
-    // Since the ParseCmd matched the saved_postpartial_previous value we are
-    // re-assembling a TCP Fragment that occurred during this command. The
-    // ParseCmd and ParseNum values are already restored. We need to
-    // determine where in this command the TCP Fragmentation break occurred
-    // and continue from there.
-    frag_flag = 1; // frag_flag is used to manage the TCP Fragment restore
-                   // process within this specific ParseCmd process.
-  }
-  else {
-    frag_flag = 0;
-    // We are not doing a TCP Fragment reassembly. Clear the data part of the
-    // saved_postpartial values in case a TCP Fragment break occurs in this
-    // parse.
-    clear_saved_postpartial_data(); // Clear [4] and higher
-  }
-
-  // Notes on TCP Fragmentation
-  // If we are recovering from fragmentation then the frag_flag will be 1.
-  // If the string has zero length then we will enter this code with
-  //   saved_postpartial_previous[4] equal to '\0' and the next character
-  //   in the POST will be an &.
-  // If the string has non-zero length but we didn't collect any characters
-  //   in the prior TCP Fragment then saved_postpartial_previous[4] will be
-  //   equal to '\0' but the next character in the POST will not be an &.
-  // If the fragmentation occurred before the last character in the string
-  //   there will be at least one character in the saved_postpartial_previous[]
-  //   array and the next character in the POST will not be an &. We should
-  //   collect that/those character(s) then go to reading the POST. Note that
-  //   it is not possible to hit another fragment while finishing the
-  //   collection of a previously fragmented field.
-  // If the last character in the string was collected in the previous TCP
-  //   Fragment but the & was not yet encountered then the & will be the first
-  //   character in the current packet.
-
-  resume = 0;
-  if (frag_flag == 1) {
-    // Handle restoration of previously collected data, if any
-    for (i = 0; i < num_chars; i++) {
-      // First restore any data that was saved from the previous TCP
-      // Fragment.
-      // If the TCP Fragmentation occurred between the = and start of the
-      // string data there won't be any stored data and we'll break out
-      // of the for() loop with resume still equal zero.
-      // If the TCP Fragmentation occurred between the = and & of a zero
-      // length string there won't be any stored data and we'll break out
-      // of the for() loop with resume still equal zero.
-      if (saved_postpartial_previous[4+i] != '\0') {
-        tmp_Pending[i] = saved_postpartial_previous[4+i];
-      }
-      else {
-        resume = (uint8_t)i;
-        break;
-      }
-    }
-    if (**pBuffer == '&') {
-      // Handle the case where all characters were collected in the last TCP
-      // Fragment but the & was not seen. In this case the & is the first
-      // character of this packet.
-      amp_found = 1;
-    }
-  }
-
-  // If amp_found == 0 then there are characters to be collected from the
-  // packet. The 'resume' variable will indicate where to resume inserting
-  // these characters in tmp_Pending.
-  // If no TCP Fragment occurred 'amp_found' and 'resume' will both equal zero
-  // at this point.
-  // If a TCP Fragment occurred between the = sign and the string data
-  // 'amp_found' and 'resume' will both equal zero at this point.
-  
-  if (amp_found == 0) {
-    for (i = resume; i < num_chars; i++) {
-      // Collect characters until num_chars are collected or '&' is found in
-      // uip_buf.
-      if (amp_found == 0) {
-        // Collect a byte of the devicename from the uip_buf until the '&' is
-        // found.
-        if (**pBuffer == '&') {
-          // Set the amp_found flag and do not store this character in
-          // devicename.
-          amp_found = 1;
-        }
-        else {
-          tmp_Pending[i] = **pBuffer;
-          saved_postpartial[4+i] = **pBuffer;
-          pSocket->nParseLeft--;
-          saved_nparseleft = pSocket->nParseLeft;
-          (*pBuffer)++;
-          (*nBytes)--;
-          if (*nBytes == 0) {
-            // If nBytes == 0 we just read the last byte of POST data in the
-            // uip_buf. The POST data will continue in the next TCP Fragment,
-            // but we need to exit the for() and while() loops now.
-            if (i == (num_chars - 1)) {
-              // If i == (num_chars - 1) then we collected the maximum number of
-              // characters without hitting '&' ... but we know '&' is next when
-              // we return to process the next TCP Fragment, so we need to set
-              // the saved parsestate accordingly.
-              saved_parsestate = PARSE_DELIM;
-            }
-            break_while = 1;
-            break; // This will break the for() loop. But we need to break the
-                   // while() loop on return from this function. So break_while
-                   // is set to 1.
-          }
-        }
-      }
-      if (amp_found == 1) {
-        // We need to null any remaining characters in the tmp_Pending string
-	// up to num_chars in case we are shortening the string.
-        tmp_Pending[i] = '\0';
-        // We must reduce nParseLeft here because it is based on the PARESEBYTES_
-        // value which assumes num_chars bytes for the string field. If the
-        // POSTed string field is less than num_chars bytes then nParseLeft is
-        // too big by the number of characters omitted and must be corrected
-        // here. Note that nBytes is not decremented and the pBuffer pointer is
-        // not advanced because nothing is read from the buffer. When we exit the
-        // loop the buffer pointer is left pointing at the '&' which starts the
-        // next field.
-        pSocket->nParseLeft--;
-      }
-    }
-  }
-
-  // Always execute the following code before returning from the function.
-  //
-  // When the function was called the tmp_Pending value was filled with '\0'
-  // so we know the new string is terminated with '\0'.
-  //
-  // If we read the entire string field we departed the for() loop with the 
-  // pointers still pointing at the '&', which is what all the other steps
-  // in the POST read do.
-  // 
-  // If we didn't find the '&' due to TCP fragmentation our saved pointers
-  // will bring us back to this function to finish collecting the string
-  // with the next TCP Fragment.
-  
-  // If break_while is not set we did not hit a TCP Fragement point and we
-  // no longer need the saved_postpartial values. Clear them to prevent
-  // interference with subsequent restores.
-  if (break_while == 0) clear_saved_postpartial_all();
-  
-  // Update the Device Name field
-  if (pSocket->ParseCmd == 'a') {
-    for (i=0; i<num_chars; i++) Pending_devicename[i] = tmp_Pending[i];
-  }
-
-  // Update the MQTT Username field
-  else if (pSocket->ParseCmd == 'l') {
-    for (i=0; i<num_chars; i++) Pending_mqtt_username[i] = tmp_Pending[i];
-  }
-
-  // Update the MQTT Password field
-  else if (pSocket->ParseCmd == 'm') {
-    for (i=0; i<num_chars; i++) Pending_mqtt_password[i] = tmp_Pending[i];
-  }
-  return;
-}
-
-
-void parse_POST_address(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket)
-{
-  int i;
-  
-  preload_alphas();
-
-  if (saved_postpartial_previous[0] == pSocket->ParseCmd) {
-    // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
-    // should only get used once on processing a given TCP Fragment.
-    saved_postpartial_previous[0] = '\0';
-    // We are re-assembling a fragment that occurred during this command. The
-    // ParseCmd and ParseNum values are already restored. We need to determine
-    // where in this command the fragmentation break occurred and continue
-    // from there.
-    //
-    // Check for alphas found in prior TCP Fragment
-    check_alphas();
-  }
-  else {
-    // We are not doing a reassembly. Clear the data part of the
-    // saved_postpartial values in case a fragment break occurs during this
-    // parse.
-    clear_saved_postpartial_data(); // Clear [4] and higher
-  }
-
-  for (i=0; i<8; i++) {
-    // Examine each 'alpha' character to see if it was already found
-    // in a prior TCP Fragment. If not collect it now.
-    // If collecting characters from the POST break the while() loop
-    // if a TCP Fragment boundary is found unless the character
-    // collected is the last 'alpha'.
-    if (alpha[i] == '-') {
-      alpha[i] = (uint8_t)(**pBuffer);
-      saved_postpartial[i+4] = (uint8_t)(**pBuffer);
-      pSocket->nParseLeft--;
-      saved_nparseleft = pSocket->nParseLeft;
-      (*pBuffer)++;
-      (*nBytes)--;
-      if (i != 7 && *nBytes == 0) {
-        break_while = 1; // Hit end of fragment but still have characters to
-                         // collect in the next packet. Set break_while to 1
-                         // so that we'll break out of the while() loop on
-                         // return from this function.
-        break; // Break out of for() loop.
-      }
-    }
-  }
-  if (break_while == 1) { // Hit end of fragment. Break out of while() loop.
-    return;
-  }
-
-  // If we get this far we no longer need the saved_postpartial values and
-  // must clear them to prevent interference with subsequent restores.
-  clear_saved_postpartial_all();
-
-  {
-    // The following updates the IP address, Gateway address, NetMask, and MQTT
-    // IP Address based on GUI input.
-    // The code converts eight alpha fields with hex alphas ('0' to 'f') into
-    // 4 octets representing the new setting.
-    uint16_t temp;
-    int invalid;
-    int j;
-    
-    invalid = 0;
-    j = 0;
-
-    // Validate each character in the string as a hex character
-    for (i=0; i<8; i++) {
-      if (!(isxdigit(alpha[i]))) invalid = 1;
-    }
-    
-    if (invalid == 0) { // Make change only if valid entry
-      // Convert characters of the hex string to numbers two characters
-      // at a time and store the result.
-      temp = 0;
-      i = 0;
-      while (i < 8) {
-        // Create a number from two hex characters
-        temp = hex2int(alpha[i]);
-        temp = temp<<4;
-        i++;
-        temp = temp | hex2int(alpha[i]);
-	i++;
-
-        // if (i == 2) j = 3;
-        // if (i == 4) j = 2;
-        // if (i == 6) j = 1;
-        // if (i == 8) j = 0;
-	j = (8 - i) / 2;
-	
-        switch(pSocket->ParseNum)
-        {
-          case 0: Pending_hostaddr[j] = (uint8_t)temp; break;
-	  case 4: Pending_draddr[j] = (uint8_t)temp; break;
-          case 8: Pending_netmask[j] = (uint8_t)temp; break;
-          case 12: Pending_mqttserveraddr[j] = (uint8_t)temp; break;
-          default: break;
-        }
-      }
-    }
-  }
-
-  if (*nBytes == 0) {
-    // Hit end of fragment. Break out of while() loop. The first character
-    // of the next packet will be '&' so we need to set PARSE_DELIM.
-    break_while = 2; // Hit end of fragment. Set break_while to 2 so that
-                     // we'll break out of the while() loop on return from
-                     // this function AND go to the PARSE_DELIM state.
-  }
-  return;
-}
-
-
-void parse_POST_port(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket)
-{
-  int i;
-
-  preload_alphas();
-
-  if (saved_postpartial_previous[0] == pSocket->ParseCmd) {
-    // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
-    // should only get used once on processing a given TCP Fragment.
-    saved_postpartial_previous[0] = '\0';
-    // We are re-assembling a fragment that occurred during this command. The
-    // ParseCmd and ParseNum values are already restored. We need to determine
-    // where in this command the fragmentation break occurred and continue
-    // from there.
-    //
-    // Check for alphas found in prior TCP Fragment
-    check_alphas();
-  }
-  else {
-    // We are not doing a reassembly. Clear the data part of the
-    // saved_postpartial values in case a fragment break occurs during this
-    // parse.
-    clear_saved_postpartial_data(); // Clear [4] and higher
-  }
-
-  {
-    int i;
-    for (i=0; i<4; i++) {
-      // Examine each 'alpha' character to see if it was already found
-      // in a prior TCP Fragment. If not collect it now.
-      // If collecting characters from the POST break the while() loop
-      // if a TCP Fragment boundary is found unless the character
-      // collected is the last 'alpha'.
-      if (alpha[i] == '-') {
-        alpha[i] = (uint8_t)(**pBuffer);
-        saved_postpartial[i+4] = **pBuffer;
-        pSocket->nParseLeft--;
-        saved_nparseleft = pSocket->nParseLeft;
-        (*pBuffer)++;
-        (*nBytes)--;
-        if (i != 3 && *nBytes == 0) {
-          break_while = 1; // Hit end of fragment but still have characters to
-	                   // collect in the next packet. Set break_while to 1
-			   // so that we'll break out of the while() loop on
-			   // return from this function.
-          break; // Break out of for() loop.
-        }
-      }
-    }
-    if (break_while == 1) { // Hit end of fragment. Break out of while() loop.
-      return;
-    }
-  }
-
-  // If we get this far we no longer need the saved_postpartial values and
-  // must clear them to prevent interference with subsequent restores.
-  clear_saved_postpartial_all();
-
-  {
-    // Code to update the Port number based on GUI input.
-    // The code converts four alpha fields with hex alphas ('0' to 'f')
-    // into a 16 bit number, and validates that the number is within the
-    // valid range.
-    uint16_t temp;
-    uint16_t nibble;
-    int invalid;
-    invalid = 0;
-
-    // Validate each character in the string as a hex character
-    for (i=0; i<4; i++) {
-      if (!(isxdigit(alpha[i]))) invalid = 1;
-    }
-
-    // Convert string to integer
-    temp = 0;
-    nibble = 0;
-    for (i=0; i<4; i++) {
-      // nibble = hex2int(alpha[i]);
-      // if (i == 0) nibble = nibble<<12;
-      // if (i == 1) nibble = nibble<<8;
-      // if (i == 2) nibble = nibble<<4;
-      // temp = temp | nibble;
-      temp |= hex2int(alpha[i]) << (12 - i*4);
-    }
-
-    if (invalid == 0) { // Next step of validation
-      // Validate that the value is in the range 10 to 65535. Since we
-      // already verified that the incoming characters were valid hex
-      // characters we only need to verify that the number is not less
-      // than 10.
-      if (temp < 10) invalid = 1;
-    }
-    
-    if (invalid == 0) { // Make change only if valid entry
-      if (pSocket->ParseNum == 0) Pending_port = (uint16_t)temp;
-      else Pending_mqttport = (uint16_t)temp;
-    }
-  }
-
-  if (*nBytes == 0) {
-    // Hit end of fragment. Break out of while() loop. The first character
-    // of the next packet will be '&' so we need to set PARSE_DELIM.
-    break_while = 2; // Hit end of fragment. Set break_while to 2 so that
-                     // we'll break out of the while() loop on return from
-                     // this function AND go to the PARSE_DELIM state.
-  }
-  return;
-}
-
-
-void parse_POST_MAC(uint8_t** pBuffer, uint16_t * nBytes, struct tHttpD* pSocket)
-{
-  int i;
-
-  preload_alphas();
-
-  if (saved_postpartial_previous[0] == pSocket->ParseCmd) {
-    // Clear the saved_postpartial_prevous[0] byte (the ParseCmd byte) as it
-    // should only get used once on processing a given TCP Fragment.
-    saved_postpartial_previous[0] = '\0';
-    // We are re-assembling a fragment that occurred during this command. The
-    // ParseCmd and ParseNum values are already restored. We need to determine
-    // where in this command the fragmentation break occurred and continue
-    // from there.
-    //
-    // Check for alphas found in prior TCP Fragment
-    check_alphas();
-  }
-  else {
-    // We are not doing a reassembly. Clear the data part of the
-    // saved_postpartial values in case a fragment break occurs during this
-    // parse.
-    clear_saved_postpartial_data(); // Clear [4] and higher
-  }
-
-  {
-    int i;
-    for (i=0; i<12; i++) {
-      // Examine each 'alpha' character to see if it was already found
-      // in a prior TCP Fragment. If not collect it now.
-      // If collecting characters from the POST break the while() loop
-      // if a TCP Fragment boundary is found unless the character
-      // collected is the last 'alpha'.
-      if (alpha[i] == '-') {
-        alpha[i] = (uint8_t)(**pBuffer);
-        saved_postpartial[i+4] = **pBuffer;
-        pSocket->nParseLeft--;
-        saved_nparseleft = pSocket->nParseLeft;
-        (*pBuffer)++;
-        (*nBytes)--;
-        if (i != 11 && *nBytes == 0) {
-          break_while = 1; // Hit end of fragment but still have characters to
-	                   // collect in the next packet. Set break_while to 1
-			   // so that we'll break out of the while() loop on
-			   // return from this function.
-          break; // Break out of for() loop.
-        }
-      }
-    }
-    if (break_while == 1) { // Hit end of fragment. Break out of while() loop.
-      return;
-    }
-  }
-
-  // If we get this far we no longer need the saved_postpartial values and
-  // must clear them to prevent interference with subsequent restores.
-  clear_saved_postpartial_all();
-
-  {
-    // Code to update the MAC number based on GUI input.
-    // The code converts twelve alpha fields with hex alphas ('0' to 'f')
-    // into 6 octets representing the new setting.
-    uint16_t temp;
-    int invalid;
-    invalid = 0;
-
-    // Validate each character in the string as a hex character
-    for (i=0; i<12; i++) {
-      if (!(isxdigit(alpha[i]))) invalid = 1;
-    }
-    
-    if (invalid == 0) { // Make change only if valid entry
-      // Convert characters of the hex string to numbers two
-      // at a time and store the result.
-      i = 0;
-      while (i < 12) {
-        temp = 0;
-        // Create a number from two hex characters
-        temp = hex2int(alpha[i]);
-        temp = temp<<4;
-        i++;
-        temp = temp | hex2int(alpha[i]);
-	i++;
-    
-        // switch(i) {
-        //   case 2: Pending_uip_ethaddr_oct[5] = (uint8_t)temp; break;
-        //   case 4: Pending_uip_ethaddr_oct[4] = (uint8_t)temp; break;
-        //   case 6: Pending_uip_ethaddr_oct[3] = (uint8_t)temp; break;
-        //   case 8: Pending_uip_ethaddr_oct[2] = (uint8_t)temp; break;
-        //   case 10: Pending_uip_ethaddr_oct[1] = (uint8_t)temp; break;
-        //   case 12: Pending_uip_ethaddr_oct[0] = (uint8_t)temp; break;
-        //   default: break;
-        // }
-	// Store result in Pending_uip_ethaddr_oct. Note that order is
-	// reversed in this variable.
-	Pending_uip_ethaddr_oct[ (12-i)/2 ] = (uint8_t)temp;
-      }
-    }
-  }
-
-  if (*nBytes == 0) {
-    // Hit end of fragment. Break out of while() loop. The first character
-    // of the next packet will be '&' so we need to set PARSE_DELIM.
-    break_while = 2; // Hit end of fragment. Set break_while to 2 so that
-                     // we'll break out of the while() loop on return from
-                     // this function AND go to the PARSE_DELIM state.
-  }
-  return;
 }
 
 

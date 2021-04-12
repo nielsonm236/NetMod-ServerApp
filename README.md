@@ -22,16 +22,15 @@ February 20, 2021 - Added a UART debug interface for use by developers. Beginnin
 April 12, 2021 - Released a parallel build for "Browser Only" users that does not include MQTT, but adds some requested features for users that do not want MQTT. The "Browser Only" version includes individual IO Names, IO Timers, and restores the Network Statistics page.
 
 Feature Comparison of the MQTT and Browser builds:
-Feature				MQTT Build		Browser Only Build 
-MQTT Support			x
-Home Assistant Support		x
-Full/Half Duplex		x			x
-Link Error Statistics		x			x
-DS18B20 Temp Sensor		x			x
-IO Naming						x
-IO Timers						x
-Network Statistics					x
-
+Feature                   MQTT Build    Browser Only Build 
+MQTT Support                   x
+Home Assistant Support         x
+Full/Half Duple                x               x
+Link Error Statistics          x               x
+DS18B20 Temp Sensor            x               x
+IO Naming                                      x
+IO Timers                                      x
+Network Statistics                             x
 
 Help is avaialble via a link in the Configuration page that will take you to the GitHub Wiki page. All functionality is described in detail in the "Network Module Manual". I suggest you take a look.
 

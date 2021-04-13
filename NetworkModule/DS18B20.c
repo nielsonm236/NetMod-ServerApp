@@ -389,10 +389,10 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
 	// with the raw number which includes 4 bits of decimal
 	// This next equation also includes the "9" part of the
 	// "9 / 5" calculation. We use 180 / 100 to avoid loss
-	// of precision in the integer arithmatic.
+	// of precision in the integer arithmetic.
         F_temp1 = (int32_t)((F_temp1 + 880) * 180);
 	// It is necessary to separate the "100" part of the
-	// "180 / 100" arithmatic so the compiler doesn't optimize
+	// "180 / 100" arithmetic so the compiler doesn't optimize
 	// and cause loss of precision.
         F_temp2 = F_temp1 / 100;
 	// Now subtract 1072. This is the combination of the "+32"

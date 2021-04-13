@@ -434,7 +434,7 @@ int16_t __mqtt_send(struct mqtt_client *client)
     // check for keep-alive
     {
         // At about 3/4 of the timeout period perform a ping. This calculation
-	// uses integer arithmatic so it is only an approximation. It is assumed
+	// uses integer arithmetic so it is only an approximation. It is assumed
 	// that timeouts are not a small number (for instance, the timeout should
 	// be at least 15 seconds).
         uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((client->keep_alive * 3) / 4);

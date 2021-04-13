@@ -49,7 +49,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210412 1333";
+const char code_revision[] = "20210413 1254";
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -2117,8 +2117,7 @@ void publish_temperature(uint8_t sensor)
     // When the Publish message is sent the sensor value must be in human
     // readable form, ie, 1 to 5 (for the 5 sensors).
 
-    app_message[0] = '\0';
-    
+    // Build the topic string
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
     strcat(topic_base, "/temp/");
@@ -2136,6 +2135,7 @@ void publish_temperature(uint8_t sensor)
     
     // Build the application message
     convert_temperature(sensor, 0); // Convert to degress C in OctetArray
+    strcpy(app_message, OctetArray);
     
     // Queue publish message
     mqtt_publish(&mqttclient,

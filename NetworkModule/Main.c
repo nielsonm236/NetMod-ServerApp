@@ -314,10 +314,13 @@ unsigned char topic_base[51];         // Used for building connect, subscribe,
 				      // NetworkModule/DeviceName123456789/output/+/set
 				      // NetworkModule/DeviceName123456789/temp/15
 				      // homeassistant/binary_sensor/macaddressxx/01/config
-uint8_t auto_pub_count;               // Tracks the Home Assistant Auto Discovery
-                                      // publish msgs
-uint8_t auto_pub_toggle;              // Tracks the dual message count required for
-                                      // the Home Assistant Auto Discovery publish msgs
+uint8_t auto_discovery;               // Used in the Auto Discovery state machine
+uint8_t auto_discovery_step;          // Used in the Auto Discovery state machine
+uint8_t pin_ptr;                      // Used in the Auto Discovery state machine
+uint8_t sensor_number;                // Used in the Auto Discovery state machine
+unsigned char app_message[5];         // Stores the application message
+                                      // (the payload) that will be sent
+				      // in an MQTT message.
 #endif // MQTT_SUPPORT
 
 // These MQTT variables must always be compiled to maintain a common user
@@ -401,11 +404,6 @@ int main(void)
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
   state_request = STATE_REQUEST_IDLE;    // Set the state request received to
                                          // idle
-  auto_pub_count = 0;                    // Initialize Home Assistant Auto
-                                         // Discovery message counter
-  auto_pub_toggle = 0;                   // Initialize dual msg tracker for
-                                         // Home Assistant Auto Discovery
-					 // message counter
 #endif // MQTT_SUPPORT
 
   // The following are only used for tracking MQTT startup status, but they
@@ -848,10 +846,6 @@ void mqtt_startup(void)
   //   - Verifies that the ARP request succeeded.
   //   - Verifies that the TCP connection request suceeded.
   //   - Initializes communication with the MQTT Broker.
-  int8_t skip_auto_msg;
-  unsigned char app_message[5];       // Stores the application message (the
-                                      // payload) that will be sent in an
-				      // MQTT message.
   
   switch(mqtt_start)
   {
@@ -1118,7 +1112,10 @@ void mqtt_startup(void)
         if (stored_config_settings & 0x02) {
           // Home Assistant Auto Discovery enabled
           mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
-          auto_pub_count = 0;
+          auto_discovery = DEFINE_INPUTS;
+          auto_discovery_step = SEND_OUTPUT_DELETE;
+          pin_ptr = 1;
+          sensor_number = 1;
         }
         else {
           mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
@@ -1136,15 +1133,14 @@ void mqtt_startup(void)
     if (mqtt_start_ctr2 > 0) {
       // Publish Home Assistant Auto Discovery messages
       // This step of the state machine is entered multiple times until all
-      // Publish messages are sent. The variable auto_pub_count is used to
-      // determine when all messages are sent.
+      // Home Assistant Auto Discovery Publish messages are sent.
       //
       //---------------------------------------------------------------------//
       // This function will create a "placeholder" Publish message. The
-      // "placeholder" message contains special markers that need to be
+      // placeholder message contains special markers that need to be
       // replaced later with more extensive text fields required in the
       // actual Publish message. The mqtt_pal.c function will detect the
-      // "placeholder" Publish message during the "copy to uip_buf" process
+      // placeholder Publish message during the "copy to uip_buf" process
       // and will replace the special markers at that time to create the
       // actual Publish message required by Home Assistant. This complication
       // is necessary because the MQTT transmit buffer is not large enough to
@@ -1152,7 +1148,7 @@ void mqtt_startup(void)
       // constructed on-the-fly as the app_message is written to the uip_buf
       // transmit buffer by the mqtt_pal.c function.
       //
-      // This "placeholder" Publish message will create an Output Auto
+      // The following placeholder Publish message will create an Output Auto
       // Discovery message. "xx" is the output IO number.
       //    mqtt_publish(&mqttclient,
       //                 topic_base,
@@ -1160,7 +1156,7 @@ void mqtt_startup(void)
       //                 4,
       //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
       //
-      // This "placeholder" Publish message will create an Input Auto
+      // The following placeholder Publish message will create an Input Auto
       // Discovery message. "xx" is the input IO number.
       //    mqtt_publish(&mqttclient,
       //                 topic_base,
@@ -1168,7 +1164,7 @@ void mqtt_startup(void)
       //                 4,
       //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
       //
-      // This "placeholder" Publish message will create a Temperature
+      // The following placeholder Publish message will create a Temperature
       // Sensor Auto Discovery message. "xx" is the input IO number.
       //    mqtt_publish(&mqttclient,
       //                 topic_base,
@@ -1177,289 +1173,250 @@ void mqtt_startup(void)
       //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
       //---------------------------------------------------------------------//
 
-      // Walk through the pin_control bytes and send an Auto Discovery
-      // Publish message for every pin as follows:
-      //   For every pin that is an Enabled Output an Output Config message
-      //     is sent with a defining payload.
-      //   For every pin that is an Enabled Input an Input Config message
-      //     is sent with a defining payload.
-      //   For pin 16: If DS18B20 is enabled a Temperature Sensor Config
-      //     message is sent with a defining payload.
+      // This part of the state machine will walk through the pin_control
+      // bytes and send an Auto Discovery Publish message for every pin as
+      // follows:
       //
-      //   For every pin that is an Input an Output Config message is sent
-      //     with an empty payload (to make sure any prior Output definition
-      //     for the pin is removed in Home Assistant).
-      //   For pin 16: If the pin is an Input then a Temperature Sensor
-      //     Config message is sent with an empty payload (to make sure any
-      //     prior Temparuture Sensor definition for the pin is removed in
-      //     Home Assistant).
+      //   For every pin that is an Enabled Input:
+      //     - An Output Config message is sent with an empty payload (to make
+      //       sure any prior Output definition is deleted in Home Assistant).
+      //     - An Input Config message is sent with a definition payload.
+      //     - For pin 16: A Temperature Sensor Config message is sent with an
+      //       empty payload for all 5 sensors (to make sure any prior
+      //       Temperature Sensor definition is deleted in Home Assistant).
       //
-      //   For every pin that is an Output an Input Config message is sent
-      //     with an empty payload (to make sure any prior Input definition
-      //     for the pin is removed in Home Assistant).
-      //   For pin 16: If the pin is an Output a Temperature Sensor Config
-      //     message is sent with an empty payload (to make sure any prior
-      //     Temparuture Sensor definition for the pin is removed in Home
-      //     Assistant).
+      //   For every pin that is an Enabled Output:
+      //     - An Input Config message is sent with an empty payload (to make
+      //       sure any prior Input definition is deleted in Home Assistant).
+      //     - An Output Config message is sent with a defining payload.
+      //     - For pin 16: A Temperature Sensor Config message is sent with an
+      //       empty payload for all 5 sensors (to make sure any prior
+      //       Temperature Sensor definition is deleted in Home Assistant).
       //
-      //   For pin 16: If DS18B20 is enabled, every pin that is a Temperature
-      //     Sensor is sent an Output Config message with an empty payload
-      //     (to make sure any prior Output definition for the pin is removed
-      //     in Home Assistant).
-      //   For pin 16: If DS18B20 is enabled, every pin that is a Temperature
-      //     Sensor is sent an Input Config message with an empty payload (to
-      //     make sure any prior Input definition for the pin is removed in
-      //     Home Assistant).
+      //   For every pin that is Disabled:
+      //     - An Input Config message is sent with an empty payload (to make
+      //       sure any prior Input definition is deleted in Home Assistant).
+      //     - An OUTput Config message is sent with an empty payload (to make
+      //       sure any prior Output definition is deleted in Home Assistant).
+      //     - For pin 16: A Temperature Sensor Config message is sent with an
+      //       empty payload for all 5 sensors (to make sure any prior
+      //       Temperature Sensor definition is deleted in Home Assistant).
+      //
+      //   If DS18B20 is enabled:
+      //     - A Temperature Sensor Config message is sent for every sensor
+      //       that was discovered.
       //
 
-      skip_auto_msg = 0;
-
-      if (auto_pub_count < 16) {
-        // Pins 1 to 15 each require two Config messages. One to send the pin
-        // definition, and another with a blank payload to make sure any
-	// prior definition is deleted.
-	//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	//XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	// Pin 16 requires three Config messages. One to send the pin
-	// definition, and two more to make sure any prior definition is
-	// removed.
-    
-        // Create pin number for topic and payload in text format.
-        emb_itoa((auto_pub_count + 1), OctetArray, 10, 2);
-        // Create the payload template. Note the payload may be changed to
-	// empty for some cases.
-        // Create % part of payload template
-        app_message[0] = '%';
-        // Add pin number to payload template
-        app_message[2] = OctetArray[0];
-        app_message[3] = OctetArray[1];
-        app_message[4] = '\0';
-        
-        //-------------------------------------------------------------------//
-	// In the next code the variable auto_pub_toggle is used to allow
-	// three passes through this part of the state machine for each
-	// pin. This is necessary because each pin requires multiple Config
-	// messages to perform all the Config define and Config delete
-	// steps ... but we can only send one message per pass of the
-	// state machine.
-	//
-	// If pin is disabled send both an "input delete" and "output delete"
-	// message. Then send a Temperature Sensor definition message if
-	// needed.
-        if (!(pin_control[auto_pub_count] & 0x01)) {
-          // Pin is disabled.
-          if (auto_pub_toggle == 0) {
-            // Send a Output pin delete msg.
-            // Create first part of topic
-            strcpy(topic_base, "homeassistant/switch/");
-   	    // Payload is blank for delete pin msg
-            app_message[0] = '\0';
-          }
-          else if (auto_pub_toggle == 1) {
- 	    // Next send an Input pin delete msg.
- 	    // Create first part of topic
-            strcpy(topic_base, "homeassistant/binary_sensor/");
-   	    // Payload is blank for delete pin msg
-            app_message[0] = '\0';
+      if (auto_discovery == DEFINE_INPUTS) {
+        // Pins 1 to 15 each require two Config messages.
+	//   One to delete any prior Output definition.
+	//   One to send the Input definition.
+	// Pin 16 requires seven Config messages.
+	//   One to delete any prior Output definition.
+	//   One to send the Input definition.
+	//   Five to delete any prior Temperature Sensor definition.
+        if ((pin_control[pin_ptr - 1] & 0x01)
+         && (!(pin_control[pin_ptr - 1] & 0x02))) {
+	  // Pin is an Enabled Input pin
+	  if (auto_discovery_step == SEND_OUTPUT_DELETE) {
+            // Create Output pin delete msg.
+            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE);
+	    auto_discovery_step = SEND_INPUT_DEFINE;
+	    goto auto_discovery_finish_check;
 	  }
-          else if (auto_pub_toggle <= 6) {
-	    // In this phase where auto_pub_toggle equals 2, 3, 4, 5, or 6
-	    // If:
-	    //   Pin number 16 is being serviced
-	    //   AND
-	    //   DS18B20 mode is Enabled
-	    //   Then we will send a Temperature Sensor definition message
-	    //   for each sensor 1, 2, 3, 4 and 5 if that sensor exists (as
-	    //   indicated by the numROMs variable).
-	    //   Note: The variable numROMs is actually the index into the
-	    //   Found_ROM table. Thus the numROMs value starts at 0 (for
-	    //   the first sensor), 1 for the second sensor, and so on.
-	    // Else:
-	    //   Set skip_auto_msg = 1 so no Publish is sent. Note that we
-	    //   will still pass through this step 5 times even if we skip
-	    //   the Publish each time.
-            if ((stored_config_settings & 0x08)
-             && (auto_pub_count == 15)
-	     && ((auto_pub_toggle - 2) <= numROMs)) {
-              // If the test is true this pin is being used for Temperature
-	      // Sensors. If no sensors were detected numROMs will be -1 and
-	      // we will go on to the "else" statement (and thus will not
-	      // create a Config message).
-	      // If there is at least one sensor detetected numROMs will be
-	      // zero or greater. In that case send the sensor definition as
-	      // a Config message.
-	      // Note that if we are creating a Config message we need to
-	      // replace the "pin" number with the "sensor number" in human
-	      // readable format. This needs to occur both in the Config
-	      // topic AND in the Config payload.
-	      // Internal to code sensors are numbered 0 to 4, but they need
-	      // to be displayed as 1 to 5. "auto_pub_toggle - 2" is the
-	      // internal numbering, so "auto_pub_toggle - 1" is the human
-	      // readable numbering. Also note that the human readable number
-	      // is in the format 01, 02, etc ... so the first digit is
-	      // always '0'.
-	      
-	      // Create the sensor number (to replace the pin number) for the
-	      // topic.
-              emb_itoa((auto_pub_toggle - 1), OctetArray, 10, 2);
-	      
-	      // Create the sensor number (to replace the pin number) for the
-	      // payload.
-              app_message[2] = '0';
-              app_message[3] = (uint8_t)('0' + (auto_pub_toggle - 1));
-	      
-              // Create first part of topic
-              strcpy(topic_base, "homeassistant/sensor/");
-              // Create the T part of the payload
-              app_message[1] = 'T';
-            }
+	  
+	  if (auto_discovery_step == SEND_INPUT_DEFINE) {
+            // Create Input pin define msg.
+            send_IOT_msg(pin_ptr, INPUTMSG, DEFINE);
+	    
+	    if (pin_ptr == 16) auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
 	    else {
-	      skip_auto_msg = 1;
-	      // Bump up the auto_pub_toggle counter so we don't repeat this
-	      // loop unnecessarily.
-	      auto_pub_toggle = 6;
+	      pin_ptr++;
+	      auto_discovery_step = SEND_OUTPUT_DELETE;
 	    }
+	    
+	    goto auto_discovery_finish_check;
 	  }
-          auto_pub_toggle++;
-        }
-      
-	// If pin is an Enabled Output send an Output definition message AND
-	// an "input delete" message AND if the pin number is 16 send 
-	// "temperature sensor delete" messages.
-        if ((pin_control[auto_pub_count] & 0x01)
-         && (pin_control[auto_pub_count] & 0x02)) {
-          if (auto_pub_toggle == 0) {
-            // Pin is an Enabled Output. First send the pin definition.
-            // Create first part of topic
-            strcpy(topic_base, "homeassistant/switch/");
-    	    // Create the O part of the payload
-            app_message[1] = 'O';
-          }
-          else if (auto_pub_toggle == 1) {
-  	    // Next send an Input pin delete msg.
-  	    // Create first part of topic
-            strcpy(topic_base, "homeassistant/binary_sensor/");
-    	    // Payload is blank for delete pin msg
-            app_message[0] = '\0';
-  	  }
-          else if (auto_pub_toggle <= 6) {
- 	    // In this phase where auto_pub_toggle equals 2, 3, 4, 5, or 6
-	    // If:
-	    //   Pin number 16 is being serviced
-	    //   Then we will send a Temperature Sensor delete message for
-	    //   each sensor 1, 2, 3, 4 and 5 regardless of whether the
-	    //   sensor exists.
-	    // Else:
-	    //   Set skip_auto_msg = 1 so no Publish is sent. Note that we
-	    //   will still pass through this step 5 times even if we skip
-	    //   the Publish each time.
-            if (auto_pub_count == 15) {
-	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	      // Note that we need to replace the "pin"
-	      // number with the sensor number (which happens to equal
-	      // (auto_pub_toggle - 2). Also note that the sensor number
-	      // is always '0' plus the alpha digit for the sensor number.
-              app_message[2] = '0';
-              app_message[3] = (uint8_t)('0' + (auto_pub_toggle - 2));
-  	      // Create first part of topic
-              strcpy(topic_base, "homeassistant/sensor/");
-    	      // Payload is blank for delete msg
-              app_message[0] = '\0';
+	  
+	  if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
+	    // Send Temp Sensor delete messages.
+	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
+	    
+	    if (sensor_number == 5) {
+	      sensor_number = 1;
+	      pin_ptr = 1;
+              auto_discovery = DEFINE_OUTPUTS;
+              auto_discovery_step = SEND_INPUT_DELETE;
 	    }
-	    else {
-	      skip_auto_msg = 1;
-	      // Bump up the auto_pub_toggle counter so we don't repeat this
-	      // loop unnecessarily.
-	      auto_pub_toggle = 6;
-	    }
-  	  }
-          auto_pub_toggle++;
-        }
-      
-	// If pin is an Enabled Input send an Input definition message AND an
-	// "output delete" message AND if the pin number is 16 send a
-	// "temperature sensor delete" message.
-        if ((pin_control[auto_pub_count] & 0x01)
-         && (!(pin_control[auto_pub_count] & 0x02))) {
-          if (auto_pub_toggle == 0) {
-            // Pin is an Enabled Input. First send the pin definition.
-	    // Create first part of topic
-            strcpy(topic_base, "homeassistant/binary_sensor/");
-  	    // Create the I part of the payload
-            app_message[1] = 'I';
-          }
-          else if (auto_pub_toggle == 1) {
-	    // Next send an Output pin delete msg.
-	    // Create first part of topic
-            strcpy(topic_base, "homeassistant/switch/");
-  	    // Payload is blank for delete pin msg
-            app_message[0] = '\0';
+	    else sensor_number++;
+	    
+	    goto auto_discovery_finish_check;
 	  }
-          else if (auto_pub_toggle <= 6) {
- 	    // In this phase where auto_pub_toggle equals 2, 3, 4, 5, or 6
-	    // If:
-	    //   Pin number 16 is being serviced
-	    //   Then we will send a Temperature Sensor delete message
-	    //   for each sensor 1, 2, 3, 4 and 5 regardless of whether the
-	    //   sensor exists.
-	    // Else:
-	    //   Set skip_auto_msg = 1 so no Publish is sent. Note that we
-	    //   will still pass through this step 5 times even if we skip
-	    //   the Publish each time.
-            if (auto_pub_count == 15) {
-	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	      // Note that we need to replace the "pin"
-	      // number with the sensor number (which happens to equal
-	      // (auto_pub_toggle - 2). Also note that the sensor number
-	      // is always '0' plus the alpha digit for the sensor number.
-              app_message[2] = '0';
-              app_message[3] = (uint8_t)('0' + (auto_pub_toggle - 2));
-  	      // Create first part of topic
-              strcpy(topic_base, "homeassistant/sensor/");
-    	      // Payload is blank for delete msg
-              app_message[0] = '\0';
-	    }
-	    else {
-	      skip_auto_msg = 1;
-	      // Bump up the auto_pub_toggle counter so we don't repeat this
-	      // loop unnecessarily.
-	      auto_pub_toggle = 6;
-	    }
-  	  }
-          auto_pub_toggle++;
-        }
-        //-------------------------------------------------------------------//
-        
-	if (!(skip_auto_msg)) {
-          // Create the rest of the topic
-          strcat(topic_base, mac_string);
-          strcat(topic_base, "/");
-          strcat(topic_base, OctetArray);
-          strcat(topic_base, "/config");
-          mqtt_publish(&mqttclient,
-                      topic_base,
-                      app_message,
-                      strlen(app_message),
-                      MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 	}
-		     
-        if (auto_pub_toggle == 7) {
-          auto_pub_toggle = 0;
-	  auto_pub_count++;
+        else {
+	  if (pin_ptr == 16) {
+	    pin_ptr = 1;
+            auto_discovery = DEFINE_OUTPUTS;
+            auto_discovery_step = SEND_INPUT_DELETE;
+	  }
+	  else pin_ptr++;
+	  goto auto_discovery_finish_check;
 	}
-        mqtt_start_ctr2 = 0;
-        if (auto_pub_count == 16) {
-	  mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
-        }
+      }
+	
+      if (auto_discovery == DEFINE_OUTPUTS) {
+        // Pins 1 to 15 each require two Config messages.
+	//   One to delete any prior Input definition.
+	//   One to send the Output definition.
+	// Pin 16 requires seven Config messages.
+	//   One to delete any prior Input definition.
+	//   One to send the Output definition.
+	//   Five to delete any prior Temperature Sensor definition.
+        if ((pin_control[pin_ptr - 1] & 0x01)
+         && (pin_control[pin_ptr - 1] & 0x02)) {
+	  // Pin is an Enabled Output pin
+	  if (auto_discovery_step == SEND_INPUT_DELETE) {
+            // Create Input pin delete msg.
+            send_IOT_msg(pin_ptr, INPUTMSG, DELETE);
+	    auto_discovery_step = SEND_OUTPUT_DEFINE;
+	    goto auto_discovery_finish_check;
+	  }
+	  
+	  if (auto_discovery_step == SEND_OUTPUT_DEFINE) {
+            // Create Output pin define msg.
+            send_IOT_msg(pin_ptr, OUTPUTMSG, DEFINE);
+	    
+	    if (pin_ptr == 16) auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
+	    else {
+	      pin_ptr++;
+	      auto_discovery_step = SEND_INPUT_DELETE;
+	    }
+	    
+	    goto auto_discovery_finish_check;
+	  }
+	
+	  if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
+	    // Send Temp Sensor delete messages.
+	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
+	    
+	    if (sensor_number == 5) {
+	      sensor_number = 1;
+	      pin_ptr = 1;
+              auto_discovery = DEFINE_DISABLED;
+              auto_discovery_step = SEND_INPUT_DELETE;
+	    }
+	    else sensor_number++;
+	    
+	    goto auto_discovery_finish_check;
+	  }
+	}
+        else {
+	  if (pin_ptr == 16) {
+	    pin_ptr = 1;
+            auto_discovery = DEFINE_DISABLED;
+            auto_discovery_step = SEND_INPUT_DELETE;
+	  }
+	  else pin_ptr++;
+	  goto auto_discovery_finish_check;
+	}
+      }
+ 
+      if (auto_discovery == DEFINE_DISABLED) {
+        // Pins 1 to 15 each require two Config messages.
+	//   One to delete any prior Input definition.
+	//   One to delete any prior Output definition.
+	// Pin 16 requires seven Config messages.
+	//   One to delete any prior Input definition.
+	//   One to delete any prior Output definition.
+	//   Five to delete any prior Temperature Sensor definition.
+        if (!(pin_control[pin_ptr - 1] & 0x01)) {
+	  // Pin is Disabled
+	  if (auto_discovery_step == SEND_INPUT_DELETE) {
+            // Create Input pin delete msg.
+            send_IOT_msg(pin_ptr, INPUTMSG, DELETE);
+	    auto_discovery_step = SEND_OUTPUT_DELETE;
+	    goto auto_discovery_finish_check;
+	  }
+	  
+	  if (auto_discovery_step == SEND_OUTPUT_DELETE) {
+            // Create Output pin delete msg.
+            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE);
+	    
+	    if (pin_ptr == 16) auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
+	    else {
+	      pin_ptr++;
+	      auto_discovery_step = SEND_INPUT_DELETE;
+	    }
+	    
+	    goto auto_discovery_finish_check;
+	  }
+	
+	  if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
+	    // Send Temp Sensor delete messages.
+	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
+	    
+	    if (sensor_number == 5) {
+	      sensor_number = 1;
+              auto_discovery = DEFINE_TEMP_SENSORS;
+	    }
+	    else sensor_number++;
+	    
+	    goto auto_discovery_finish_check;
+	  }
+	}
+        else {
+	  if (pin_ptr == 16) {
+            auto_discovery = DEFINE_TEMP_SENSORS;
+	  }
+	  else pin_ptr++;
+	  goto auto_discovery_finish_check;
+	}
+      }
+ 
+      if (auto_discovery == DEFINE_TEMP_SENSORS) {
+        // Pin 16 will be disabled already if it is being used for
+	// temperature sensors. That being the case the DEFINE_DISABLED
+	// part of the state machine will have already sent delete
+	// messages for all the sensors. If we find here that the
+	// temperature sensors are in fact enabled then all we have to
+	// do is send the sensor definitions.
+        if (stored_config_settings & 0x08) {
+	  // If the test is true Temperature Sensors are enabled.
+	  if (sensor_number <= (numROMs + 1)) {
+	    // If no sensors were detected numROMs will be -1 and we will
+	    // not create a Config message).
+	    // If there is at least one sensor detetected numROMs will be
+	    // zero or greater. In that case send the sensor definition as
+	    // a Config message.
+	    // Note that if we are creating a Config message we need to
+	    // replace the "pin" number with the "sensor number" in human
+	    // readable format. This needs to occur both in the Config
+	    // topic AND in the Config payload.
+	    // Internal to code sensors are numbered 0 to 4, but they need
+	    // to be displayed as 01 to 05.
+	      
+	    // Send Temp Sensor define messages.
+	    send_IOT_msg(sensor_number, TMPRMSG, DEFINE);
+	    
+	    if (sensor_number == 5) {
+              auto_discovery = AUTO_COMPLETE;
+	    }
+	    else sensor_number++;
+	    
+	    goto auto_discovery_finish_check;
+          }
+	  else {
+	    auto_discovery = AUTO_COMPLETE;
+	    goto auto_discovery_finish_check;
+          }
+	}
+      }
+      
+      auto_discovery_finish_check:
+      
+      mqtt_start_ctr2 = 0;
+      if (auto_discovery == AUTO_COMPLETE) {
+        mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
       }
     }
     break;
@@ -1495,6 +1452,55 @@ void mqtt_startup(void)
     }
     break;
   } // end switch
+}
+
+
+void send_IOT_msg(uint8_t pin_ptr, uint8_t IOT, uint8_t DefOrDel)
+{
+  // Fill in some fields for the Temperature Sensor Define or Delete
+  // message
+  
+  // Create % part of payload template
+  app_message[0] = '%';
+  
+  // Create the pin or sensor number for the app_message and topic.
+  emb_itoa(pin_ptr, OctetArray, 10, 2);
+  
+  // Add pin or sensor number to payload template
+  app_message[2] = OctetArray[0];
+  app_message[3] = OctetArray[1];
+  app_message[4] = '\0';
+
+  // Create first part of topic and identification part of app_message
+  strcpy(topic_base, "homeassistant/");
+  if (IOT == INPUTMSG) {
+    strcat(topic_base, "binary_sensor/");
+    app_message[1] = 'I';
+  }
+  if (IOT == OUTPUTMSG) {
+    strcat(topic_base, "switch/");
+    app_message[1] = 'O';
+  }
+  if (IOT == TMPRMSG) {
+    strcat(topic_base, "sensor/");
+    app_message[1] = 'T';
+  }
+
+  // If deleting the pin or sensor replace the app_message with NULL
+  if (DefOrDel == DELETE) app_message[0] = '\0';
+  
+  // Create the rest of the topic
+  strcat(topic_base, mac_string);
+  strcat(topic_base, "/");
+  strcat(topic_base, OctetArray);
+  strcat(topic_base, "/config");
+  
+  // Send the message
+  mqtt_publish(&mqttclient,
+               topic_base,
+               app_message,
+               strlen(app_message),
+               MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
 
 

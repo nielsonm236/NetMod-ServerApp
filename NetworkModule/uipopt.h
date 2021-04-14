@@ -267,7 +267,7 @@
 //      OR the developer is focused on external Link Error Stats information.
 // * Specific debug data: Reset Status Register counters, TXERIF counter,
 //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
-#define DEBUG_SUPPORT 11
+#define DEBUG_SUPPORT 15
 
 
 // IWDG_ENABLE

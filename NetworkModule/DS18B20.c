@@ -64,12 +64,19 @@ static const uint8_t dec_temp[] = {
 // GLOBAL VARIABLES FOR MAXIM DS18B20 CODE CONTRIBUTION
 // Derived from Maxim code
 // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
-uint8_t ROM[8];          // ROM bytes
-uint8_t lastDiscrep = 0; // last discrepancy
-uint8_t doneFlag = 0;    // Done flag
-uint8_t FoundROM[5][8];  // Table of found ROM codes
-int numROMs;             // Count of DS18B20 devices found
-
+uint8_t ROM[8];                     // ROM bytes
+uint8_t lastDiscrep = 0;            // last discrepancy
+uint8_t doneFlag = 0;               // Done flag
+extern uint8_t FoundROM[5][8];      // Table of found ROM codes
+                                    // [x][0] = Family Code
+                                    // [x][1] = LSByte serial number
+                                    // [x][2] = byte 2 serial number
+                                    // [x][3] = byte 3 serial number
+                                    // [x][4] = byte 4 serial number
+                                    // [x][5] = byte 5 serial number
+                                    // [x][6] = MSByte serial number
+                                    // [x][7] = CRC
+extern int numROMs;                 // Count of DS18B20 devices found
 
 
 

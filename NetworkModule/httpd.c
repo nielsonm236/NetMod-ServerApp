@@ -206,9 +206,18 @@ extern uint32_t second_counter;           // Counts seconds since boot
 // DS18B20 variables
 extern uint8_t DS18B20_scratch[5][2];     // Stores the temperature measurement
                                           // for the DS18B20s
+extern uint8_t FoundROM[5][8];            // Table of found ROM codes
+                                          // [x][0] = Family Code
+                                          // [x][1] = LSByte serial number
+                                          // [x][2] = byte 2 serial number
+                                          // [x][3] = byte 3 serial number
+                                          // [x][4] = byte 4 serial number
+                                          // [x][5] = byte 5 serial number
+                                          // [x][6] = MSByte serial number
+                                          // [x][7] = CRC
+
 
 // Variables stored in Flash
-
 #if MQTT_SUPPORT == 0
 // Define Flash addresses for IO Names and IO Timers
 extern char IO_NAME[16][16] @0xff00;
@@ -1475,43 +1484,43 @@ uint16_t adjust_template_size()
     // subtract the size of the 5 placeholders.
     //
     if (stored_config_settings & 0x08) {
-      //  %t00 "<p>Temperature Sensors<br> 1 "
+      //  %t00 "<p>Temperature Sensors<br> xxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    29 bytes of text plus 27 bytes of data = 56
-      //    size = size + 56 - 4
-      size = size + 52;
+      //    32 bytes of text plus 27 bytes of data = 59
+      //    size = size + 59 - 4
+      size = size + 55;
       //
-      //  %t01 "<br> 2 " 
+      //  %t01 "<br> xxxx " 
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    7 bytes of text plus 27 bytes of data = 34
+      //    10 bytes of text plus 27 bytes of data = 37
+      //    size = size + 37 - 4
+      size = size + 33;
+      //
+      //  %t02 "<br> xxxx "
+      //      plus 13 bytes of data and degC characters (-000.0&#8451;)
+      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+      //    10 bytes of text plus 27 bytes of data = 37
       //    size = size + 34 - 4
-      size = size + 30;
+      size = size + 33;
       //
-      //  %t02 "<br> 3 "
+      //  %t03 "<br> xxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    7 bytes of text plus 27 bytes of data = 34
-      //    size = size + 34 - 4
-      size = size + 30;
+      //    10 bytes of text plus 27 bytes of data = 37
+      //    size = size + 37 - 4
+      size = size + 33;
       //
-      //  %t03 "<br> 4 "
-      //      plus 13 bytes of data and degC characters (-000.0&#8451;)
-      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    7 bytes of text plus 27 bytes of data = 34
-      //    size = size + 34 - 4
-      size = size + 30;
-      //
-      //  %t04 "<br> 5 "
+      //  %t04 "<br> xxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
       //      plus "<br></p>"
-      //    7 bytes of text
+      //    10 bytes of text
       //    plus 27 bytes of data
-      //    plus 8 bytes of text = 42
-      //    size = size + 42 - 4
-      size = size + 38;
+      //    plus 8 bytes of text = 45
+      //    size = size + 45 - 4
+      size = size + 41;
     }
     else {
       // Subtract the size of the placeholders as they won't be used
@@ -2445,19 +2454,28 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 
         else if ((nParsedMode == 't') && (stored_config_settings & 0x08)) {
-	  // This displays temperature sensor data (5 sets of 13 characters)
-	  // and the text fields around that data IF DS18B20 mode is enabled.
+	  // This displays temperature sensor data for 5 sensors and the
+	  // text fields around that data IF DS18B20 mode is enabled.
 	  
 	  if (nParsedNum == 0) {
 	    #define TEMPTEXT "<p>Temperature Sensors<br>"
 	    pBuffer=stpcpy(pBuffer, TEMPTEXT);
 	    #undef TEMPTEXT
 	  }
-	    
+	  
+	  // Output the sensor ID numbers
+	  // For display we output the MSByte first followed by the
+	  // LSByte
 	  *pBuffer++ = ' ';
-	  *pBuffer++ = (uint8_t)('1' + nParsedNum);
+	  int2hex(FoundROM[nParsedNum][2]);
+	  *pBuffer++ = (OctetArray[0]);
+	  *pBuffer++ = (OctetArray[1]);
+	  int2hex(FoundROM[nParsedNum][1]);
+	  *pBuffer++ = (OctetArray[0]);
+	  *pBuffer++ = (OctetArray[1]);
 	  *pBuffer++ = ' ';
 	  
+	  // Output temperature data
           pBuffer = show_temperature_string(pBuffer, nParsedNum);
 	  if (nParsedNum == 4) {
 	    #define TEMPTEXT "</p>"

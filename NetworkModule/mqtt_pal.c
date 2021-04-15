@@ -162,7 +162,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   
   char* pBuffer;
   char* mBuffer;
-  char temp_buf[6];
+  char temp_buf[12];
   uint16_t payload_size;
   int auto_found;
   int i;
@@ -254,8 +254,12 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //   temp_buf[1] = Remaining length. If MSBit is 1 then there are
   //                 additional remaining length bytes and this cannot be
   //                 an Auto Discovery message.
+  //   temp_buf[2] = MSByte of variable header length (always 0 for an
+  //                 Auto Discovery message ... and the MSBit of temp_buf[1]
+  //                 will be 1 if this byte is not 0.
+  //   temp_buf[3] = LSByte of variable header length
   mBuffer = buf;
-  *((uint16_t*)&temp_buf[0]) = *((uint16_t*)mBuffer); // copy 16 bits in a row
+  *((uint32_t*)&temp_buf[0]) = *((uint32_t*)mBuffer); // copy 4 bytes
   mBuffer += 2;
 
   // Check if Publish message
@@ -263,19 +267,48 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
     // This is a Publish message
     // Extract remaining length
     if ((temp_buf[1] & 0x80) != 0x80) {
-      // The packet is short enough that it might be an Auto Discovery
-      // message
+      // MSbit of the remaining length byte is zero so this packet is short
+      // enough that it might be an Auto Discovery message
       // Move the mBuffer pointer to the start of the payload
-      mBuffer = mBuffer + temp_buf[1] - 4;
-      // Copy the first 4 characters of the MQTT payload to temp_buf
-      // After copy (if this is an Auto Discovery message)
+      mBuffer = mBuffer + temp_buf[3] + 2;
+      
+      // Now we re-use temp_buf to capture the payload
+      // Copy the first 8 characters of the MQTT payload to temp_buf
+      // After copy (if this is an Auto Discovery message) the following
+      // will be in temp_buf if temp_buf[3] == I or O
       //   temp_buf[2] = %
-      //   temp_buf[3] = I or O or T
-      //   temp_buf[4] = MSB input or output number
-      //   temp_buf[5] = LSB input or output number
-      *((uint32_t*)&temp_buf[2]) = *((uint32_t*)mBuffer); // copy 32 bits in a row
+      //   temp_buf[3] = I or O
+      //   temp_buf[4] = MSB IO number
+      //   temp_buf[5] = LSB IO number
+      //   temp_buf[6] = don't care
+      //   temp_buf[7] = don't care
+      //   temp_buf[8] = don't care
+      //   temp_buf[9] = don't care
+      // After copy (if this is an Auto Discovery message) the following will
+      // be in temp_buf if temp_buf[3] == T
+      //   temp_buf[2] = %
+      //   temp_buf[3] = T
+      //   temp_buf[4] = MSB temperature sensor number
+      //   temp_buf[5] = next byte temparature sensor number
+      //   temp_buf[6] = next byte temperature sensor number
+      //   temp_buf[7] = LSB temperature sensor number
+      //   temp_buf[8] = don't care
+      //   temp_buf[9] = don't care
+      *((uint32_t*)&temp_buf[2]) = *((uint32_t*)mBuffer); // copy 4 bytes
+      mBuffer += 4;
+      *((uint32_t*)&temp_buf[6]) = *((uint32_t*)mBuffer); // copy 4 bytes
+
+temp_buf[8] = '\0';
+UARTPrintf("temp_buf:");
+UARTPrintf(temp_buf);
+UARTPrintf("\r\n");
+      
 
       if (temp_buf[2] == '%') {
+      
+// UARTPrintf("Found % symbol");
+// UARTPrintf("\r\n");
+      
         // Found a marker - replace the existing payload with an auto
 	// discovery message.
 	auto_found = 1;
@@ -288,16 +321,29 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// manually calculated in the comments below where the prototype
 	// of the application message is shown.
         if (temp_buf[3] == 'O') {
+      
+// UARTPrintf("Found O symbol");
+// UARTPrintf("\r\n");
+      
           // This is an Output auto discovery message
           payload_size = 264; // Payload without devicename
         }
         if (temp_buf[3] == 'I') {
+      
+// UARTPrintf("Found I symbol");
+// UARTPrintf("\r\n");
+      
           // This is an Input auto discovery message
           payload_size = 235; // Payload without devicename
         }
         if (temp_buf[3] == 'T') {
+      
+UARTPrintf("Found T symbol");
+UARTPrintf("\r\n");
+      
           // This is a Temperature Sensor auto discovery message
-          payload_size = 253; // Payload without devicename
+//          payload_size = 253; // Payload without devicename
+          payload_size = 259; // Payload without devicename
         }
 	// Add device name size to payload size
         payload_size += (3 * (uint8_t)strlen(stored_devicename));
@@ -324,10 +370,17 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	
         // Calculate the new "remaining length" bytes and save them for later
 	// storage in the uip_buf.
-	// The new remaining length is the payload_size, plus the old remaining
-	// length, less four to account for removal of the 4 byte temporary
-	// payload. We'll use the payload_size variable to store this value.
-	payload_size = payload_size + temp_buf[1] - 4;
+	// For temp_buf[3] == I or O the new remaining length is:
+	//   the payload_size
+	//   plus the old remaining length
+	//   less four to account for removal of the 4 byte temporary payload
+	// For temp_buf[3] == T the new remaining length is:
+	//   the payload_size
+	//   plus the old remaining length
+	//   less six to account for removal of the 6 byte temporary payload
+	// We'll use the payload_size variable to store this value.
+        payload_size = payload_size + temp_buf[1] - 4;
+	if (temp_buf[3] == 'T') payload_size -= 2;
 	// Calculate uip_slen (it will be used later). It is the new reamining 
 	// length plus 3 (for the control byte and the two remaining length
 	// bytes). Remember that payload_size variable is currently equal to
@@ -405,12 +458,11 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         //
 	// temperature sensor payload
 	// {                                        // 1
-	// "uniq_id":"aabbccddeeff_temp_16",        // 33
-	// "name":"devicename123456789 temp 16",    // 18 (without devicename)
+	// "uniq_id":"aabbccddeeff_temp_xxxx",      // 35
+	// "name":"devicename123456789 temp xxxx",  // 20 (without devicename)
 	// "~":"NetworkModule/devicename123456789", // 21 (without devicename)
 	// "avty_t":"~/availability",               // 26
-	// "stat_t":ï¿½~/temp/16",                    // 21
-//	// "dev_cla":"temperature",                 // -- 24 --
+	// "stat_t":"~/temp/xxxx",                  // 23
         // "unit_of_meas":"\xc2\xb0\x43",           // 21
 	// "dev":{                                  // 7
 	// "ids":["NetworkModule_aabbccddeeff"],    // 37
@@ -420,7 +472,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// "sw":"20210204 0311"                     // 20
 	// }                                        // 1
 	// }                                        // 1
-        //                                          // Total: 253 plus 3 x devicename
+        //                                          // Total: 259 plus 3 x devicename
 
 
         // "stpcpy()" is used to efficiently copy data to the uip_buf
@@ -432,11 +484,19 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         if (temp_buf[3] == 'O') pBuffer=stpcpy(pBuffer, "_output_");
         if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, "_input_");
         if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, "_temp_");
-
-	// Input or Output number in temp_buf[4] and [5]
-	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
-	pBuffer += 2;
-    
+	
+	// Copy the Input or Output number (2 characters)
+	// OR
+	// the Temperature Sensor number (2 more characters)
+	// Two character copy from temp_buf[4] and [5]
+        *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 2 bytes
+        pBuffer += 2;
+        if (temp_buf[3] == 'T') {
+	  // Two more characters from temp_buf[6] and [7]
+          *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[6]); // copy 2 bytes
+          pBuffer += 2;
+	}
+	
         pBuffer=stpcpy(pBuffer, "\",\"name\":\"");
 
         pBuffer=stpcpy(pBuffer, stored_devicename);
@@ -445,9 +505,17 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, " input ");
         if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, " temp ");
 
-	// Input or Output number in temp_buf[4] and [5]
-	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
-	pBuffer += 2;
+	// Copy the Input or Output number (2 characters)
+	// OR
+	// the Temperature Sensor number (2 more characters)
+	// Two character copy from temp_buf[4] and [5]
+        *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 2 bytes
+        pBuffer += 2;
+        if (temp_buf[3] == 'T') {
+	  // Two more characters from temp_buf[6] and [7]
+          *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[6]); // copy 2 bytes
+          pBuffer += 2;
+	}
     
         pBuffer=stpcpy(pBuffer, "\",\"~\":\"NetworkModule/");
 
@@ -459,9 +527,17 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, "input/");
         if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, "temp/");
 
-	// Input or Output number in temp_buf[4] and [5]
-	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
-	pBuffer += 2;
+	// Copy the Input or Output number (2 characters)
+	// OR
+	// the Temperature Sensor number (2 more characters)
+	// Two character copy from temp_buf[4] and [5]
+        *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 2 bytes
+        pBuffer += 2;
+        if (temp_buf[3] == 'T') {
+	  // Two more characters from temp_buf[6] and [7]
+          *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[6]); // copy 2 bytes
+          pBuffer += 2;
+	}
     
         pBuffer=stpcpy(pBuffer, "\",");
 
@@ -470,7 +546,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           pBuffer=stpcpy(pBuffer, "\"cmd_t\":\"~/output/");
 	  
  	  // Input or Output number in temp_buf[4] and [5]
-	  *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 16 bits in a row
+	  *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 2 bytes
 	  pBuffer += 2;
     
           pBuffer=stpcpy(pBuffer, "/set\",");
@@ -498,7 +574,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // Now insert the new remaining length value in the uip_buf. It was
 	// stored in temp_buf[0] and temp_buf[1] earlier.
         pBuffer = uip_appdata + 1;
-	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[0]);		// copy 16 bits in a row
+	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[0]);		// copy 2 bytes
       }
     }
   }

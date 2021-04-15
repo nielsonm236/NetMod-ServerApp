@@ -5,19 +5,9 @@ Did you buy one (or more) of these Network Modules and then find disappointment 
 -	In the original from-the-factory firmware all of the modules have the same MAC address. That's a problem if you want more than one module on your network. And the supplier does not give you a way to change the MAC.
 -	If you change the IP Address the device returns to its default IP Address when it power cycles. That makes it pretty much useless even if you only put one on your network - unless you're OK with it always having IP Address 192.168.1.4.
 
-I was disappointed enough that I decided to reprogram the device to provide a web server interface that let's you change the IP Address, Gateway (Default Router) Address, Netmask, Port number (a REAL port number), and MAC Address. I also added the ability for the device to remember all these settings through a power cycle. Any Relay settings you make are also optionally saved through a power cycle. In addition the Network Module can be operated as a generic MQTT device or as a Home Assistant device with Auto Discovery.
+I decided to write my own firmware for the device to provide a web server interface that let's you change the IP Address, Gateway (Default Router) Address, Netmask, Port number (a REAL port number), and MAC Address. I also added the ability for the device to remember all these settings through a power cycle. Any Relay settings you make are also optionally saved through a power cycle. In addition the Network Module can be operated as a generic MQTT device or as a Home Assistant device with Auto Discovery.
 
 Short summary of release history:
-
-June 13, 2020 - A simple Browser Only GUI supporting 16 output pins with retention of all user settings through reboot and power cycles.
-
-August 13, 2020 - Added support for 16 outputs, OR 8 outputs / 8 inputs, OR 16 inputs in three separate builds, plus an MQTT build with 8 outputs / 8 inputs, plus support for Home Assistant.
-
-January 23, 2021 - A much improved Browser interface with the ability to define input/output pins individually. As a result there was no longer a need to have separate builds for the various configurations. Auto Discovery was added to the Home Assistant interface.
-
-February 8, 2021 - Added an interface for up to 5 DS18B20 temperature sensors.
-
-February 20, 2021 - Added a UART debug interface for use by developers. Beginning with this release you should obtain Source Code and Executables from the "Release" area of the GitHub page (along the right margin of the page).
 
 April 12, 2021 - Released a parallel build for "Browser Only" users that does not include MQTT, but adds some requested features for users that do not want MQTT. The "Browser Only" version includes individual IO Names, IO Timers, and restores the Network Statistics page.
 
@@ -35,13 +25,23 @@ Feature Comparison of the MQTT and Browser builds:
 |IO Timers                |              |       x            |
 |Network Statistics       |              |       x            |
 
+February 20, 2021 - Added a UART debug interface for use by developers. Beginning with this release you should obtain Source Code and Executables from the "Release" area of the GitHub page (along the right margin of the page).
+
+February 8, 2021 - Added an interface for up to 5 DS18B20 temperature sensors.
+
+January 23, 2021 - A much improved Browser interface with the ability to define input/output pins individually. As a result there was no longer a need to have separate builds for the various configurations. Auto Discovery was added to the Home Assistant interface.
+
+August 13, 2020 - Added support for 16 outputs, OR 8 outputs / 8 inputs, OR 16 inputs in three separate builds, plus an MQTT build with 8 outputs / 8 inputs, plus support for Home Assistant.
+
+June 13, 2020 - A simple Browser Only GUI supporting 16 output pins with retention of all user settings through reboot and power cycles.
+
 Help is avaialble via a link in the Configuration page that will take you to the GitHub Wiki page. All functionality is described in detail in the "Network Module Manual". I suggest you take a look.
 
 If you upgrade from a pre-January 2021 version you will find that your Device Name, IP Address, Port Numbers, and MAC address entries are retained. However, since pins are now individually assigned your pinout settings will have to be re-entered in the Configuration page. Note that firmware downgrade is not supported in an automated way. Check the Network Module Manual for downgrade instructions.
 
 Videos: I have not updated the YouTube videos yet. The "Network Module Manual" illustrates all the differences and the programming steps are the same, so the videos will be updated over the next few weeks. See the video links in the Wiki.
 
-Many thanks to Carlos Ladeira and Jevgeni Kiski for their many hours of work in the 2021 releases. Their collaboration with me greatly improved the code for everyone.
+Many thanks to Carlos Ladeira and Jevgeni Kiski for their many hours of work in the 2021 releases. Their collaboration greatly improved the code for everyone.
 
 Tested with:
 - Windows 10 Firefox 84.0.2 (64-bit)

@@ -307,20 +307,18 @@ uint8_t mqtt_restart_step;            // Step tracker for restarting MQTT
 
 static const unsigned char devicetype[] = "NetworkModule/"; // Used in
                                       // building topic and client id names
-unsigned char topic_base[51];         // Used for building connect, subscribe,
+unsigned char topic_base[55];         // Used for building connect, subscribe,
                                       // and publish topic strings.
 				      // Longest string content:
 				      // NetworkModule/DeviceName123456789/availability
 				      // NetworkModule/DeviceName123456789/output/+/set
-				      // NetworkModule/DeviceName123456789/temp/15
+				      // NetworkModule/DeviceName123456789/temp/xxxx
 				      // homeassistant/binary_sensor/macaddressxx/01/config
+				      // homeassistant/sensor/macaddressxx/xxxx/config
 uint8_t auto_discovery;               // Used in the Auto Discovery state machine
 uint8_t auto_discovery_step;          // Used in the Auto Discovery state machine
 uint8_t pin_ptr;                      // Used in the Auto Discovery state machine
 uint8_t sensor_number;                // Used in the Auto Discovery state machine
-unsigned char app_message[5];         // Stores the application message
-                                      // (the payload) that will be sent
-				      // in an MQTT message.
 #endif // MQTT_SUPPORT
 
 // These MQTT variables must always be compiled to maintain a common user
@@ -365,15 +363,22 @@ int8_t send_mqtt_temperature;    // Indicates if a new temperature measurement
 				 // application there are 5 sensors, so setting
 				 // to 4 will cause all 5 to transmit (4,3,2,1,0).
 				 // -1 indicates nothing to transmit.
-extern int numROMs;              // Count of DS18B20 devices found
+int numROMs;                     // Count of DS18B20 devices found.
+uint8_t FoundROM[5][8];          // Table of found ROM codes
+                                 // [x][0] = Family Code
+                                 // [x][1] = LSByte serial number
+                                 // [x][2] = byte 2 serial number
+                                 // [x][3] = byte 3 serial number
+                                 // [x][4] = byte 4 serial number
+                                 // [x][5] = byte 5 serial number
+                                 // [x][6] = MSByte serial number
+                                 // [x][7] = CRC
 
 
 
 //---------------------------------------------------------------------------//
 int main(void)
 {
-  uint8_t i;
-  
   uip_ipaddr_t IpAddr;
   
   parse_complete = 0;
@@ -489,7 +494,16 @@ int main(void)
   // Initialize DS18B20 temperature storage values. Scratch byte 1 = 0x55
   // cannot be produced by the DS18B20, so code will recognize this as a
   // marker that the temperature has not been read from the DS18B20.
-  for (i=0; i<5; i++) DS18B20_scratch[i][1] = 0x55;
+  {
+    int i;
+    int j;
+    for (i=0; i<5; i++) {
+      DS18B20_scratch[i][1] = 0x55;
+      for (j=0; j<8; j++) {
+        FoundROM[i][j] = 0;
+      }
+    }
+  }
   // Initialize DS18B20 devices (if enabled) 
   if (stored_config_settings & 0x08) {
     // Find all devices
@@ -702,32 +716,35 @@ int main(void)
 
     if (periodic_timer_expired()) {
       // The periodic timer expires every 20ms.
-      for(i = 0; i < UIP_CONNS; i++) {
-	uip_periodic(i);
-	// uip_periodic() calls uip_process(UIP_TIMER) for each connection.
-	// uip_process(UIP_TIMER) will check the HTTP and MQTT connections
-	// for any unserviced outbound traffic. HTTP can have pending
-	// transmissions because the web pages can be broken into several
-	// packets. MQTT will always use this function to transmit packets.
-	//
-	// If uip_periodic() resulted in data that should be sent out on
-	// the network the global variable uip_len will have been set to a
-	// value > 0.
-	//
-	// Note that when the device first powers up and MQTT is enabled the
-	// MQTT processes will attempt to send a SYN to create a TCP
-	// connection. The uip_periodic() function discovers the SYN is
-	// pending to be sent, causing uip_len to be > 0. Below you'll see
-	// that uip_arp_out() is called first, and on the first pass it will
-	// find that an ARP request is needed. The SYN will be replaced with
-	// an ARP request, and on a future cycle through this routine the
-	// SYN will be sent IF the ARP request was successful.
-	// 
-	if (uip_len > 0) {
-	  uip_arp_out(); // Verifies arp entry in the ARP table and builds
-	                 // the LLH
-          Enc28j60Send(uip_buf, uip_len);
-	}
+      {
+        int i;
+        for(i = 0; i < UIP_CONNS; i++) {
+	  uip_periodic(i);
+	  // uip_periodic() calls uip_process(UIP_TIMER) for each connection.
+	  // uip_process(UIP_TIMER) will check the HTTP and MQTT connections
+	  // for any unserviced outbound traffic. HTTP can have pending
+	  // transmissions because the web pages can be broken into several
+	  // packets. MQTT will always use this function to transmit packets.
+	  //
+	  // If uip_periodic() resulted in data that should be sent out on
+	  // the network the global variable uip_len will have been set to a
+	  // value > 0.
+	  //
+	  // Note that when the device first powers up and MQTT is enabled the
+	  // MQTT processes will attempt to send a SYN to create a TCP
+	  // connection. The uip_periodic() function discovers the SYN is
+	  // pending to be sent, causing uip_len to be > 0. Below you'll see
+	  // that uip_arp_out() is called first, and on the first pass it will
+	  // find that an ARP request is needed. The SYN will be replaced with
+	  // an ARP request, and on a future cycle through this routine the
+	  // SYN will be sent IF the ARP request was successful.
+	  // 
+	  if (uip_len > 0) {
+	    uip_arp_out(); // Verifies arp entry in the ARP table and builds
+	                   // the LLH
+            Enc28j60Send(uip_buf, uip_len);
+	  }
+        }
       }
     }
 
@@ -1115,7 +1132,7 @@ void mqtt_startup(void)
           auto_discovery = DEFINE_INPUTS;
           auto_discovery_step = SEND_OUTPUT_DELETE;
           pin_ptr = 1;
-          sensor_number = 1;
+          sensor_number = 0;
         }
         else {
           mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
@@ -1242,8 +1259,8 @@ void mqtt_startup(void)
 	    // Send Temp Sensor delete messages.
 	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
 	    
-	    if (sensor_number == 5) {
-	      sensor_number = 1;
+	    if (sensor_number == 4) {
+	      sensor_number = 0;
 	      pin_ptr = 1;
               auto_discovery = DEFINE_OUTPUTS;
               auto_discovery_step = SEND_INPUT_DELETE;
@@ -1299,8 +1316,8 @@ void mqtt_startup(void)
 	    // Send Temp Sensor delete messages.
 	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
 	    
-	    if (sensor_number == 5) {
-	      sensor_number = 1;
+	    if (sensor_number == 4) {
+	      sensor_number = 0;
 	      pin_ptr = 1;
               auto_discovery = DEFINE_DISABLED;
               auto_discovery_step = SEND_INPUT_DELETE;
@@ -1355,8 +1372,8 @@ void mqtt_startup(void)
 	    // Send Temp Sensor delete messages.
 	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
 	    
-	    if (sensor_number == 5) {
-	      sensor_number = 1;
+	    if (sensor_number == 4) {
+	      sensor_number = 0;
               auto_discovery = DEFINE_TEMP_SENSORS;
 	    }
 	    else sensor_number++;
@@ -1382,7 +1399,7 @@ void mqtt_startup(void)
 	// do is send the sensor definitions.
         if (stored_config_settings & 0x08) {
 	  // If the test is true Temperature Sensors are enabled.
-	  if (sensor_number <= (numROMs + 1)) {
+	  if (sensor_number <= (numROMs)) {
 	    // If no sensors were detected numROMs will be -1 and we will
 	    // not create a Config message).
 	    // If there is at least one sensor detetected numROMs will be
@@ -1398,7 +1415,7 @@ void mqtt_startup(void)
 	    // Send Temp Sensor define messages.
 	    send_IOT_msg(sensor_number, TMPRMSG, DEFINE);
 	    
-	    if (sensor_number == 5) {
+	    if (sensor_number == 4) {
               auto_discovery = AUTO_COMPLETE;
 	    }
 	    else sensor_number++;
@@ -1457,19 +1474,19 @@ void mqtt_startup(void)
 
 void send_IOT_msg(uint8_t pin_ptr, uint8_t IOT, uint8_t DefOrDel)
 {
+  unsigned char app_message[8];       // Stores the application message
+                                      // (the payload) that will be sent
+				      // in an MQTT message.
+  unsigned char topic_IOTnum[5];      // Stores the IOT number (the pin
+                                      // number or temperature sensor
+                                      // number) that will be sent in an
+                                      // MQTT message.
+  
   // Fill in some fields for the Temperature Sensor Define or Delete
   // message
   
   // Create % part of payload template
   app_message[0] = '%';
-  
-  // Create the pin or sensor number for the app_message and topic.
-  emb_itoa(pin_ptr, OctetArray, 10, 2);
-  
-  // Add pin or sensor number to payload template
-  app_message[2] = OctetArray[0];
-  app_message[3] = OctetArray[1];
-  app_message[4] = '\0';
 
   // Create first part of topic and identification part of app_message
   strcpy(topic_base, "homeassistant/");
@@ -1486,15 +1503,62 @@ void send_IOT_msg(uint8_t pin_ptr, uint8_t IOT, uint8_t DefOrDel)
     app_message[1] = 'T';
   }
 
+  if ((IOT == INPUTMSG) || (IOT == OUTPUTMSG)) {
+    // Create the pin number for the app_message and topic.
+    emb_itoa(pin_ptr, OctetArray, 10, 2);
+    // Add pin or sensor number to payload template
+/*
+    app_message[2] = topic_IOTnum[0] = OctetArray[0];
+    app_message[3] = topic_IOTnum[1] = OctetArray[1];
+    app_message[4] = topic_IOTnum[2] = '\0';
+*/
+    app_message[2] = OctetArray[0];
+    app_message[3] = OctetArray[1];
+    app_message[4] = '\0';
+    topic_IOTnum[0] = OctetArray[0];
+    topic_IOTnum[1] = OctetArray[1];
+    topic_IOTnum[2] = '\0';
+  }
+
+  if (IOT == TMPRMSG) {
+    // Create the sensor number for the app_message and topic.
+    // Add first part of sensor ID to payload template
+/*
+    int2hex(FoundROM[pin_ptr][2]);   // MSByte
+    app_message[2] = topic_IOTnum[0] = OctetArray[0];  // MSnibble
+    app_message[3] = topic_IOTnum[1] = OctetArray[1];  // LSnibble
+    int2hex(FoundROM[pin_ptr][1]);   // LSByte
+    app_message[4] = topic_IOTnum[2] = OctetArray[0];  // MSnibble
+    app_message[5] = topic_IOTnum[3] = OctetArray[1];  // LSnibble
+    app_message[6] = topic_IOTnum[4] = '\0';
+*/
+    int2hex(FoundROM[pin_ptr][2]);   // MSByte
+    app_message[2] = OctetArray[0];  // MSnibble
+    app_message[3] = OctetArray[1];  // LSnibble
+    topic_IOTnum[0] = OctetArray[0];  // MSnibble
+    topic_IOTnum[1] = OctetArray[1];  // LSnibble
+    int2hex(FoundROM[pin_ptr][1]);   // LSByte
+    app_message[4] = OctetArray[0];  // MSnibble
+    app_message[5] = OctetArray[1];  // LSnibble
+    app_message[6] = '\0';
+    topic_IOTnum[2] = OctetArray[0];  // MSnibble
+    topic_IOTnum[3] = OctetArray[1];  // LSnibble
+    topic_IOTnum[4] = '\0';
+  }
+
   // If deleting the pin or sensor replace the app_message with NULL
   if (DefOrDel == DELETE) app_message[0] = '\0';
   
   // Create the rest of the topic
   strcat(topic_base, mac_string);
   strcat(topic_base, "/");
-  strcat(topic_base, OctetArray);
+  strcat(topic_base, topic_IOTnum);
   strcat(topic_base, "/config");
-  
+
+UARTPrintf("app_message:");
+UARTPrintf(app_message);
+UARTPrintf("\r\n");
+      
   // Send the message
   mqtt_publish(&mqttclient,
                topic_base,
@@ -2107,7 +2171,7 @@ void publish_temperature(uint8_t sensor)
   // a DS18B20 connected to IO 16.
   
   int i;
-  unsigned char app_message[10];      // Stores the application message (the
+//  unsigned char app_message[10];      // Stores the application message (the
                                       // payload) that will be sent in an
 				      // MQTT message.
 
@@ -2127,27 +2191,49 @@ void publish_temperature(uint8_t sensor)
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
     strcat(topic_base, "/temp/");
-    
-    // Add sensor number to the topic message. Note the sensor number has 1
-    // added to make it human readable form.
+
+
+
+/*
+    // Add sensor number to the topic message.
     emb_itoa((sensor + 1), OctetArray, 10, 2);
     i = (uint8_t)strlen(topic_base);
     topic_base[i] = OctetArray[0];
     i++;
     topic_base[i] = OctetArray[1];
     i++;
-    
+*/
+
+    // Add sensor number to the topic message.
+    i = (uint8_t)strlen(topic_base);
+    int2hex(FoundROM[sensor][2]);   // MSByte
+    topic_base[i] = OctetArray[0];  // MSnibble
+    i++;
+    topic_base[i] = OctetArray[1];  // LSnibble
+    i++;
+    int2hex(FoundROM[sensor][1]);   // LSByte
+    topic_base[i] = OctetArray[0];  // MSnibble
+    i++;
+    topic_base[i] = OctetArray[1];  // LSnibble
+    i++;
+
+
+
+
+
     topic_base[i] = '\0';
     
     // Build the application message
     convert_temperature(sensor, 0); // Convert to degress C in OctetArray
-    strcpy(app_message, OctetArray);
+//    strcpy(app_message, OctetArray);
     
     // Queue publish message
     mqtt_publish(&mqttclient,
                  topic_base,
-                 app_message,
-                 strlen(app_message),
+//                 app_message,
+                 OctetArray,   // app_message
+//                 strlen(app_message),
+                 strlen(OctetArray),
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   }
 }
@@ -3362,9 +3448,9 @@ void reboot(void)
   LEDcontrol(1);     // turn LED on
   wait_timer((uint16_t)50000); // wait 50ms
   LEDcontrol(0);     // turn LED off
+  wait_timer((uint16_t)50000); // wait 50ms
   LEDcontrol(1);     // turn LED on
   wait_timer((uint16_t)50000); // wait 50ms
-  
   LEDcontrol(0);  // turn LED off
   
   WWDG_WR = (uint8_t)0x7f;     // Window register reset

@@ -162,8 +162,11 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   
   char* pBuffer;
   char* mBuffer;
-  char temp_buf[12];
+  char* tBuffer;
+  uint8_t template_buf[4];
+  uint8_t payload_buf[6];
   uint16_t payload_size;
+  uint8_t new_remaining[2];
   int auto_found;
   int i;
   
@@ -244,105 +247,85 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //    to the start of the payload. Note that if this is an Auto Discovery
   //    Publish message it will have only 1 remaining length byte.
   // 3) Once the start of the payload is found copy the first 4 characters of
-  //    the payload to the temp_buf.
+  //    the payload to the template_buf.
   // 4) If the first character in the payload is '%' then this is an Auto
   //    Discovery payload that needs to be replaced.
-  //
-  // Copy the first 2 characters of the MQTT buf to temp_buf
+
+  // Copy the first 4 characters of the MQTT buf to template_buf
   // After copy (if this is an Auto Discovery message)
-  //   temp_buf[0] = Control byte
-  //   temp_buf[1] = Remaining length. If MSBit is 1 then there are
-  //                 additional remaining length bytes and this cannot be
-  //                 an Auto Discovery message.
-  //   temp_buf[2] = MSByte of variable header length (always 0 for an
-  //                 Auto Discovery message ... and the MSBit of temp_buf[1]
-  //                 will be 1 if this byte is not 0.
-  //   temp_buf[3] = LSByte of variable header length
+  //   template_buf[0] = Control byte
+  //   template_buf[1] = Remaining length. If MSBit is 1 then there are
+  //                     additional remaining length bytes and this cannot
+  //                     be an Auto Discovery message.
+  //   template_buf[2] = MSByte of variable header length (always 0 for an
+  //                     Auto Discovery message ... and the MSBit of
+  //                     template_buf[1] will be 1 if this byte is not 0.
+  //   template_buf[3] = LSByte of variable header length
   mBuffer = buf;
-  *((uint32_t*)&temp_buf[0]) = *((uint32_t*)mBuffer); // copy 4 bytes
-  mBuffer += 2;
+  *((uint32_t*)&template_buf[0]) = *((uint32_t*)mBuffer); // copy 4 bytes
 
-  // Check if Publish message
-  if ((temp_buf[0] & 0xf0) == 0x30) {
+  // Check if Publish message with a payload
+  if ((template_buf[0] & 0xf0) == 0x30) {
     // This is a Publish message
-    // Extract remaining length
-    if ((temp_buf[1] & 0x80) != 0x80) {
-      // MSbit of the remaining length byte is zero so this packet is short
-      // enough that it might be an Auto Discovery message
+    // Examine remaining length
+    if (((template_buf[1] & 0x80) != 0x80)
+      && (template_buf[1] > (template_buf[3] + 2))) {
+      // (template_buf[1] & 0x80) != 0x80) indicates a short packet
+      // (template_buf[1] > (template_buf[3] + 2)) indicates there is a
+      //   payload
+      // We will now check if this is an autodiscovery packet by looking
+      // at the first characters of the paylosd.
+      
       // Move the mBuffer pointer to the start of the payload
-      mBuffer = mBuffer + temp_buf[3] + 2;
-      
-      // Now we re-use temp_buf to capture the payload
-      // Copy the first 8 characters of the MQTT payload to temp_buf
+      // mBuffer is pointing at the start of the buf, so the start of the
+      // payload will be mBuffer + variable header length + 1 byte for the
+      // control byte + 1 byte for the remaining length byte + 2 bytes for
+      // the variable header length bytes
+      mBuffer = mBuffer + template_buf[3] + 4;
+
+      // Copy the first 6 characters of the MQTT payload to payload_buf
       // After copy (if this is an Auto Discovery message) the following
-      // will be in temp_buf if temp_buf[3] == I or O
-      //   temp_buf[2] = %
-      //   temp_buf[3] = I or O
-      //   temp_buf[4] = MSB IO number
-      //   temp_buf[5] = LSB IO number
-      //   temp_buf[6] = don't care
-      //   temp_buf[7] = don't care
-      //   temp_buf[8] = don't care
-      //   temp_buf[9] = don't care
+      // will be in payload_buf if payload_buf[1] == I or O
+      //   payload_buf[0] = %
+      //   payload_buf[1] = I or O
+      //   payload_buf[2] = MSB IO number
+      //   payload_buf[3] = LSB IO number
+      //   payload_buf[4] = don't care
+      //   payload_buf[5] = don't care
       // After copy (if this is an Auto Discovery message) the following will
-      // be in temp_buf if temp_buf[3] == T
-      //   temp_buf[2] = %
-      //   temp_buf[3] = T
-      //   temp_buf[4] = MSB temperature sensor number
-      //   temp_buf[5] = next byte temparature sensor number
-      //   temp_buf[6] = next byte temperature sensor number
-      //   temp_buf[7] = LSB temperature sensor number
-      //   temp_buf[8] = don't care
-      //   temp_buf[9] = don't care
-      *((uint32_t*)&temp_buf[2]) = *((uint32_t*)mBuffer); // copy 4 bytes
+      // be in payload_buf if payload_buf[1] == T
+      //   payload_buf[0] = %
+      //   payload_buf[1] = T
+      //   payload_buf[2] = MSB temperature sensor number
+      //   payload_buf[3] = next byte temparature sensor number
+      //   payload_buf[4] = next byte temperature sensor number
+      //   payload_buf[5] = LSB temperature sensor number
+      *((uint32_t*)&payload_buf[0]) = *((uint32_t*)mBuffer); // copy 4 bytes
       mBuffer += 4;
-      *((uint32_t*)&temp_buf[6]) = *((uint32_t*)mBuffer); // copy 4 bytes
+      *((uint16_t*)&payload_buf[4]) = *((uint16_t*)mBuffer); // copy 2 bytes
 
-temp_buf[8] = '\0';
-UARTPrintf("temp_buf:");
-UARTPrintf(temp_buf);
-UARTPrintf("\r\n");
-      
-
-      if (temp_buf[2] == '%') {
-      
-// UARTPrintf("Found % symbol");
-// UARTPrintf("\r\n");
-      
+      if (payload_buf[0] == '%') {
         // Found a marker - replace the existing payload with an auto
 	// discovery message.
 	auto_found = 1;
         // Set pointer to uip_appdata
         pBuffer = uip_appdata;
         // Copy the Fixed Header Byte 1 to the uip_buf
-        *pBuffer++ = temp_buf[0];
+        *pBuffer++ = template_buf[0];
 	
         // Determine the payload size. To save code space this value is
 	// manually calculated in the comments below where the prototype
 	// of the application message is shown.
-        if (temp_buf[3] == 'O') {
-      
-// UARTPrintf("Found O symbol");
-// UARTPrintf("\r\n");
-      
+        if (payload_buf[1] == 'O') {
           // This is an Output auto discovery message
           payload_size = 264; // Payload without devicename
         }
-        if (temp_buf[3] == 'I') {
-      
-// UARTPrintf("Found I symbol");
-// UARTPrintf("\r\n");
-      
+        if (payload_buf[1] == 'I') {
           // This is an Input auto discovery message
           payload_size = 235; // Payload without devicename
         }
-        if (temp_buf[3] == 'T') {
-      
-UARTPrintf("Found T symbol");
-UARTPrintf("\r\n");
-      
+        if (payload_buf[1] == 'T') {
           // This is a Temperature Sensor auto discovery message
-//          payload_size = 253; // Payload without devicename
           payload_size = 259; // Payload without devicename
         }
 	// Add device name size to payload size
@@ -353,60 +336,80 @@ UARTPrintf("\r\n");
 	// This means we have to move the Variable Header one byte further out
 	// as it is copied to the uip_buf. Here the Variable header is copied
 	// to the uip_buf, and later we'll come back and write the new
-	// "remaining length" to the uip_buf.
+	// "remaining length" to the uip_buf in uip_buf Bytes 2 and 3 (the two
+	// bytes following Fixed Header Byte 1.
 	//
 	// Point pBuffer at the location in the uip_buf where we want the
 	// Variable Header to start.
 	pBuffer += 2;
-	// Point mBuffer at the location in the buf where the Variable Header
-	// starts
+	// Point mBuffer at the location in the buf where the Variable
+	// Header starts
 	mBuffer = buf;
 	mBuffer += 2;
-	// Copy the Variable Header to the uip_buf (but not the temporary
-	// payload).
-	for (i=0; i < (temp_buf[1] - 4); i++) {
+	// Copy the Variable Header including the 2 variable header
+	// length bytes to the uip_buf.
+	for (i=0; i < (template_buf[3] + 2); i++) {
 	  *pBuffer++ = *mBuffer++;
 	}
 	
         // Calculate the new "remaining length" bytes and save them for later
 	// storage in the uip_buf.
-	// For temp_buf[3] == I or O the new remaining length is:
+	// For payload_buf[1] == I or O the new remaining length is:
 	//   the payload_size
 	//   plus the old remaining length
 	//   less four to account for removal of the 4 byte temporary payload
-	// For temp_buf[3] == T the new remaining length is:
+	// For payload_buf[1] == T the new remaining length is:
 	//   the payload_size
 	//   plus the old remaining length
 	//   less six to account for removal of the 6 byte temporary payload
 	// We'll use the payload_size variable to store this value.
-        payload_size = payload_size + temp_buf[1] - 4;
-	if (temp_buf[3] == 'T') payload_size -= 2;
+        payload_size = payload_size + template_buf[1] - 4;
+	if (payload_buf[1] == 'T') payload_size -= 2;
+	
 	// Calculate uip_slen (it will be used later). It is the new reamining 
 	// length plus 3 (for the control byte and the two remaining length
-	// bytes). Remember that payload_size variable is currently equal to
-	// the new remaining length value.
+	// bytes).
 	uip_slen = payload_size + 3;
 	
 	// Note: The value "len" remains unchanged. It is the length of the
 	// "app_message" provided to this function, even if we are creating a
 	// new payload for trasnmission.
-	
-	// Now encode the new remaining length and store in the first two bytes
-	// of temp_buf for now. The scheme here is simplified since we always
-	// have more than 127 and less than 512 bytes to send. A more general
-	// case would be more complicated.
+        
+        // Now encode the new remaining length. The scheme here is simplified
+	// since we always have more than 127 and less than 384 bytes to send.
+	// A more general case would be more complex.
+
         if (payload_size < 256) {
-          temp_buf[0] = (uint8_t)((payload_size - 128) | 0x80);
-          temp_buf[1] = 1;
-        }
-	else if (payload_size < 384) {
-          temp_buf[0] = (uint8_t)((payload_size - 256) | 0x80);
-          temp_buf[1] = 2;
+          new_remaining[0] = (uint8_t)((payload_size - 128) | 0x80);
+          new_remaining[1] = 1;
         }
 	else {
-          temp_buf[0] = (uint8_t)((payload_size - 384) | 0x80);
-          temp_buf[1] = 3;
+          new_remaining[0] = (uint8_t)((payload_size - 256) | 0x80);
+          new_remaining[1] = 2;
 	}
+        
+        /*
+	// IF WE EVER EXCEED 384 BYTES IN THE PAYLOAD USE THIS CODE
+	// Now encode the new remaining length. The scheme here is simplified
+	// since we always have more than 127 and less than 512 bytes to send.
+	// A more general case would be more complex.
+        if (payload_size < 256) {
+          new_remaining[0] = (uint8_t)((payload_size - 128) | 0x80);
+          new_remaining[1] = 1;
+        }
+	else if (payload_size < 384) {
+          new_remaining[0] = (uint8_t)((payload_size - 256) | 0x80);
+          new_remaining[1] = 2;
+        }
+	else {
+          new_remaining[0] = (uint8_t)((payload_size - 384) | 0x80);
+          new_remaining[1] = 3;
+	}
+        */
+
+        // Insert the new remaining length value in the uip_buf.
+        tBuffer = uip_appdata + 1;
+	*((uint16_t*)tBuffer) = *((uint16_t*)&new_remaining[0]); // copy 2 bytes
 	
 	// Calculate uip_slen (it will be used later). It is the new reamining 
 	// length plus 3 (for the control byte and the two remaining length
@@ -477,111 +480,106 @@ UARTPrintf("\r\n");
 
         // "stpcpy()" is used to efficiently copy data to the uip_buf
 	// utilizing the pBuffer pointer.
-        pBuffer=stpcpy(pBuffer, "{\"uniq_id\":\"");
+        pBuffer = stpcpy(pBuffer, "{\"uniq_id\":\"");
 
-        pBuffer=stpcpy(pBuffer, mac_string);
+        pBuffer = stpcpy(pBuffer, mac_string);
    
-        if (temp_buf[3] == 'O') pBuffer=stpcpy(pBuffer, "_output_");
-        if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, "_input_");
-        if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, "_temp_");
+        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, "_output_");
+        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, "_input_");
+        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, "_temp_");
 	
 	// Copy the Input or Output number (2 characters)
 	// OR
 	// the Temperature Sensor number (2 more characters)
-	// Two character copy from temp_buf[4] and [5]
-        *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 2 bytes
+	// Two character copy from payload_buf[2] and [3]
+        *((uint16_t*)pBuffer) = *((uint16_t*)&payload_buf[2]); // copy 2 bytes
         pBuffer += 2;
-        if (temp_buf[3] == 'T') {
-	  // Two more characters from temp_buf[6] and [7]
-          *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[6]); // copy 2 bytes
+        if (payload_buf[1] == 'T') {
+	  // Two more characters from payload_buf[4] and [5]
+          *((uint16_t*)pBuffer) = *((uint16_t*)&payload_buf[4]); // copy 2 bytes
           pBuffer += 2;
 	}
 	
-        pBuffer=stpcpy(pBuffer, "\",\"name\":\"");
+        pBuffer = stpcpy(pBuffer, "\",\"name\":\"");
 
-        pBuffer=stpcpy(pBuffer, stored_devicename);
+        pBuffer = stpcpy(pBuffer, stored_devicename);
     
-        if (temp_buf[3] == 'O') pBuffer=stpcpy(pBuffer, " output ");
-        if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, " input ");
-        if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, " temp ");
+        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, " output ");
+        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, " input ");
+        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, " temp ");
 
 	// Copy the Input or Output number (2 characters)
 	// OR
 	// the Temperature Sensor number (2 more characters)
-	// Two character copy from temp_buf[4] and [5]
-        *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 2 bytes
+	// Two character copy from payload_buf[2] and [3]
+        *((uint16_t*)pBuffer) = *((uint16_t*)&payload_buf[2]); // copy 2 bytes
         pBuffer += 2;
-        if (temp_buf[3] == 'T') {
-	  // Two more characters from temp_buf[6] and [7]
-          *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[6]); // copy 2 bytes
+        if (payload_buf[1] == 'T') {
+	  // Two more characters from payload_buf[4] and [5]
+          *((uint16_t*)pBuffer) = *((uint16_t*)&payload_buf[4]); // copy 2 bytes
           pBuffer += 2;
 	}
     
-        pBuffer=stpcpy(pBuffer, "\",\"~\":\"NetworkModule/");
+        pBuffer = stpcpy(pBuffer, "\",\"~\":\"NetworkModule/");
 
-        pBuffer=stpcpy(pBuffer, stored_devicename);
+        pBuffer = stpcpy(pBuffer, stored_devicename);
         
-        pBuffer=stpcpy(pBuffer, "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/");
+        pBuffer = stpcpy(pBuffer, "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/");
 
-        if (temp_buf[3] == 'O') pBuffer=stpcpy(pBuffer, "output/");
-        if (temp_buf[3] == 'I') pBuffer=stpcpy(pBuffer, "input/");
-        if (temp_buf[3] == 'T') pBuffer=stpcpy(pBuffer, "temp/");
-
+        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, "output/");
+        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, "input/");
+        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, "temp/");
+	
 	// Copy the Input or Output number (2 characters)
 	// OR
 	// the Temperature Sensor number (2 more characters)
-	// Two character copy from temp_buf[4] and [5]
-        *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 2 bytes
+	// Two character copy from payload_buf[2] and [3]	
+        *((uint16_t*)pBuffer) = *((uint16_t*)&payload_buf[2]); // copy 2 bytes
         pBuffer += 2;
-        if (temp_buf[3] == 'T') {
-	  // Two more characters from temp_buf[6] and [7]
-          *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[6]); // copy 2 bytes
+        if (payload_buf[1] == 'T') {
+	  // Two more characters from payload_buf[4] and [5]
+          *((uint16_t*)pBuffer) = *((uint16_t*)&payload_buf[4]); // copy 2 bytes
           pBuffer += 2;
 	}
-    
-        pBuffer=stpcpy(pBuffer, "\",");
+	
+        pBuffer = stpcpy(pBuffer, "\",");
 
         // Special case for output pin
-        if (temp_buf[3] == 'O') {
-          pBuffer=stpcpy(pBuffer, "\"cmd_t\":\"~/output/");
+        if (payload_buf[1] == 'O') {
+          pBuffer = stpcpy(pBuffer, "\"cmd_t\":\"~/output/");
 	  
- 	  // Input or Output number in temp_buf[4] and [5]
-	  *((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[4]); // copy 2 bytes
+ 	  // Input or Output number in payload_buf[2] and [3]
+	  *((uint16_t*)pBuffer) = *((uint16_t*)&payload_buf[2]); // copy 2 bytes
 	  pBuffer += 2;
     
-          pBuffer=stpcpy(pBuffer, "/set\",");
+          pBuffer = stpcpy(pBuffer, "/set\",");
         }
 
         // Special case for temperature pin
-        if (temp_buf[3] == 'T') {
-          pBuffer=stpcpy(pBuffer, "\"unit_of_meas\":\"\xc2\xb0\x43\",");
+        if (payload_buf[1] == 'T') {
+          pBuffer = stpcpy(pBuffer, "\"unit_of_meas\":\"\xc2\xb0\x43\",");
 	}
 	
-        pBuffer=stpcpy(pBuffer, "\"dev\":{\"ids\":[\"NetworkModule_");
+        pBuffer = stpcpy(pBuffer, "\"dev\":{\"ids\":[\"NetworkModule_");
         
-        pBuffer=stpcpy(pBuffer, mac_string);
+        pBuffer = stpcpy(pBuffer, mac_string);
 
-        pBuffer=stpcpy(pBuffer, "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\"");
+        pBuffer = stpcpy(pBuffer, "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\"");
         
-        pBuffer=stpcpy(pBuffer, stored_devicename);
+        pBuffer = stpcpy(pBuffer, stored_devicename);
         
-        pBuffer=stpcpy(pBuffer, "\",\"sw\":\"");
+        pBuffer = stpcpy(pBuffer, "\",\"sw\":\"");
         
-        pBuffer=stpcpy(pBuffer, code_revision);
+        pBuffer = stpcpy(pBuffer, code_revision);
         
-        pBuffer=stpcpy(pBuffer, "\"}}");
-
-        // Now insert the new remaining length value in the uip_buf. It was
-	// stored in temp_buf[0] and temp_buf[1] earlier.
-        pBuffer = uip_appdata + 1;
-	*((uint16_t*)pBuffer) = *((uint16_t*)&temp_buf[0]);		// copy 2 bytes
+        pBuffer = stpcpy(pBuffer, "\"}}");
       }
     }
   }
   
   if (auto_found != 1) {
-    // The payload wasn't an Auto Discovery payload, so copy the payload data
-    // into the uip_buf and set the uip_slen value.
+    // The payload did not require the replacement procedure, so simply copy
+    // the payload data into the uip_buf and set the uip_slen value.
     memcpy(uip_appdata, buf, len);
     uip_slen = len;
   }

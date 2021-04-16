@@ -863,7 +863,7 @@ void mqtt_startup(void)
   //   - Verifies that the ARP request succeeded.
   //   - Verifies that the TCP connection request suceeded.
   //   - Initializes communication with the MQTT Broker.
-  
+ 
   switch(mqtt_start)
   {
   case MQTT_START_TCP_CONNECT:
@@ -1232,17 +1232,16 @@ void mqtt_startup(void)
 	//   One to delete any prior Output definition.
 	//   One to send the Input definition.
 	//   Five to delete any prior Temperature Sensor definition.
-        if ((pin_control[pin_ptr - 1] & 0x01)
-         && (!(pin_control[pin_ptr - 1] & 0x02))) {
+        if (((pin_control[pin_ptr - 1] & 0x01) == 0x01)
+         && ((pin_control[pin_ptr - 1] & 0x02) == 0x00)) {
 	  // Pin is an Enabled Input pin
 	  if (auto_discovery_step == SEND_OUTPUT_DELETE) {
             // Create Output pin delete msg.
             send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE);
 	    auto_discovery_step = SEND_INPUT_DEFINE;
-	    goto auto_discovery_finish_check;
 	  }
 	  
-	  if (auto_discovery_step == SEND_INPUT_DEFINE) {
+	  else if (auto_discovery_step == SEND_INPUT_DEFINE) {
             // Create Input pin define msg.
             send_IOT_msg(pin_ptr, INPUTMSG, DEFINE);
 	    
@@ -1251,11 +1250,9 @@ void mqtt_startup(void)
 	      pin_ptr++;
 	      auto_discovery_step = SEND_OUTPUT_DELETE;
 	    }
-	    
-	    goto auto_discovery_finish_check;
 	  }
 	  
-	  if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
+	  else if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
 	    // Send Temp Sensor delete messages.
 	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
 	    
@@ -1266,8 +1263,6 @@ void mqtt_startup(void)
               auto_discovery_step = SEND_INPUT_DELETE;
 	    }
 	    else sensor_number++;
-	    
-	    goto auto_discovery_finish_check;
 	  }
 	}
         else {
@@ -1277,11 +1272,10 @@ void mqtt_startup(void)
             auto_discovery_step = SEND_INPUT_DELETE;
 	  }
 	  else pin_ptr++;
-	  goto auto_discovery_finish_check;
 	}
       }
 	
-      if (auto_discovery == DEFINE_OUTPUTS) {
+      else if (auto_discovery == DEFINE_OUTPUTS) {
         // Pins 1 to 15 each require two Config messages.
 	//   One to delete any prior Input definition.
 	//   One to send the Output definition.
@@ -1289,30 +1283,24 @@ void mqtt_startup(void)
 	//   One to delete any prior Input definition.
 	//   One to send the Output definition.
 	//   Five to delete any prior Temperature Sensor definition.
-        if ((pin_control[pin_ptr - 1] & 0x01)
-         && (pin_control[pin_ptr - 1] & 0x02)) {
+        if (((pin_control[pin_ptr - 1] & 0x01) == 0x01)
+         && ((pin_control[pin_ptr - 1] & 0x02) == 0x02)) {
 	  // Pin is an Enabled Output pin
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
             send_IOT_msg(pin_ptr, INPUTMSG, DELETE);
 	    auto_discovery_step = SEND_OUTPUT_DEFINE;
-	    goto auto_discovery_finish_check;
 	  }
 	  
-	  if (auto_discovery_step == SEND_OUTPUT_DEFINE) {
+	  else if (auto_discovery_step == SEND_OUTPUT_DEFINE) {
             // Create Output pin define msg.
             send_IOT_msg(pin_ptr, OUTPUTMSG, DEFINE);
 	    
 	    if (pin_ptr == 16) auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
-	    else {
-	      pin_ptr++;
-	      auto_discovery_step = SEND_INPUT_DELETE;
-	    }
-	    
-	    goto auto_discovery_finish_check;
+	    else pin_ptr++;
 	  }
 	
-	  if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
+	  else if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
 	    // Send Temp Sensor delete messages.
 	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
 	    
@@ -1323,8 +1311,6 @@ void mqtt_startup(void)
               auto_discovery_step = SEND_INPUT_DELETE;
 	    }
 	    else sensor_number++;
-	    
-	    goto auto_discovery_finish_check;
 	  }
 	}
         else {
@@ -1334,11 +1320,10 @@ void mqtt_startup(void)
             auto_discovery_step = SEND_INPUT_DELETE;
 	  }
 	  else pin_ptr++;
-	  goto auto_discovery_finish_check;
 	}
       }
  
-      if (auto_discovery == DEFINE_DISABLED) {
+      else if (auto_discovery == DEFINE_DISABLED) {
         // Pins 1 to 15 each require two Config messages.
 	//   One to delete any prior Input definition.
 	//   One to delete any prior Output definition.
@@ -1346,16 +1331,15 @@ void mqtt_startup(void)
 	//   One to delete any prior Input definition.
 	//   One to delete any prior Output definition.
 	//   Five to delete any prior Temperature Sensor definition.
-        if (!(pin_control[pin_ptr - 1] & 0x01)) {
+        if ((pin_control[pin_ptr - 1] & 0x01) == 0x00) {
 	  // Pin is Disabled
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
             send_IOT_msg(pin_ptr, INPUTMSG, DELETE);
 	    auto_discovery_step = SEND_OUTPUT_DELETE;
-	    goto auto_discovery_finish_check;
 	  }
 	  
-	  if (auto_discovery_step == SEND_OUTPUT_DELETE) {
+	  else if (auto_discovery_step == SEND_OUTPUT_DELETE) {
             // Create Output pin delete msg.
             send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE);
 	    
@@ -1364,11 +1348,9 @@ void mqtt_startup(void)
 	      pin_ptr++;
 	      auto_discovery_step = SEND_INPUT_DELETE;
 	    }
-	    
-	    goto auto_discovery_finish_check;
 	  }
 	
-	  if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
+	  else if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
 	    // Send Temp Sensor delete messages.
 	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
 	    
@@ -1377,20 +1359,15 @@ void mqtt_startup(void)
               auto_discovery = DEFINE_TEMP_SENSORS;
 	    }
 	    else sensor_number++;
-	    
-	    goto auto_discovery_finish_check;
 	  }
 	}
         else {
-	  if (pin_ptr == 16) {
-            auto_discovery = DEFINE_TEMP_SENSORS;
-	  }
+	  if (pin_ptr == 16) auto_discovery = DEFINE_TEMP_SENSORS;
 	  else pin_ptr++;
-	  goto auto_discovery_finish_check;
 	}
       }
  
-      if (auto_discovery == DEFINE_TEMP_SENSORS) {
+      else if (auto_discovery == DEFINE_TEMP_SENSORS) {
         // Pin 16 will be disabled already if it is being used for
 	// temperature sensors. That being the case the DEFINE_DISABLED
 	// part of the state machine will have already sent delete
@@ -1415,21 +1392,12 @@ void mqtt_startup(void)
 	    // Send Temp Sensor define messages.
 	    send_IOT_msg(sensor_number, TMPRMSG, DEFINE);
 	    
-	    if (sensor_number == 4) {
-              auto_discovery = AUTO_COMPLETE;
-	    }
+	    if (sensor_number == 4) auto_discovery = AUTO_COMPLETE;
 	    else sensor_number++;
-	    
-	    goto auto_discovery_finish_check;
           }
-	  else {
-	    auto_discovery = AUTO_COMPLETE;
-	    goto auto_discovery_finish_check;
-          }
+	  else auto_discovery = AUTO_COMPLETE;
 	}
       }
-      
-      auto_discovery_finish_check:
       
       mqtt_start_ctr2 = 0;
       if (auto_discovery == AUTO_COMPLETE) {
@@ -1472,20 +1440,24 @@ void mqtt_startup(void)
 }
 
 
-void send_IOT_msg(uint8_t pin_ptr, uint8_t IOT, uint8_t DefOrDel)
+void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 {
+  // Format and send IO delete/define messages and sensor delete/
+  // define messages.
+  // The IOT_ptr indicates the pin number (1 to 16) or sensor number
+  // (0 to 4) that is being messaged.
   unsigned char app_message[8];       // Stores the application message
                                       // (the payload) that will be sent
-				      // in an MQTT message.
-  unsigned char topic_IOTnum[5];      // Stores the IOT number (the pin
+				      // in an MQTT message. Note that
+				      // app_message[2]... contains the
+				      // pin or sensor number allowing
+				      // use in the topic.
+//  unsigned char topic_IOTnum[5];      // Stores the IOT number (the pin
                                       // number or temperature sensor
                                       // number) that will be sent in an
                                       // MQTT message.
   
-  // Fill in some fields for the Temperature Sensor Define or Delete
-  // message
-  
-  // Create % part of payload template
+  // Create the % marker in the payload template
   app_message[0] = '%';
 
   // Create first part of topic and identification part of app_message
@@ -1505,60 +1477,45 @@ void send_IOT_msg(uint8_t pin_ptr, uint8_t IOT, uint8_t DefOrDel)
 
   if ((IOT == INPUTMSG) || (IOT == OUTPUTMSG)) {
     // Create the pin number for the app_message and topic.
-    emb_itoa(pin_ptr, OctetArray, 10, 2);
-    // Add pin or sensor number to payload template
-/*
-    app_message[2] = topic_IOTnum[0] = OctetArray[0];
-    app_message[3] = topic_IOTnum[1] = OctetArray[1];
-    app_message[4] = topic_IOTnum[2] = '\0';
-*/
+    emb_itoa(IOT_ptr, OctetArray, 10, 2);
+    // Add pin number to payload template
+//    app_message[2] = topic_IOTnum[0] = OctetArray[0];
+//    app_message[3] = topic_IOTnum[1] = OctetArray[1];
+//    app_message[4] = topic_IOTnum[2] = '\0';
     app_message[2] = OctetArray[0];
     app_message[3] = OctetArray[1];
     app_message[4] = '\0';
-    topic_IOTnum[0] = OctetArray[0];
-    topic_IOTnum[1] = OctetArray[1];
-    topic_IOTnum[2] = '\0';
   }
 
   if (IOT == TMPRMSG) {
     // Create the sensor number for the app_message and topic.
     // Add first part of sensor ID to payload template
-/*
-    int2hex(FoundROM[pin_ptr][2]);   // MSByte
-    app_message[2] = topic_IOTnum[0] = OctetArray[0];  // MSnibble
-    app_message[3] = topic_IOTnum[1] = OctetArray[1];  // LSnibble
-    int2hex(FoundROM[pin_ptr][1]);   // LSByte
-    app_message[4] = topic_IOTnum[2] = OctetArray[0];  // MSnibble
-    app_message[5] = topic_IOTnum[3] = OctetArray[1];  // LSnibble
-    app_message[6] = topic_IOTnum[4] = '\0';
-*/
-    int2hex(FoundROM[pin_ptr][2]);   // MSByte
+//    int2hex(FoundROM[IOT_ptr][2]);   // MSByte
+//    app_message[2] = topic_IOTnum[0] = OctetArray[0];  // MSnibble
+//    app_message[3] = topic_IOTnum[1] = OctetArray[1];  // LSnibble
+//    int2hex(FoundROM[IOT_ptr][1]);   // LSByte
+//    app_message[4] = topic_IOTnum[2] = OctetArray[0];  // MSnibble
+//    app_message[5] = topic_IOTnum[3] = OctetArray[1];  // LSnibble
+//    app_message[6] = topic_IOTnum[4] = '\0';
+    int2hex(FoundROM[IOT_ptr][2]);   // MSByte
     app_message[2] = OctetArray[0];  // MSnibble
     app_message[3] = OctetArray[1];  // LSnibble
-    topic_IOTnum[0] = OctetArray[0];  // MSnibble
-    topic_IOTnum[1] = OctetArray[1];  // LSnibble
-    int2hex(FoundROM[pin_ptr][1]);   // LSByte
+    int2hex(FoundROM[IOT_ptr][1]);   // LSByte
     app_message[4] = OctetArray[0];  // MSnibble
     app_message[5] = OctetArray[1];  // LSnibble
     app_message[6] = '\0';
-    topic_IOTnum[2] = OctetArray[0];  // MSnibble
-    topic_IOTnum[3] = OctetArray[1];  // LSnibble
-    topic_IOTnum[4] = '\0';
   }
 
-  // If deleting the pin or sensor replace the app_message with NULL
-  if (DefOrDel == DELETE) app_message[0] = '\0';
-  
   // Create the rest of the topic
   strcat(topic_base, mac_string);
   strcat(topic_base, "/");
-  strcat(topic_base, topic_IOTnum);
+//  strcat(topic_base, topic_IOTnum);
+  strcat(topic_base, &app_message[2]);
   strcat(topic_base, "/config");
-
-UARTPrintf("app_message:");
-UARTPrintf(app_message);
-UARTPrintf("\r\n");
       
+  // If deleting the pin or sensor replace the app_message with NULL
+  if (DefOrDel == DELETE) app_message[0] = '\0';
+  
   // Send the message
   mqtt_publish(&mqttclient,
                topic_base,
@@ -2191,19 +2148,7 @@ void publish_temperature(uint8_t sensor)
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
     strcat(topic_base, "/temp/");
-
-
-
-/*
-    // Add sensor number to the topic message.
-    emb_itoa((sensor + 1), OctetArray, 10, 2);
-    i = (uint8_t)strlen(topic_base);
-    topic_base[i] = OctetArray[0];
-    i++;
-    topic_base[i] = OctetArray[1];
-    i++;
-*/
-
+    
     // Add sensor number to the topic message.
     i = (uint8_t)strlen(topic_base);
     int2hex(FoundROM[sensor][2]);   // MSByte
@@ -2217,22 +2162,15 @@ void publish_temperature(uint8_t sensor)
     topic_base[i] = OctetArray[1];  // LSnibble
     i++;
 
-
-
-
-
     topic_base[i] = '\0';
     
     // Build the application message
     convert_temperature(sensor, 0); // Convert to degress C in OctetArray
-//    strcpy(app_message, OctetArray);
     
     // Queue publish message
     mqtt_publish(&mqttclient,
                  topic_base,
-//                 app_message,
                  OctetArray,   // app_message
-//                 strlen(app_message),
                  strlen(OctetArray),
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   }
@@ -2326,8 +2264,8 @@ void upgrade_EEPROM(void)
       break;
     }
     
-//    // Placeholder for future revision level. Put in the values that should
-//    // checked. Recommended next level to be 0x02.
+//    // Placeholder for future EEPROM revision level. Put in the values
+//    // that should be checked. Recommended next level to be 0x02.
 //    if (stored_EEPROM_revision1 == 0x02 && stored_EEPROM_revision2 == 0xf5) {
 //      break;
 //    }
@@ -2449,8 +2387,8 @@ void check_eeprom_settings(void)
     // Write the Gateway Address to EEPROM
     stored_draddr[3] = 192;	// MSB
     stored_draddr[2] = 168;	//
-    stored_draddr[1] = 1;		//
-    stored_draddr[0] = 1;		// LSB
+    stored_draddr[1] = 1;	//
+    stored_draddr[0] = 1;	// LSB
     
     // Default Netmask
     uip_ipaddr(IpAddr, 255,255,255,0);

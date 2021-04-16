@@ -62,7 +62,7 @@ uint32_t calculate_timer(uint16_t timer_value);
 void decrement_pin_timers(void);
 
 void mqtt_startup(void);
-void send_IOT_msg(uint8_t pin_ptr, uint8_t IOT, uint8_t DefOrDel);
+void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel);
 void mqtt_sanity_check(void);
 void publish_callback(void** unused, struct mqtt_response_publish *published);
 void publish_outbound(void);

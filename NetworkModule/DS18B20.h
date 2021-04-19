@@ -29,6 +29,8 @@ uint8_t check_CRC(void);
 void transmit_byte(uint8_t transmit_value);
 int read_bit(void);
 void write_bit(uint8_t transmit_bit);
+void check_temperature_sensor_changes(void);
+
 
 void FindDevices(void);
 uint8_t First(void);

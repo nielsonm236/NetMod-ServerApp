@@ -286,8 +286,8 @@ char client_id_text[26];              // Client ID comprised of text
 uint8_t mqtt_start;                   // Tracks the MQTT startup steps
 uint8_t mqtt_start_ctr1;              // Tracks time for the MQTT startup
                                       // steps
-uint8_t mqtt_start_ctr2;              // Tracks time for the MQTT startup
-                                      // steps
+uint8_t verify_count;                 // Used to limit the number of ARP and
+                                      // TCP verify attempts
 uint8_t mqtt_sanity_ctr;              // Tracks time for the MQTT sanity steps
 extern uint8_t connack_received;      // Used to communicate CONNECT CONNACK
                                       // received from mqtt.c to main.c
@@ -356,6 +356,8 @@ uint8_t MQTT_broker_dis_counter; // Counts broker disconnect events in
 // DS18B20 variables
 uint32_t check_DS18B20_ctr;      // Counter used to trigger temperature
                                  // measurements
+uint32_t check_DS18B20_sensor_ctr; // Counter used to trigger temperature
+                                 // sensor add/delete checks
 uint8_t DS18B20_scratch[5][2];   // Stores the temperature measurement for the
                                  // DS18B20s
 int8_t send_mqtt_temperature;    // Indicates if a new temperature measurement
@@ -373,6 +375,17 @@ uint8_t FoundROM[5][8];          // Table of found ROM codes
                                  // [x][5] = byte 5 serial number
                                  // [x][6] = MSByte serial number
                                  // [x][7] = CRC
+uint8_t temp_FoundROM[5][8];     // Temporary table of old ROM codes
+                                 // [x][0] = Family Code
+                                 // [x][1] = LSByte serial number
+                                 // [x][2] = byte 2 serial number
+                                 // [x][3] = byte 3 serial number
+                                 // [x][4] = byte 4 serial number
+                                 // [x][5] = byte 5 serial number
+                                 // [x][6] = MSByte serial number
+                                 // [x][7] = CRC
+uint8_t redefine_temp_sensors;   // Used to trigger the temperature
+                                 // sensor add/delete process
 
 
 
@@ -401,8 +414,6 @@ int main(void)
   mqtt_start = MQTT_START_TCP_CONNECT;	 // Tracks the MQTT startup steps
   mqtt_keep_alive = 60;                  // Ping interval in seconds
   mqtt_start_ctr1 = 0;			 // Tracks time for the MQTT startup
-                                         // steps
-  mqtt_start_ctr2 = 0;			 // Tracks time for the MQTT startup
                                          // steps
   mqtt_sanity_ctr = 0;			 // Tracks time for the MQTT sanity
                                          // steps
@@ -491,18 +502,13 @@ int main(void)
 #endif // DEBUG_SUPPORT
 
 
-  // Initialize DS18B20 temperature storage values. Scratch byte 1 = 0x55
-  // cannot be produced by the DS18B20, so code will recognize this as a
-  // marker that the temperature has not been read from the DS18B20.
   {
     int i;
     int j;
-    for (i=0; i<5; i++) {
-      DS18B20_scratch[i][1] = 0x55;
-      for (j=0; j<8; j++) {
-        FoundROM[i][j] = 0;
-      }
-    }
+    // Initialize temperature sensor arrays
+    memset(&DS18B20_scratch[0][0], 0, 10);
+    memset(&FoundROM[0][0], 0, 40);
+    memset(&temp_FoundROM[0][0], 0, 40);
   }
   // Initialize DS18B20 devices (if enabled) 
   if (stored_config_settings & 0x08) {
@@ -510,11 +516,15 @@ int main(void)
     FindDevices();
     // Iniialize DS18B20 timer
     check_DS18B20_ctr = second_counter;
+    // Initialize DS18B20 sensor add/delete check counter
+    check_DS18B20_sensor_ctr = second_counter;
     // Collect initial temperature
     get_temperature();
     // Iniialize DS18B20 transmit control variable
     send_mqtt_temperature = 0;
   }
+  // Initialize the redefine control
+  redefine_temp_sensors = 0;
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -709,6 +719,19 @@ int main(void)
      && restart_reboot_step == RESTART_REBOOT_IDLE) {
       mqtt_sanity_check();
     }
+    
+    // Check for Temperature Sensor changes and send redefine
+    // messages for HA Auto Discovery on periodic basis if
+    // a) MQTT is enabled
+    // b) Not currently performing MQTT startup
+    // c) Not currently performing restart_reboot
+    // d) Redefine temp sensors is requested
+    if (mqtt_enabled == 1
+     && mqtt_start == MQTT_START_COMPLETE
+     && restart_reboot_step == RESTART_REBOOT_IDLE
+     && redefine_temp_sensors == 1) {
+      mqtt_redefine_temp_sensors();
+    }
 #endif // MQTT_SUPPORT
 
     // Update the time keeping function
@@ -764,28 +787,34 @@ int main(void)
 
 
 #if MQTT_SUPPORT == 1
-    // If MQTT is enabled and connected check for pin state changes and
-    // publish a message at 50ms intervals. publish_outbound only places the
-    // message in the queue. uip_periodic() will cause the actual
-    // transmission.
-    if (mqtt_enabled == 1 && mqtt_outbound_timer_expired()) {
-      if (mqtt_start == MQTT_START_COMPLETE) {
-        publish_outbound();
+    // If the MQTT timer expires (50ms)
+    //   And MQTT is enabled
+    //   And MQTT startup is complete
+    //     Then check for messages that need to be published including a
+    //     check for pin state changes
+    //   Note that publish_outbound only places the message in the queue, then
+    //   uip_periodic() will cause the actual transmission at 20ms intervals.
+    // Also
+    //   Increment the MQTT timers every 50ms
+    if (mqtt_timer_expired()) {
+      if (mqtt_enabled == 1) {
+        if (mqtt_start == MQTT_START_COMPLETE) publish_outbound();
+        mqtt_start_ctr1++; // Increment the MQTT start loop timer 1. This is
+                           // used to:
+			   //   - Timeout the MQTT Server ARP request or the
+                           //     MQTT Server TCP connection request if the
+			   //     server is not responding.
+			   //   - Limit the rate at which timeouts occur in
+			   //     the MQTT Broker connection requests.
+			   //   - Govern the rate at which subscription and
+			   //     HA Auto Discovery messaging is placed in
+			   //     the transmit queue.
+			   // Note that uip_periodic() drives actual message
+			   // transmission at 20ms intervals.
+        mqtt_sanity_ctr++; // Increment the MQTT sanity loop timer. This is
+                           // used to provide timing for the MQTT Sanity
+                           // Check function.			   
       }
-    }
-    
-    // If MQTT is enabled increment the MQTT timers every 100ms
-    if (mqtt_enabled == 1 && mqtt_timer_expired()) {
-      mqtt_start_ctr1++; // Increment the MQTT start loop timer 1. This is
-                         // used to timeout the MQTT Server ARP request or
-		         // the MQTT Server TCP connection request if the
-		         // server is not responding.
-      mqtt_start_ctr2++; // Increment the MQTT start loop timer 2. This is
-                         // used to limit the rate at which timeouts occur
-		         // in the MQTT Server connection requests.
-      mqtt_sanity_ctr++; // Increment the MQTT sanity loop timer. This is
-                         // used to provide timing for the MQTT Sanity
-		         // Check function.			   
     }
 #endif // MQTT_SUPPORT
 
@@ -796,9 +825,18 @@ int main(void)
                        // exceeded the UIP_ARP_MAXAGE without being accessed
 		       // is cleared. UIP_ARP_MAXAGE is typically 20 minutes.
     }
-
-
+    
+    
+    // Check for DS18B20 temperature sensor additions/deletions at 10s
+    // intervals
+    if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_sensor_ctr + 10))) {
+      check_DS18B20_sensor_ctr = second_counter;
+      check_temperature_sensor_changes();
+    }
+    
+    
     // Update temperature data
+    // Not sure of the best interval. I will set it at 30 seconds for now.
     if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 30))) {
       check_DS18B20_ctr = second_counter;
       get_temperature();
@@ -807,8 +845,8 @@ int main(void)
                                  // need to be transmitted via MQTT.
 #endif // MQTT_SUPPORT
     }
-
-
+    
+    
     // Check for changes in Output control states, IP address, IP gateway
     // address, Netmask, MAC, and Port number.
     check_runtime_changes();
@@ -886,8 +924,8 @@ void mqtt_startup(void)
     mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, Port_Mqttd);
     
     if (mqtt_conn != NULL) {
-      mqtt_start_ctr1 = 0; // Clear 100ms counter
-      mqtt_start_ctr2 = 0; // Clear 100ms counter
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
+      verify_count = 0; // Clear the ARP verify count
       mqtt_start_status = MQTT_START_CONNECTIONS_GOOD;
       mqtt_start = MQTT_START_VERIFY_ARP;
     }
@@ -897,20 +935,22 @@ void mqtt_startup(void)
     break;
       
   case MQTT_START_VERIFY_ARP:
-     if (mqtt_start_ctr2 > 2) {
-      // mqtt_start_ctr2 causes us to wait 300ms before checking to see if the
+     if (mqtt_start_ctr1 > 6) {
+      // mqtt_start_ctr1 causes us to wait 300ms before checking to see if the
       // ARP request completed.
-      mqtt_start_ctr2 = 0; // Clear 100ms counter
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
+      verify_count++; // Increment the ARP verify count
       // ARP Request and TCP Connection request were sent to the MQTT Server
       // as a result of the uip_connect() in the prior step. Now we loop and
       // check that the ARP request was successful.
       if (check_mqtt_server_arp_entry() == 1) {
         // ARP Reply received
-        mqtt_start_ctr1 = 0; // Clear 100ms counter
+        mqtt_start_ctr1 = 0; // Clear 50ms counter
+	verify_count = 0;
         mqtt_start_status |= MQTT_START_ARP_REQUEST_GOOD;
         mqtt_start = MQTT_START_VERIFY_TCP;
       }
-      else if (mqtt_start_ctr1 > 150) {
+      if (verify_count > 50) {
         // mqtt_start_ctr1 allows us to wait up to 15 seconds for the ARP
         // Reply. If timeout occurs we probably have an error in the MQTT
         // Server IP Address or there is a network problem. If we timeout
@@ -923,8 +963,9 @@ void mqtt_startup(void)
     break;
 
   case MQTT_START_VERIFY_TCP:
-    if (mqtt_start_ctr2 > 2) {
-      mqtt_start_ctr2 = 0; // Clear 100ms counter
+    if (mqtt_start_ctr1 > 6) {
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
+      verify_count++; // Increment the TCP verify count
       // Loop to make sure the TCP connection request was successful. We're
       // waiting for the SYNACK/ACK process to complete (checking each 300ms).
       // uip_periodic() runs frequently (each time the periodic_timer expires).
@@ -932,12 +973,12 @@ void mqtt_startup(void)
       // SYNACK and then send the ACK. We will know the ACK was sent when we
       // see the UIP_ESTABLISHED state for the mqtt connection.
       if ((mqtt_conn->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED) {
-        mqtt_start_ctr1 = 0; // Clear 100ms counter
+        mqtt_start_ctr1 = 0; // Clear 50ms counter
         mqtt_start_status |= MQTT_START_TCP_CONNECT_GOOD;
         mqtt_start = MQTT_START_MQTT_INIT;
       }
-      else if (mqtt_start_ctr1 > 150) {
-        // Wait up to 15 seconds for the TCP connection to complete. If not
+      if (verify_count > 16) {
+        // Wait up to 4.8 seconds for the TCP connection to complete. If not
         // completed we probably have a network problem.  Try again with a
         // new uip_connect().
         mqtt_start = MQTT_START_TCP_CONNECT;
@@ -949,7 +990,7 @@ void mqtt_startup(void)
 
 
   case MQTT_START_MQTT_INIT:
-    if (mqtt_start_ctr2 > 2) {
+    if (mqtt_start_ctr1 > 4) {
       // Initialize mqtt client
       mqtt_init(&mqttclient,
                 mqtt_sendbuf,
@@ -957,18 +998,18 @@ void mqtt_startup(void)
                 &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
                 UIP_APPDATA_SIZE,
                 publish_callback);
-      mqtt_start_ctr1 = 0; // Clear 100ms counter
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_QUEUE_CONNECT;
     }
     break;
 
 
   case MQTT_START_QUEUE_CONNECT:
-    if (mqtt_start_ctr2 > 2) {
+    if (mqtt_start_ctr1 > 4) {
       // ARP Reply received from the MQTT Server and TCP Connection
       // established.
       // We should now be able to message the MQTT Broker, but will wait
-      // 300ms to give some start time.
+      // 200ms to give some start time.
 
       // Queue the mqtt_connect message for transmission to the MQTT Broker. 
       // The mqtt_connect function will create the message and put it in the
@@ -1007,7 +1048,7 @@ void mqtt_startup(void)
                    connect_flags,          // Connect flags
                    mqtt_keep_alive);       // Ping interval
      
-      mqtt_start_ctr1 = 0; // Clear 100ms counter
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_VERIFY_CONNACK;
     }
     break;
@@ -1031,10 +1072,10 @@ void mqtt_startup(void)
     // a clean start vs a reboot.
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-    if (mqtt_start_ctr1 < 100) {
+    if (mqtt_start_ctr1 < 200) {
       // Allow up to 10 seconds for CONNACK
       if (connack_received == 1) {
-        mqtt_start_ctr2 = 0; // Clear 100ms counter
+        mqtt_start_ctr1 = 0; // Clear 50ms counter
         mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
         mqtt_start = MQTT_START_QUEUE_SUBSCRIBE1;
       }
@@ -1047,11 +1088,11 @@ void mqtt_startup(void)
     break;
 
   case MQTT_START_QUEUE_SUBSCRIBE1:
-    if (mqtt_start_ctr2 > 2) {
+    if (mqtt_start_ctr1 > 4) {
       // Subscribe to the output control messages
       //
       // Queue the mqtt_subscribe messages for transmission to the MQTT Broker.
-      // Wait 300ms before queueing first Subscribe msg.
+      // Wait 200ms before queueing first Subscribe msg.
       //
       // The mqtt_subscribe function will create the message and put it in the
       // transmit queue. uip_periodic() will start the process that will call
@@ -1071,7 +1112,7 @@ void mqtt_startup(void)
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/output/+/set");
       mqtt_subscribe(&mqttclient, topic_base);
-      mqtt_start_ctr2 = 0; // Clear 100ms counter
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
     }
     break;
@@ -1085,10 +1126,10 @@ void mqtt_startup(void)
     // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
     // was received.
 
-    if (mqtt_start_ctr1 < 100) {
+    if (mqtt_start_ctr1 < 200) {
       // Allow up to 10 seconds for SUBACK
       if (suback_received == 1) {
-        mqtt_start_ctr2 = 0; // Clear 100ms counter
+        mqtt_start_ctr1 = 0; // Clear 50ms counter
         mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
       }
     }
@@ -1100,15 +1141,16 @@ void mqtt_startup(void)
     break;
 
   case MQTT_START_QUEUE_SUBSCRIBE2:
-    if (mqtt_start_ctr2 > 2) {
+    if (mqtt_start_ctr1 > 4) {
       // Subscribe to the state-req message
       //
-      // Wait 300ms before queuing the Subscribe message 
+      // Wait 200ms before queuing the Subscribe message 
       suback_received = 0;
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/state-req");
       mqtt_subscribe(&mqttclient, topic_base);
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_VERIFY_SUBSCRIBE2;
     }
     break;
@@ -1122,10 +1164,10 @@ void mqtt_startup(void)
     // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
     // was received.
 
-    if (mqtt_start_ctr1 < 100) {
+    if (mqtt_start_ctr1 < 200) {
       // Allow up to 10 seconds for SUBACK
       if (suback_received == 1) {
-        mqtt_start_ctr2 = 0; // Clear 100ms counter
+        mqtt_start_ctr1 = 0; // Clear 50ms counter
         if (stored_config_settings & 0x02) {
           // Home Assistant Auto Discovery enabled
           mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
@@ -1135,6 +1177,7 @@ void mqtt_startup(void)
           sensor_number = 0;
         }
         else {
+          mqtt_start_ctr1 = 0; // Clear 50ms counter
           mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
         }
       }
@@ -1147,7 +1190,7 @@ void mqtt_startup(void)
     break;
 
   case MQTT_START_QUEUE_PUBLISH_AUTO:
-    if (mqtt_start_ctr2 > 0) {
+    if (mqtt_start_ctr1 > 2) {
       // Publish Home Assistant Auto Discovery messages
       // This step of the state machine is entered multiple times until all
       // Home Assistant Auto Discovery Publish messages are sent.
@@ -1198,31 +1241,24 @@ void mqtt_startup(void)
       //     - An Output Config message is sent with an empty payload (to make
       //       sure any prior Output definition is deleted in Home Assistant).
       //     - An Input Config message is sent with a definition payload.
-      //     - For pin 16: A Temperature Sensor Config message is sent with an
-      //       empty payload for all 5 sensors (to make sure any prior
-      //       Temperature Sensor definition is deleted in Home Assistant).
       //
       //   For every pin that is an Enabled Output:
       //     - An Input Config message is sent with an empty payload (to make
       //       sure any prior Input definition is deleted in Home Assistant).
       //     - An Output Config message is sent with a defining payload.
-      //     - For pin 16: A Temperature Sensor Config message is sent with an
-      //       empty payload for all 5 sensors (to make sure any prior
-      //       Temperature Sensor definition is deleted in Home Assistant).
       //
       //   For every pin that is Disabled:
       //     - An Input Config message is sent with an empty payload (to make
       //       sure any prior Input definition is deleted in Home Assistant).
-      //     - An OUTput Config message is sent with an empty payload (to make
+      //     - An Output Config message is sent with an empty payload (to make
       //       sure any prior Output definition is deleted in Home Assistant).
-      //     - For pin 16: A Temperature Sensor Config message is sent with an
-      //       empty payload for all 5 sensors (to make sure any prior
-      //       Temperature Sensor definition is deleted in Home Assistant).
       //
       //   If DS18B20 is enabled:
+      //     - A Temperature Sensor Config message is sent with an empty
+      //       payload for all 5 sensors (to make sure any prior Temperature
+      //       Sensor definition is deleted in Home Assistant).
       //     - A Temperature Sensor Config message is sent for every sensor
       //       that was discovered.
-      //
 
       if (auto_discovery == DEFINE_INPUTS) {
         // Pins 1 to 15 each require two Config messages.
@@ -1237,32 +1273,23 @@ void mqtt_startup(void)
 	  // Pin is an Enabled Input pin
 	  if (auto_discovery_step == SEND_OUTPUT_DELETE) {
             // Create Output pin delete msg.
-            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE);
+            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE, 0, 0);
 	    auto_discovery_step = SEND_INPUT_DEFINE;
 	  }
 	  
 	  else if (auto_discovery_step == SEND_INPUT_DEFINE) {
             // Create Input pin define msg.
-            send_IOT_msg(pin_ptr, INPUTMSG, DEFINE);
+            send_IOT_msg(pin_ptr, INPUTMSG, DEFINE, 0, 0);
 	    
-	    if (pin_ptr == 16) auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
-	    else {
-	      pin_ptr++;
-	      auto_discovery_step = SEND_OUTPUT_DELETE;
-	    }
-	  }
-	  
-	  else if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
-	    // Send Temp Sensor delete messages.
-	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
-	    
-	    if (sensor_number == 4) {
-	      sensor_number = 0;
+	    if (pin_ptr == 16) {
 	      pin_ptr = 1;
               auto_discovery = DEFINE_OUTPUTS;
               auto_discovery_step = SEND_INPUT_DELETE;
 	    }
-	    else sensor_number++;
+	    else {
+	      pin_ptr++;
+	      auto_discovery_step = SEND_OUTPUT_DELETE;
+	    }
 	  }
 	}
         else {
@@ -1288,29 +1315,21 @@ void mqtt_startup(void)
 	  // Pin is an Enabled Output pin
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
-            send_IOT_msg(pin_ptr, INPUTMSG, DELETE);
+            send_IOT_msg(pin_ptr, INPUTMSG, DELETE, 0, 0);
 	    auto_discovery_step = SEND_OUTPUT_DEFINE;
 	  }
 	  
 	  else if (auto_discovery_step == SEND_OUTPUT_DEFINE) {
             // Create Output pin define msg.
-            send_IOT_msg(pin_ptr, OUTPUTMSG, DEFINE);
+            send_IOT_msg(pin_ptr, OUTPUTMSG, DEFINE, 0, 0);
 	    
-	    if (pin_ptr == 16) auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
-	    else pin_ptr++;
-	  }
-	
-	  else if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
-	    // Send Temp Sensor delete messages.
-	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
-	    
-	    if (sensor_number == 4) {
-	      sensor_number = 0;
+	    if (pin_ptr == 16) {
 	      pin_ptr = 1;
               auto_discovery = DEFINE_DISABLED;
               auto_discovery_step = SEND_INPUT_DELETE;
 	    }
-	    else sensor_number++;
+	    else pin_ptr++;
+            auto_discovery_step = SEND_INPUT_DELETE;
 	  }
 	}
         else {
@@ -1335,80 +1354,48 @@ void mqtt_startup(void)
 	  // Pin is Disabled
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
-            send_IOT_msg(pin_ptr, INPUTMSG, DELETE);
+            send_IOT_msg(pin_ptr, INPUTMSG, DELETE, 0, 0);
 	    auto_discovery_step = SEND_OUTPUT_DELETE;
 	  }
 	  
 	  else if (auto_discovery_step == SEND_OUTPUT_DELETE) {
             // Create Output pin delete msg.
-            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE);
+            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE, 0, 0);
 	    
-	    if (pin_ptr == 16) auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
+	    if (pin_ptr == 16) {
+              auto_discovery = DEFINE_TEMP_SENSORS;
+	      auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
+	    }
 	    else {
 	      pin_ptr++;
 	      auto_discovery_step = SEND_INPUT_DELETE;
 	    }
 	  }
-	
-	  else if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
-	    // Send Temp Sensor delete messages.
-	    send_IOT_msg(sensor_number, TMPRMSG, DELETE);
-	    
-	    if (sensor_number == 4) {
-	      sensor_number = 0;
-              auto_discovery = DEFINE_TEMP_SENSORS;
-	    }
-	    else sensor_number++;
-	  }
 	}
         else {
-	  if (pin_ptr == 16) auto_discovery = DEFINE_TEMP_SENSORS;
+	  if (pin_ptr == 16) {
+	    auto_discovery = DEFINE_TEMP_SENSORS;
+	    auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
+	  }
 	  else pin_ptr++;
 	}
       }
  
       else if (auto_discovery == DEFINE_TEMP_SENSORS) {
-        // Pin 16 will be disabled already if it is being used for
-	// temperature sensors. That being the case the DEFINE_DISABLED
-	// part of the state machine will have already sent delete
-	// messages for all the sensors. If we find here that the
-	// temperature sensors are in fact enabled then all we have to
-	// do is send the sensor definitions.
-        if (stored_config_settings & 0x08) {
-	  // If the test is true Temperature Sensors are enabled.
-	  if (sensor_number <= (numROMs)) {
-	    // If no sensors were detected numROMs will be -1 and we will
-	    // not create a Config message).
-	    // If there is at least one sensor detetected numROMs will be
-	    // zero or greater. In that case send the sensor definition as
-	    // a Config message.
-	    // Note that if we are creating a Config message we need to
-	    // replace the "pin" number with the "sensor number" in human
-	    // readable format. This needs to occur both in the Config
-	    // topic AND in the Config payload.
-	    // Internal to code sensors are numbered 0 to 4, but they need
-	    // to be displayed as 01 to 05.
-	      
-	    // Send Temp Sensor define messages.
-	    send_IOT_msg(sensor_number, TMPRMSG, DEFINE);
-	    
-	    if (sensor_number == 4) auto_discovery = AUTO_COMPLETE;
-	    else sensor_number++;
-          }
-	  else auto_discovery = AUTO_COMPLETE;
-	}
+        define_temp_sensors();
       }
-      
-      mqtt_start_ctr2 = 0;
+
+      mqtt_start_ctr1 = 0; // Clear the 50ms counter
       if (auto_discovery == AUTO_COMPLETE) {
+        auto_discovery_step = STEP_NULL;
         mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
       }
     }
     break;
 
   case MQTT_START_QUEUE_PUBLISH_ON:
-    if (mqtt_start_ctr2 > 2) {
-      // Wait 300ms before queuing Publish message 
+    if (mqtt_start_ctr1 > 4) {
+      // Wait 200ms before queuing Publish message 
       // Publish the availability "online" message
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
@@ -1419,14 +1406,14 @@ void mqtt_startup(void)
                    6,
                    MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
       // Indicate succesful completion
-      mqtt_start_ctr2 = 0;
+      mqtt_start_ctr1 = 0; // Clear the 50ms counter
       mqtt_start = MQTT_START_QUEUE_PUBLISH_PINS;
     }
     break;
   
   case MQTT_START_QUEUE_PUBLISH_PINS:
-    if (mqtt_start_ctr2 > 2) {
-      // Wait 300ms before starting
+    if (mqtt_start_ctr1 > 4) {
+      // Wait 200ms before starting
       // Publish the state of all pins one at a time.
       // This is accomplished by setting ON_OFF_word_sent to the inverse of
       // whatever is currently in ON_OFF_word. This will cause the normal
@@ -1440,22 +1427,128 @@ void mqtt_startup(void)
 }
 
 
-void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
+void mqtt_redefine_temp_sensors(void)
 {
-  // Format and send IO delete/define messages and sensor delete/
-  // define messages.
-  // The IOT_ptr indicates the pin number (1 to 16) or sensor number
-  // (0 to 4) that is being messaged.
-  unsigned char app_message[8];       // Stores the application message
-                                      // (the payload) that will be sent
-				      // in an MQTT message. Note that
-				      // app_message[2]... contains the
-				      // pin or sensor number allowing
-				      // use in the topic.
-//  unsigned char topic_IOTnum[5];      // Stores the IOT number (the pin
-                                      // number or temperature sensor
-                                      // number) that will be sent in an
-                                      // MQTT message.
+  if (mqtt_start_ctr1 > 2) {
+    auto_discovery = DEFINE_TEMP_SENSORS;
+    if (auto_discovery_step == STEP_NULL) {
+      auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
+    }
+    define_temp_sensors();
+    mqtt_start_ctr1 = 0; // Clear the 50ms counter
+    if (auto_discovery == AUTO_COMPLETE) {
+      auto_discovery_step = STEP_NULL;
+      redefine_temp_sensors = 0;
+    }
+  }
+}
+
+
+void define_temp_sensors(void)
+{
+  // This function is called from two places:
+  //   The mqtt_startup function
+  //   The main loop when redefine_temp_sensors == 1
+  //
+  // This function is called from the mqtt_startup function when
+  //   auto_discovery == DEFINE_TEMP_SENSORS
+  // This function is part of the state machine contained within the
+  // mqtt_startup and will manipulate the following state machine controls:
+  //   auto_discovery_step == SEND_TEMP_SENSOR_DELETE
+  //   auto_discovery_step = SEND_TEMP_SENSOR_DELETE2
+  //   auto_discovery_step = SEND_TEMP_SENSOR_DEFINE  
+  // When complete this function will set
+  //   auto_discovery = AUTO_COMPLETE
+  //
+  // This function is called from the main loop when
+  //   redefine_temp_sensors == 1
+  //
+  // It should not be possible for the mqtt_startup function and the main
+  // loop to be calling this function at the same time.
+  
+  // Pin 16 will be disabled already if it is being used for temperature
+  // sensors.
+  // This part of the state machine will always send a delete temperature
+  // sensor message for every entry in the temp_FoundROM and FoundROM tables
+  // to make sure all sensors are deleted, then it will send a define msg for
+  // every sensor appearing in the FoundROM table. Note that this may cause
+  // duplicate "delete" messages to be generated, and/or messages to delete
+  // sensor "0000" which is the "empty" value in the tables.
+  
+  if (stored_config_settings & 0x08) {
+    // If the test is true Temperature Sensors are enabled.
+    
+    if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
+      // Create temperature sensor delete msg.
+      send_IOT_msg(sensor_number,
+                   TMPRMSG,
+		   DELETE,
+		   FoundROM[sensor_number][2],
+		   FoundROM[sensor_number][1]);
+      if (sensor_number == 4) {
+        sensor_number = 0;
+        auto_discovery_step = SEND_TEMP_SENSOR_DELETE2;
+      }
+      else sensor_number++;
+    }
+    
+    else if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE2) {
+      // Create temperature sensor delete msg.
+      send_IOT_msg(sensor_number,
+                   TMPRMSG,
+		   DELETE,
+		   temp_FoundROM[sensor_number][2],
+		   temp_FoundROM[sensor_number][1]);
+      
+      if (sensor_number == 4) {
+        sensor_number = 0;
+        auto_discovery_step = SEND_TEMP_SENSOR_DEFINE;
+      }
+      else sensor_number++;
+    }
+    
+    else if ((auto_discovery_step == SEND_TEMP_SENSOR_DEFINE) && (sensor_number <= (numROMs))) {
+      // Create temperature sensor define msg.
+      // If no sensors were detected numROMs will be -1 and we will not
+      // create a Config message).
+      // If there is at least one sensor detetected numROMs will be zero or
+      // greater. In that case send the sensor definition as a Config message.
+      
+      // Send Temp Sensor define messages.
+      send_IOT_msg(sensor_number,
+                   TMPRMSG,
+		   DEFINE,
+		   FoundROM[sensor_number][2],
+		   FoundROM[sensor_number][1]);
+      
+      if (sensor_number == 4) {
+        auto_discovery = AUTO_COMPLETE;
+      }
+      else sensor_number++;
+    }
+    else {
+      auto_discovery = AUTO_COMPLETE;
+    }
+  }
+}
+
+
+void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel, uint8_t altMSB, uint8_t altLSB)
+{
+  // Format and send IO delete/define messages and sensor delete/define
+  // messages.
+      //---------------------------------------------------------------------//
+  // For IOT == INPUTMSG or OUTPUTMSG the IOT_ptr indicates the pin number
+  //   (1 to 16) that is being messaged.
+  // For IOT == TMPRMSG the IOT_PTR is not used and instead the altMSB and
+  //   altLSB are used in creating Temperature Sensor IDs
+      //---------------------------------------------------------------------//
+  unsigned char app_message[8]; // Stores the application message (the
+                                // payload) that will be sent in an MQTT
+				// message. Note that app_message[2] to [5]
+				// contains the pin or sensor number allowing
+				// app_message to be used in creating the
+				// topic part of the message.
   
   // Create the % marker in the payload template
   app_message[0] = '%';
@@ -1479,9 +1572,6 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
     // Create the pin number for the app_message and topic.
     emb_itoa(IOT_ptr, OctetArray, 10, 2);
     // Add pin number to payload template
-//    app_message[2] = topic_IOTnum[0] = OctetArray[0];
-//    app_message[3] = topic_IOTnum[1] = OctetArray[1];
-//    app_message[4] = topic_IOTnum[2] = '\0';
     app_message[2] = OctetArray[0];
     app_message[3] = OctetArray[1];
     app_message[4] = '\0';
@@ -1490,26 +1580,18 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
   if (IOT == TMPRMSG) {
     // Create the sensor number for the app_message and topic.
     // Add first part of sensor ID to payload template
-//    int2hex(FoundROM[IOT_ptr][2]);   // MSByte
-//    app_message[2] = topic_IOTnum[0] = OctetArray[0];  // MSnibble
-//    app_message[3] = topic_IOTnum[1] = OctetArray[1];  // LSnibble
-//    int2hex(FoundROM[IOT_ptr][1]);   // LSByte
-//    app_message[4] = topic_IOTnum[2] = OctetArray[0];  // MSnibble
-//    app_message[5] = topic_IOTnum[3] = OctetArray[1];  // LSnibble
-//    app_message[6] = topic_IOTnum[4] = '\0';
-    int2hex(FoundROM[IOT_ptr][2]);   // MSByte
-    app_message[2] = OctetArray[0];  // MSnibble
-    app_message[3] = OctetArray[1];  // LSnibble
-    int2hex(FoundROM[IOT_ptr][1]);   // LSByte
-    app_message[4] = OctetArray[0];  // MSnibble
-    app_message[5] = OctetArray[1];  // LSnibble
+    int2hex(altMSB);                // MSByte
+    app_message[2] = OctetArray[0]; // MSnibble
+    app_message[3] = OctetArray[1]; // LSnibble
+    int2hex(altLSB);                // LSByte
+    app_message[4] = OctetArray[0]; // MSnibble
+    app_message[5] = OctetArray[1]; // LSnibble
     app_message[6] = '\0';
   }
 
   // Create the rest of the topic
   strcat(topic_base, mac_string);
   strcat(topic_base, "/");
-//  strcat(topic_base, topic_IOTnum);
   strcat(topic_base, &app_message[2]);
   strcat(topic_base, "/config");
       
@@ -1593,11 +1675,11 @@ void mqtt_sanity_check(void)
     mqtt_restart_step = MQTT_RESTART_DISCONNECT_WAIT;
     // Disconnect the MQTT client
     mqtt_disconnect(&mqttclient);
-    mqtt_sanity_ctr = 0; // Clear 100ms counter
+    mqtt_sanity_ctr = 0; // Clear 50ms counter
     break;
   
   case MQTT_RESTART_DISCONNECT_WAIT:
-    if (mqtt_sanity_ctr > 10) {
+    if (mqtt_sanity_ctr > 20) {
       // The mqtt_disconnect() is given 1 second to be communicated before
       // we move on to TCP close
       mqtt_restart_step = MQTT_RESTART_TCPCLOSE;
@@ -1622,7 +1704,7 @@ void mqtt_sanity_check(void)
     // Signal uip_TcpAppHubCall() to close the TCP connection
     mqtt_close_tcp = 1;
     // Capture time to delay the next step
-    mqtt_sanity_ctr = 0; // Clear 100ms counter
+    mqtt_sanity_ctr = 0; // Clear 50ms counter
     mqtt_restart_step = MQTT_RESTART_TCPCLOSE_WAIT;
     break;
   
@@ -1631,8 +1713,8 @@ void mqtt_sanity_check(void)
     // For the moment I'm not sure how to do this, so I will just allow
     // enough time for it to happen. That is probably very fast, but I will
     // allow 2 seconds.
-    if (mqtt_sanity_ctr > 20) {
-      mqtt_close_tcp = 0;
+    if (mqtt_sanity_ctr > 40) {
+      mqtt_close_tcp = 0; // Clear 50ms counter
       mqtt_restart_step = MQTT_RESTART_SIGNAL_STARTUP;
     }
     break;

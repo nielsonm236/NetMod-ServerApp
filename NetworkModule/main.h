@@ -62,7 +62,9 @@ uint32_t calculate_timer(uint16_t timer_value);
 void decrement_pin_timers(void);
 
 void mqtt_startup(void);
-void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel);
+void mqtt_redefine_temp_sensors(void);
+void define_temp_sensors(void);
+void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel, uint8_t altMSB, uint8_t altLSB);
 void mqtt_sanity_check(void);
 void publish_callback(void** unused, struct mqtt_response_publish *published);
 void publish_outbound(void);
@@ -114,11 +116,14 @@ int8_t reverse_bit_order(uint8_t k);
 #define DEFINE_TEMP_SENSORS		3
 #define AUTO_COMPLETE			4
 
-#define SEND_INPUT_DELETE		0
-#define SEND_INPUT_DEFINE		1
-#define SEND_OUTPUT_DELETE		2
-#define SEND_OUTPUT_DEFINE		3
-#define SEND_TEMP_SENSOR_DELETE		4
+#define STEP_NULL			0
+#define SEND_INPUT_DELETE		1
+#define SEND_INPUT_DEFINE		2
+#define SEND_OUTPUT_DELETE		3
+#define SEND_OUTPUT_DEFINE		4
+#define SEND_TEMP_SENSOR_DELETE		5
+#define SEND_TEMP_SENSOR_DELETE2	6
+#define SEND_TEMP_SENSOR_DEFINE		7
 
 #define DEFINE				0
 #define DELETE				1

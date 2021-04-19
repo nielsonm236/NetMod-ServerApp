@@ -215,6 +215,7 @@ extern uint8_t FoundROM[5][8];            // Table of found ROM codes
                                           // [x][5] = byte 5 serial number
                                           // [x][6] = MSByte serial number
                                           // [x][7] = CRC
+extern int numROMs;                       // Count of DS18B20 devices found
 
 
 // Variables stored in Flash
@@ -2242,10 +2243,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    case 21: emb_itoa(uip_stat.tcp.synrst,   OctetArray, 10, 10); break;
 	  }
 
-	  for (i=0; i<10; i++) {
-            *pBuffer = OctetArray[i];
-            pBuffer++;
-	  }
+//	  for (i=0; i<10; i++) {
+//            *pBuffer = OctetArray[i];
+//            pBuffer++;
+//	  }
+        pBuffer = stpcpy(pBuffer, OctetArray);
 	}
 #endif // UIP_STATISTICS
 
@@ -2255,9 +2257,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           if (nParsedNum == 31) emb_itoa(second_counter, OctetArray, 10, 10);
 	  if (nParsedNum == 32) emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
           if (nParsedNum == 31 || nParsedNum == 32) {
-	    for (i=0; i<10; i++) {
-              *pBuffer++ = OctetArray[i];
-	    }
+//	    for (i=0; i<10; i++) {
+//              *pBuffer++ = OctetArray[i];
+//	    }
+          pBuffer = stpcpy(pBuffer, OctetArray);
 	  }
           else if (nParsedNum == 33) {
 	    for (i=20; i<25; i++) {
@@ -2466,14 +2469,20 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // Output the sensor ID numbers
 	  // For display we output the MSByte first followed by the
 	  // LSByte
-	  *pBuffer++ = ' ';
-	  int2hex(FoundROM[nParsedNum][2]);
-	  *pBuffer++ = (OctetArray[0]);
-	  *pBuffer++ = (OctetArray[1]);
-	  int2hex(FoundROM[nParsedNum][1]);
-	  *pBuffer++ = (OctetArray[0]);
-	  *pBuffer++ = (OctetArray[1]);
-	  *pBuffer++ = ' ';
+	  // If the sensor does not exist ...
+	  if (nParsedNum <= numROMs) {
+	    *pBuffer++ = ' ';
+	    int2hex(FoundROM[nParsedNum][2]);
+	    *pBuffer++ = (OctetArray[0]);
+	    *pBuffer++ = (OctetArray[1]);
+	    int2hex(FoundROM[nParsedNum][1]);
+	    *pBuffer++ = (OctetArray[0]);
+	    *pBuffer++ = (OctetArray[1]);
+	    *pBuffer++ = ' ';
+	  }
+	  else {
+	    pBuffer = stpcpy(pBuffer, " ---- ");
+	  }
 	  
 	  // Output temperature data
           pBuffer = show_temperature_string(pBuffer, nParsedNum);

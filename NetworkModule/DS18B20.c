@@ -65,9 +65,17 @@ static const uint8_t dec_temp[] = {
 // Derived from Maxim code
 // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
 uint8_t ROM[8];                     // ROM bytes
+                                    // [0] = Family Code
+                                    // [1] = LSByte serial number
+                                    // [2] = byte 2 serial number
+                                    // [3] = byte 3 serial number
+                                    // [4] = byte 4 serial number
+                                    // [5] = byte 5 serial number
+                                    // [6] = MSByte serial number
+                                    // [7] = CRC
 uint8_t lastDiscrep = 0;            // last discrepancy
 uint8_t doneFlag = 0;               // Done flag
-extern uint8_t FoundROM[5][8];      // Table of found ROM codes
+extern uint8_t FoundROM[5][8];      // Table of ROM codes
                                     // [x][0] = Family Code
                                     // [x][1] = LSByte serial number
                                     // [x][2] = byte 2 serial number
@@ -77,8 +85,18 @@ extern uint8_t FoundROM[5][8];      // Table of found ROM codes
                                     // [x][6] = MSByte serial number
                                     // [x][7] = CRC
 extern int numROMs;                 // Count of DS18B20 devices found
-
-
+extern uint8_t temp_FoundROM[5][8]; // Temporary table of old ROM codes
+                                    // [x][0] = Family Code
+                                    // [x][1] = LSByte serial number
+                                    // [x][2] = byte 2 serial number
+                                    // [x][3] = byte 3 serial number
+                                    // [x][4] = byte 4 serial number
+                                    // [x][5] = byte 5 serial number
+                                    // [x][6] = MSByte serial number
+                                    // [x][7] = CRC
+extern uint8_t redefine_temp_sensors; // Flag used to signal the need
+                                    // to redefine the HA temp sensors
+                                    // via Auto Discovery messages
 
 
 //---------------------------------------------------------------------------//
@@ -227,7 +245,7 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
   int16_t whole_temp;
   uint8_t decimal_temp;
   extern uint8_t DS18B20_scratch[5][2];
-  uint8_t temp_string[7];
+  uint8_t sign_char;
   
   // Convert temperature reading to string.
   // DS18B20_temp_xx is a 16 bit signed value. Bits are organized as
@@ -339,35 +357,34 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
 */
 
 
-  if (DS18B20_scratch[device_num][1] != 0x55) { // Check that sensor exists
-  
-    if (degCorF == 0) {
-      // Convert to degrees C
-      // Extract whole temp and decimal temp parts of the DS18B20
-      // values
+  if (device_num <= numROMs) { // Check that sensor exists
+      // Collect temperature value
       whole_temp = DS18B20_scratch[device_num][1];
       whole_temp = whole_temp << 8;
       whole_temp |= DS18B20_scratch[device_num][0];
-      whole_temp &= 0x07f0;
-      whole_temp = whole_temp >> 4;
-      decimal_temp = (uint8_t)DS18B20_scratch[device_num][0];
-      decimal_temp &= 0x0f;
-        
+      
+    if (degCorF == 0) {
+      // Convert to degrees C
+      // First convert negative number to absolute number
       if ((DS18B20_scratch[device_num][1] & 0x80) == 0x80) {
-        // Negative number conversion. Convert to positive
-	// number.
-        whole_temp = whole_temp ^ 0x007f;
-        decimal_temp = (uint8_t)(decimal_temp ^ 0x0f);
-        decimal_temp++;
-        decimal_temp = (uint8_t)(decimal_temp & 0x0f);
-        temp_string[0] = '-';
+        whole_temp = DS18B20_scratch[device_num][1];
+        whole_temp = whole_temp << 8;
+        whole_temp |= DS18B20_scratch[device_num][0];
+        whole_temp = whole_temp ^ 0xffff;
+        whole_temp++;
+        sign_char = '-';
       }
       else {
         // Positive number
-        temp_string[0] = ' ';
+        sign_char = ' ';
       }
+      
+      // Extract whole temp and decimal temp parts of the DS18B20
+      // values
+      decimal_temp = (uint8_t)(whole_temp & 0x000f);
+      whole_temp &= 0x07f0;
+      whole_temp = whole_temp >> 4;
     }
-    
 
     else {
       // Convert to degrees F
@@ -376,20 +393,15 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
       // is that some conversions are off by 0.1 degree - but this
       // is adequate for this application.
       {
-        uint16_t raw_temp;
         int16_t F_temp0;
         int32_t F_temp1;
         int32_t F_temp2;
         
-        // Use the raw number from the DS18B20 including the decimal
-        raw_temp = DS18B20_scratch[device_num][1];
-        raw_temp = raw_temp << 8;
-        raw_temp |= DS18B20_scratch[device_num][0];
-	// Recast raw_temp for subsequent calculations. Why two steps
+	// Recast whole_temp for subsequent calculations. Why two steps
 	// here? Recast of a uint16 to a int32 did not work properly,
 	// but recast of the uint16 to int16, then recast of the int16
 	// to the int32 DID work.
-        F_temp0 = (int16_t)raw_temp;
+        F_temp0 = (int16_t)whole_temp;
         F_temp1 = (int32_t)F_temp0;
         // Add 55 C to the value so math is always positive
         // We actually add 55 * 16, or 880, since we are working
@@ -416,25 +428,25 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
         whole_temp = (int16_t)(F_temp2 / 16);
         // Now calculate the "decimal" part of the display in degrees F
         decimal_temp = (uint8_t)(F_temp2 & 0xf);
-        temp_string[0] = ' ';
+        sign_char = ' ';
         if (F_temp2 < 0) {
-	  // Must use twos complement if the result is negative
+	  // Must use twos complement if the degrees F result is negative
           whole_temp = whole_temp * -1;
           decimal_temp = (uint8_t)(((decimal_temp ^ 0xf) + 1) & 0x0f);
-          temp_string[0] = '-';
+          sign_char = '-';
         }
       }
     }
 
-    // Build string
-    emb_itoa(whole_temp, OctetArray, 10, 3);
-    temp_string[1] = OctetArray[0];
-    temp_string[2] = OctetArray[1];
-    temp_string[3] = OctetArray[2];
-    temp_string[4] = '.';
-    temp_string[5] = dec_temp[decimal_temp];
-    temp_string[6] = '\0';
-    strcpy(OctetArray, temp_string);
+    // Build output string
+    emb_itoa(whole_temp, OctetArray, 10, 4);
+    OctetArray[0] = sign_char;
+    // OctetArray[1] keep;
+    // OctetArray[2] keep;
+    // OctetArray[3] keep;
+    OctetArray[4] = '.';
+    OctetArray[5] = dec_temp[decimal_temp];
+    OctetArray[6] = '\0';
   }
   else {
     // Sensor does not exist - return ------ string
@@ -561,15 +573,23 @@ void FindDevices(void)
   // Derived from Maxim code
   // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
   //
+  // This function calls First() and Next() to fill the ROM[] array with
+  // the 8 bytes of Family Code, Serial Number, and CRC one device at a
+  // time. This function then copies the ROM[] contents in to the FoundROM[][]
+  // array to collect the information for all attached devices in one array.
+  // Since this application is only interested in the two least significant
+  // serial number bytes those are the only ones collected in the FoundROM[][]
+  // array. This is done to minimize RAM used.
+  //
   // When done all found devices will have their ROM contents stored in the
   // Found_ROM table, and numROMs will contain the index of the last device
   // found (a value equal to one less than the number of devices found since
   // the index is 0, 1, 2, 3, 4 for the devices).
 
+  int i;
   int m;
   
   numROMs = -1; // -1 indicates no devices
-  
   if (!reset_pulse()) {  //Begins when a presence is detected
     if (First()) {       //Begins when at least one part is found
       do {
@@ -580,6 +600,13 @@ void FindDevices(void)
         }
       } while (Next() && (numROMs < 5)); // Continues until no additional
                                          // devices are found
+    }
+    for (i=0; i<5; i++) {
+      if (i > numROMs) {
+        memset(&FoundROM[i][0], 0, 8); // Zero out empty fields - this is done
+	                               // to make sure devices that go missing
+				       // during runtime are removed.
+      }
     }
   }
 }
@@ -696,3 +723,34 @@ uint8_t dallas_crc8(uint8_t *data, uint8_t size)
     }
     return crc;
 }
+
+
+void check_temperature_sensor_changes(void)
+{
+  // This function will check for changes in the serial numbers of
+  // the Temperature Sensors. This is done to determine if any sensors
+  // were added or deleted during runtime.
+  
+  // Overview: The function will
+  //   - Store the existing FoundROM table in the temp_FoundROM table
+  //   - Perform a FindDevices call to update the FoundROM table
+  //   - Compare the temp_FoundROM table with the new FoundROM table to
+  //     determine if there are differences
+  //   - If there is a difference the main loop is signaled (via
+  //     redefine_temp_sensors = 1) so that Home Assistant will be
+  //     updated via Auto Discovery messages.
+  // Browser Only users will be updated simply because the FindDevices()
+  // function is run below.
+  
+  // Copy the current FoundROM table to the temp_FoundROM table
+  memcpy(&temp_FoundROM[0][0], &FoundROM[0][0], 40);
+  
+  // Call FindDevices to generate a new FoundROM table.
+  FindDevices();
+
+  if (memcmp(&temp_FoundROM[0][0], &FoundROM[0][0], 40) != 0) {
+    // Signal the main loop that the temp sensors need to be updated
+    redefine_temp_sensors = 1;
+  }
+}
+

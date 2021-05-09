@@ -354,6 +354,17 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
   DS18B20_scratch[3][0] = 0xda;
   DS18B20_scratch[4][1] = 0xfe; // -18.4375C  -01.2F
   DS18B20_scratch[4][0] = 0xd9;
+
+  DS18B20_scratch[0][1] = 0xfe; // -21.8750C  -07.4F
+  DS18B20_scratch[0][0] = 0xa2;
+  DS18B20_scratch[1][1] = 0xfe; // -21.9375C  -07.5F
+  DS18B20_scratch[1][0] = 0xa1;
+  DS18B20_scratch[2][1] = 0xfe; // -22.0000C  -07.6F
+  DS18B20_scratch[2][0] = 0xa0;
+  DS18B20_scratch[3][1] = 0xfe; // -22.0625C  -07.7F
+  DS18B20_scratch[3][0] = 0x9f;
+  DS18B20_scratch[4][1] = 0xfe; // -22.1250C  -07.8F
+  DS18B20_scratch[4][0] = 0x9e;
 */
 
 
@@ -449,8 +460,8 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
     OctetArray[6] = '\0';
   }
   else {
-    // Sensor does not exist - return ------ string
-    strcpy(OctetArray, "------");
+    // Sensor does not exist - return " -----" string
+    strcpy(OctetArray, " -----");
   }
 }
 
@@ -577,14 +588,17 @@ void FindDevices(void)
   // the 8 bytes of Family Code, Serial Number, and CRC one device at a
   // time. This function then copies the ROM[] contents in to the FoundROM[][]
   // array to collect the information for all attached devices in one array.
-  // Since this application is only interested in the two least significant
-  // serial number bytes those are the only ones collected in the FoundROM[][]
-  // array. This is done to minimize RAM used.
   //
   // When done all found devices will have their ROM contents stored in the
   // Found_ROM table, and numROMs will contain the index of the last device
   // found (a value equal to one less than the number of devices found since
   // the index is 0, 1, 2, 3, 4 for the devices).
+  // 
+  // Since the DS18B20 devices send their ROM contents starting with the
+  // LSbit, the ROM codes are sorted consistantly based on LSbit to MSbit.
+  // This sorting might be a little confusing to the end user because the
+  // ROM code display in the Browser is shown as hex encoded bytes with
+  // MSByte on the left and LSByte on the right.
 
   int i;
   int m;

@@ -58,7 +58,8 @@ SOFTWARE.
 int16_t mqtt_pal_sendall(const void* buf, uint16_t len);
 
 
-char *stpcpy(char * dest, const char * src);
+//char *stpcpy(char * dest, const char * src);
+char *stpcpy(char * dest, char * src);
 
 
 #endif // define __MQTT_PAL_H__

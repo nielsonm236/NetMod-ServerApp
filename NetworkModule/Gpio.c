@@ -31,10 +31,10 @@
 #include "main.h"
 #include "uipopt.h"
 
-extern uint8_t magic4;			// MSB Magic Number stored in EEPROM
-extern uint8_t magic3;			// 
-extern uint8_t magic2;			// 
-extern uint8_t magic1;			// LSB Magic Number
+extern uint8_t stored_magic4;		// MSB Magic Number stored in EEPROM
+extern uint8_t stored_magic3;		// 
+extern uint8_t stored_magic2;		// 
+extern uint8_t stored_magic1;		// LSB Magic Number
 extern uint8_t stored_pin_control[16];  // Per pin control settings stored in
                                         // EEPROM
 
@@ -101,10 +101,10 @@ void gpio_init(void)
   // already set to the previous state of the output. Doing this in
   // the gpio.c module reduces the time that the pins are in a
   // tri-state condition.
-  if ((magic4 == 0x55) && 
-      (magic3 == 0xee) && 
-      (magic2 == 0x0f) && 
-      (magic1 == 0xf0)) {
+  if ((stored_magic4 == 0x55) && 
+      (stored_magic3 == 0xee) && 
+      (stored_magic2 == 0x0f) && 
+      (stored_magic1 == 0xf0)) {
 
     // Create 16bit versions of the pin control information
     encode_16bit_registers();
@@ -237,7 +237,7 @@ void gpio_init(void)
 }
 
 // *****************************************************
-// the previous version his here commented just in case.
+// the previous version is here commented just in case.
 // *****************************************************
 /*
 void gpio_init(void)
@@ -269,10 +269,10 @@ void gpio_init(void)
   // already set to the previous state of the output. Doing this in
   // the gpio.c module reduces the time that the pins are in a
   // tri-state condition.
-  if ((magic4 == 0x55) && 
-      (magic3 == 0xee) && 
-      (magic2 == 0x0f) && 
-      (magic1 == 0xf0)) {
+  if ((stored_magic4 == 0x55) && 
+      (stored_magic3 == 0xee) && 
+      (stored_magic2 == 0x0f) && 
+      (stored_magic1 == 0xf0)) {
 
     // Create 16bit versions of the pin control information
     encode_16bit_registers();

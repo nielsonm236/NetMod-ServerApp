@@ -350,20 +350,20 @@ static const char g_HtmlPageIOControl[] =
 "nt),o=t=>e.write(t),s=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join("
 "''),a=t=>t.match(/.{2}/g).map(t=>r(t,16)),c=t=>encodeURIComponent(t),d=[],h=[],p=(t,e,n)"
 "=>{return`<input type=radio name=o${e} value=${t} ${n==t?'checked':''}/><label>${(t?'on'"
-":'off').toUpperCase()}</label>`},l=()=>location.reload();return a(t.h00).forEach((t,e)=>"
-"{3==(3&t)?h.push(`<tr><td>Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>${"
-"p(1,e,t>>7)}${p(0,e,t>>7)}</td></tr>`):1==(3&t)&&d.push(`<tr><td>Input #${e+1}</td><td c"
-"lass='s${t>>7} t3'></td><td/></tr>`)}),o(d.join('')),o(`<tr><th></th><th></th>${h.length"
-">0?'<th class=c>SET</th>':''}</tr>`),o(h.join('')),{s:e=>{e.preventDefault();const r=new"
-" XMLHttpRequest,o=Array.from((()=>{const e=new FormData(n);return e.set('h00',s(a(t.h00)"
-".map((t,n)=>{const r='o'+n,o=e.get(r)<<7;return e.delete(r),o}))),e})().entries(),([t,e]"
-")=>`${c(t)}=${c(e)}`).join('&');r.open('POST','/',!1),r.send(o+'&z00=0'),l()},l:l}})({h0"
-"0:'%h00'});"
-
+":'off').toUpperCase()}</label>`},l=()=>location.href='/60';return a(t.h00).forEach((t,e)"
+"=>{3==(3&t)?h.push(`<tr><td>Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>"
+"${p(1,e,t>>7)}${p(0,e,t>>7)}</td></tr>`):1==(3&t)&&d.push(`<tr><td>Input #${e+1}</td><td"
+" class='s${t>>7} t3'></td><td/></tr>`)}),o(d.join('')),o(`<tr><th></th><th></th>${h.leng"
+"th>0?'<th class=c>SET</th>':''}</tr>`),o(h.join('')),{s:e=>{e.preventDefault();const r=n"
+"ew XMLHttpRequest,o=Array.from((()=>{const e=new FormData(n);return e.set('h00',s(a(t.h0"
+"0).map((t,n)=>{const r='o'+n,o=e.get(r)<<7;return e.delete(r),o}))),e})().entries(),([t,"
+"e])=>`${c(t)}=${c(e)}`).join('&');r.open('POST','/',!1),r.send(o+'&z00=0'),l()},l:l}})({"
+"h00:'%h00'});"
             "%y01"
       "<p/>"
+      "%y02`/60`'>Refresh</button> "
       "%y02`/61`'>Configuration</button>"
-      "%t00%t01%t02%t03%t04"
+      "<pre>%t00%t01%t02%t03%t04</pre>"
    "</body>"
 "</html>";
 
@@ -409,7 +409,7 @@ const m = (data => {
             })));
             return form_data;
         },
-        reload_page = () => location.reload(),
+        reload_page = () => location.href = '/60',
         submit_form = (event) => {
         	event.preventDefault();
 
@@ -584,37 +584,38 @@ static const char g_HtmlPageConfiguration[] =
          "<script>"
 "const m=(e=>{const t=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,out"
 "put:3},r={retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),p=s('for"
-"m'),d=Object.entries,l=parseInt,i=(e,t)=>l(e).toString(16).padStart(t,'0'),u=e=>e.map(e="
-">i(e,2)).join(''),m=e=>e.match(/.{2}/g).map(e=>l(e,16)),$=e=>encodeURIComponent(e),b=(e,"
+"m'),d=Object.entries,i=parseInt,l=(e,t)=>i(e).toString(16).padStart(t,'0'),u=e=>e.map(e="
+">l(e,2)).join(''),m=e=>e.match(/.{2}/g).map(e=>i(e,16)),$=e=>encodeURIComponent(e),b=(e,"
 "t)=>(e=>s(`input[name=${e}]`))(e).value=t,f=(e,t)=>{for(const n of a.querySelectorAll(e)"
 ")t(n)},h=(e,t)=>{for(const[n,o]of d(t))e.setAttribute(n,o)},g=(e,t)=>d(e).map(e=>`<optio"
 "n value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),x=(e,t,n,o='')=>`<i"
 "nput type='checkbox' name='${e}' value=${t} ${(n&t)==t?'checked':''}>${o}`,y=(e,t,n)=>{c"
-"onst o=new XMLHttpRequest;o.open(e,t,!1),o.send(n)},A=()=>c.reload(),T=()=>{a.body.inner"
-"Text='Wait 5s...',setTimeout(A,5e3)},j=m(e.g00)[0],E={required:!0};return f('.ip',e=>{h("
-"e,{...E,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|"
-"$)){4}'})}),f('.port',e=>{h(e,{...E,type:'number',min:10,max:65535})}),f('.up input',e=>"
-"{h(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',maxlengt"
-"h:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>b(t,m(e[t]).join('.'))),n.forEach"
-"(t=>b(t,l(e[t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),m(e.h00).forEach("
-"(e,t)=>{const n=1&e?x('p'+t,4,e):'',s=3==(3&e)?`<select name='p${t}'>${g(r,24&e)}</selec"
-"t>`:'',p='#d'==c.hash?`<td>${e}</td>`:'';(e=>a.write(e))(`<tr><td>#${t+1}</td><td><selec"
-"t name='p${t}'>${g(o,3&e)}</select></td><td>${n}</td><td>${s}</td>${p}</tr>`)}),s('.f')."
-"innerHTML=Array.from(d({'Full Duplex':1,'HA Auto':6,MQTT:4,DS18B20:8}),([e,t])=>x('g00',"
-"t,j,e)).join('</br>'),{r:()=>{y('GET','/91'),T()},s:o=>{o.preventDefault();const r=Array"
-".from((()=>{const o=new FormData(p),r=e=>o.getAll(e).map(e=>l(e)).reduce((e,t)=>e|t,0);r"
-"eturn t.forEach(e=>o.set(e,u(o.get(e).split('.')))),n.forEach(e=>o.set(e,i(o.get(e),4)))"
-",o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u(m(e.h00).map("
-"(e,t)=>{const n='p'+t,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})().e"
-"ntries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0'),T()},l:A}})({b00"
-":'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00"
-":'%g00'});"
+"onst o=new XMLHttpRequest;o.open(e,t,!1),o.send(n)},A=()=>c.href='/61',T=()=>{a.body.inn"
+"erText='Wait 5s...',setTimeout(A,5e3)},j=m(e.g00)[0],E={required:!0};return f('.ip',e=>{"
+"h(e,{...E,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$"
+")|$)){4}'})}),f('.port',e=>{h(e,{...E,type:'number',min:10,max:65535})}),f('.up input',e"
+"=>{h(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',maxlen"
+"gth:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>b(t,m(e[t]).join('.'))),n.forEa"
+"ch(t=>b(t,i(e[t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),m(e.h00).forEac"
+"h((e,t)=>{const n=1&e?x('p'+t,4,e):'',s=3==(3&e)?`<select name='p${t}'>${g(r,24&e)}</sel"
+"ect>`:'',p='#d'==c.hash?`<td>${e}</td>`:'';(e=>a.write(e))(`<tr><td>#${t+1}</td><td><sel"
+"ect name='p${t}'>${g(o,3&e)}</select></td><td>${n}</td><td>${s}</td>${p}</tr>`)}),s('.f'"
+").innerHTML=Array.from(d({'Full Duplex':1,'HA Auto':6,MQTT:4,DS18B20:8}),([e,t])=>x('g00"
+"',t,j,e)).join('</br>'),{r:()=>{y('GET','/91'),T()},s:o=>{o.preventDefault();const r=Arr"
+"ay.from((()=>{const o=new FormData(p),r=e=>o.getAll(e).map(e=>i(e)).reduce((e,t)=>e|t,0)"
+";return t.forEach(e=>o.set(e,u(o.get(e).split('.')))),n.forEach(e=>o.set(e,l(o.get(e),4)"
+")),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u(m(e.h00).ma"
+"p((e,t)=>{const n='p'+t,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})()"
+".entries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0'),T()},l:A}})({b"
+"00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g"
+"00:'%g00'});"
             "%y01"
       "<p>Code Revision %w00<br/>"
         "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
       "</p>"
       "<button title='Save first!' onclick='m.r()'>Reboot</button>"
       "<br><br>"
+      "%y02`/61`'>Refresh</button> "
       "%y02`/60`'>IO Control</button>"
    "</body>"
 "</html>";
@@ -680,7 +681,7 @@ const m = (data => {
           request.open(method, url, false);
           request.send(data);
         },
-        reload_page = () => loc.reload(),
+        reload_page = () => loc.href = '/61',
         wait_reboot = () => {
           doc.body.innerText = 'Wait 5s...';
           setTimeout(reload_page, 5000);
@@ -782,25 +783,25 @@ static const char g_HtmlPageIOControl[] =
                "<td colspan=2 style='text-align: left'>%a00</td>"
             "</tr>"
             "<script>"
-"const m=(t=>{const e=document,j=e.querySelector.bind(e)('form'),r=(Object.entries,parseI"
-"nt),n=t=>e.write(t),o=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join("
-"''),a=t=>t.match(/.{2}/g).map(t=>r(t,16)),s=t=>encodeURIComponent(t),d=[],c=[],h=(t,e,j)"
-"=>{return`<input type=radio name=o${e} value=${t} ${j==t?'checked':''}/><label>${(t?'on'"
-":'off').toUpperCase()}</label>`},l=()=>location.reload();return a(t.h00).forEach((e,j)=>"
-"{var r=t['j'+(j+'').padStart(2,'0')];3==(3&e)?c.push(`<tr><td>${r}</td><td class='s${e>>"
-"7} t3'></td><td class=c>${h(1,j,e>>7)}${h(0,j,e>>7)}</td></tr>`):1==(3&e)&&d.push(`<tr><"
-"td>${r}</td><td class='s${e>>7} t3'></td><td/></tr>`)}),n(d.join('')),n(`<tr><th></th><t"
-"h></th>${c.length>0?'<th class=c>SET</th>':''}</tr>`),n(c.join('')),{s:e=>{e.preventDefa"
-"ult();const r=new XMLHttpRequest,n=Array.from((()=>{const e=new FormData(j);return e.set"
-"('h00',o(a(t.h00).map((t,j)=>{const r='o'+j,n=e.get(r)<<7;return e.delete(r),n}))),e})()"
-".entries(),([t,e])=>`${s(t)}=${s(e)}`).join('&');r.open('POST','/',!1),r.send(n+'&z00=0'"
-"),l()},l:l}})({h00:'%h00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j"
-"05',j06:'%j06',j07:'%j07',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j"
-"13',j14:'%j14',j15:'%j15'});"
+"const m=(t=>{const e=document,j=e.querySelector.bind(e)('form'),r=(Object.entries,parseInt)"
+",n=t=>e.write(t),o=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join(''),a="
+"t=>t.match(/.{2}/g).map(t=>r(t,16)),s=t=>encodeURIComponent(t),c=[],d=[],h=(t,e,j)=>{return"
+"`<input type=radio name=o${e} value=${t} ${j==t?'checked':''}/><label>${(t?'on':'off').toUp"
+"perCase()}</label>`},p=()=>location.href='/60';return a(t.h00).forEach((e,j)=>{var r=t['j'+"
+"(j+'').padStart(2,'0')];3==(3&e)?d.push(`<tr><td>${r}</td><td class='s${e>>7} t3'></td><td "
+"class=c>${h(1,j,e>>7)}${h(0,j,e>>7)}</td></tr>`):1==(3&e)&&c.push(`<tr><td>${r}</td><td cla"
+"ss='s${e>>7} t3'></td><td/></tr>`)}),n(c.join('')),n(`<tr><th></th><th></th>${d.length>0?'<"
+"th class=c>SET</th>':''}</tr>`),n(d.join('')),{s:e=>{e.preventDefault();const r=new XMLHttp"
+"Request,n=Array.from((()=>{const e=new FormData(j);return e.set('h00',o(a(t.h00).map((t,j)="
+">{const r='o'+j,n=e.get(r)<<7;return e.delete(r),n}))),e})().entries(),([t,e])=>`${s(t)}=${"
+"s(e)}`).join('&');r.open('POST','/',!1),r.send(n+'&z00=0'),p()},l:p}})({h00:'%h00',j00:'%j0"
+"0',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j07',j08:'%j08',"
+"j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j15'});"
             "%y01"
       "<p/>"
+      "%y02`/60`'>Refresh</button> "
       "%y02`/61`'>Configuration</button>"
-      "%t00%t01%t02%t03%t04"
+      "<pre>%t00%t01%t02%t03%t04</pre>"
    "</body>"
 "</html>";
 
@@ -846,7 +847,7 @@ const m = (data => {
             })));
             return form_data;
         },
-        reload_page = () => location.reload(),
+        reload_page = () => location.href = '/60',
         submit_form = (event) => {
         	event.preventDefault();
 
@@ -1026,45 +1027,46 @@ static const char g_HtmlPageConfiguration[] =
          "<script>"
 "const m=(e=>{const t=['b00','b04','b08'],i=['c00'],n={disabled:0,input:1,output:3},r={r"
 "etain:8,on:16,off:0},a={'0.1s':0,'1s':16384,'1m':32768,'1h':49152},o=document,s=locatio"
-"n,c=o.querySelector.bind(o),d=c('form'),j=Object.entries,l=parseInt,p=(e,t)=>l(e).toStr"
-"ing(16).padStart(t,'0'),m=e=>e.map(e=>p(e,2)).join(''),u=e=>e.match(/.{2}/g).map(e=>l(e"
+"n,c=o.querySelector.bind(o),j=c('form'),d=Object.entries,p=parseInt,l=(e,t)=>p(e).toStr"
+"ing(16).padStart(t,'0'),m=e=>e.map(e=>l(e,2)).join(''),u=e=>e.match(/.{2}/g).map(e=>p(e"
 ",16)),$=e=>encodeURIComponent(e),b=(e,t)=>(e=>c(`input[name=${e}]`))(e).value=t,f=(e,t)"
-"=>{for(const i of o.querySelectorAll(e))t(i)},h=(e,t)=>{for(const[i,n]of j(t))e.setAttr"
-"ibute(i,n)},g=(e,t)=>j(e).map(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]"
+"=>{for(const i of o.querySelectorAll(e))t(i)},h=(e,t)=>{for(const[i,n]of d(t))e.setAttr"
+"ibute(i,n)},g=(e,t)=>d(e).map(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]"
 "}</option>`).join(''),x=(e,t,i,n='')=>`<input type='checkbox' name='${e}' value=${t} ${"
 "(i&t)==t?'checked':''}>${n}`,y=(e,t,i)=>{const n=new XMLHttpRequest;n.open(e,t,!1),n.se"
-"nd(i)},S=()=>s.reload(),v=()=>{o.body.innerText='Wait 5s...',setTimeout(S,5e3)},A=u(e.g"
-"00)[0],E={required:!0};return f('.ip',e=>{h(e,{...E,title:'x.x.x.x format',pattern:'((2"
-"5[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),f('.port',e=>{h(e,{...E,type:'"
-"number',min:10,max:65535})}),t.forEach(t=>b(t,u(e[t]).join('.'))),i.forEach(t=>b(t,l(e["
-"t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),u(e.h00).forEach((t,i)=>{con"
-"st c=1&t?x('p'+i,4,t):'',d=(e,i)=>3==(3&t)?e:i,j=(''+i).padStart(2,'0'),l=d(u(e['i'+j])"
-".reduce((e,t)=>(e<<8)+t),0),p=d(`<select name='p${i}'>${g(r,24&t)}</select>`,''),m='#d'"
-"==s.hash?`<td>${t}</td>`:'',$=d(`<input type=number class=t8 name='i${j}' value='${1638"
-"3&l}' min=0 max=16383><select name='i${j}'>${g(a,49152&l)}</select>`,'');(e=>o.write(e)"
-")(`<tr><td>#${i+1}</td><td><select name='p${i}'>${g(n,3&t)}</select></td><td><input nam"
-"e='j${j}' value='${e['j'+j]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 l"
-"etters, numbers, and -*_. no spaces' maxlength=15/></td><td>${c}</td><td>${p}</td><td>$"
-"{$}</td>${m}</tr>`)}),c('.f').innerHTML=Array.from(j({'Full Duplex':1,DS18B20:8}),([e,t"
-"])=>x('g00',t,A,e)).join('</br>'),{r:()=>{y('GET','/91'),v()},s:n=>{n.preventDefault();"
-"const r=Array.from((()=>{const n=new FormData(d),r=e=>n.getAll(e).map(e=>l(e)).reduce(("
-"e,t)=>e|t,0);t.forEach(e=>n.set(e,m(n.get(e).split('.')))),i.forEach(e=>n.set(e,p(n.get"
-"(e),4))),n.set('d00',n.get('d00').toLowerCase().replace(/[:-]/g,'')),n.set('h00',m(u(e."
-"h00).map((e,t)=>{const i='p'+t,a=r(i);return n.delete(i),a})));for(let e=0;e<16;e++){le"
-"t t=(''+e).padStart(2,'0');n.set('i'+t,p(65535&r('i'+t),4))}return n.set('g00',m([r('g0"
-"0')])),n})().entries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0'),v"
-"()},l:S}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00',g00:'%g00"
-"',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j0"
-"7',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j"
-"15',i00:'%i00',i01:'%i01',i02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%"
-"i07',i08:'%i08',i09:'%i09',i10:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'"
-"%i15'});"
+"nd(i)},S=()=>s.href='/61',v=()=>{o.body.innerText='Wait 5s...',setTimeout(S,5e3)},A=u(e"
+".g00)[0],E={required:!0};return f('.ip',e=>{h(e,{...E,title:'x.x.x.x format',pattern:'("
+"(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),f('.port',e=>{h(e,{...E,type"
+":'number',min:10,max:65535})}),t.forEach(t=>b(t,u(e[t]).join('.'))),i.forEach(t=>b(t,p("
+"e[t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),u(e.h00).forEach((t,i)=>{c"
+"onst c=1&t?x('p'+i,4,t):'',j=(e,i)=>3==(3&t)?e:i,d=(''+i).padStart(2,'0'),p=j(u(e['i'+d"
+"]).reduce((e,t)=>(e<<8)+t),0),l=j(`<select name='p${i}'>${g(r,24&t)}</select>`,''),m='#"
+"d'==s.hash?`<td>${t}</td>`:'',$=j(`<input type=number class=t8 name='i${d}' value='${16"
+"383&p}' min=0 max=16383><select name='i${d}'>${g(a,49152&p)}</select>`,'');(e=>o.write("
+"e))(`<tr><td>#${i+1}</td><td><select name='p${i}'>${g(n,3&t)}</select></td><td><input n"
+"ame='j${d}' value='${e['j'+d]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15"
+" letters, numbers, and -*_. no spaces' maxlength=15/></td><td>${c}</td><td>${l}</td><td"
+">${$}</td>${m}</tr>`)}),c('.f').innerHTML=Array.from(d({'Full Duplex':1,DS18B20:8}),([e"
+",t])=>x('g00',t,A,e)).join('</br>'),{r:()=>{y('GET','/91'),v()},s:n=>{n.preventDefault("
+");const r=Array.from((()=>{const n=new FormData(j),r=e=>n.getAll(e).map(e=>p(e)).reduce"
+"((e,t)=>e|t,0);t.forEach(e=>n.set(e,m(n.get(e).split('.')))),i.forEach(e=>n.set(e,l(n.g"
+"et(e),4))),n.set('d00',n.get('d00').toLowerCase().replace(/[:-]/g,'')),n.set('h00',m(u("
+"e.h00).map((e,t)=>{const i='p'+t,a=r(i);return n.delete(i),a})));for(let e=0;e<16;e++){"
+"let t=(''+e).padStart(2,'0');n.set('i'+t,l(65535&r('i'+t),4))}return n.set('g00',m([r('"
+"g00')])),n})().entries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0')"
+",v()},l:S}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00',g00:'%g"
+"00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%"
+"j07',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'"
+"%j15',i00:'%i00',i01:'%i01',i02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:"
+"'%i07',i08:'%i08',i09:'%i09',i10:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15"
+":'%i15'});"
             "%y01"
       "<p>Code Revision %w00<br/>"
         "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
       "</p>"
       "<button title='Save first!' onclick='m.r()'>Reboot</button>"
       "<br><br>"
+      "%y02`/61`'>Refresh</button> "
       "%y02`/60`'>IO Control</button>"
    "</body>"
 "</html>";
@@ -1135,7 +1137,7 @@ const m = (data => {
           request.open(method, url, false);
           request.send(data);
         },
-        reload_page = () => loc.reload(),
+        reload_page = () => loc.href='/61',
         wait_reboot = () => {
           doc.body.innerText = 'Wait 5s...';
           setTimeout(reload_page, 5000);
@@ -1292,12 +1294,36 @@ static const char g_HtmlPageStats2[] =
 #endif // DEBUG_SUPPORT
 
 
+
+#if DEBUG_SENSOR_SERIAL == 1
+// Temperature Sensor Serial Number page Template
+#define WEBPAGE_SENSOR_SERIAL	7
+static const char g_HtmlPageTmpSerialNum[] =
+  "%y04%y05"
+  "<title>%a00: Temperature Sensor Serial Numbers</title>"
+  "</head>"
+  "<body>"
+  "<h1>Temperature Sensor Serial Numbers</h1>"
+  "<table>"
+  "<tr><td>%e40</td></tr>"
+  "<tr><td>%e41</td></tr>"
+  "<tr><td>%e42</td></tr>"
+  "<tr><td>%e43</td></tr>"
+  "<tr><td>%e44</td></tr>"
+  "</table>"
+  "<br>"
+  "<button onclick='location=`/61`'>Configuration</button>"
+  "</body>"
+  "</html>";
+#endif // DEBUG_SENSOR_SERIAL
+
+
 // Very Short IO state page Template
 // Only responds with a TCP payload that contains the 16 alphanumeric
 // characters representing the IO pins states. The response is not
 // browser compatible.
 // 4 bytes; size of reports 5
-#define WEBPAGE_SSTATE		7
+#define WEBPAGE_SSTATE		8
 static const char g_HtmlPageSstate[] =
   "%f00";
 
@@ -1328,7 +1354,6 @@ static const char g_HtmlPageSstate[] =
 
 // String for %y02 replacement in web page templates
 #define s2 "" \
-  "<button title='Save first!' onclick='location.reload()'>Refresh</button> " \
   "<button title='Save first!' onclick='location="
 
 // String for %y03 replacement in web page templates
@@ -1485,43 +1510,42 @@ uint16_t adjust_template_size()
     // subtract the size of the 5 placeholders.
     //
     if (stored_config_settings & 0x08) {
-      //  %t00 "<p>Temperature Sensors<br> xxxx "
+      //  %t00 "<p>Temperature Sensors<br> xxxxxxxxxxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    32 bytes of text plus 27 bytes of data = 59
-      //    size = size + 59 - 4
-      size = size + 55;
+      //    40 bytes of text plus 27 bytes of data = 59
+      //    size = size + 67 - 4
+      size = size + 63;
       //
-      //  %t01 "<br> xxxx " 
+      //  %t01 "<br> xxxxxxxxxxxx " 
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    10 bytes of text plus 27 bytes of data = 37
-      //    size = size + 37 - 4
-      size = size + 33;
+      //    18 bytes of text plus 27 bytes of data = 37
+      //    size = size + 45 - 4
+      size = size + 41;
       //
-      //  %t02 "<br> xxxx "
+      //  %t02 "<br> xxxxxxxxxxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    10 bytes of text plus 27 bytes of data = 37
-      //    size = size + 34 - 4
-      size = size + 33;
+      //    18 bytes of text plus 27 bytes of data = 37
+      //    size = size + 45 - 4
+      size = size + 41;
       //
-      //  %t03 "<br> xxxx "
+      //  %t03 "<br> xxxxxxxxxxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    10 bytes of text plus 27 bytes of data = 37
-      //    size = size + 37 - 4
-      size = size + 33;
+      //    18 bytes of text plus 27 bytes of data = 37
+      //    size = size + 45 - 4
+      size = size + 41;
       //
-      //  %t04 "<br> xxxx "
+      //  %t04 "<br> xxxxxxxxxxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
       //      plus "<br></p>"
-      //    10 bytes of text
-      //    plus 27 bytes of data
-      //    plus 8 bytes of text = 45
-      //    size = size + 45 - 4
-      size = size + 41;
+      //    18 bytes of text plus 27 bytes of data = 45
+      //    plus 8 bytes of text = 53
+      //    size = size + 53 - 4
+      size = size + 49;
     }
     else {
       // Subtract the size of the placeholders as they won't be used
@@ -1540,12 +1564,12 @@ uint16_t adjust_template_size()
     // size = size + (#instances) x (ps[1].size - marker_field_size);
     // size = size + ps[1].size_less4;
     size = size + ps[1].size_less4;
-    
+
     // String for %y02 in web page template
-    // There 1 instance (Refresh and Configuration buttons)
+    // There 2 instances (Refresh and Configuration buttons)
     // size = size + (#instances) x (ps[2].size - marker_field_size);
-    // size = size + ps[2].size_less4;
-    size = size + ps[2].size_less4;
+    // size = size + (2 x ps[2].size_less4);
+    size = size + (2 * ps[2].size_less4);
   }
 
 
@@ -1673,13 +1697,13 @@ uint16_t adjust_template_size()
     // size = size + (#instances) x (ps[1].size - marker_field_size);
     // size = size + ps[1].size_less4;
     size = size + ps[1].size_less4;
-    
+
     // String for %y02 in web page templates
-    // There is 1 instance (Refresh and IO Control buttons)
+    // There are 2 instances (Refresh and IO Control buttons)
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances) x (ps[2].size - 4);
-    // size = size + (1) x ps[2].size_less4;
-    size = size + ps[2].size_less4;
+    // size = size + (2) x ps[2].size_less4;
+    size = size + (2 * ps[2].size_less4);
   }
 
 
@@ -1733,6 +1757,33 @@ uint16_t adjust_template_size()
     size = size + 24;
   }
 #endif // DEBUG_SUPPORT
+
+
+#if DEBUG_SENSOR_SERIAL == 1
+  //---------------------------------------------------------------------------//
+  // Adjust the size reported by the DEBUG_SENSOR_SERIAL template
+  //
+  else if (current_webpage == WEBPAGE_SENSOR_SERIAL) {
+    size = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
+
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+
+    // Account for Device Name field %a00 in <title>
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + (strlen(stored_devicename) - 4);
+
+    // Account for Temperature Sensor Serial Number fields %e40, %e41, %e42,
+    //   %e43, %e44
+    // There are 5 instances of these fields
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (5 x (12 - 4));
+    // size = size + (5 x (8));
+    size = size + 40;
+  }
+#endif // DEBUG_SENSOR_SERIAL
 
 
   //---------------------------------------------------------------------------//
@@ -2119,7 +2170,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
         if (nParsedMode == 'a') {
 	  // This displays the device name (up to 19 characters)
-          pBuffer=stpcpy(pBuffer, stored_devicename);
+          pBuffer = stpcpy(pBuffer, stored_devicename);
 	}
 
 	
@@ -2159,7 +2210,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    }
 	  
  	    // Copy OctetArray characters to output. Advance pointers.
-            pBuffer=stpcpy(pBuffer, OctetArray);
+            pBuffer = stpcpy(pBuffer, OctetArray);
 	  }
 	}
 	
@@ -2175,7 +2226,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  else emb_itoa(stored_mqttport, OctetArray, 16, 5);
 	    
 	  // Copy OctetArray characters to output. Advance pointers.
-          pBuffer=stpcpy(pBuffer, OctetArray);
+          pBuffer = stpcpy(pBuffer, OctetArray);
         }
 	
         else if (nParsedMode == 'd') {
@@ -2183,7 +2234,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // octet). We send the 12 characters in the mac_string (rather
 	  // than from the uip_ethaddr bytes) as the mac_string is already
 	  // in alphanumeric format.
-          pBuffer=stpcpy(pBuffer, mac_string);
+          pBuffer = stpcpy(pBuffer, mac_string);
 	}
 	
 
@@ -2242,24 +2293,16 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    case 20: emb_itoa(uip_stat.tcp.syndrop,  OctetArray, 10, 10); break;
 	    case 21: emb_itoa(uip_stat.tcp.synrst,   OctetArray, 10, 10); break;
 	  }
-
-//	  for (i=0; i<10; i++) {
-//            *pBuffer = OctetArray[i];
-//            pBuffer++;
-//	  }
         pBuffer = stpcpy(pBuffer, OctetArray);
 	}
 #endif // UIP_STATISTICS
 
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-        else if ((nParsedMode == 'e') && (nParsedNum > 22)) {
+        else if ((nParsedMode == 'e') && (nParsedNum >= 30) && (nParsedNum < 40)) {
           if (nParsedNum == 31) emb_itoa(second_counter, OctetArray, 10, 10);
 	  if (nParsedNum == 32) emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
           if (nParsedNum == 31 || nParsedNum == 32) {
-//	    for (i=0; i<10; i++) {
-//              *pBuffer++ = OctetArray[i];
-//	    }
           pBuffer = stpcpy(pBuffer, OctetArray);
 	  }
           else if (nParsedNum == 33) {
@@ -2286,6 +2329,30 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  }
 	}
 #endif // DEBUG_SUPPORT
+
+
+#if DEBUG_SENSOR_SERIAL == 1
+        else if ((nParsedMode == 'e') && (nParsedNum >= 40)) {
+	  // This is for diagnostic use only and in NOT normally enabled
+	  // in the compile options. This displays the Temperature Sensor
+	  // Serial Numbers and was made necessary due to some suppliers
+	  // providing DS18B20 devices with identical serial numbers.
+          if ((nParsedNum - 40) <= numROMs) {
+	    {
+              int n;
+              for (n=6; n>0; n--) {
+                int2hex(FoundROM[nParsedNum - 40][n]);
+                *pBuffer++ = (OctetArray[0]);
+                *pBuffer++ = (OctetArray[1]);
+              }
+	    }
+          }
+	  // If the sensor does not exist ...
+	  else {
+	    pBuffer = stpcpy(pBuffer, "------------");
+	  }
+	}
+#endif // DEBUG_SENSOR_SERIAL
 
 
         else if (nParsedMode == 'f') {
@@ -2403,20 +2470,20 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	
         else if (nParsedMode == 'j') {
 	  // This displays IO Names in user friendly format (1 to 15 characters)
-          pBuffer=stpcpy(pBuffer, IO_NAME[nParsedNum]); break;
+          pBuffer = stpcpy(pBuffer, IO_NAME[nParsedNum]); break;
 	}
 #endif // MQTT_SUPPORT
 
 
         else if (nParsedMode == 'l') {
 	  // This displays MQTT Username information (0 to 10 characters)
-          pBuffer=stpcpy(pBuffer, stored_mqtt_username);
+          pBuffer = stpcpy(pBuffer, stored_mqtt_username);
 	}
 
 
         else if (nParsedMode == 'm') {
 	  // This displays MQTT Password information (0 to 10 characters)
-          pBuffer=stpcpy(pBuffer, stored_mqtt_password);
+          pBuffer = stpcpy(pBuffer, stored_mqtt_password);
 	}
 
 
@@ -2450,9 +2517,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    default:
 	      break;
 	  }
-	  if (no_err == 1) *pBuffer = '1'; // Paint a green square
-	  else *pBuffer = '0'; // Paint a red square
-          pBuffer++;
+	  if (no_err == 1) *pBuffer++ = '1'; // Paint a green square
+	  else *pBuffer++ = '0'; // Paint a red square
 	}
 
 
@@ -2462,33 +2528,34 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  
 	  if (nParsedNum == 0) {
 	    #define TEMPTEXT "<p>Temperature Sensors<br>"
-	    pBuffer=stpcpy(pBuffer, TEMPTEXT);
+	    pBuffer = stpcpy(pBuffer, TEMPTEXT);
 	    #undef TEMPTEXT
 	  }
 	  
 	  // Output the sensor ID numbers
-	  // For display we output the MSByte first followed by the
-	  // LSByte
-	  // If the sensor does not exist ...
+	  // For display we output the MSByte first followed by remaining
+	  // bytes. A total of 6 bytes are displayed in hex encoded format.
 	  if (nParsedNum <= numROMs) {
 	    *pBuffer++ = ' ';
-	    int2hex(FoundROM[nParsedNum][2]);
-	    *pBuffer++ = (OctetArray[0]);
-	    *pBuffer++ = (OctetArray[1]);
-	    int2hex(FoundROM[nParsedNum][1]);
-	    *pBuffer++ = (OctetArray[0]);
-	    *pBuffer++ = (OctetArray[1]);
-	    *pBuffer++ = ' ';
+	    {
+	      int i;
+	      for (i=6; i>0; i--) {
+	        int2hex(FoundROM[nParsedNum][i]);
+	        pBuffer = stpcpy(pBuffer, OctetArray);
+	      }
+              pBuffer = stpcpy(pBuffer, " ");
+	    }
 	  }
+	  // If the sensor does not exist ...
 	  else {
-	    pBuffer = stpcpy(pBuffer, " ---- ");
+	    pBuffer = stpcpy(pBuffer, " ------------ ");
 	  }
 	  
 	  // Output temperature data
           pBuffer = show_temperature_string(pBuffer, nParsedNum);
 	  if (nParsedNum == 4) {
 	    #define TEMPTEXT "</p>"
-	    pBuffer=stpcpy(pBuffer, TEMPTEXT);
+	    pBuffer = stpcpy(pBuffer, TEMPTEXT);
 	    #undef TEMPTEXT
 	  }
 	}
@@ -2496,7 +2563,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
         else if (nParsedMode == 'w') {
 	  // This displays Code Revision information (13 characters)
-          pBuffer=stpcpy(pBuffer, code_revision);
+          pBuffer = stpcpy(pBuffer, code_revision);
 	}
 
 
@@ -2590,15 +2657,15 @@ char *show_temperature_string(char *pBuffer, uint8_t nParsedNum)
   // Note: &#8451; inserts a degree symbol followed by C.
   // Note: &#8457; inserts a degree symbol followed by F.
   convert_temperature(nParsedNum, 0);      // Convert to degrees C in OctetArray
-  pBuffer=stpcpy(pBuffer, OctetArray);     // Display sensor value
+  pBuffer = stpcpy(pBuffer, OctetArray);     // Display sensor value
   #define TEMPTEXT "&#8451; "              // Display degress C symbol
-  pBuffer=stpcpy(pBuffer, TEMPTEXT);
+  pBuffer = stpcpy(pBuffer, TEMPTEXT);
   #undef TEMPTEXT
   
   convert_temperature(nParsedNum, 1);      // Convert to degrees F in OctetArray
-  pBuffer=stpcpy(pBuffer, OctetArray);     // Display sensor value
+  pBuffer = stpcpy(pBuffer, OctetArray);     // Display sensor value
   #define TEMPTEXT "&#8457;<br>"           // Display degress F symbol
-  pBuffer=stpcpy(pBuffer, TEMPTEXT);
+  pBuffer = stpcpy(pBuffer, TEMPTEXT);
   #undef TEMPTEXT
   
   return pBuffer;
@@ -2663,6 +2730,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
     }
 #endif // DEBUG_SUPPORT
+
+#if DEBUG_SENSOR_SERIAL == 1
+    else if (current_webpage == WEBPAGE_SENSOR_SERIAL) {
+      pSocket->pData = g_HtmlPageTmpSerialNum;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
+    }
+#endif // DEBUG_SENSOR_SERIAL
 
     else if (current_webpage == WEBPAGE_SSTATE) {
       pSocket->pData = g_HtmlPageSstate;
@@ -3142,8 +3216,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  //
 	  // http://IP/60  Show IO Control page
 	  // http://IP/61  Show Configuration page
-	  // http://IP/63  Show Help page
-	  // http://IP/64  Show Help2 page
+	  // http://IP/63  Show Help page (deprecated)
+	  // http://IP/64  Show Help2 page (deprecated)
 	  // http://IP/65  Flash LED 3 times
 	  // http://IP/66  Show Link Error Statistics page
 	  // http://IP/67  Clear Link Error Statistics and refresh page
@@ -3160,9 +3234,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // Turn all outputs ON. Verify that each pin is an output
 	      // and that it is enabled.
 	      for (i=0; i<16; i++) {
-		Pending_pin_control[i] = pin_control[i];
-	        if ((Pending_pin_control[i] & 0x01) && (Pending_pin_control[i] & 0x02)) {
-                  Pending_pin_control[i] |= (uint8_t)0x80;
+ 		Pending_pin_control[i] = pin_control[i];
+                if ((pin_control[i] & 0x03) == 0x03) {
+                  // The above: If an Enabled Output, then turn on the pin
+                  Pending_pin_control[i] |= 0x80;
 	        }
               }
 	      parse_complete = 1; 
@@ -3173,8 +3248,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // and that it is enabled.
 	      for (i=0; i<16; i++) {
 		Pending_pin_control[i] = pin_control[i];
-	        if ((Pending_pin_control[i] & 0x01) && (Pending_pin_control[i] & 0x02)) {
-                  Pending_pin_control[i] &= (uint8_t)~0x80;
+                if ((pin_control[i] & 0x03) == 0x03) {
+                  // The above: If an Enabled Output, then turn off the pin
+                  Pending_pin_control[i] &= 0x7f;
 	        }
               }
 	      parse_complete = 1; 
@@ -3268,6 +3344,16 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      update_debug_storage1();
 	      break;
 #endif // DEBUG_SUPPORT
+
+#if DEBUG_SENSOR_SERIAL == 1
+            case 71: // Display the Temperature Sensor Serial Numbers
+	      current_webpage = WEBPAGE_SENSOR_SERIAL;
+              pSocket->pData = g_HtmlPageTmpSerialNum;
+              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
+              pSocket->nState = STATE_CONNECTED;
+              pSocket->nPrevBytes = 0xFFFF;
+	      break;
+#endif // DEBUG_SENSOR_SERIAL
 
 	    case 91: // Reboot
 	      user_reboot_request = 1;
@@ -3534,7 +3620,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
                 lbi++;
               }
             }
-            if (amp_found == 1) {
+            if (amp_found) {
               // We must reduce nParseLeft here because it is based on the PARESEBYTES_
               // value which assumes num_chars bytes for the string field. If the
               // POSTed string field is less than num_chars bytes then nParseLeft is
@@ -3770,7 +3856,9 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 #if MQTT_SUPPORT == 0
       // Parse 'i' ------------------------------------------------------//
       else if (pSocket->ParseCmd == 'i') {
-        // This code updates the IO Timer units and values in Flash.
+        // This code updates the IO Timer units and values in Pending
+	// variables so that the mainc.c functions will write them to
+	// Flash.
         // The value following the 'ixx=' ParseCmd & ParseNum consists of
 	// 2 bytes represented as hex encoded strings (4 nibbles).
 	// Upper 2 bits are units
@@ -3780,22 +3868,8 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
         {
           uint16_t temp;
 
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // Need to replace this with a Word write to reduce wear
-	  // on the Flash.
-	  // This may require storing all received IO Timer values in
-	  // RAM (requires 32 bytes) then checking them for changes
-	  // before writing to Flash in the main.c "parse complete"
-	  // code.
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          // Sort the alpha characters into the Pending IO Timer bytes
 	  
-          // Sort the alpha characters into the IO Timer bytes
           // Collect upper byte
           // Convert two bytes of the string buffer into numeric bytes
           // two characters at a time.

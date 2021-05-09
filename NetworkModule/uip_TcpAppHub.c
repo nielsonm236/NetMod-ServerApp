@@ -93,7 +93,7 @@ void uip_TcpAppHubCall(void)
       // to the UIP code. Note that the uip_TcpAppHubCall() function can only
       // be called if in the ESTABLISHED state - so a uip_close() is a valid
       // reply.
-      if (mqtt_close_tcp == 1) uip_close();
+      if (mqtt_close_tcp) uip_close();
     }
   }
 #endif // MQTT_SUPPORT

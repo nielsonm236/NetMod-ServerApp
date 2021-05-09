@@ -246,20 +246,20 @@
 //      values.
 // 7 =  General purpose debug bytes enabled (visible only via STVP)
 //      Last 10 bytes of debug[] allocated to specific debug data*
-//      UART enabled for display of basic debug data
+//      UART enabled for display of basic debug data on IO pin 11
 //      No Link Error Stats browser page
 //      USAGE: Useful mode for displaying most in-development debug without
 //      the overhead of the Link Error Stats web page.
-// 11 = General purpose debug bytes enabled (visible only via STVP)
+// 11 = USE FOR PRODUCTION BUILDS.
+//      General purpose debug bytes enabled (visible only via STVP)
 //      Last 10 bytes of debug allocated to specific debug data*
 //      No UART
 //      Link Error Stats browser page enabled
-//      USAGE: USE FOR PRODUCTION BUILDS. Provides the user with the
-//      Link Error Stats in a web page without the overhead of the UART
-//      and debug[] bytes functionality.
+//      USAGE: provides the user with the Link Error Stats in a web page
+//      without the overhead of the UART and debug[] bytes functionality.
 // 15 = General purpose debug bytes enabled (visible only via STVP)
 //      Last 10 bytes of debug allocated to specific debug data*
-//      UART enabled
+//      UART enabled on IO pin 11
 //      Link Error Stats browser page enabled
 //      USAGE: Provides the most run time error data, but may not be useful
 //      during most development cycles as the developer is typically using
@@ -285,10 +285,21 @@
 
 // MQTT_SUPPORT
 // Determines if MQTT Support and Home Assistant Support is to be compiled
-// into the build.
+// into the build. Note this will over-ride the UIP_STATISTICS setting
+// forcing it to "disabled".
 // 0 = Browser Only Support
 // 1 = MQTT Support
 #define MQTT_SUPPORT 1
+
+
+// DEBUG_SENSOR_SERIAL
+// Determines if the Display Temperature Sensor Serial Numbers support is
+// to be compiled into the build. This is for diagnostic support during
+// development and is not expected to be part of normal releases.
+// 0 = Not Supported
+// 1 = Supported
+#define DEBUG_SENSOR_SERIAL 0
+
 
 
 //---------------------------------------------------------------------------//

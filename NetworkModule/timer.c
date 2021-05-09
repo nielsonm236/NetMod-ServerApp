@@ -207,9 +207,9 @@ void clock_init(void)
 
   periodic_timer = 0;      // Initialize periodic timer
   mqtt_timer = 0;          // Initialize mqtt timer
-  t100ms_timer = 0;         // Initialize 100ms timer
+  t100ms_timer = 0;        // Initialize 100ms timer
   arp_timer = 0;           // Initialize arp timer
-  mqtt_outbound_timer = 0; // Initialize 50ms_timer counter
+//  mqtt_outbound_timer = 0; // Initialize 50ms_timer counter
   second_toggle = 0;       // Initialize toggle for seconds counter
   second_counter = 0;      // Initialize seconds counter
 }
@@ -219,8 +219,8 @@ void clock_init(void)
 void timer_update(void)
 {
   // This function is called by the main loop to maintain timers. This
-  // function returns a 0 value, however the function increments three
-  // timer counters as follows:
+  // function returns a 0 value, however the function increments timer
+  // counters as follows:
   //   periodic_timer - increments once per 1ms
   //   mqtt_timer - increments once per 1ms
   //   mqtt_outbound_timer - increments once per 1ms
@@ -279,7 +279,7 @@ uint8_t periodic_timer_expired(void)
 }
 
 
-
+/*
 uint8_t mqtt_outbound_timer_expired(void)
 {
   // This function indicates expiration of the mqtt outbound timer at a count
@@ -295,9 +295,9 @@ uint8_t mqtt_outbound_timer_expired(void)
   }
   else return(0);
 }
+*/
 
-
-
+/*
 uint8_t mqtt_timer_expired(void)
 {
   // This function indicates experation of the mqtt timer at a count
@@ -309,7 +309,18 @@ uint8_t mqtt_timer_expired(void)
   }
   else return(0);
 }
-
+*/
+uint8_t mqtt_timer_expired(void)
+{
+  // This function indicates experation of the mqtt timer at a count
+  // indicating that 50ms have passed. If expired the function resets the
+  // mqtt_timer counter to zero so that it can repeat its uptick.
+  if (mqtt_timer > 49) {
+    mqtt_timer = 0;
+    return(1);
+  }
+  else return(0);
+}
 
 
 uint8_t t100ms_timer_expired(void)

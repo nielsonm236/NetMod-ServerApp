@@ -9,6 +9,8 @@ I decided to write my own firmware for the device to provide a web server interf
 
 Short summary of release history:
 
+May 9, 2021 - Numerous fixes and improvements for HA Auto Discovery, Temperature Sensors, and Timers
+
 April 12, 2021 - Released a parallel build for "Browser Only" users that does not include MQTT, but adds some requested features for users that do not want MQTT. The "Browser Only" version includes individual IO Names, IO Timers, and restores the Network Statistics page.
 
 Feature Comparison of the MQTT and Browser builds:

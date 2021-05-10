@@ -41,7 +41,7 @@ Help is avaialble via a link in the Configuration page that will take you to the
 
 If you upgrade from a pre-January 2021 version you will find that your Device Name, IP Address, Port Numbers, and MAC address entries are retained. However, since pins are now individually assigned your pinout settings will have to be re-entered in the Configuration page. Note that firmware downgrade is not supported in an automated way. Check the Network Module Manual for downgrade instructions.
 
-Videos: I have not updated the YouTube videos yet. The "Network Module Manual" illustrates all the differences and the programming steps are the same, so the videos will be updated over the next few weeks. See the video links in the Wiki.
+Videos: See the video links in the Wiki
 
 Many thanks to Carlos Ladeira and Jevgeni Kiski for their many hours of work in the 2021 releases. Their collaboration greatly improved the code for everyone.
 

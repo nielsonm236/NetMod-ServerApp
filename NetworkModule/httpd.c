@@ -2974,9 +2974,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       uint16_t i = 0;
       uint16_t j = 0;
 
-      // If we are continuing data collection due to a TCP Fragment
-      // parse_tail will have any fragment of the previous POST in
-      // it. Otherwise parse_tail is NULL.
+      // If we are continuing data collection due to a TCP Fragment parse_tail
+      // will have any fragment of the previous POST in it. Otherwise
+      // parse_tail is NULL. We need to restore the parse_tail to the start of
+      // the local_buf so that additional data will be added to it.
       strcpy(local_buf, parse_tail);
       i = strlen(parse_tail);
       
@@ -2996,6 +2997,16 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // If this is also the end of the POST (as indicated by parse_tail
 	    // equal to "&z00=0") then send the entire local_buf to parsing.
 	    // Parse the local_buf
+//
+// UARTPrintf("parse_tail: \r\n");
+// UARTPrintf(parse_tail);
+// UARTPrintf("\r\n");
+// UARTPrintf("End of POST: \r\n");
+// UARTPrintf(local_buf);
+// UARTPrintf("\r\n");
+//
+//
+//
 	    parse_local_buf(pSocket, local_buf, strlen(local_buf));
 	    break;
 	  }
@@ -3003,36 +3014,68 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  else {
 	    // We don't have all the POST data - it will be arriving in
 	    // subsequent packets
-	    // Back up the NULL terminator in the local_buf to the point where
-	    // the last POST component ended. Note that this will eliminate
-	    // one delimiter search in POST parsing so we need to decrement
-	    // the nParseLeft value by one for this case.
-	    i = i - strlen(parse_tail);
-	    local_buf[i] = '\0';
-	    pSocket->nParseLeft--;
+	    //
+	    // There can be two cases at this point:
+	    //   1) We received a part of the first POST component, in which
+	    //      case the partial POST component in the parse_tail will not
+	    //      start with a & symbol, and there is no useful data in the
+	    //      local_buf
+	    //   2) We received a part of a POST component after the first
+	    //      POST component, in which case the partial POST component
+	    //      in the parse_tail will start with a & symbol, and there is
+	    //      data in the local_buf that must be parsed
 	    
-	    // Parse the local_buf
-	    parse_local_buf(pSocket, local_buf, strlen(local_buf));
-	    // Save the nParseLeft value for the next pass
-	    saved_nparseleft = pSocket->nParseLeft;
+	    // Handle the case where parse_tail does not start with &
+	    if (parse_tail[0] != '&') break;
 	    
-	    // Shift the content of parse_tail to eliminate the '&'
-            strcpy(parse_tail, &parse_tail[1]);
-	    break;
-	  }
+	    // Handle the case where parse tail DOES start with &
+	    else {
+              // Back up the NULL terminator in the local_buf to the point where
+              // the last POST component ended. Note that this will eliminate
+              // one delimiter search in POST parsing so we need to decrement
+              // the nParseLeft value by one for this case.
+              i = i - strlen(parse_tail);
+              local_buf[i] = '\0';
+              pSocket->nParseLeft--;
+              
+              // Parse the local_buf
+//
+// UARTPrintf("parse_tail: \r\n");
+// UARTPrintf(parse_tail);
+// UARTPrintf("\r\n");
+// UARTPrintf("local_buf: \r\n");
+// UARTPrintf(local_buf);
+// UARTPrintf("\r\n");
+//
+//
+//
+              parse_local_buf(pSocket, local_buf, strlen(local_buf));
+              // Save the nParseLeft value for the next pass
+              saved_nparseleft = pSocket->nParseLeft;
+              
+              // Shift the content of parse_tail to eliminate the '&'
+              strcpy(parse_tail, &parse_tail[1]);
+              break;
+            }
+          }
 	}
 	
 	if (i == local_buf_index_max) {
 	  // Hit end of local_buf
 	  // We don't yet have all the data from this packet but need to
 	  // parse what we have so far.
-	    // Back up the NULL terminator in the local_buf to the point where
-	    // the last POST component ended. Note that this will eliminate
-	    // one delimiter search in POST parsing so we need to decrement
-	    // the nParseLeft value by one for this case.
-	    i = i - strlen(parse_tail);
-	    local_buf[i] = '\0';
-	    pSocket->nParseLeft--;
+	  // The local_buf only contains POST data, and we can't hit the
+	  // end of the local_buf unless multiple posts have been collected,
+	  // so, no need to handle special cases like receiving a partial
+	  // first POST component.
+	  //
+          // Back up the NULL terminator in the local_buf to the point where
+          // the last POST component ended. Note that this will eliminate
+          // one delimiter search in POST parsing so we need to decrement
+          // the nParseLeft value by one for this case.
+          i = i - strlen(parse_tail);
+          local_buf[i] = '\0';
+          pSocket->nParseLeft--;
 	  
 	  // Parse the local_buf
 	  parse_local_buf(pSocket, local_buf, strlen(local_buf));

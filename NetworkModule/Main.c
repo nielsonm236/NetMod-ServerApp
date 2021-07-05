@@ -38,18 +38,22 @@
 #include "timer.h"
 #include "httpd.h"
 #include "iostm8s005.h"
+#include "stm8s-005.h"
 #include "uip_arch.h"
 #include "uip_TcpAppHub.h"
 #include "uipopt.h"
 #include "mqtt.h"
 #include "DS18B20.h"
+#include "i2c.h"
 #include "UART.h"
 
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210511 1317";
+// const char code_revision[] = "20210529 1999"; // Browser Only test build
+const char code_revision[] = "20210529 2999"; // MQTT test build
+// const char code_revision[] = "20210531 CU01"; // Code Updater test build
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -113,36 +117,31 @@ uint8_t stack_limit2;
 // EEPROM to protect it from errant writes.
 //
 // NOTE1: The linker places the @eeprom variables in memory in reverse order
-// from the declarations below. SO - if any debug variables are added it is
-// recommended that they be declared ABOVE the Operating Code variables to
-// keep the Operating Code variables from being relocated in the memory.
-//
-// NOTE2: The order of the Operating Code variables should not be changed if
-// you want code updates to work without losing stored values.
-//
-// NOTE3: Similar to NOTE1, if you add any new Operating Code variables they
-// should be added above the "magic" numbers in the list below. That will
+// from the declarations below. SO - if any EEPROM variables are added it is
+// recommended that they be declared ABOVE the existing EEPROM variables to
+// keep the EEPROM variables from being relocated in the memory. This will
 // keep all existing variables in the same place in EEPROM which will allow
 // new code updates to discover the magic number and existing settings.
 //
-// NOTE4: The values stored for MQTT are allocated in EEPROM whether they are
+// NOTE2: The order of the EEPROM variables should not be changed if you want
+// code updates to work without losing stored values.
+//
+// NOTE3: The values stored for MQTT are allocated in EEPROM whether they are
 // included in the code build or not. This is to maintain the location of all
 // EEPROM variables so that future builds wont require users to re-enter their
 // settings when they reprogram their devices.
 // 
-// EEPROM Operating Code Variables:
+// EEPROM Variables:
 
 #if DEBUG_SUPPORT != 0
-// Be sure to update the #define NUM_DEBUG_BYTES value in main.h
-@eeprom uint8_t stored_debug[NUM_DEBUG_BYTES];
-                                        // 30 debug bytes
-					// Byte 128 stored_debug[29]
+@eeprom uint8_t stored_debug[10];
+                                        // 10 debug bytes
+					// Byte 108 stored_debug[9]
                                         // Byte 99 stored_debug[0]
 #endif // DEBUG_SUPPORT
 
 // 98 bytes used below
 // >>> Add new variables HERE <<<
-// Reduce the size of the stored_debug[] array by the number of bytes added
 @eeprom uint8_t stored_pin_control[16];    // Byte 83-98 Config settings for
                                            // each IO pin
 @eeprom uint8_t stored_config_settings;    // Byte 82
@@ -157,11 +156,11 @@ uint8_t stack_limit2;
 					   //        1 = Enable, 0 = Disable
 @eeprom uint8_t stored_prior_config;       // Copy of stored_config_settings
                                            // prior to reboot
-@eeprom uint8_t stored_unused6;            // Byte 80 unused
-@eeprom uint8_t stored_unused5;            // Byte 79 unused
-@eeprom uint8_t stored_unused4;            // Byte 78 unused
-@eeprom uint8_t stored_unused3;            // Byte 77 unused
-@eeprom uint8_t stored_unused2;            // Byte 76 unused
+@eeprom uint8_t stored_unused5;            // Byte 80 unused
+@eeprom uint8_t stored_unused4;            // Byte 79 unused
+@eeprom uint8_t stored_unused3;            // Byte 78 unused
+@eeprom uint8_t stored_unused2;            // Byte 77 unused
+@eeprom uint8_t stored_upload_flag;        // Byte 76 Code Updater Upload Flag
 @eeprom char stored_mqtt_password[11];     // Byte 65 MQTT Password
 @eeprom char stored_mqtt_username[11];     // Byte 54 MQTT Username
 @eeprom uint8_t stored_mqttserveraddr[4];  // Bytes 50-53 mqttserveraddr
@@ -184,27 +183,24 @@ uint8_t stack_limit2;
 
 #if DEBUG_SUPPORT != 0
 //---------------------------------------------------------------------------//
-// Note: Make sure there is enough RAM for the debug[] values. These bytes are
-// used to pass debug information from the code in other .c files to this one,
-// and to help control the number of writes done to the EEPROM (to reduce
-// write wear). When needed the debug[] data is stored in EEPROM in the
-// corresponding stored_debug[] values so they can be read by the developer
-// via the STVP programmer.
-uint8_t *pBuffer2;
-uint8_t debug[NUM_DEBUG_BYTES];
+// The "debug" EEPROM storage is used to retain specific debug information
+// across reboots and to make that information available for user viewing.
+// The RAM debug values provide temporary storage of the values as an aid in
+// reducing the number of EEPROM writes.
+uint8_t debug[10];
 //---------------------------------------------------------------------------//
 #endif // DEBUG_SUPPORT
 
-#if MQTT_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 // Define Flash addresses for IO Names and IO Timers
-char IO_NAME[16][16] @0xff00;
-uint16_t IO_TIMER[16] @0xfec0;
+uint16_t IO_TIMER[16] @FLASH_START_IO_TIMERS;
+char IO_NAME[16][16] @FLASH_START_IO_NAMES;
 uint16_t Pending_IO_TIMER[16];
 
 // Define pin_timers
 uint32_t pin_timer[16];
 
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 
@@ -262,13 +258,18 @@ uip_ipaddr_t IpAddr;
 uint32_t t100ms_ctr1;           // Timer used in restart/reboot function
 extern uint32_t second_counter; // Time in seconds
 
-extern uint8_t OctetArray[11];  // Used in emb_itoa conversions
+extern uint8_t OctetArray[11];  // Used in emb_itoa conversions but also
+                                // repurposed as a temporary buffer for
+				// transferring data between functions.
+
+extern uint8_t parse_tail[66];  // >>> Used mostly in POST packet processing
+                                // but also repurposed for buffering data
+				// received in a program update file.
 
 
-#if MQTT_SUPPORT == 1
+
+#if BUILD_SUPPORT == MQTT_BUILD
 // MQTT variables
-// Note: To maintain the same user interface for MQTT compiles and Browser Only
-// versions the MQTT user interface variables are always compiled.
 uint8_t mqtt_enabled;                 // Used to signal use of MQTT functions
                                       // Initialized to 'disabled'. This can
 				      // only get set to 1 if the MQTT Enable
@@ -319,10 +320,12 @@ uint8_t auto_discovery;               // Used in the Auto Discovery state machin
 uint8_t auto_discovery_step;          // Used in the Auto Discovery state machine
 uint8_t pin_ptr;                      // Used in the Auto Discovery state machine
 uint8_t sensor_number;                // Used in the Auto Discovery state machine
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
-// These MQTT variables must always be compiled to maintain a common user
-// interface between the MQTT and Browser Only versions.
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+// These MQTT variables must always be compiled for both the MQTT_BUILD and
+// the BROWSER_ONLY_BUILD to maintain a common user interface between the MQTT
+// and Browser Only versions.
 uint8_t mqtt_start_status;            // Error (or success) status for startup
                                       // steps
 uint8_t MQTT_error_status;            // For MQTT error status display in GUI
@@ -334,6 +337,7 @@ char Pending_mqtt_username[11];       // Holds a new user entered MQTT username
 char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
 uint16_t mqttport;             	      // MQTT port number
 uint16_t Port_Mqttd;                  // In use MQTT port number
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
 
@@ -353,6 +357,7 @@ uint8_t MQTT_not_OK_counter;     // Counts MQTT != OK events in the
 uint8_t MQTT_broker_dis_counter; // Counts broker disconnect events in
                                  // the mqtt_sanity_check() function
 
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 // DS18B20 variables
 uint32_t check_DS18B20_ctr;      // Counter used to trigger temperature
                                  // measurements
@@ -386,13 +391,34 @@ uint8_t temp_FoundROM[5][8];     // Temporary table of old ROM codes
                                  // [x][7] = CRC
 uint8_t redefine_temp_sensors;   // Used to trigger the temperature
                                  // sensor add/delete process
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+extern uint8_t find_content_type;    // Signals that a file is contained
+                                     // within a POST
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+#if OB_EEPROM_SUPPORT == 1
+// Off-Board EEPROM variables
+extern uint8_t eeprom_copy_to_flash_request; // Flag to cause the main.c loop
+                                     // to call the copy to flash function.
+uint32_t check_I2C_EEPROM_ctr;       // Counter to time an Off-Board EEPROM
+                                     // to Flash copy request
+extern char * flash_ptr;             // Used in code update routines to copy
+                                     // data into Flash
+extern uint8_t eeprom_num_write;     // Used in code update routines
+extern uint8_t eeprom_num_read;      // Used in code update routines
+extern uint16_t eeprom_base;         // Used in code update routines
+				     
+#endif // OB_EEPROM_SUPPORT == 1
 
 
 //---------------------------------------------------------------------------//
 int main(void)
 {
   uip_ipaddr_t IpAddr;
+  uint8_t eeprom_detect;
+  uint8_t flash_mismatch;
   
   parse_complete = 0;
   reboot_request = 0;
@@ -406,7 +432,7 @@ int main(void)
   init_IWDG(); // Initialize the hardware watchdog
 #endif // IWDG_ENABLE
   
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
 // Initialize MQTT variables
   mqtt_parse_complete = 0;
   mqtt_close_tcp = 0;
@@ -420,16 +446,19 @@ int main(void)
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
   state_request = STATE_REQUEST_IDLE;    // Set the state request received to
                                          // idle
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
-  // The following are only used for tracking MQTT startup status, but they
-  // must always be compiled in order to maintaing a common user interface
-  // between the MQTT and Browser only compiles.
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+  // The following variables are only used for tracking MQTT startup status,
+  // but they must always be compiled for both the MQTT_BUILD and the
+  // BROWSER_ONLY_BUILD to maintain a common user interface between the MQTT
+  // and Browser Only versions.
   mqtt_start_status = MQTT_START_NOT_STARTED; // Tracks error states during
                                          // startup
   MQTT_error_status = 0;                 // For MQTT error status display in
                                          // GUI
-					 
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+  
   // While the following diagnostic counters are mostly useful for checking for
   // the need for Full Duplex in an MQTT setting, they may still be useful in
   // other scenarios, so they remain functional even if MQTT is not enabled.
@@ -458,9 +487,8 @@ int main(void)
 
 
 #if DEBUG_SUPPORT != 0
-  // Clear the general purpose debug bytes and restore the saved debug
-  // statistics
-  clear_eeprom_debug_bytes();
+  // Restore the saved debug statistics
+  restore_eeprom_debug_bytes();
 #endif // DEBUG_SUPPORT
 
   gpio_init();             // Initialize and enable gpio pins
@@ -477,6 +505,8 @@ int main(void)
   uip_init();              // Initialize uIP Web Server
   
   HttpDInit();             // Initialize listening ports
+  
+  HttpDStringInit();       // Initialize HttpD string sizes
 
   
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
@@ -523,8 +553,21 @@ int main(void)
     // Iniialize DS18B20 transmit control variable
     send_mqtt_temperature = 0;
   }
-  // Initialize the redefine control
+  // Initialize the redefine temp sensors control
   redefine_temp_sensors = 0;
+
+
+#if OB_EEPROM_SUPPORT == 1
+  // Intialize the Update Support variables
+  eeprom_copy_to_flash_request = I2C_COPY_EEPROM_IDLE;
+  check_I2C_EEPROM_ctr = 0;
+  flash_mismatch = 0;
+#endif // OB_EEPROM_SUPPORT == 1
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+  // Intialize the Code Updater variables
+  find_content_type = SEEK_CONTENT_TYPE;
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -534,62 +577,110 @@ int main(void)
   stack_limit2 = 0x55;
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // Check RST_SR (Reset Status Register)
-  // Important: Check the number of debug bytes in the current code revision
-  // and update the debug[] locations used so that they are within the range
-  // of the debug bytes. Search for the display routine and match it to these
-  // locations.
   if (RST_SR & 0x1f) {
     // Bit 4 EMCF: EMC reset flag
     // Bit 3 SWIMF: SWIM reset flag
     // Bit 2 ILLOPF: Illegal opcode reset flag
     // Bit 1 IWDGF: Independent Watchdog reset flag
     // Bit 0 WWDGF: Window Watchdog reset flag
-    if (RST_SR & 0x10) debug[25] = (uint8_t)(debug[25] + 1);
-    if (RST_SR & 0x08) debug[26] = (uint8_t)(debug[26] + 1);
-    if (RST_SR & 0x04) debug[27] = (uint8_t)(debug[27] + 1);
-    if (RST_SR & 0x02) debug[28] = (uint8_t)(debug[28] + 1);
-    if (RST_SR & 0x01) debug[29] = (uint8_t)(debug[29] + 1);
+    if (RST_SR & 0x10) debug[5] = (uint8_t)(debug[5] + 1);
+    if (RST_SR & 0x08) debug[6] = (uint8_t)(debug[6] + 1);
+    if (RST_SR & 0x04) debug[7] = (uint8_t)(debug[7] + 1);
+    if (RST_SR & 0x02) debug[8] = (uint8_t)(debug[8] + 1);
+    if (RST_SR & 0x01) debug[9] = (uint8_t)(debug[9] + 1);
     update_debug_storage1();
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
   }
-#endif // DEBUG_SUPPORT
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   UARTPrintf("\r\nBooting Rev ");
   UARTPrintf(code_revision);
   UARTPrintf("\r\n");
   
   UARTPrintf("ENC28J60 Rev Code ");
-  emb_itoa((debug[22] & 0x07), OctetArray, 16, 2);
+  emb_itoa((debug[2] & 0x07), OctetArray, 16, 2);
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
 
   UARTPrintf("EMCF: ");
-  emb_itoa(debug[25], OctetArray, 10, 3);
+  emb_itoa(debug[5], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("  SWIMF: ");
-  emb_itoa(debug[26], OctetArray, 10, 3);
+  emb_itoa(debug[6], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("  ILLOPF: ");
-  emb_itoa(debug[27], OctetArray, 10, 3);
+  emb_itoa(debug[7], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("  IWDGF: ");
-  emb_itoa(debug[28], OctetArray, 10, 3);
+  emb_itoa(debug[8], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("  WWDGF: ");
-  emb_itoa(debug[29], OctetArray, 10, 3);
+  emb_itoa(debug[9], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
   
-  if (debug[22] & 0x80) UARTPrintf("Stack Overflow ERROR!");
+  if (debug[2] & 0x80) UARTPrintf("Stack Overflow ERROR!");
   else UARTPrintf("Stack Overflow - none detected");
-  UARTPrintf("\r\n");
+  UARTPrintf("\r\n");  
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+
+#if OB_EEPROM_SUPPORT == 1
+  // Verify that Off-Board EEPROM(s) exist.
+  eeprom_detect = off_board_EEPROM_detect();
+
+  // Update the (memory_update) code segment.
+//  if (eeprom_detect == 2) memcpy_update_refresh();
+  if (eeprom_detect == 1) memcpy_update_refresh();
+#endif // OB_EEPROM_SUPPORT == 1
   
-#endif // DEBUG_SUPPORT
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+  // If a Code Updater Build determine if Flash matches the content of
+  // Off-Board EEPROM1.
+//  if (eeprom_detect == 2) flash_mismatch = compare_flash_to_EEPROM1();
+  if (eeprom_detect == 1) flash_mismatch = compare_flash_to_EEPROM1();
+  // If a Code Updater build and Flash does not match the content of Off-Board
+  // EEPROM1 copy the Flash to Off-Board EEPROM1.
+//  if ((eeprom_detect == 2) && (flash_mismatch)) copy_code_updater_to_EEPROM1();
+  if ((eeprom_detect == 1) && (flash_mismatch)) copy_code_updater_to_EEPROM1();
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if OB_EEPROM_SUPPORT == 1
+  // These calls are only needed if we want to protect the user from a
+  // scenario where they:
+  // a) Have the Updater installed in Off-Board EEPROM
+  // b) Use SWIM to load a new runtime firmware
+  // c) When they start the Updater they select "reinstall".
+  // The above scenario fails because SWIM installed the runtime firmware
+  // rather than the Updater. If the Updater had been used to install the
+  // runtime firmware a copy of the firmware image would be in Off-Board
+  // EEPROM. If the below calls are un-commented it will protect against
+  // this scenario assuming that the Updater and the Strings File are still
+  // compatible with the code the uers loaded via swim. This functionality
+  // costs about 250 bytes of firmware.
+  //
+  // If a Browser Only or MQTT build determine if Flash matches the content of
+  // Off-Board EEPROM0.
+  if (eeprom_detect == 1) flash_mismatch = compare_flash_to_EEPROM0();
+  // If a Browser Only or MQTT build and Flash does not match the content of
+  // Off-Board EEPROM0 copy the Flash to Off-Board EEPROM0.
+  if ((eeprom_detect == 1) && (flash_mismatch)) copy_flash_to_EEPROM0();
+#endif // OB_EEPROM_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD    
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+httpd_diagnostic();
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
+  //-------------------------------------------------------------------------//
+  // MAIN LOOP
+  //-------------------------------------------------------------------------//
   while (1) {
     // Overview of the main loop:
     // - The ENC28J60 does the hardware level work of receiving ethernet
@@ -666,7 +757,7 @@ int main(void)
     uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
 
     if (uip_len > 0) {
-      // This code executed if incoming traffic is HTTP or MQTT (not ARP).
+      // This code is executed if incoming traffic is HTTP or MQTT (not ARP).
       // uip_len includes the headers, so it will be > 0 even if no TCP
       // payload.
       if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
@@ -697,7 +788,7 @@ int main(void)
       }
     }
 
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
     // Perform MQTT startup if 
     // a) MQTT is enabled
     // b) Not already at start complete
@@ -732,7 +823,7 @@ int main(void)
      && redefine_temp_sensors) {
       mqtt_redefine_temp_sensors();
     }
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
     // Update the time keeping function
     timer_update();
@@ -780,13 +871,13 @@ int main(void)
 			 // counts. Any code that uses crt1 must reset it to
 			 // zero then compare to a value needed for a
 			 // timeout.
-#if MQTT_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
       decrement_pin_timers(); // Decrement the pin_timers every 100ms
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
     }
 
 
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
     // If the MQTT timer expires (50ms)
     //   And MQTT is enabled
     //   And MQTT startup is complete
@@ -816,7 +907,62 @@ int main(void)
                            // Check function.			   
       }
     }
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
+
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+    // Check for a request to copy the Off-Board EEPROM0 to Flash. The request
+    // is automatically generated by the process that uploads the user
+    // specified file after the file is copied to the Off-Board EEPROM.
+    if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_REQUEST) {
+      eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_WAIT;
+      check_I2C_EEPROM_ctr = second_counter;
+    }
+    // Pause for 5 seconds for browser update
+    if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_WAIT) &&
+        (second_counter > (check_I2C_EEPROM_ctr + 5))) {
+      unlock_flash();
+      // eeprom_copy_to_flash will cause a reboot on completion of the
+      // function.
+
+// UARTPrintf("Calling eeprom_copy_to_flash for EEPROM0\r\n");
+
+      // Set values needed by eeprom_copy_to_flash()
+      eeprom_num_write = I2C_EEPROM0_WRITE;
+      eeprom_num_read = I2C_EEPROM0_READ;
+      eeprom_base = I2C_EEPROM0_BASE;
+      flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
+      eeprom_copy_to_flash();
+
+// UARTPrintf("Completed eeprom_copy_to_flash for EEPROM0\r\n");
+
+    }
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+
+#if OB_EEPROM_SUPPORT == 1
+    // Check for a request to copy the Off-Board EEPROM1 to Flash. The request
+    // is generated when the user inputs a /72 command.
+    if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_REQUEST) {
+      eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_WAIT;
+      check_I2C_EEPROM_ctr = second_counter;
+// UARTPrintf("\r\nCmd 72 waiting\r\n");
+    }
+    // Pause for 5 seconds for browser update
+    if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_WAIT) &&
+        (second_counter > (check_I2C_EEPROM_ctr + 5))) {
+// UARTPrintf("\r\nCmd 72 executing\r\n");
+      unlock_flash();
+      // eeprom_copy_to_flash will cause a reboot on completion of the
+      // function.
+      // Set values needed by eeprom_copy_to_flash()
+      eeprom_num_write = I2C_EEPROM1_WRITE;
+      eeprom_num_read = I2C_EEPROM1_READ;
+      eeprom_base = I2C_EEPROM1_BASE;
+      flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
+      eeprom_copy_to_flash();
+    }
+#endif // OB_EEPROM_SUPPORT == 1
 
 
     // Call the ARP timer function every 10 seconds.
@@ -840,16 +986,19 @@ int main(void)
     if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 30))) {
       check_DS18B20_ctr = second_counter;
       get_temperature();
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
       send_mqtt_temperature = 4; // Indicates that all 5 temperature sensors
                                  // need to be transmitted via MQTT.
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
     }
     
     
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     // Check for changes in Output control states, IP address, IP gateway
     // address, Netmask, MAC, and Port number.
+    // This functionality is not needed for the CODE_UPDATER build.
     check_runtime_changes();
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     
     // Check for the Reset button
     check_reset_button();
@@ -861,6 +1010,474 @@ int main(void)
   }
   return 0;
 }
+
+
+#if OB_EEPROM_SUPPORT == 1
+uint8_t off_board_EEPROM_detect(void)
+{
+  // Verify that an Off-Board EEPROM exists. This routine is directed at
+  // detecting a 256KB EEPROM.
+  //
+  // Presence verification is performed by:
+  //
+  // Reading the first byte of the Off-Board EEPROM, inverting the byte,
+  // writing the inverted byte to the Off-Board EEPROM, and verifying that
+  // the inversion occurred. If the inversion occurred then eeprom_detect is
+  // set to 1 and the original byte is restored.
+  //
+  // If detection fails Off-Board EEPROM support is turned off.
+  
+  uint8_t eeprom_detect;
+  uint8_t byte;
+  
+  eeprom_detect = 0;
+    
+// UARTPrintf("\r\nVerifying prescence of EEPROM\r\n");
+
+  // Make sure the I2C bus is in a sane condition.
+  I2C_reset();
+  wait_timer(20000);
+  
+  // Read 1 byte from Off-Board EEPROM.
+// UARTPrintf("\r\nStep 1\r\n");
+  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
+  byte = I2C_read_byte(1);
+
+
+  // Write inverted byte to Off-Board EEPROM.
+// UARTPrintf("\r\nStep 2\r\n");
+  write_one((uint8_t)~byte);
+
+
+  // Read and validate 1 byte from Off-Board EEPROM.
+// UARTPrintf("\r\nStep 3\r\n");
+  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
+   
+  if ((uint8_t)~byte == I2C_read_byte(1)) {
+    eeprom_detect = 1;
+  }
+  else {
+
+// UARTPrintf("\r\nEEPROM not present XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
+
+  }
+    
+  // Restore the original 1 byte to Off-Board EEPROM.
+// UARTPrintf("\r\nStep 4\r\n");
+  write_one(byte);
+
+// UARTPrintf("\r\nExit EEPROM Verify\r\n");
+
+  return eeprom_detect;
+}
+
+
+void prep_read(uint8_t eeprom_num_write, uint8_t eeprom_num_read, uint16_t byte_address) {
+  // Function to set up a sequential read from the Off-Board EEPROMs.
+  // eeprom_num_write / eeprom_num_read are the Control Bytes needed to
+  // address the Off-Board EEPROM.
+  // byte_address identifies the address starting point in the Off-Board
+  // EEPROM and is typically the first (base) address of the region in the
+  // Off-Board EEPROM, although it can also be a specific address offset into
+  // the Off-Board EEPROM region. For example:
+  //   EEPROM0 base address: 0x0000 using EEPROM0 Control Bytes
+  //   EEPROM1 base address: 0x8000 using EEPROM1 Control Bytes
+  //   EEPROM2 base address: 0x0000 using EEPROM2 Control Bytes
+  //   EEPROM3 base address: 0x8000 using EEPROM3 Control Bytes
+
+  // Initial write control byte to establish sequential read address
+  I2C_control(eeprom_num_write);
+  I2C_byte_address(byte_address);
+  I2C_control(eeprom_num_read);
+}
+
+
+void write_one(uint8_t byte) {
+  // Function to write one byte to the Off-Board EEPROM
+  // This is only used for the Off-Board EEPROM detection routine, thus only
+  // uses Off-Board EEPROM address 0x0000
+  I2C_control(I2C_EEPROM0_WRITE);
+  I2C_byte_address(0x0000);
+  I2C_write_byte(byte);
+  I2C_stop();
+  wait_timer(20000); // Wait 20ms
+}
+
+
+
+
+void memcpy_update_refresh(void)
+{
+  // This function maintains and updates the memcpy_update segment. The
+  // memcpy_update function is used to copy the flash_update segment from
+  // RAM to Flash. Running the memcpy_update function is the last step in the
+  // upgrade process with the exception that the memcpy_update function
+  // cannot copy itself (running code can't replace itself if that code has
+  // changed). But, we need to be able to update the memcpy_update segment,
+  // so the chicken-and-egg problem needed to be solved.
+  // The solution:
+  // a) It is assumed that if a new Code Updater build is developed there will
+  //    also be corresponding new Browser Only and MQTT builds so that all
+  //    have the same memcpy_update segment.
+  // b) It is assumed that a user will not attempt to use the SWIM interface
+  //    to randomly install out-of-sync versions of the code. They must all
+  //    have the same memcpy_update segment. The only way to assure this if
+  //    the user programs new code with the SWIM interface is to 1) Program
+  //    a Code Updater build via SWIM and run it, then 2) Program a
+  //    corresponding Browser Only or MQTT build either via SWIM or the
+  //    Code Updater and run it. In this step the Code Updater and the
+  //    Browser Only / MQTT builds must be of the same generation.
+  // Assuming the user has adhered to (b) the code does the following:
+  // c) Any time any build starts it checks the stored_upload_flag in the STM8
+  //    EPROM.
+  // c1) If the stored_upload_flag == 1 it indicates that the firmware that
+  //     is running was just installed from an upload via the Code Updater
+  //     process. This indicates that the memcpy_update segment must be copied
+  //     to Flash from Off-Board EEPROM0, the stored_upload_flag is cleared
+  //     then go to step(d).
+  // c2) If the stored_upload_flag == 2 it indicates that the firmware that is
+  //     running was just installed from an existing Off-Board EEPROM0 or
+  //     EEPROM1 image. This indicates that the memcpy_update segment needs to
+  //     be copied from Off-Board EEPROM0 or EEPROM1 as follows:
+  // c2a) If running a Browser Only / MQTT build the memcpy_update segment is
+  //      copied from Off-Board EEPROM0, the stored_upload_flag is cleared
+  //      then go to step(d).
+  // c2b) If running a Code Updater build the memcpy_update segment is copied
+  //      from Off-Board EEPROM1, the stored_upload_flag is cleared then go to
+  //      step(d).
+  // c3) If the stored_upload_flag == 0 it indicates that the firmware
+  //     currently running was installed via SWIM or it is an existing image
+  //     that is starting from a reboot. In this case the memcpy_update
+  //     segment is used as-is.
+  // d) After the steps in (c) are accomplished the code continues running.
+  // d1) If the code is a Code Updater build it will be copied to Off-Board
+  //    EEPROM1 if it is different than the code already in Off-Board EEPROM1.
+  //    Since writing to Off-Board EEPROM1 can be time consuming the first
+  //    step of this process is to perform a compare of Flash to Off-Board
+  //    EEPROM1. As soon as any difference is detected the entire Flash is
+  //    copied to Off-Board EEPROM1. If no difference is detected no copy
+  //    occurs.
+  // What if a new Browser Only / MQTT build is started and the memcpy_update
+  // segment is different than the Code Updater memcpy_update segment in
+  // Off-Board EEPROM0? This cannot happen if the user has followed the rules
+  // in (b) above.
+  // In general once the Code Updater process is being used it should ALWAYS
+  // be used to update Browser Only / MQTT code builds.
+  // The exception to the general case is if the user is repurposing hardware
+  // or recovering from a "brick" condition. In that case the best recovery
+  // process is to follow (b) above.
+  
+  flash_ptr = (char *)FLASH_START_MEMCPY_UPDATE_SEGMENT;
+  
+  if (stored_upload_flag == 0) {
+UARTPrintf("\r\nCopy (memcpy_update) Bypassed\r\n");
+    return;
+  }
+  
+  else if (stored_upload_flag == 1) {
+    // Copy the (memcpy_update) segment from Off-Board EEPROM0 to Flash
+UARTPrintf("\r\nCopying (memcpy_update) segment from EEPROM0 to Flash\r\n");
+    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE + OFFSET_TO_MEMCPY_UPDATE_SEGMENT);
+  }
+  
+  else if (stored_upload_flag == 2) {
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+    // Copy the (memcpy_update) segment from Off-Board EEPROM1 to Flash
+UARTPrintf("\r\nCopying (memcpy_update) segment from EEPROM1 to Flash\r\n");
+    prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, I2C_EEPROM1_BASE + OFFSET_TO_MEMCPY_UPDATE_SEGMENT);
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+    // Copy the (memcpy_update) segment from Off-Board EEPROM0 to Flash
+UARTPrintf("\r\nCopying (memcpy_update) segment from EEPROM0 to Flash\r\n");
+    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE + OFFSET_TO_MEMCPY_UPDATE_SEGMENT);
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+  }
+    
+  unlock_flash();
+  {
+    uint16_t i;
+    uint8_t eeprom_temp[4];
+    // Copy the memcpy_update segment. "i" can be an int if the segment is
+    // less than 128 bytes (watch out for this if code is changed in the
+    // future). Note that "i" increments by 4 because read/writes are 4 bytes
+    // at a time, so the final read has be done when i == endpoint - 4.
+  
+    i = 0;
+    while (i<(FLASH_START_IO_TIMERS - FLASH_START_MEMCPY_UPDATE_SEGMENT)) {
+      eeprom_temp[0] = I2C_read_byte(0);
+      eeprom_temp[1] = I2C_read_byte(0);
+      eeprom_temp[2] = I2C_read_byte(0);
+      if (i == (FLASH_START_IO_TIMERS - FLASH_START_MEMCPY_UPDATE_SEGMENT - 4)) eeprom_temp[3] = I2C_read_byte(1);
+      else eeprom_temp[3] = I2C_read_byte(0);
+      // Enable Word Write Once
+      FLASH_CR2 |= FLASH_CR2_WPRG;
+      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+      memcpy(flash_ptr, &eeprom_temp[0], 4);
+      flash_ptr += 4;
+      i += 4;
+    }
+  }
+  lock_flash();
+UARTPrintf("\r\nCopy (memcpy_update) Complete\r\n");
+  // Clear the flag
+  unlock_eeprom();
+  stored_upload_flag = 0;
+  lock_eeprom();
+}
+#endif // OB_EEPROM_SUPPORT == 1
+
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+uint8_t compare_flash_to_EEPROM1(void)
+{
+  // Compare Flash to Off-Board EEPROM1 up to but not including the
+  // memcpy_update segment.
+  uint16_t i;
+  uint8_t fail;
+  uint8_t temp;
+  
+  flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
+  
+UARTPrintf("\r\nComparing EEPROM1 to Flash\r\n");
+  prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, I2C_EEPROM1_BASE);
+  
+  fail = 0;
+
+UARTPrintf("\r\n");
+
+  // Compare Flash to Off-Board EEPROM1 up to but not including the
+  // memcpy_update segment.
+  // Terminate at the first mis-compare
+  for (i=0; i<(OFFSET_TO_MEMCPY_UPDATE_SEGMENT - 1); i++) {
+    temp = I2C_read_byte(0);
+    if (*flash_ptr != temp) {
+      fail = 1;
+      break;
+    }
+    else {
+      flash_ptr++;
+      IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
+    }
+  }
+  
+  // Read one more to terminate sequential read
+  temp = I2C_read_byte(1);
+  if (*flash_ptr != temp) {
+    fail = 1;
+  }
+  
+  if (fail == 0) {
+UARTPrintf("\r\nEEPROM1 matches Flash\r\n");
+  }
+  else {
+UARTPrintf("\r\nEEPROM1 doesn't match Flash\r\n");
+UARTPrintf("  Miscompare at: ");
+emb_itoa(i, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+  }
+  return fail;
+}
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if OB_EEPROM_SUPPORT == 1
+uint8_t compare_flash_to_EEPROM0(void)
+{
+  // Compare Flash to Off-Board EEPROM0 up to but not including the
+  // memcpy_update segment. This is only needed to cover the case where there
+  // is an Off-Board EEPROM but the user has used the SWIM interface to update
+  // the Runtime code.
+  uint16_t i;
+  uint8_t fail;
+  uint8_t temp;
+  
+  flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
+  
+UARTPrintf("\r\nComparing EEPROM0 to Flash\r\n");
+
+  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
+  
+  fail = 0;
+
+UARTPrintf("\r\n");
+
+  // Compare Flash to Off-Board EEPROM0 up to but not including the
+  // memcpy_update segment
+  // Terminate at the first mis-compare
+  for (i=0; i<(OFFSET_TO_MEMCPY_UPDATE_SEGMENT - 1); i++) {
+    temp = I2C_read_byte(0);
+    if (*flash_ptr != temp) {
+      fail = 1;
+
+UARTPrintf("\r\nMiscompare at address: \r\n");
+emb_itoa(i, OctetArray, 16, 4);
+UARTPrintf(" ");
+UARTPrintf(OctetArray);
+
+      break;
+    }
+    else {
+      flash_ptr++;
+      IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
+    }
+  }
+  
+  // Read one more to terminate sequential read
+  temp = I2C_read_byte(1);
+  if (*flash_ptr != temp) {
+    fail = 1;
+  }
+  
+  if (fail == 0) {
+    UARTPrintf("\r\nEEPROM0 matches Flash\r\n");
+  }
+  else {
+    UARTPrintf("\r\nEEPROM0 doesn't match Flash\r\n");
+  }
+  return fail;
+}
+#endif // OB_EEPROM_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+void copy_code_updater_to_EEPROM1(void)
+{
+  // This function copies a Code Updater build to Off-Board EEPROM1.
+  uint16_t i;
+  uint16_t address_index;
+  char * flash = (char *)FLASH_START_PROGRAM_MEMORY;
+  uint8_t I2C_last_flag;
+  uint8_t temp_byte;
+
+  i = 0;
+  address_index = I2C_EEPROM1_BASE;
+
+UARTPrintf("\r\nCopying Code Updater from Flash to off-board EEPROM1\r\n");
+
+  I2C_reset();
+  wait_timer(20000);
+  
+  while (address_index <= (uint16_t)0xFF9C) {
+    // Note for above "while" statement: address_index will be incremented
+    // by 64 with each loop, so the start of the last loop will be at 0xFF9B.
+
+UARTPrintf(".");
+
+    I2C_control(I2C_EEPROM1_WRITE); // Send Write Control Byte for upper
+                                    // Off-Board EEPROM area
+    I2C_byte_address(address_index);
+    for (i=0; i<64; i++) {
+      parse_tail[i] = *flash;
+      I2C_write_byte(parse_tail[i]);
+      flash++;
+    }
+    I2C_stop();
+    wait_timer(20000); // Wait 20ms
+    
+    // Validate data in Off-Board EEPROM
+    // Read addressing sequence: Send Write Control byte, send Byte
+    // address, send Read Control Byte
+    prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, address_index);
+    I2C_last_flag = 0;
+    for (i=0; i<64; i++) {
+      if (i == 63) I2C_last_flag = 1;
+      temp_byte = I2C_read_byte(I2C_last_flag);
+
+if (temp_byte != parse_tail[i]) {
+UARTPrintf("\r\nCode Updater copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
+}
+
+    }
+    address_index += 64;
+    IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
+  }
+
+UARTPrintf("\r\nCode Updater copy complete\r\n");
+}
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+
+
+
+
+
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if OB_EEPROM_SUPPORT == 1
+void copy_flash_to_EEPROM0(void)
+{
+  // This function copies a Browser Only or MQTT build to Off-Board EEPROM0.
+  // It should only be called to cover the case where the user has the
+  // Off-Board EEPROM installed but has updated the Runtime firmware via the
+  // SWIM interface.
+  int i;
+  uint16_t address_index;
+  char * flash = (char *)FLASH_START_PROGRAM_MEMORY;
+  uint8_t I2C_last_flag;
+  uint8_t temp_byte;
+
+  address_index = I2C_EEPROM0_BASE;
+
+UARTPrintf("\r\nCopying Flash to off-board EEPROM0\r\n");
+
+  I2C_reset();
+  wait_timer(20000);
+  
+  while (address_index < 0x8000) {
+UARTPrintf(".");
+
+    I2C_control(I2C_EEPROM0_WRITE);
+    I2C_byte_address(address_index);
+    for (i=0; i<64; i++) {
+      parse_tail[i] = *flash;
+      I2C_write_byte(parse_tail[i]);
+      flash++;
+    }
+    I2C_stop();
+    wait_timer(20000); // Wait 20ms
+    
+    // Validate data in Off-Board EEPROM
+    // Read addressing sequence: Send Write Control byte, send Byte
+    // address, send Read Control Byte
+    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, address_index);
+    I2C_last_flag = 0;
+    for (i=0; i<64; i++) {
+      if (i == 63) I2C_last_flag = 1;
+      temp_byte = I2C_read_byte(I2C_last_flag);
+
+if (temp_byte != parse_tail[i]) {
+UARTPrintf("\r\nFlash copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
+}
+
+    }
+    address_index += 64;
+    IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
+  }
+
+UARTPrintf("\r\nFlash copy complete\r\n");
+}
+#endif // OB_EEPROM_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // IP Address and MAC Address notes:
@@ -884,7 +1501,7 @@ int main(void)
 // The user can press the Reset Button for 10 seconds to restore "factory
 // defaults".
 
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
 void mqtt_startup(void)
 {
   // This function walks through the steps needed to get MQTT initialized and
@@ -1970,7 +2587,7 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
     }
   }
   // Note: if none of the above matched the parsing we just exit without
-  // executing any functionality (the message is effecftively ignored).
+  // executing any functionality (the message is effectively ignored).
 }
 
 
@@ -2217,11 +2834,6 @@ void publish_temperature(uint8_t sensor)
   // This function is called to Publish a temperature value collected from
   // a DS18B20 connected to IO 16.
   
-//  int i;
-//  unsigned char app_message[10];      // Stores the application message (the
-                                      // payload) that will be sent in an
-				      // MQTT message.
-
   if (sensor <= numROMs) {
     // Only Publish if the sensor number is one of the sensors found by
     // FindDevices as indicated by numROMs.
@@ -2263,7 +2875,7 @@ void publish_temperature(uint8_t sensor)
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   }
 }
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
 void unlock_eeprom(void)
@@ -2383,7 +2995,7 @@ void check_eeprom_settings(void)
 {
   int i;
   char temp[10];
-
+/*
   // Check magic number in EEPROM.
   //
   // If the magic number IS found then it is assumed that the EEPROM contains
@@ -2573,9 +3185,164 @@ void check_eeprom_settings(void)
     stored_magic1 = 0xf0; // LSB
     
     lock_eeprom();
-    
+*/    
 
-#if MQTT_SUPPORT == 0
+
+  // Check magic number in EEPROM.
+  //
+  // If the magic number IS NOT found it is assumed that the EEPROM has never
+  // been written. In this case the default Output States, IP Address, Gateway
+  // Address, Netmask, MAC and Port number will be used.
+  //
+  // If the magic number IS found then it is assumed that the EEPROM contains
+  // valid copies of the Output States, IP Address, Gateway Address, Netmask,
+  // MAC and Port number, and those are used to start the device.
+  //
+  // The magic number sequence is MSB 0x55 0xee 0x0f 0xf0 LSB
+  
+  if ((stored_magic4 != 0x55) || 
+      (stored_magic3 != 0xee) || 
+      (stored_magic2 != 0x0f) || 
+      (stored_magic1 != 0xf0)) {
+
+    // MAGIC NUMBER IS NOT PRESENT. Initialize EEPROM with the default Device
+    // Name, IP, Gateway, Netmask, Port, and MAC values. Also initialize
+    // EEPROM to turn off all Outputs and write the magic number.
+
+    unlock_eeprom(); // Make EEPROM writeable
+    
+    // Write default valuse to the EEPROM. These notes are the long form
+    // version of what the code below does. The code to implement this is
+    // less "readable", but more space efficient, thus the need for these
+    // notes:
+    //
+    // Write the default Device Name to EEPROM.
+    //    strcpy(stored_devicename, "NewDevice000");
+    //    for (i=12; i<20; i++) stored_devicename[i] = '\0';
+    //
+    // Write the default MAC address to EEPROM.
+    //    stored_uip_ethaddr_oct[5] = 0xc2;	//MAC MSB
+    //    stored_uip_ethaddr_oct[4] = 0x4d;
+    //    stored_uip_ethaddr_oct[3] = 0x69;
+    //    stored_uip_ethaddr_oct[2] = 0x6b;
+    //    stored_uip_ethaddr_oct[1] = 0x65;
+    //    stored_uip_ethaddr_oct[0] = 0x00;	//MAC LSB
+    //
+    // Write the default Port number to EEPROM
+    //    stored_port = 8080;
+    //
+    // Write the Default Netmask to EEPROM
+    //    stored_netmask[3] = 255;	// MSB
+    //    stored_netmask[2] = 255;	//
+    //    stored_netmask[1] = 255;	//
+    //    stored_netmask[0] = 0;	// LSB
+    //
+    // Write the Default Gateway Address to EEPROM
+    //    stored_draddr[3] = 192;	// MSB
+    //    stored_draddr[2] = 168;	//
+    //    stored_draddr[1] = 1;	//
+    //    stored_draddr[0] = 1;	// LSB
+    //
+    // Write the Default IP Address to EEPROM
+    //    stored_hostaddr[3] = 192;	// MSB
+    //    stored_hostaddr[2] = 168;	//
+    //    stored_hostaddr[1] = 1;	//
+    //    stored_hostaddr[0] = 4;	// LSB
+    //    
+    // Write the magic number to the EEPROM MSB 0x55 0xee 0x0f 0xf0 LSB
+    //    stored_magic4 = 0x55; // MSB
+    //    stored_magic3 = 0xee; //
+    //    stored_magic2 = 0x0f; //
+    //    stored_magic1 = 0xf0; // LSB
+    //    
+    // Write the default MQTT Port number to EEPROM
+    //    stored_mqttport = 1883;		// Port
+    //    
+    // Write the Default MQTT Server IP Address to EEPROM
+    //    stored_mqttserveraddr[3] = 0;	// MSB
+    //    stored_mqttserveraddr[2] = 0;	//
+    //    stored_mqttserveraddr[1] = 0;	//
+    //    stored_mqttserveraddr[0] = 0;	// LSB
+    //
+    // Using 0 as the first byte number in EEPROM:
+    //  Bytes 0 to 19:    DeviceName
+    //  Bytes 20, 21, 22: Don't write these bytes
+    //  Bytes 23 to 68:   Load from pre-determined content
+    //  Bytes 69 to 113:  Fill with zero
+    //
+    // Write a NULL Usernams and Password to the EEPROM
+    //    for(i=0; i<11; i++) { stored_mqtt_username[i] = '\0'; }
+    //    for(i=0; i<11; i++) { stored_mqtt_password[i] = '\0'; }
+    //
+    // 2 Code Updater revision bytes - fill with NULL
+    // 3 unused bytes - fill with NULL
+    // 1 prior config byte currently unused - fill with NULL
+    //
+    // Clear the Config settings in EEPROM
+    //    stored_config_settings = 0;
+    //
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // All pins need to default to "input" and "disable" to prevent any
+    // conflict with external hardware drivers.
+    // pin_control_bytes are set to defaults
+    //   Each pin should be set to 00000000
+    //   0 ON/OFF
+    //   0 reserved
+    //   0 reserved
+    //   0 On/Off after power cycle set to Off
+    //   0 Retain set to Off
+    //   0 Invert set to Off
+    //   0 Input/Output set to Input
+    //   0 Enable/Disable set to Disable
+    // THEN 16 bit registers are written
+    //   encode_16bit_registers()
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    //
+    // Write the default pin_control bytes to EEPROM
+    //    for (i=0; i<16; i++) stored_pin_control[i] = 0x00;
+
+
+    // Using 0 as the first byte number in EEPROM:
+    //  Bytes 0 to 19:    DeviceName
+    //  Bytes 20, 21, 22: Don't write these bytes
+    //  Bytes 23 to 68:   Load from pre-determined content
+    //  Bytes 69 to 113:  Fill with zero
+
+    {
+    static const uint8_t EEPROM_default_devicename[] = {
+    // First 20 bytes - device name
+    'N', 'e', 'w', 'D', 'e', 'v', 'i', 'c', 'e', '0', '0', '0', 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00 };
+    memcpy(&stored_devicename[0], EEPROM_default_devicename, 20);
+    } // 20 bytes
+
+    {
+    static const uint8_t EEPROM_default_general[] = {
+    // 6 bytes MAC address (aka ethaddr)
+    0x00, 0x65, 0x6b, 0x69, 0x4d, 0xc2,
+    // 2 bytes HTML Port (8080)
+    0x1f, 0x90,
+    // 4 bytes Default Netmask (255.255.255.0)
+    0x00, 0xff, 0xff, 0xff,
+    // 4 bytes Default Gateway (192.168.1.1)
+    0x01, 0x01, 0xa8, 0xc0,
+    // 4 bytes Default IP Address (192.168.1.4)
+    0x04, 0x01, 0xa8, 0xc0,
+    // 4 bytes Magic Number
+    0xf0, 0x0f, 0xee, 0x55,
+    // 2 bytes MQTT Port (1883)
+    0x07, 0x5b,
+    // 4 bytes MQTT Server Address (0.0.0.0)
+    0x00, 0x00, 0x00, 0x00};
+    memcpy(&stored_uip_ethaddr_oct[0], EEPROM_default_general, 30);
+    } // 30 bytes
+
+    memset(&stored_mqtt_username[0], 0, 45); // 45 bytes
+
+    lock_eeprom();
+    
+    
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
     // Initialize Flash memory that is used to store IO Timers
     // Since the magic number didn't match all timers are set
     // to zero.
@@ -2584,9 +3351,12 @@ void check_eeprom_settings(void)
     // Flash wear
     i = 0;
     while(i<16) {
-      FLASH_CR2 = 0x40;
-      FLASH_NCR2 = 0xBF;
+      // Enable Word Write Once
+      FLASH_CR2 |= FLASH_CR2_WPRG;
+      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
       memcpy(&IO_TIMER[i], 0, 4);
+      // Poll the IAPSR_EOP bit to make sure the write to the Flash
+      // completed.
       i += 4;
     }
 
@@ -2600,21 +3370,72 @@ void check_eeprom_settings(void)
       strcpy(temp, "IO");
       emb_itoa(i+1, OctetArray, 10, 2);
       strcat(temp, OctetArray);
-      FLASH_CR2 = 0x40;
-      FLASH_NCR2 = 0xBF;
+      // Enable Word Write Once
+      FLASH_CR2 |= FLASH_CR2_WPRG;
+      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
       memcpy(&IO_NAME[i][0], &temp, 4);
-      FLASH_CR2 = 0x40;
-      FLASH_NCR2 = 0xBF;
+      // Enable Word Write Once
+      FLASH_CR2 |= FLASH_CR2_WPRG;
+      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
       memcpy(&IO_NAME[i][4], 0, 4);
     }
     lock_flash();
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
   }
+  
+  // Read the values in the EEPROM to initialize the code variables.
+    
+  // Read and use the IP Address from EEPROM
+  uip_ipaddr(IpAddr,
+             stored_hostaddr[3],
+             stored_hostaddr[2],
+             stored_hostaddr[1],
+             stored_hostaddr[0]);
+  uip_sethostaddr(IpAddr);
+    
+  // Read and use the Gateway Address from EEPROM
+  uip_ipaddr(IpAddr,
+             stored_draddr[3],
+             stored_draddr[2],
+             stored_draddr[1],
+             stored_draddr[0]);
+  uip_setdraddr(IpAddr);
+    
+  // Read and use the Netmask from EEPROM
+  uip_ipaddr(IpAddr,
+             stored_netmask[3],
+             stored_netmask[2],
+             stored_netmask[1],
+             stored_netmask[0]);
+  uip_setnetmask(IpAddr);
+
+  // Read and use the MQTT Server IP Address from EEPROM
+  uip_ipaddr(IpAddr,
+             stored_mqttserveraddr[3],
+             stored_mqttserveraddr[2],
+             stored_mqttserveraddr[1],
+             stored_mqttserveraddr[0]);
+  uip_setmqttserveraddr(IpAddr);
 
 
+  // Read and use the MQTT Port from EEPROM
+  Port_Mqttd = stored_mqttport;
+
+  // Read and use the Port from EEPROM
+  Port_Httpd = stored_port;
+    
+  // Read and use the MAC from EEPROM
+  // Set the MAC values used by the ARP code. Note the ARP code uses the
+  // values in reverse order from all the other code.
+  uip_ethaddr.addr[0] = stored_uip_ethaddr_oct[5]; // MSB
+  uip_ethaddr.addr[1] = stored_uip_ethaddr_oct[4];
+  uip_ethaddr.addr[2] = stored_uip_ethaddr_oct[3];
+  uip_ethaddr.addr[3] = stored_uip_ethaddr_oct[2];
+  uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
+  uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
 
 
-#if MQTT_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
   // Check the IO Names in Flash to make sure they are not NULL.
   //   IO Names might be NULL if the device is programmed using
   //   "Program/Current Tab" instead of "Program/Address Range".
@@ -2628,21 +3449,22 @@ void check_eeprom_settings(void)
     emb_itoa(i+1, OctetArray, 10, 2);
     strcat(temp, OctetArray);
     if (IO_NAME[i][0] == 0) {
-      FLASH_CR2 = 0x40;
-      FLASH_NCR2 = 0xBF;
+      // Enable Word Write Once
+      FLASH_CR2 |= FLASH_CR2_WPRG;
+      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
       memcpy(&IO_NAME[i][0], &temp, 4); // Write default name
-      FLASH_CR2 = 0x40;
-      FLASH_NCR2 = 0xBF;
+      // Enable Word Write Once
+      FLASH_CR2 |= FLASH_CR2_WPRG;
+      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
       memcpy(&IO_NAME[i][4], 0, 4); // Add NULL
     }
   }
   lock_flash();
   
   // Initialize the Pending IO_TIMER variables
-  for (i=0; i<16; i++) {
-    Pending_IO_TIMER[i] = IO_TIMER[i];
-  }
-#endif // MQTT_SUPPORT
+//  for (i=0; i<16; i++) Pending_IO_TIMER[i] = IO_TIMER[i];
+  memcpy(&Pending_IO_TIMER[0], &IO_TIMER[0], 32);
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 
@@ -2651,6 +3473,7 @@ void check_eeprom_settings(void)
   
   // Read the pin_control bytes from EEEPROM
   for (i=0; i<16; i++) pin_control[i] = stored_pin_control[i];
+//  memcpy(&pin_control[0], &stored_pin_control[0], 16);
 
   // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
   // accordingly. Do this on Outputs only.
@@ -2661,7 +3484,7 @@ void check_eeprom_settings(void)
         // Force ON/OFF to zero
         pin_control[i] &= 0x7f;
       }
-      if ((pin_control[i] & 0x10) == 0x10) {
+      else if ((pin_control[i] & 0x10) == 0x10) {
         // Force ON/OFF to one
         pin_control[i] |= 0x80;
       }
@@ -2696,13 +3519,11 @@ void check_eeprom_settings(void)
   Pending_port = stored_port;
   Pending_mqttport = stored_mqttport;
   
-  for (i=0; i<20; i++) {
-    Pending_devicename[i] = stored_devicename[i];
-  }
+  memcpy(&Pending_devicename[0], &stored_devicename[0], 20);
 
   Pending_config_settings = stored_config_settings;
 
-  for (i=0; i<6; i++) Pending_uip_ethaddr_oct[i] = stored_uip_ethaddr_oct[i];
+  memcpy(&Pending_uip_ethaddr_oct[0], &stored_uip_ethaddr_oct[0], 6);
 
   for (i=0; i<11; i++) {
     Pending_mqtt_username[i] = stored_mqtt_username[i];
@@ -2712,22 +3533,13 @@ void check_eeprom_settings(void)
   // Update the MAC string
   update_mac_string();
   
-#if MQTT_SUPPORT == 1
-  // If the MQTT Enable bit is set in the Config settings AND at least
-  // one IO pin is enabled set the mqtt_enabled byte.
-  // WHY IS THIS CHECK RUN? THE PROBLEM IS THAT IF ALL PINS ARE DISABLED
-  // FOR I/O EVEN THOUGH TEMPERATURE SENSORS ARE ENABLED NO TEMPERATURE
-  // SENSOR REPORTING OCCURS. IT SEEMS THAT IF THE MQTT FEATURE IS ENABLED
-  // WE SHOULD ALLOW MQTT TO START, EVEN IF ALL ENTITIES ARE DISABLED
-  // INCLUDING TEMPERATURE SENSORS.
-//  if (stored_config_settings & 0x04) {
-//    for (i=0; i<16; i++) {
-//      if (pin_control[i] & 0x01) mqtt_enabled = 1;
-//    }
-//  }
+#if BUILD_SUPPORT == MQTT_BUILD
+  // If the MQTT Enable bit is set in the Config settings set the mqtt_enabled
+  // bit so that the MQTT feature is enabled. This is needed even if no pins
+  // are enabled so that the temperature sensor reporting will work.
   if (stored_config_settings & 0x04) mqtt_enabled = 1;
 
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
 }
 
 
@@ -2778,7 +3590,6 @@ void check_runtime_changes(void)
   // update the appropriate variables and output controls, and store the new
   // values in EEPROM.
 
-  int i;
   uint8_t update_EEPROM;
   uint32_t temp_pin_timer;
 
@@ -2812,7 +3623,21 @@ void check_runtime_changes(void)
     if (stored_pin_control[15] != pin_control[15]) stored_pin_control[15] = pin_control[15];
   }
 
-#if MQTT_SUPPORT == 0
+
+
+#if I2C_SUPPORT == 1
+  // Disable pins 14 and 15 so that they can be used by the I2C function
+    pin_control[13] = Pending_pin_control[13] = (uint8_t)0x00;
+    pin_control[14] = Pending_pin_control[14] = (uint8_t)0x00;
+    // Update the stored_pin_control[] variables
+    if (stored_pin_control[13] != pin_control[13]) stored_pin_control[13] = pin_control[13];
+    if (stored_pin_control[14] != pin_control[14]) stored_pin_control[14] = pin_control[14];    
+#endif // I2C_SUPPORT == 1
+
+
+
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
   // Manage Output pin Timers. Change Output pin states and Timers as
   // appropriate.
   //
@@ -2865,12 +3690,15 @@ void check_runtime_changes(void)
     //
     // If an Output pin IO_TIMER value is changed by the user
     //   then set the pin_timer for that pin to the Pending_IO_TIMER value
-    for (i=0; i<16; i++) {
-//      if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x08) == 0)) {
-      if ((pin_control[i] & 0x0b) == 0x03) {
-        // The above: If an Enabled Output AND Retain is not set
-        if (IO_TIMER[i] != Pending_IO_TIMER[i]) {
-          pin_timer[i] = calculate_timer(Pending_IO_TIMER[i]);
+    {
+      int i;
+      for (i=0; i<16; i++) {
+//        if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x08) == 0)) {
+        if ((pin_control[i] & 0x0b) == 0x03) {
+          // The above: If an Enabled Output AND Retain is not set
+          if (IO_TIMER[i] != Pending_IO_TIMER[i]) {
+            pin_timer[i] = calculate_timer(Pending_IO_TIMER[i]);
+          }
         }
       }
     }
@@ -2891,31 +3719,34 @@ void check_runtime_changes(void)
   // b2         Invert control 0 = No Invert, 1 = Invert
   // b1         Enable control 0 = Disabled 1 = Enabled
   // b0         In/Out control 0 = Input 1 = Output
-  for (i=0; i<16; i++) {
-//    if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x08) == 0x00)) {
-      if ((pin_control[i] & 0x0b) == 0x03) {
-      // The above: If an Enabled Output AND Retain is not set
-      if (((IO_TIMER[i] & 0x3fff) != 0) && (pin_timer[i] == 0)) {
-        // The above: If pin has a non-zero TIMER value AND the timer
-	// countdown is zero
-//	if (((pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
-	if ((pin_control[i] & 0x90) == 0x80) {
-	  // The above: If the pin is ON and the idle state is OFF
-	  // Turn the pin OFF
-	  Pending_pin_control[i] &= 0x7f;
-	  pin_control[i] &= 0x7f;
-	}
-//	if (((pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
-	if ((pin_control[i] & 0x90) == 0x10) {
-	  // The above: If the pin is OFF and the idle state is ON
-	  // Turn the pin ON
-	  Pending_pin_control[i] |= 0x80;
-	  pin_control[i] |= 0x80;
-	}
-        // Update the 16 bit registers with the changed pin states
-        encode_16bit_registers();
-        // Update the Output pins
-        write_output_pins();
+  {
+    int i;
+    for (i=0; i<16; i++) {
+//      if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x08) == 0x00)) {
+        if ((pin_control[i] & 0x0b) == 0x03) {
+        // The above: If an Enabled Output AND Retain is not set
+        if (((IO_TIMER[i] & 0x3fff) != 0) && (pin_timer[i] == 0)) {
+          // The above: If pin has a non-zero TIMER value AND the timer
+	  // countdown is zero
+//        if (((pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
+	  if ((pin_control[i] & 0x90) == 0x80) {
+	    // The above: If the pin is ON and the idle state is OFF
+	    // Turn the pin OFF
+	    Pending_pin_control[i] &= 0x7f;
+	    pin_control[i] &= 0x7f;
+	  }
+//	  if (((pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
+	  if ((pin_control[i] & 0x90) == 0x10) {
+	    // The above: If the pin is OFF and the idle state is ON
+	    // Turn the pin ON
+	    Pending_pin_control[i] |= 0x80;
+	    pin_control[i] |= 0x80;
+	  }
+          // Update the 16 bit registers with the changed pin states
+          encode_16bit_registers();
+          // Update the Output pins
+          write_output_pins();
+        }
       }
     }
   }
@@ -2925,14 +3756,18 @@ void check_runtime_changes(void)
     // Update the IO_TIMER array in Flash to the Pending_IO_TIMER
     // array.
     unlock_flash();
-
-    for (i=0; i<16; i+=2) {
-      // Check for compare 4 bytes at a time. If any miscompare write to
-      // Flash 4 bytes at a time.
-      if (IO_TIMER[i] != Pending_IO_TIMER[i] || IO_TIMER[i+1] != Pending_IO_TIMER[i+1]) {
-        FLASH_CR2 = 0x40;
-	FLASH_NCR2 = 0xBF;
-	memcpy(&IO_TIMER[i], &Pending_IO_TIMER[i], 4);
+    
+    {
+      int i;
+      for (i=0; i<16; i+=2) {
+        // Check for compare 4 bytes at a time. If any miscompare write to
+        // Flash 4 bytes at a time.
+        if (IO_TIMER[i] != Pending_IO_TIMER[i] || IO_TIMER[i+1] != Pending_IO_TIMER[i+1]) {
+          // Enable Word Write Once
+          FLASH_CR2 |= FLASH_CR2_WPRG;
+          FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+          memcpy(&IO_TIMER[i], &Pending_IO_TIMER[i], 4);
+        }
       }
     }
     lock_flash();
@@ -2943,31 +3778,34 @@ void check_runtime_changes(void)
     //   and the user changed the pin from its idle state to its active state
     //     then set the pin_timer for that pin to the IO_TIMER value
     //
-    for (i=0; i<16; i++) {
-//      if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x08) == 0x00)) {
-      if ((pin_control[i] & 0x0b) == 0x03) {
-        // The above: If an Enabled Output AND Retain is not set
-        if ((IO_TIMER[i] & 0x3fff) != 0) {
-          if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
-            // The above: If the user changed the pin ON/OFF state
-            if (((Pending_pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
-              // The above: If the user turned the pin ON and the idle state
-	      //   is OFF
-              // then set the pin timer
-              pin_timer[i] = calculate_timer(IO_TIMER[i]);
-            }
-            if (((Pending_pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
-              // The above: If the user turned the pin OFF and the idle state
-	      //   is ON
-              // then set the pin timer
-              pin_timer[i] = calculate_timer(IO_TIMER[i]);
+    {
+      int i;
+      for (i=0; i<16; i++) {
+//        if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x08) == 0x00)) {
+        if ((pin_control[i] & 0x0b) == 0x03) {
+          // The above: If an Enabled Output AND Retain is not set
+          if ((IO_TIMER[i] & 0x3fff) != 0) {
+            if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
+              // The above: If the user changed the pin ON/OFF state
+              if (((Pending_pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
+                // The above: If the user turned the pin ON and the idle state
+	        //   is OFF
+                // then set the pin timer
+                pin_timer[i] = calculate_timer(IO_TIMER[i]);
+              }
+              if (((Pending_pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
+                // The above: If the user turned the pin OFF and the idle state
+	        //   is ON
+                // then set the pin timer
+                pin_timer[i] = calculate_timer(IO_TIMER[i]);
+              }
             }
           }
         }
       }
     }
   }
-#endif MQTT_SUPPORT
+#endif BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 
@@ -3009,81 +3847,83 @@ void check_runtime_changes(void)
     //   bits are only used if the device reboots due to an external event.
     
     update_EEPROM = 0;
-    
-    for (i=0; i<16; i++) {
-    
-      if (pin_control[i] != Pending_pin_control[i]) {
-        // Something changed - sort it out
+    {
+      int i;
+      for (i=0; i<16; i++) {
+      
+        if (pin_control[i] != Pending_pin_control[i]) {
+          // Something changed - sort it out
 	
-        // Check for change in ON/OFF bit. This function will save the ON/OFF
-	// bit in the EEPROM if the IO is an Output and Retain is enabled (or
-	// in the process of being enabled).
-	if (Pending_pin_control[i] & 0x0a) { // Output AND Retain set?
-          if ((pin_control[i] & 0x80) != (Pending_pin_control[i] & 0x80)) {
-	    // ON/OFF changed
+          // Check for change in ON/OFF bit. This function will save the ON/OFF
+	  // bit in the EEPROM if the IO is an Output and Retain is enabled (or
+	  // in the process of being enabled).
+	  if (Pending_pin_control[i] & 0x0a) { // Output AND Retain set?
+            if ((pin_control[i] & 0x80) != (Pending_pin_control[i] & 0x80)) {
+	      // ON/OFF changed
+              update_EEPROM = 1;
+            }
+	  }
+
+          // Check for change in Input/Output definition
+          if ((pin_control[i] & 0x02) != (Pending_pin_control[i] & 0x02)) {
+            // There is a change:
+	    //   Signal an EEPROM update
+	    //   Signal a "reboot needed"
+            update_EEPROM = 1;
+	    // Changing pin definitions with regard to Input/Output definition
+	    // requires a hardware reboot as the IO hardware needs to be
+	    // reconfigured.
+            user_reboot_request = 1;
+	  }
+	
+          // Check for change in Enabled/Disabled definition
+          if ((pin_control[i] & 0x01) != (Pending_pin_control[i] & 0x01)) {
+            // There is a change:
+	    //   Signal an EEPROM update
+	    //   Signal a "reboot needed". Note that a reboot is really only
+	    //   needed if MQTT is enabled, but it will be done even if MQTT is
+	    //   not enabled to simplify code.
+            update_EEPROM = 1;
+            user_reboot_request = 1;
+          }
+
+          // Check for change in Invert
+          if ((pin_control[i] & 0x04) != (Pending_pin_control[i] & 0x04)) {
+            // There is a change.
+	    //   Signal an EEPROM update.
+	    //   Signal a "restart needed". Note that a restart is really only
+	    //   needed if MQTT is enabled, but it will be done even if MQTT is
+	    //   not enabled to simplify code.
+            update_EEPROM = 1;
+            restart_request = 1;
+          }
+	
+          // Check for change in Retain/On/Off bits
+          if ((pin_control[i] & 0x18) != (Pending_pin_control[i] & 0x18)) {
+            // There is a change. Signal an EEPROM update. No restart or
+	    // reboot is required as these bits are only used when a reboot
+	    // occurs as a result of a power cycle or button reboot.
             update_EEPROM = 1;
           }
-	}
-
-        // Check for change in Input/Output definition
-        if ((pin_control[i] & 0x02) != (Pending_pin_control[i] & 0x02)) {
-          // There is a change:
-	  //   Signal an EEPROM update
-	  //   Signal a "reboot needed"
-          update_EEPROM = 1;
-	  // Changing pin definitions with regard to Input/Output definition
-	  // requires a hardware reboot as the IO hardware needs to be
-	  // reconfigured.
-          user_reboot_request = 1;
-	}
 	
-        // Check for change in Enabled/Disabled definition
-        if ((pin_control[i] & 0x01) != (Pending_pin_control[i] & 0x01)) {
-          // There is a change:
-	  //   Signal an EEPROM update
-	  //   Signal a "reboot needed". Note that a reboot is really only
-	  //   needed if MQTT is enabled, but it will be done even if MQTT is
-	  //   not enabled to simplify code.
-          update_EEPROM = 1;
-          user_reboot_request = 1;
-        }
-
-        // Check for change in Invert
-        if ((pin_control[i] & 0x04) != (Pending_pin_control[i] & 0x04)) {
-          // There is a change.
-	  //   Signal an EEPROM update.
-	  //   Signal a "restart needed". Note that a restart is really only
-	  //   needed if MQTT is enabled, but it will be done even if MQTT is
-	  //   not enabled to simplify code.
-          update_EEPROM = 1;
-          restart_request = 1;
-        }
+	  // Always update the pin_control byte even if the EEPROM was not
+	  // updated. Don't let the ON/OFF bit change if this pin_control is
+	  // for an input.
+	  if (Pending_pin_control[i] & 0x02) { // Output?
+	    // Update all bits
+	    pin_control[i] = Pending_pin_control[i];
+	  }
+	  else { // Input
+	    // Update all bits except the ON/OFF bit
+            pin_control[i] &= 0x80;
+	    pin_control[i] |= (uint8_t)(Pending_pin_control[i] & 0x7f);
+	  }
 	
-        // Check for change in Retain/On/Off bits
-        if ((pin_control[i] & 0x18) != (Pending_pin_control[i] & 0x18)) {
-          // There is a change. Signal an EEPROM update. No restart or
-	  // reboot is required as these bits are only used when a reboot
-	  // occurs as a result of a power cycle or button reboot.
-          update_EEPROM = 1;
-        }
-	
-	// Always update the pin_control byte even if the EEPROM was not
-	// updated. Don't let the ON/OFF bit change if this pin_control is
-	// for an input.
-	if (Pending_pin_control[i] & 0x02) { // Output?
-	  // Update all bits
-	  pin_control[i] = Pending_pin_control[i];
-	}
-	else { // Input
-	  // Update all bits except the ON/OFF bit
-          pin_control[i] &= 0x80;
-	  pin_control[i] |= (uint8_t)(Pending_pin_control[i] & 0x7f);
-	}
-	
-        if (update_EEPROM) {
-          // Update the stored_pin_control[] variables
-          if (stored_pin_control[i] != pin_control[i]) stored_pin_control[i] = pin_control[i];
-          update_EEPROM = 0;
+          if (update_EEPROM) {
+            // Update the stored_pin_control[] variables
+            if (stored_pin_control[i] != pin_control[i]) stored_pin_control[i] = pin_control[i];
+            update_EEPROM = 0;
+          }
         }
       }
     }
@@ -3133,26 +3973,29 @@ void check_runtime_changes(void)
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    for (i=0; i<4; i++) {
-      if (stored_hostaddr[i] != Pending_hostaddr[i]) {
-        // Write the new octet to the EEPROM and singla a restart
-        stored_hostaddr[i] = Pending_hostaddr[i];
-        restart_request = 1;
-      }
-      if (stored_draddr[i] != Pending_draddr[i]) {
-        // Write the new octet to the EEPROM and singla a restart
-        stored_draddr[i] = Pending_draddr[i];
-        restart_request = 1;
-      }
-      if (stored_netmask[i] != Pending_netmask[i]) {
-        // Write the new octet to the EEPROM and singla a restart
-        stored_netmask[i] = Pending_netmask[i];
-        restart_request = 1;
-      }
-      if (stored_mqttserveraddr[i] != Pending_mqttserveraddr[i]) {
-        // Write the new octet to the EEPROM and singla a restart
-        stored_mqttserveraddr[i] = Pending_mqttserveraddr[i];
-        restart_request = 1;
+    {
+      int i;
+      for (i=0; i<4; i++) {
+        if (stored_hostaddr[i] != Pending_hostaddr[i]) {
+          // Write the new octet to the EEPROM and signal a restart
+          stored_hostaddr[i] = Pending_hostaddr[i];
+          restart_request = 1;
+        }
+        if (stored_draddr[i] != Pending_draddr[i]) {
+          // Write the new octet to the EEPROM and signal a restart
+          stored_draddr[i] = Pending_draddr[i];
+          restart_request = 1;
+        }
+        if (stored_netmask[i] != Pending_netmask[i]) {
+          // Write the new octet to the EEPROM and signal a restart
+          stored_netmask[i] = Pending_netmask[i];
+          restart_request = 1;
+        }
+        if (stored_mqttserveraddr[i] != Pending_mqttserveraddr[i]) {
+          // Write the new octet to the EEPROM and signal a restart
+          stored_mqttserveraddr[i] = Pending_mqttserveraddr[i];
+          restart_request = 1;
+        }
       }
     }
       
@@ -3165,18 +4008,21 @@ void check_runtime_changes(void)
     }
   
     // Check for changes in the Device Name
-    for(i=0; i<20; i++) {
-      if (stored_devicename[i] != Pending_devicename[i]) {
-        stored_devicename[i] = Pending_devicename[i];
-        // No restart is required in non-MQTT applications as this does not
-	// affect Ethernet operation.
-#if MQTT_SUPPORT == 1
-        if (mqtt_enabled) {
-          // If MQTT is enabled a restart is required as this affects the
-	  // MQTT topic name.
-          restart_request = 1;
-	}
-#endif // MQTT_SUPPORT
+    {
+      int i;
+      for(i=0; i<20; i++) {
+        if (stored_devicename[i] != Pending_devicename[i]) {
+          stored_devicename[i] = Pending_devicename[i];
+          // No restart is required in non-MQTT applications as this does not 
+	  // affect Ethernet operation.
+#if BUILD_SUPPORT == MQTT_BUILD
+          if (mqtt_enabled) {
+            // If MQTT is enabled a restart is required as this affects the
+	    // MQTT topic name.
+            restart_request = 1;
+	  }
+#endif // BUILD_SUPPORT == MQTT_BUILD
+        }
       }
     }
 
@@ -3187,32 +4033,33 @@ void check_runtime_changes(void)
       // A firmware restart will occur to cause this change to take effect
       restart_request = 1;
     }
-
+    
     // Check for changes in the Username or Password
     // The storage fields are the same length so to condense code
     // they will be checked in the same loop
-    for(i=0; i<11; i++) {
-      if (stored_mqtt_username[i] != Pending_mqtt_username[i]) {
-        stored_mqtt_username[i] = Pending_mqtt_username[i];
-        // A firmware restart will occur to cause this change to take effect
-        restart_request = 1;
-      }
-      if (stored_mqtt_password[i] != Pending_mqtt_password[i]) {
-        stored_mqtt_password[i] = Pending_mqtt_password[i];
-        // A firmware restart will occur to cause this change to take effect
-        restart_request = 1;
+    {
+      int i;
+      for(i=0; i<11; i++) {
+        if (stored_mqtt_username[i] != Pending_mqtt_username[i]) {
+          stored_mqtt_username[i] = Pending_mqtt_username[i];
+          // A firmware restart will occur to cause this change to take effect
+          restart_request = 1;
+        }
+        if (stored_mqtt_password[i] != Pending_mqtt_password[i]) {
+          stored_mqtt_password[i] = Pending_mqtt_password[i];
+          // A firmware restart will occur to cause this change to take effect
+          restart_request = 1;
+        }
       }
     }
     
     // Check for changes in the MAC
-    if (stored_uip_ethaddr_oct[0] != Pending_uip_ethaddr_oct[0] ||
-      stored_uip_ethaddr_oct[1] != Pending_uip_ethaddr_oct[1] ||
-      stored_uip_ethaddr_oct[2] != Pending_uip_ethaddr_oct[2] ||
-      stored_uip_ethaddr_oct[3] != Pending_uip_ethaddr_oct[3] ||
-      stored_uip_ethaddr_oct[4] != Pending_uip_ethaddr_oct[4] ||
-      stored_uip_ethaddr_oct[5] != Pending_uip_ethaddr_oct[5]) {
+    if (memcmp(&stored_uip_ethaddr_oct[0], &Pending_uip_ethaddr_oct[0], 6) != 0) {
       // Write the new MAC to the EEPROM
-      for (i=0; i<6; i++) stored_uip_ethaddr_oct[i] = Pending_uip_ethaddr_oct[i];
+      {
+        int i;
+        for (i=0; i<6; i++) stored_uip_ethaddr_oct[i] = Pending_uip_ethaddr_oct[i];
+      }
       // Update the MAC string
       update_mac_string();
       // A firmware restart will occur to cause this change to take effect
@@ -3268,7 +4115,7 @@ void check_runtime_changes(void)
   // httpd.c for display in the Browser.
   unlock_eeprom();
   if (stack_error) {
-    debug[22] |= 0x80;
+    debug[2] |= 0x80;
     update_debug_storage1();
   }
   lock_eeprom();
@@ -3309,16 +4156,16 @@ void check_restart_reboot(void)
       restart_reboot_step = RESTART_REBOOT_ARM2;
       break;
 
-#if MQTT_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
     case RESTART_REBOOT_ARM2:
       // Wait 1 second for anything in the process of being transmitted
       // to fully buffer. Refresh of a page after POST can take a few
       // seconds.
       if (t100ms_ctr1 > 9) restart_reboot_step = RESTART_REBOOT_FINISH;
       break;
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
     case RESTART_REBOOT_ARM2:
       // Wait 1 second for anything in the process of being transmitted
       // to fully buffer. Refresh of a page after POST can take a few
@@ -3420,7 +4267,7 @@ void check_restart_reboot(void)
         restart_reboot_step = RESTART_REBOOT_FINISH;
       }
       break;
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
     
     case RESTART_REBOOT_FINISH:
       if (reboot_request) {
@@ -3463,14 +4310,14 @@ void restart(void)
   restart_request = 0;
   mqtt_close_tcp = 0;
   
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
   mqtt_start = MQTT_START_TCP_CONNECT;
   mqtt_start_status = MQTT_START_NOT_STARTED;
   mqtt_start_ctr1 = 0;
   mqtt_sanity_ctr = 0;
   MQTT_error_status = 0;
   mqtt_restart_step = MQTT_RESTART_IDLE;
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
   state_request = STATE_REQUEST_IDLE;
   
@@ -3547,9 +4394,7 @@ void read_input_pins(void)
   // - ON_OFF_word_new1 is transferred to ON_OFF_word_new2 for the next round.
   // Note that any of the 16 IO pins could be an input or output. This
   // function will execute on all pins regardless of direction.
-  uint16_t xor_tmp;
   uint16_t mask;
-  // it's cheaper in terms of code space using int, instead of uint8_t !
   int i;
 
   // loop across all i/o's and read input port register:bit state
@@ -3618,6 +4463,11 @@ void write_output_pins(void)
   if (stored_config_settings & 0x08) j = 15;
   else j = 16;
 
+#if I2C_SUPPORT == 1
+// THIS IS A TEMPORARY WORKAROUND TO TEST I2C SUPPORT
+j = 13;
+#endif // I2C_SUPPORT
+
   // loop across all i/o and set or clear them according to the mask
   for (i=0; i<j; i++) {
     if (xor_tmp & (1 << i))
@@ -3628,7 +4478,7 @@ void write_output_pins(void)
 }
 
 
-#if MQTT_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 uint32_t calculate_timer(uint16_t timer_value)
 {
   // Calculate the pin_timer value from the IO_TIMER value
@@ -3654,7 +4504,7 @@ void decrement_pin_timers(void)
   // This function is called once per 100ms
   for(i=0; i<16; i++) if (pin_timer[i] > 0) pin_timer[i]--;
 }
-#endif MQTT_SUPPORT
+#endif BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 void check_reset_button(void)
@@ -3701,19 +4551,10 @@ void check_reset_button(void)
 
 void debugflash(void)
 {
-  uint8_t i;
-
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // DEBUG - BLINK LED ON/OFF XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // XXXX   X      X  X   X  X  X    XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // X   X  X      X  XX  X  X X     XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // XXXX   X      X  X X X  XX      XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // X   X  X      X  X  XX  X X     XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // XXXX   XXXXX  X  X   X  X  X    XXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  //
+  // DEBUG - BLINK LED ON/OFF
   // Turns LED off for 1/2 second, then on and waits 1/2 second
+  
+  uint8_t i;
   
   LEDcontrol(0);     // turn LED off
   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
@@ -3729,19 +4570,10 @@ void debugflash(void)
 
 void fastflash(void)
 {
-  uint8_t i;
-
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // DEBUG - BLINK LED ON/OFF XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // XXXX   X      X  X   X  X  X    XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // X   X  X      X  XX  X  X X     XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // XXXX   X      X  X X X  XX      XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // X   X  X      X  X  XX  X X     XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // XXXX   XXXXX  X  X   X  X  X    XXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  //
+  // DEBUG - BLINK LED ON/OFF
   // Makes LED flicker for 1 second
+  
+  uint8_t i;
 
   for (i=0; i<10; i++) {
     LEDcontrol(0);     // turn LED off
@@ -3757,16 +4589,7 @@ void fastflash(void)
 
 void oneflash(void)
 {
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // DEBUG - BLINK LED ON/OFF XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // XXXX   X      X  X   X  X  X    XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // X   X  X      X  XX  X  X X     XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // XXXX   X      X  X X X  XX      XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // X   X  X      X  X  XX  X X     XXXXXXXXXXXXXXXXXXXXXXX
-  // xxxxxxxxxx  // XXXX   XXXXX  X  X   X  X  X    XXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  //
   // Turns LED off for 25ms then back on
 
   LEDcontrol(0);     // turn LED off
@@ -3776,10 +4599,11 @@ void oneflash(void)
 }
 
 
+/*
 void clear_eeprom_debug_bytes(void)
 {
   // Clear debug bytes in the EEPROM
-  uint8_t i;
+  int i;
   
 #if DEBUG_SUPPORT == 1
   // Clear all debug bytes
@@ -3790,16 +4614,30 @@ void clear_eeprom_debug_bytes(void)
 
 #if DEBUG_SUPPORT > 1
   // Clear the general debug bytes
-  for (i = 0; i < (NUM_DEBUG_BYTES - 10); i++) debug[i] = 0x00;
+//  for (i = 0; i < (NUM_DEBUG_BYTES - 10); i++) debug[i] = 0x00;
   // Recover the stored debug bytes
-  for (i = 20; i < 30; i++) debug[i] = stored_debug[i];
+//  for (i = 20; i < 30; i++) debug[i] = stored_debug[i];
+  for (i = 0; i < 10; i++) debug[i] = stored_debug[i];
   // Update EEPROM bytes that changed
   update_debug_storage1();
 #endif // DEBUG_SUPPORT
+}
+*/
 
+
+void restore_eeprom_debug_bytes(void)
+{
+  // Restore debug bytes from EEPROM to RAM
+//  int i;
+
+#if DEBUG_SUPPORT > 1
+//  for (i = 0; i < 10; i++) debug[i] = stored_debug[i];
+  memcpy(&debug[0], &stored_debug[0], 10);
+#endif // DEBUG_SUPPORT
 }
 
 
+/*
 #if DEBUG_SUPPORT != 0
 // Note: Make sure there is enough RAM for the debug[] values.
 void update_debug_storage() {
@@ -3831,12 +4669,12 @@ void update_debug_storage() {
 //    // hang after capturing data.
 }
 #endif // DEBUG_SUPPORT
-
+*/
 
 #if DEBUG_SUPPORT != 0
 // Note: Make sure there is enough RAM for the debug[] values.
 void update_debug_storage1() {
-  uint8_t i;
+  int i;
   
   unlock_eeprom();
   
@@ -3849,7 +4687,8 @@ void update_debug_storage1() {
   // calls.
   // Consider putting a while(something) in the code to stop
   // processing so you can look at the results.
-  for (i = 0; i < NUM_DEBUG_BYTES; i++) {
+//  for (i = 0; i < NUM_DEBUG_BYTES; i++) {
+  for (i = 0; i < 10; i++) {
     if (stored_debug[i] != debug[i]) stored_debug[i] = debug[i];
   }
 //  fastflash();
@@ -3859,7 +4698,7 @@ void update_debug_storage1() {
 }
 #endif // DEBUG_SUPPORT
 
-
+/*
 #if DEBUG_SUPPORT != 0
 void capture_uip_buf_transmit()
 {
@@ -3901,11 +4740,11 @@ void capture_uip_buf_transmit()
   }
 }
 #endif // DEBUG_SUPPORT
+*/
 
 
-
-
-#if DEBUG_SUPPORT != 0 && MQTT_SUPPORT == 1
+/*
+#if DEBUG_SUPPORT != 0 && BUILD_SUPPORT == MQTT_BUILD
 void capture_mqtt_sendbuf()
 {
   uint8_t i;
@@ -3922,11 +4761,11 @@ void capture_mqtt_sendbuf()
     update_debug_storage(); // Write to EEPROM
   }
 }
-#endif // DEBUG_SUPPORT && MQTT_SUPPORT
+#endif // DEBUG_SUPPORT != 0 && BUILD_SUPPORT == MQTT_BUILD
+*/
 
 
-
-
+/*
 #if DEBUG_SUPPORT != 0
 void capture_uip_buf_receive()
 {
@@ -3959,3 +4798,4 @@ void capture_uip_buf_receive()
   }
 }
 #endif // DEBUG_SUPPORT
+*/

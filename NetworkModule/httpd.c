@@ -50,10 +50,12 @@
 #include "uip_arch.h"
 #include "gpio.h"
 #include "main.h"
+#include "timer.h"
 #include "mqtt_pal.h"
 #include "uipopt.h"
 #include "uart.h"
 #include "ds18b20.h"
+#include "i2c.h"
 #include "iostm8s005.h"
 
 // #include "stdlib.h"
@@ -65,10 +67,12 @@
 #define STATE_GOTPOST		2	// Client just sent a POST request
 #define STATE_PARSEPOST		10	// We are currently parsing the
                                         // client's POST-data
-#define STATE_SENDHEADER200	11	// Next we send the HTTP 200 header
-#define STATE_SENDHEADER204	12	// Or we send the HTTP 204 header
-#define STATE_SENDDATA		13	// ... followed by data
-#define STATE_PARSEGET		14	// We are currently parsing the
+#define STATE_PARSEFILE		11	// We are currently parsing the
+                                        // client's POSTed file data
+#define STATE_SENDHEADER200	12	// Next we send the HTTP 200 header
+#define STATE_SENDHEADER204	13	// Or we send the HTTP 204 header
+#define STATE_SENDDATA		14	// ... followed by data
+#define STATE_PARSEGET		15	// We are currently parsing the
                                         // client's GET-request
 #define STATE_NULL		127     // Signals no fragment reassembly info
                                         // present
@@ -88,23 +92,30 @@
                                         // taken
 
 
+#define PARSE_FILE_SEEK_SX	31	// Parse a new record
+#define PARSE_FILE_READ_DATA	32	// Read data in the record
+#define PARSE_FILE_FILL_DATA	33	// Fill zeroes for empty areas
+#define PARSE_FILE_COMPLETE	34	// Termination of good file read
+#define PARSE_FILE_FAIL		35	// Termination of failed file read
+
+
 #if DEBUG_SUPPORT != 0
 // Variables used to store debug information
-extern uint8_t *pBuffer2;
-extern uint8_t debug[NUM_DEBUG_BYTES];
-extern uint8_t stored_debug[NUM_DEBUG_BYTES];
+extern uint8_t debug[10];
+extern uint8_t stored_debug[10];
 #endif // DEBUG_SUPPORT
 
 extern uint16_t Port_Httpd;               // Port number in use
 
 extern uint8_t pin_control[16];           // Per pin configuration byte
-extern uint16_t ON_OFF_word;              // ON/OFF states of pins in single 16
+extern uint16_t ON_OFF_word;              // ON/OFF states of pins in single
+                                          // 16 bit word
+extern uint16_t Invert_word;              // Invert state of pins in single 16
                                           // bit word
-extern uint16_t Invert_word;              // Invert state of pins in single 16 bit
-                                          // word
 
 extern uint8_t Pending_hostaddr[4];       // Temp storage for new IP address
-extern uint8_t Pending_draddr[4];         // Temp storage for new Gateway address
+extern uint8_t Pending_draddr[4];         // Temp storage for new Gateway
+                                          // address
 extern uint8_t Pending_netmask[4];        // Temp storage for new Netmask
 
 extern uint16_t Pending_port;             // Temp storage for new Port number
@@ -131,20 +142,25 @@ extern uint8_t stored_config_settings;    // Config settings stored in EEPROM
 
 extern char mac_string[13];		  // MAC Address in string format
 
-extern uint8_t parse_complete;            // Used to signal that all user inputs have
-                                          // POSTed and are ready to be used
+extern uint8_t parse_complete;            // Used to signal that all user
+                                          // inputs have POSTed and are ready
+					  // to be used
 
-extern uint8_t user_reboot_request;       // Communicates the need to reboot back to the
-                                          // main.c functions
-extern uint8_t restart_reboot_step;       // Indicates whether restart or reboot are
-                                          // underway.
+extern uint8_t user_reboot_request;       // Communicates the need to reboot
+                                          // back to the main.c functions
+extern uint8_t restart_reboot_step;       // Indicates whether restart or
+                                          // reboot are underway.
 
-extern uint8_t stack_error;               // Flag indicating stack overflow error
+extern uint8_t stack_error;               // Flag indicating stack overflow
+                                          // error
 
 extern const char code_revision[];        // Code Revision
        
-uint8_t OctetArray[11];		          // Used in conversion of integer values to
-					  // character values
+uint8_t OctetArray[11];		          // Used in emb_itoa conversions but
+                                          // also repurposed as a temporary
+					  // buffer for transferring data
+				          // between functions.
+
 
 uint8_t saved_nstate;         // Saved nState used during TCP Fragment
                               // recovery. If saved_nstate != STATE_NULL
@@ -161,20 +177,95 @@ uint16_t saved_nparseleft;    // Saved nParseLeft during TCP Fragment
 uint8_t saved_newlines;       // Saved nNewlines value in case TCP
                               // fragmentation occurs during the /r/n/r/n
 			      // search.
-uint8_t parse_tail[38];       // If POST packet TCP fragmentation occurs
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+uint8_t find_content_type;    // Used to manage steps in determining whether
+                              // a POST contains a data file and finding the
+                              // the start of POST or file data.
+char byte_tail[3];            // Character pairs captured from the data
+                              // file. May also contain a single character
+			      // if a packet boundary is encountered while
+			      // reading the data file.
+uint16_t file_nBytes;         // Used in the data file functions to track the
+                              // number of bytes remaining in a packet.
+uint8_t byte_index;           // Used as an index to point to the bytes in an
+                              // incoming file data line.
+uint8_t parse_index;          // Used as an index for writing file data into
+                              // the parse_tail array
+uint16_t address_index;       // Address index into the Off-Board EEPROM
+uint16_t new_address;         // New data address found while parsing SX file
+uint16_t temp_address;        // Temporary storage of a new data address found
+                              // while parsing SX file
+uint16_t address;             // Current address of data being parsed from an
+                              // SX file
+uint8_t data_count;           // Data count found while parsing SX file
+uint8_t data_value;           // Data byte read while parsing SX file
+uint16_t line_count;          // Counts the number of data lines processed.
+uint8_t checksum;             // Used in validating file data
+uint8_t saved_ParseState;     // Saves the ParseState of the file data
+                              // parsing function so that re-entry can be
+			      // handled when TCP Fragmentation occurs.
+uint8_t upgrade_failcode;     // Failure codes for Flash upgrade process.
+uint8_t file_type;            // Used to store the file type as Program data
+                              // or String data
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+
+#if OB_EEPROM_SUPPORT == 1
+// These defines locate the webpages stored in the Off-Board EEPROM. In order
+// to allow a String File to be read using the same code used for reading
+// Program Files the addresses contained in the String File all starts at a
+// base address of 0x8000. However, in the EEPROM itself the base address is
+// 0x0000.
+#define MQTT_WEBPAGE_IOCONTROL_ADDRESS_START                0x8000 - 0x8000
+#define MQTT_WEBPAGE_CONFIGURATION_ADDRESS_START            0x8600 - 0x8000
+#define BROWSER_ONLY_WEBPAGE_IOCONTROL_ADDRESS_START        0x9600 - 0x8000
+#define BROWSER_ONLY_WEBPAGE_CONFIGURATION_ADDRESS_START    0x9d00 - 0x8000
+#define MQTT_WEBPAGE_IOCONTROL_SIZE                         0xae00 - 0x8000
+#define MQTT_WEBPAGE_CONFIGURATION_SIZE                     0xae02 - 0x8000
+#define BROWSER_ONLY_WEBPAGE_IOCONTROL_SIZE                 0xae04 - 0x8000
+#define BROWSER_ONLY_WEBPAGE_CONFIGURATION_SIZE             0xae06 - 0x8000
+
+uint8_t eeprom_copy_to_flash_request;
+                               // Flag to cause the main.c loop to call the
+                               // copy to flash function.
+extern char stored_upload_flag;
+                               // Flag stored in EPROM used to communicate
+                               // across reboots the request to copy the
+                               // the memcpy_update segment to Flash
+uint16_t off_board_eeprom_index; // Used as an index into the Off-Board EEPROM
+                               // when accessing string storage
+#endif // OB_EEPROM_SUPPORT == 1
+
+
+
+uint8_t parse_tail[66];       // >>> If POST packet TCP fragmentation occurs
                               // parse_tail will contain partial POST value
-			      // that was at the end of the packet. The
-			      // size of this array is determined by the
-			      // longest POST component. At this time that
-			      // longest component is the &h00 POST reply.
+			      // that was at the end of the packet. The size
+			      // of this array is determined by the longest
+			      // POST component. In normal POST processing the
+			      // longest component is the &h00 POST reply. In
+			      // data file processing the longest string that
+			      // needs to be stored is 40 bytes.
+			      // >>> The parse_tail array is also repurposed
+			      // for buffering data received in a program
+			      // update file one line of data at a time. The
+			      // maximum size required for this storage is 65
+			      // bytes.
 uint8_t z_diag;               // The last value in a POST (hidden), used for
                               // diagnostics
 uint8_t break_while;          // Used to indicate that a parsing "while loop"
                               // break is required
 uint8_t current_webpage;      // Tracks the web page that is currently
                               // displayed
+uint16_t HtmlPageIOControl_size;     // Size of the IOControl template
+uint16_t HtmlPageConfiguration_size; // Size of the Configuration template
 
-// MQTT variables
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+// These MQTT variables must always be compiled in the MQTT_BUILD and
+// BROWSER_ONLY_BUILD to maintain a common user interface between the MQTT
+// and Browser Only versions.
 extern uint8_t mqtt_enabled;              // Signals if MQTT has been enabled
 extern uint8_t stored_mqttserveraddr[4];  // mqttserveraddr stored in EEPROM
 extern uint16_t stored_mqttport;	  // MQTT Port number  stored in
@@ -194,6 +285,9 @@ extern uint8_t mqtt_start_status;         // Contains error status from the
                                           // MQTT start process
 extern uint8_t MQTT_error_status;         // For MQTT error status display in
                                           // GUI
+					  
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
 
 extern uint8_t RXERIF_counter;            // Counts RXERIF errors
 extern uint8_t TXERIF_counter;            // Counts TXERIF errors
@@ -203,6 +297,7 @@ extern uint8_t MQTT_not_OK_counter;       // Counts MQTT != OK events
 extern uint8_t MQTT_broker_dis_counter;   // Counts broker disconnect events
 extern uint32_t second_counter;           // Counts seconds since boot
 
+// #if BUILD_SUPPORT == MQTT_BUILD || BUILD_SUPPORT == BROWSER_ONLY_BUILD
 // DS18B20 variables
 extern uint8_t DS18B20_scratch[5][2];     // Stores the temperature measurement
                                           // for the DS18B20s
@@ -216,15 +311,16 @@ extern uint8_t FoundROM[5][8];            // Table of found ROM codes
                                           // [x][6] = MSByte serial number
                                           // [x][7] = CRC
 extern int numROMs;                       // Count of DS18B20 devices found
+// #endif // BUILD_SUPPORT == MQTT_BUILD || BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 // Variables stored in Flash
-#if MQTT_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 // Define Flash addresses for IO Names and IO Timers
-extern char IO_NAME[16][16] @0xff00;
-extern uint16_t IO_TIMER[16] @0xfec0;
+extern uint16_t IO_TIMER[16] @FLASH_START_IO_TIMERS;
+extern char IO_NAME[16][16] @FLASH_START_IO_NAMES;
 extern uint16_t Pending_IO_TIMER[16];
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 
@@ -235,6 +331,9 @@ extern uint16_t Pending_IO_TIMER[16];
 // Notes on web pages:
 // - Web pages are formed by placing the HTML for the pages in static
 //   constants in flash memory.
+//   OR
+//   Web pages are formed by placing the HTML for the pages in Off-Baord
+//   EEPROM (as controlled by #define OB_EEPROM_SUPPORT)
 //
 // - Since most of the web pages contain variable data (for instance things
 //   like the user changeable IP addresses, port numbers, device name, etc)
@@ -301,8 +400,24 @@ extern uint16_t Pending_IO_TIMER[16];
 //
 
 
+
+
+#define WEBPAGE_NULL		0
+#define WEBPAGE_IOCONTROL	1
+#define WEBPAGE_CONFIGURATION	2
+#define WEBPAGE_STATS1		6
+#define WEBPAGE_STATS2		7
+#define WEBPAGE_SENSOR_SERIAL	8
+#define WEBPAGE_SSTATE		9
+#define WEBPAGE_UPDATER		10
+#define WEBPAGE_LOADUPDATER	11
+#define WEBPAGE_EXISTING_IMAGE	12
+
+
+
+
 //---------------------------------------------------------------------------//
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
 // IO Control Template
 //
 // PARSE_BYTES calculation:
@@ -331,8 +446,10 @@ extern uint16_t Pending_IO_TIMER[16];
 //                + (1 x 6) - 1
 //     PARSEBYTES = 37
 //                + 6 - 1 = 42
-#define WEBPAGE_IOCONTROL		0
+//
+// #define WEBPAGE_IOCONTROL		1
 #define PARSEBYTES_IOCONTROL		42
+#if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageIOControl[] =
 "%y04%y05"
       "<title>%a00: IO Control</title>"
@@ -366,11 +483,18 @@ static const char g_HtmlPageIOControl[] =
       "<pre>%t00%t01%t02%t03%t04</pre>"
    "</body>"
 "</html>";
+#endif // OB_EEPROM_SUPPORT == 0
+
+#if OB_EEPROM_SUPPORT == 1
+// Declared short static const here so that common code can be used for Flash
+// and Off-Board webpage sources.
+static const char g_HtmlPageIOControl[] = " ";
+#endif // OB_EEPROM_SUPPORT == 1
 
 
 
 /*
-// Credit to Jevdeni Kiski for the javascript work and html improvements.
+// Credit to Jevgeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
 // 2) Copy the resulting minified script to an editor and replace all double quotes with
@@ -438,9 +562,11 @@ const m = (data => {
 
 
 */
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
 
+#if BUILD_SUPPORT == MQTT_BUILD
 // Configuration webpage Template
 //
 // PARSE_BYTES calculation:
@@ -497,10 +623,10 @@ const m = (data => {
 //                + 30
 //                + 37
 //                + 6 - 1 = 194
-// Note: PARSEBYTES_X and PARSEBYTES_X_ADDL must each be less than 255 and
-// the sum of the two must not exceed 482.
-#define WEBPAGE_CONFIGURATION		1
+//
+// #define WEBPAGE_CONFIGURATION		2
 #define PARSEBYTES_CONFIGURATION	194
+#if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageConfiguration[] =
 "%y04%y05"
       "<title>%a00: Configuration</title>"
@@ -619,10 +745,17 @@ static const char g_HtmlPageConfiguration[] =
       "%y02`/60`'>IO Control</button>"
    "</body>"
 "</html>";
+#endif // OB_EEPROM_SUPPORT == 0
+
+#if OB_EEPROM_SUPPORT == 1
+// Declared short static const here so that common code can be used for Flash
+// and Off-Board webpage sources.
+static const char g_HtmlPageConfiguration[] = " ";
+#endif // OB_EEPROM_SUPPORT == 1
 
 
 /*
-// Credit to Jevdeni Kiski for the javascript work and html improvements.
+// Credit to Jevgeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
 // 2) Copy the resulting minified script to an editor and replace all double quotes with
@@ -734,14 +867,14 @@ const m = (data => {
 });
 
 */
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
 
 
 //---------------------------------------------------------------------------//
 
-#if MQTT_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 // IO Control Template
 //
 // PARSE_BYTES calculation:
@@ -768,8 +901,10 @@ const m = (data => {
 //                + (1 x 5)
 //     PARSEBYTES = 37
 //                + 5 = 42
-#define WEBPAGE_IOCONTROL		0
+//
+// #define WEBPAGE_IOCONTROL		1
 #define PARSEBYTES_IOCONTROL		42
+#if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageIOControl[] =
 "%y04%y05"
       "<title>%a00: IO Control</title>"
@@ -804,11 +939,18 @@ static const char g_HtmlPageIOControl[] =
       "<pre>%t00%t01%t02%t03%t04</pre>"
    "</body>"
 "</html>";
+#endif // OB_EEPROM_SUPPORT == 0
+
+#if OB_EEPROM_SUPPORT == 1
+// Declared short static const here so that common code can be used for Flash
+// and Off-Board webpage sources.
+static const char g_HtmlPageIOControl[] = " ";
+#endif // OB_EEPROM_SUPPORT == 1
 
 
 
 /*
-// Credit to Jevdeni Kiski for the javascript work and html improvements.
+// Credit to Jevgeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
 // 2) Copy the resulting minified script to an editor and replace all double quotes with
@@ -894,9 +1036,11 @@ const m = (data => {
 });
 
 */
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 // Configuration webpage Template
 //
 // PARSE_BYTES calculation:
@@ -966,8 +1110,10 @@ const m = (data => {
 //                + 320
 //                + 144
 //                + 5 = 602
-#define WEBPAGE_CONFIGURATION		1
+//
+// #define WEBPAGE_CONFIGURATION		2
 #define PARSEBYTES_CONFIGURATION	602
+#if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageConfiguration[] =
 "%y04%y05"
       "<title>%a00: Configuration</title>"
@@ -1070,10 +1216,17 @@ static const char g_HtmlPageConfiguration[] =
       "%y02`/60`'>IO Control</button>"
    "</body>"
 "</html>";
+#endif // OB_EEPROM_SUPPORT == 0
+
+#if OB_EEPROM_SUPPORT == 1
+// Declared short static const here so that common code can be used for Flash
+// and Off-Board webpage sources.
+static const char g_HtmlPageConfiguration[] = " ";
+#endif // OB_EEPROM_SUPPORT == 1
 
 
 /*
-// Credit to Jevdeni Kiski for the javascript work and html improvements.
+// Credit to Jevgeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
 // 2) Copy the resulting minified script to an editor and replace all double quotes with
@@ -1223,12 +1376,12 @@ const m = (data => {
 });
 
 */
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
-#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
+#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 // Statistics page Template
-#define WEBPAGE_STATS1		5
+// #define WEBPAGE_STATS1		6
 static const char g_HtmlPageStats1[] =
 "%y04%y05"
   "<title>%a00: Network Statistics</title>"
@@ -1266,13 +1419,13 @@ static const char g_HtmlPageStats1[] =
   "<button onclick='location=`/69`'>Clear</button>"
   "</body>"
   "</html>";
-#endif // UIP_STATISTICS
+#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
 // Link Error Statistics page Template
-#define WEBPAGE_STATS2		6
+// #define WEBPAGE_STATS2		7
 static const char g_HtmlPageStats2[] =
   "%y04%y05"
   "<title>%a00: Link Error Statistics</title>"
@@ -1297,7 +1450,7 @@ static const char g_HtmlPageStats2[] =
 
 #if DEBUG_SENSOR_SERIAL == 1
 // Temperature Sensor Serial Number page Template
-#define WEBPAGE_SENSOR_SERIAL	7
+// #define WEBPAGE_SENSOR_SERIAL	8
 static const char g_HtmlPageTmpSerialNum[] =
   "%y04%y05"
   "<title>%a00: Temperature Sensor Serial Numbers</title>"
@@ -1318,14 +1471,86 @@ static const char g_HtmlPageTmpSerialNum[] =
 #endif // DEBUG_SENSOR_SERIAL
 
 
+
 // Very Short IO state page Template
 // Only responds with a TCP payload that contains the 16 alphanumeric
 // characters representing the IO pins states. The response is not
 // browser compatible.
 // 4 bytes; size of reports 5
-#define WEBPAGE_SSTATE		8
+// #define WEBPAGE_SSTATE		9
 static const char g_HtmlPageSstate[] =
   "%f00";
+
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+// Code Updater Support page Template
+// This is the only web page shown by the Code Updater version of this
+// application.
+// #define WEBPAGE_UPDATER		10
+static const char g_HtmlPageUpdater[] =
+  "%y04%y05"
+  "<title>Code Updater</title>"
+  "</head>"
+  "<body>"
+  "<h1>Code Updater</h1>"
+  "<form action='' method='post' enctype='multipart/form-data'>"
+  "<p><input input type='file' name='file1' required /></p>"
+  "<p><button type='submit'>Submit</button>"
+  "</form>"
+  
+  "<p>"
+  "When you click Submit the code reprogramming process starts and the device resets.<br>"
+  "It can take up to 2 minutes for the firmware upload and install.<br><br>"
+  "DO NOT ACCESS VIA BROWSER DURING THIS 2 MINUTE PERIOD EVEN IF THE BROWSER GUI GOES.<br>"
+  "BLANK.<br><br>"
+  "If you arrived here unintentionally DO NOT CLICK SUBMIT. Instead use command /73 to<br>"
+  "reinstall your previous firmware version.<br>"
+  "</p>"
+  "</body>"
+  "</html>";
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+
+#if OB_EEPROM_SUPPORT == 1
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+// Load Updater page Template
+// This web page is shown when the user requests the Code Updater
+// #define WEBPAGE_LOADUPDATER		11
+static const char g_HtmlPageLoadUpdater[] =
+  "%y04%y05"
+  "<title>Loading Code Updater</title>"
+  "</head>"
+  "<body>"
+  "<h1>Loading Code Updater</h1>"
+  "<p>"
+  "DO NOT ACCESS BROWSER FOR TWO MINUTES.<br><br>"
+  "</p>"
+  "</body>"
+  "</html>";
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+// Existing Image page Template
+// This web page is shown when the user requests that the existing firmware
+// image be reinstalled
+// #define WEBPAGE_EXISTING_IMAGE	12
+static const char g_HtmlPageExistingImage[] =
+  "%y04%y05"
+  "<title>Restoring Existing Image</title>"
+  "</head>"
+  "<body>"
+  "<h1>Restoring Existing Image</h1>"
+  "<p>"
+  "It can take up to 2 minutes to restore the existing firmware image.<br><br>"
+  "DO NOT ATTEMPT BROWSER ACCESS DURING THIS 2 MINUTE PERIOD.<br><br>"
+  "After 2 minutes you can access the module with your browser.<br><br>"
+  "</p>"
+  "</body>"
+  "</html>";
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+#endif // OB_EEPROM_SUPPORT == 1
+
+
 
 
 //---------------------------------------------------------------------------//
@@ -1450,9 +1675,138 @@ const struct page_string ps[6] = {
 char insertion_flag[3];
 
 
+void HttpDStringInit() {
+  // Initialize HttpD string sizes
+
+#if OB_EEPROM_SUPPORT == 0
+  HtmlPageIOControl_size = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
+#endif // OB_EEPROM_SUPPORT == 0
+
+#if OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == MQTT_BUILD
+  // Prepare to read 2 bytes from Off-Board EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_SIZE);
+#endif // OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == MQTT_BUILD
+
+#if OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+  // Prepare to read 2 bytes from Off-Board EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_IOCONTROL_SIZE);
+#endif // OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+#if OB_EEPROM_SUPPORT == 1
+  // Read 2 bytes from Off-Board EEPROM and convert to uint16_t.
+  {
+    uint16_t temp;
+    OctetArray[0] = I2C_read_byte(0);
+    OctetArray[1] = I2C_read_byte(1);
+    temp = (uint16_t)(OctetArray[0] << 8);
+    temp |= OctetArray[1];
+    HtmlPageIOControl_size = temp;
+  }
+#endif // OB_EEPROM_SUPPORT == 1
+  
+#if OB_EEPROM_SUPPORT == 0
+  HtmlPageConfiguration_size = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
+#endif // OB_EEPROM_SUPPORT == 0
+
+#if OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == MQTT_BUILD
+  // Prepare to read 2 bytes from Off-Board EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_CONFIGURATION_SIZE);
+#endif // OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == MQTT_BUILD
+
+#if OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+  // Prepare to read 2 bytes from Off-Board EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_CONFIGURATION_SIZE);
+#endif // OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+#if OB_EEPROM_SUPPORT == 1
+  // Read 2 bytes from Off-Board EEPROM and convert to uint16_t.
+  {
+    uint16_t temp;
+    OctetArray[0] = I2C_read_byte(0);
+    OctetArray[1] = I2C_read_byte(1);
+    temp = (uint16_t)(OctetArray[0] << 8);
+    temp |= OctetArray[1];
+    HtmlPageConfiguration_size = temp;
+  }
+#endif // OB_EEPROM_SUPPORT == 1
+}
+
+
+void init_off_board_string_pointers(void) {
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+    if (current_webpage == WEBPAGE_IOCONTROL) {
+#if OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == MQTT_BUILD
+      off_board_eeprom_index = MQTT_WEBPAGE_IOCONTROL_ADDRESS_START;
+#endif // OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == MQTT_BUILD
+#if OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+      off_board_eeprom_index = BROWSER_ONLY_WEBPAGE_IOCONTROL_ADDRESS_START;
+#endif // OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    }
+    
+    if (current_webpage == WEBPAGE_CONFIGURATION) {
+#if OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == MQTT_BUILD
+      off_board_eeprom_index = MQTT_WEBPAGE_CONFIGURATION_ADDRESS_START;
+#endif // OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == MQTT_BUILD
+#if OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+      off_board_eeprom_index = BROWSER_ONLY_WEBPAGE_CONFIGURATION_ADDRESS_START;
+#endif // OB_EEPROM_SUPPORT == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+}
+
+
+void httpd_diagnostic(void) {
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#if OB_EEPROM_SUPPORT == 1
+  // Read and display the 8 bytes with size info for the web pages
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_SIZE);
+  {
+    int i;
+    uint8_t temp[8];
+    UARTPrintf("Webpage Size Bytes: ");
+    temp[0] = I2C_read_byte(0);
+    temp[1] = I2C_read_byte(0);
+    temp[2] = I2C_read_byte(0);
+    temp[3] = I2C_read_byte(0);
+    temp[4] = I2C_read_byte(0);
+    temp[5] = I2C_read_byte(0);
+    temp[6] = I2C_read_byte(0);
+    temp[7] = I2C_read_byte(1);
+    for (i = 0; i < 8; i++) {
+      emb_itoa(temp[i], OctetArray, 16, 2);
+      UARTPrintf(OctetArray);
+      UARTPrintf(" ");
+    }
+  UARTPrintf("\r\n");
+  }
+#endif
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+UARTPrintf("IOControl Page Size: ");
+emb_itoa(HtmlPageIOControl_size, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+
+
+UARTPrintf("Configuration Page Size: ");
+emb_itoa(HtmlPageConfiguration_size, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+
+}
+
+
 uint16_t adjust_template_size()
 {
   uint16_t size;
+  // declare and pre-calculate repeatedly used values
+  int strlen_devicename_adjusted = (strlen(stored_devicename) - 4);
   
   // This function calculates the size of the HTML page that will be
   // transmitted based on the size of the web page template plus adjustments
@@ -1471,11 +1825,21 @@ uint16_t adjust_template_size()
   
   size = 0;
 
+
+  //-------------------------------------------------------------------------//
+  // A no-function check for current_webpage that allows the various options
+  // to compile as "else if" statements.
+  //-------------------------------------------------------------------------//
+  if (current_webpage == WEBPAGE_NULL) { }
+
+
+
+  //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_IOCONTROL template
-  //
-  
-  if (current_webpage == WEBPAGE_IOCONTROL) {
-    size = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
+  //-------------------------------------------------------------------------//
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+  else if (current_webpage == WEBPAGE_IOCONTROL) {
+    size = HtmlPageIOControl_size;
 
     // Account for header replacement strings %y04 %y05
     size = size + ps[4].size_less4
@@ -1484,19 +1848,7 @@ uint16_t adjust_template_size()
     // Account for Device Name field %a00 in <title> and in body
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
-    size = size + (2 * (strlen(stored_devicename) - 4));
-    
-#if MQTT_SUPPORT == 0
-    // Account for IO Name fields %j00 to %j15
-    // Each can be variable in size during run time so we have to calculate
-    // them  each time we display the web page.
-    {
-      int i;
-      for (i=0; i<15; i++) {
-        size = size + (strlen(IO_NAME[i]) - 4);
-      }
-    }
-#endif MQTT_SUPPORT
+    size = size + (2 * strlen_devicename_adjusted);
 
     // Account for pin control field %h00
     // size = size + (#instances x (value_size - marker_field_size));
@@ -1570,14 +1922,29 @@ uint16_t adjust_template_size()
     // size = size + (#instances) x (ps[2].size - marker_field_size);
     // size = size + (2 x ps[2].size_less4);
     size = size + (2 * ps[2].size_less4);
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    // Account for IO Name fields %j00 to %j15
+    // Each can be variable in size during run time so we have to calculate
+    // them  each time we display the web page.
+    {
+      int i;
+      for (i=0; i<15; i++) {
+        size = size + (strlen(IO_NAME[i]) - 4);
+      }
+    }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
   }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
-  //---------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_CONFIGURATION template
-  //
+  //-------------------------------------------------------------------------//
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   else if (current_webpage == WEBPAGE_CONFIGURATION) {
-    size = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
+    size = HtmlPageConfiguration_size;
+
     // Account for header replacement strings %y04 %y05
     size = size + ps[4].size_less4
                 + ps[5].size_less4;
@@ -1585,7 +1952,7 @@ uint16_t adjust_template_size()
     // Account for Device Name field %a00 in <title> and in body
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
-    size = size + (2 * (strlen(stored_devicename) - 4));
+    size = size + (2 * strlen_devicename_adjusted);
 
     // Account for HTML IP Address, Gateway Address, and
     // Netmask fields %b00, %b04, %b08
@@ -1595,15 +1962,6 @@ uint16_t adjust_template_size()
     // size = size + (3 x (4));
     size = size + 12;
 
-#if MQTT_SUPPORT == 1
-    // Account for MQTT IP Address field %b12
-    // There is 1 instance
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (1 x (8 - 4));
-    // size = size + (1 x (4));
-    size = size + 4;
-#endif // MQTT_SUPPORT
-
     // Account for HTML Port field %c00
     // There is 1 instance
     // size = size + (#instances x (value_size - marker_field_size));
@@ -1611,16 +1969,6 @@ uint16_t adjust_template_size()
     // size = size + (1 x (1));
     // size = size + 1;
     size = size + 1;
-
-#if MQTT_SUPPORT == 1
-    // Account for MQTT Port field %c01
-    // There is 1 instance
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (1 x (5 - 4));
-    // size = size + (1 x (1));
-    // size = size + 1;
-    size = size + 1;
-#endif // MQTT_SUPPORT
 
     // Account for MAC field %d00
     // There is 1 instance of this field
@@ -1637,25 +1985,6 @@ uint16_t adjust_template_size()
     // size = size + (1 x (-2));
     size = size - 2;
 
-#if MQTT_SUPPORT == 1
-    // Account for Username field %l00
-    // This can be variable in size during run time so we have to calculate it
-    // each time we display the web page.
-    size = size + (strlen(stored_mqtt_username) - 4);
-
-    // Account for Password field %m00
-    // This can be variable in size during run time so we have to calculate it
-    // each time we display the web page.
-    size = size + (strlen(stored_mqtt_password) - 4);
-
-    // Account for red/green State Progress boxes %n00, %n01, %n02, %n03, %n04 
-    // There are always 5 boxes, one for each State progress indicator
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (1 - 4));
-    // size = size + (5 x (-3));
-    size = size - 15;
-#endif // MQTT_SUPPORT
-
     // Account for Code Revision insertion %w00
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances x (13 - 4));
@@ -1668,24 +1997,6 @@ uint16_t adjust_template_size()
     // size = size + (1 x 28);
     size = size + 28;
 
-#if MQTT_SUPPORT == 0
-    // Account for IO Name fields %j00 to %j15
-    // Each can be variable in size during run time so we have to calculate
-    // them  each time we display the web page.
-    {
-      int i;
-      for (i=0; i<15; i++) {
-        size = size + (strlen(IO_NAME[i]) - 4);
-      }
-    }
-
-    // Account for IO Timer field %i00 to %i15
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (4 - 4));
-    // size = size + (16 x 0);
-    // size = size + 0;
-#endif MQTT_SUPPORT
- 
     // Account for Text Replacement insertion
     // Some strings appear frequently in the templates - things like the
     // button titles which appear when hovering over a button. These strings
@@ -1704,13 +2015,66 @@ uint16_t adjust_template_size()
     // size = size + (#instances) x (ps[2].size - 4);
     // size = size + (2) x ps[2].size_less4;
     size = size + (2 * ps[2].size_less4);
+    
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    // Account for IO Name fields %j00 to %j15
+    // Each can be variable in size during run time so we have to calculate
+    // them  each time we display the web page.
+    {
+      int i;
+      for (i=0; i<15; i++) {
+        size = size + (strlen(IO_NAME[i]) - 4);
+      }
+    }
+
+    // Account for IO Timer field %i00 to %i15
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (4 - 4));
+    // size = size + (16 x 0);
+    // size = size + 0;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+ 
+#if BUILD_SUPPORT == MQTT_BUILD
+    // Account for MQTT IP Address field %b12
+    // There is 1 instance
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (1 x (8 - 4));
+    // size = size + (1 x (4));
+    size = size + 4;
+    
+    // Account for MQTT Port field %c01
+    // There is 1 instance
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (1 x (5 - 4));
+    // size = size + (1 x (1));
+    // size = size + 1;
+    size = size + 1;
+
+    // Account for Username field %l00
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + strlen_devicename_adjusted;
+
+    // Account for Password field %m00
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + (strlen(stored_mqtt_password) - 4);
+    
+    // Account for red/green State Progress boxes %n00, %n01, %n02, %n03, %n04 
+    // There are always 5 boxes, one for each State progress indicator
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (1 - 4));
+    // size = size + (5 x (-3));
+    size = size - 15;
+#endif // BUILD_SUPPORT == MQTT_BUILD
   }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
-#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
-  //---------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_STATS1 template
-  //
+  //-------------------------------------------------------------------------//
+#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
   else if (current_webpage == WEBPAGE_STATS1) {
     size = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
 
@@ -1721,8 +2085,8 @@ uint16_t adjust_template_size()
     // Account for Device Name field %a00 in <title>
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
-    size = size + (strlen(stored_devicename) - 4);
-
+    size = size + strlen_devicename_adjusted;
+    
     // Account for Statistics fields %e00 to %e21
     // There are 22 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
@@ -1730,13 +2094,13 @@ uint16_t adjust_template_size()
     // size = size + (22 x (6));
     size = size + 132;
   }
-#endif // UIP_STATISTICS
+#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
+  //-------------------------------------------------------------------------//
+  // Adjust the size reported by the WEBPAGE_STATS2 template
+  //-------------------------------------------------------------------------//
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-  //---------------------------------------------------------------------------//
-  // Adjust the size reported by the WEBPAGE_STATS template
-  //
   else if (current_webpage == WEBPAGE_STATS2) {
     size = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
 
@@ -1747,7 +2111,7 @@ uint16_t adjust_template_size()
     // Account for Device Name field %a00 in <title>
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
-    size = size + (strlen(stored_devicename) - 4);
+    size = size + strlen_devicename_adjusted;
 
     // Account for Statistics fields %e31, %e32, %e33, %e35
     // There are 4 instances of these fields
@@ -1759,10 +2123,10 @@ uint16_t adjust_template_size()
 #endif // DEBUG_SUPPORT
 
 
-#if DEBUG_SENSOR_SERIAL == 1
-  //---------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
   // Adjust the size reported by the DEBUG_SENSOR_SERIAL template
-  //
+  //-------------------------------------------------------------------------//
+#if DEBUG_SENSOR_SERIAL == 1
   else if (current_webpage == WEBPAGE_SENSOR_SERIAL) {
     size = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
 
@@ -1773,30 +2137,75 @@ uint16_t adjust_template_size()
     // Account for Device Name field %a00 in <title>
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
-    size = size + (strlen(stored_devicename) - 4);
-
-    // Account for Temperature Sensor Serial Number fields %e40, %e41, %e42,
-    //   %e43, %e44
-    // There are 5 instances of these fields
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (5 x (12 - 4));
-    // size = size + (5 x (8));
-    size = size + 40;
+    size = size + strlen_devicename_adjusted;
   }
 #endif // DEBUG_SENSOR_SERIAL
 
 
-  //---------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_SSTATE template
-  //
+  //-------------------------------------------------------------------------//
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   else if (current_webpage == WEBPAGE_SSTATE) {
     size = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
     
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+
+    // Account for Device Name field %a00 in <title>
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + strlen_devicename_adjusted;
+
     // Account for Short Form IO Settings field (%f00)
     // size = size + (value size - marker_field_size)
     // size = size + (16 - 4);
     size = size + 12;
   }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+
+#if OB_EEPROM_SUPPORT == 1
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+  //-------------------------------------------------------------------------//
+  // Adjust the size reported by the WEBPAGE_LOADUPDATER template
+  //-------------------------------------------------------------------------//
+  else if (current_webpage == WEBPAGE_LOADUPDATER) {
+    size = (uint16_t)(sizeof(g_HtmlPageLoadUpdater) - 1);
+    
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+  }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#endif // OB_EEPROM_SUPPORT == 1
+
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+  //-------------------------------------------------------------------------//
+  // Adjust the size reported by the WEBPAGE_UPDATER template
+  //-------------------------------------------------------------------------//
+  else if (current_webpage == WEBPAGE_UPDATER) {
+    size = (uint16_t)(sizeof(g_HtmlPageUpdater) - 1);
+    
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+  }
+
+
+  //-------------------------------------------------------------------------//
+  // Adjust the size reported by the WEBPAGE_EXISTING_IMAGE template
+  //-------------------------------------------------------------------------//
+  else if (current_webpage == WEBPAGE_EXISTING_IMAGE) {
+    size = (uint16_t)(sizeof(g_HtmlPageExistingImage) - 1);
+    
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+  }
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
 
   return size;
 }
@@ -1810,7 +2219,7 @@ void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
   // base - The base to be used in the output string
   // pad  - size of the string result, pre-pad with zeroes if needed
   //
-  // The resulting string  in str will be NULL terminated on completion.
+  // The resulting string in str will be NULL terminated on completion.
   // No checking is done so make sure str has enough room for the
   // converted value and the terminator.
   //
@@ -1881,6 +2290,7 @@ int hex2int(char ch)
   // If the character is not hex -1 is returned
   if (ch >= '0' && ch <= '9') return ch - '0';
   if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+  if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
   return -1;
 }
 
@@ -1902,60 +2312,50 @@ void int2hex(uint8_t i)
   // Convert a single integer into two hex characters (two nibbles).
   // Put the result in global variable OctetArray.
   j = (uint8_t)(i>>4);
-  if(j<=9) OctetArray[0] = (uint8_t)(j + '0');
-  else OctetArray[0] = (uint8_t)(j - 10 + 'a');
+  OctetArray[0] = int2nibble(j);
+  
   j = (uint8_t)(i & 0x0f);
-  if(j<=9) OctetArray[1] = (uint8_t)(j + '0');
-  else OctetArray[1] = (uint8_t)(j - 10 + 'a');
+  OctetArray[1] = int2nibble(j);
+  
   OctetArray[2] = '\0';
 }
 
 
-static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString)
+uint8_t int2nibble(uint8_t j)
 {
-  // Copies a string into the buffer for transmission
-  uint16_t nBytes;
-  char Character;
-
-  nBytes = 0;
-  while ((Character = pString[0]) != '\0') {
-    **ppBuffer = Character;
-    *ppBuffer = *ppBuffer + 1;
-    pString = pString + 1;
-    nBytes++;
-  }
-  return nBytes;
+  // Convert a 4 bit integer to a character (a single nibble).
+  if(j<=9) return (uint8_t)(j + '0');
+  else return (uint8_t)(j - 10 + 'a');
 }
 
 
-// static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen, uint8_t type)
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
 {
   uint16_t nBytes;
   int i;
-
-  nBytes = 0;
-
-  nBytes += CopyStringP(&pBuffer, (const char *)(
+  
+  static const char http_string1[] = 
     "HTTP/1.1 200 OK\r\n"
-    "Content-Length:"
-    ));
-
-  // This creates the "xxxxx" part of a 5 character "Content-Length:xxxxx" field in the pBuffer.
-  emb_itoa(nDataLen, OctetArray, 10, 5);
-  for (i=0; i<5; i++) {
-    *pBuffer = (uint8_t)OctetArray[i];
-    pBuffer = pBuffer + 1;
-  }
-  nBytes += 5;
-
-  nBytes += CopyStringP(&pBuffer, (const char *)(
+    "Content-Length:";
+  static const char http_string2[] = 
     "\r\n"
     "Cache-Control: no-cache, no-store\r\n"
     "Content-Type: text/html; charset=utf-8\r\n"
-    "Connection:close\r\n\r\n"
-    ));
-    
+    "Connection:close\r\n\r\n";
+
+  nBytes = 0;
+
+  pBuffer = stpcpy(pBuffer, http_string1);
+  nBytes += strlen(http_string1);
+
+  // This creates the "xxxxx" part of a 5 character "Content-Length:xxxxx" field in the pBuffer.
+  emb_itoa(nDataLen, OctetArray, 10, 5);
+  pBuffer = stpcpy(pBuffer, OctetArray);
+  nBytes += 5;
+
+  pBuffer = stpcpy(pBuffer, http_string2);
+  nBytes += strlen(http_string2);
+  
   return nBytes;
 }
 
@@ -1963,12 +2363,14 @@ static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
 static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pDataLeft, uint16_t nMaxBytes)
 {
   // This function copies the selected webpage from flash storage to the
-  // output buffer. While doing the copy the stream of characters in the
-  // webpage source is searched for special markers that indicate where
-  // variable data representing pin states or address information should
-  // appear in the webpage, and it searches for the input fields that a user
-  // would change in webpage forms. When those special characters are found
-  // the program inserts the required variables.
+  // output buffer.
+  // pBuffer - the output buffer
+  // ppData - the Flash storage for the Webpage template
+  // pDataLeft - remaining size of the template to be processed
+  // nMaxBytes - size of the output buffer
+  // While performing the copy the stream of characters in the webpage
+  // template is searched for special markers that indicate where template
+  // text should be replaced with variable length text.
     
   uint8_t nByte;
   uint8_t nParsedNum;
@@ -2039,7 +2441,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
   nMaxBytes = UIP_TCP_MSS - 40;
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-  while ((pBuffer - pBuffer_start) < nMaxBytes) {
+  while ((uint16_t)(pBuffer - pBuffer_start) < nMaxBytes) {
     // This is the main loop for processing the page templates stored in
     // flash and inserting variable data as the webpage is copied to the
     // transmission buffer.
@@ -2089,8 +2491,18 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	// that follow it) will be processed for replacement in the
 	// transmission buffer. pDataLeft is decremented once for each
 	// character read from the web page template.
-      
+        
+#if OB_EEPROM_SUPPORT == 0
 	nByte = **ppData;
+#endif // OB_EEPROM_SUPPORT == 0
+#if OB_EEPROM_SUPPORT == 1
+        if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
+          // Read 1 byte from Off-Board EEPROM.
+          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, off_board_eeprom_index);
+          nByte = I2C_read_byte(1);
+	}
+	else nByte = **ppData;
+#endif // OB_EEPROM_SUPPORT == 1
 
         // Search for '%' symbol in the data stream. The symbol indicates the
 	// start of one of these special fields:
@@ -2137,18 +2549,43 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         if (nByte == '%') {
           (*ppData)++;
           (*pDataLeft)--;
+#if OB_EEPROM_SUPPORT == 1
+	  off_board_eeprom_index++;
+#endif // OB_EEPROM_SUPPORT == 1
           
           // Collect the "nParsedMode" value (the i, o, a, b, c, etc part of
 	  // the field). This, along with the "nParsedNum" digits that follow,
 	  // will determine what data is put in the output stream.
+#if OB_EEPROM_SUPPORT == 0
 	  nParsedMode = **ppData;
+#endif // OB_EEPROM_SUPPORT == 0
+#if OB_EEPROM_SUPPORT == 1
+          if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
+            // Read 1 byte from Off-Board EEPROM.
+            prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, off_board_eeprom_index);
+            nParsedMode = I2C_read_byte(1);
+	  }
+	  else nParsedMode = **ppData;
+	  off_board_eeprom_index++;
+#endif // OB_EEPROM_SUPPORT == 1
           (*ppData)++;
           (*pDataLeft)--;
           
           // Collect the first digit of the "nParsedNum" which follows the
 	  // "nParseMode". This is the "tens" digit of the two character
 	  // nParsedNum.
+#if OB_EEPROM_SUPPORT == 0
 	  temp = **ppData;
+#endif // OB_EEPROM_SUPPORT == 0
+#if OB_EEPROM_SUPPORT == 1
+          if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
+            // Read 1 byte from Off-Board EEPROM.
+            prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, off_board_eeprom_index);
+            temp = I2C_read_byte(1);
+	  }
+	  else temp = **ppData;
+	  off_board_eeprom_index++;
+#endif // OB_EEPROM_SUPPORT == 1
           nParsedNum = (uint8_t)((temp - '0') * 10);
           (*ppData)++;
           (*pDataLeft)--;
@@ -2156,7 +2593,18 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
           // Collect the second digit of the "nParsedNum". This is the "ones"
 	  // digit. Add it to the "tens" digit to complete the number in
 	  // integer form.
+#if OB_EEPROM_SUPPORT == 0
 	  temp = **ppData;
+#endif // OB_EEPROM_SUPPORT == 0
+#if OB_EEPROM_SUPPORT == 1
+          if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
+            // Read 1 byte from Off-Board EEPROM.
+            prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, off_board_eeprom_index);
+            temp = I2C_read_byte(1);
+	  }
+	  else temp = **ppData;
+	  off_board_eeprom_index++;
+#endif // OB_EEPROM_SUPPORT == 1
           nParsedNum = (uint8_t)(nParsedNum + temp - '0');
           (*ppData)++;
           (*pDataLeft)--;
@@ -2221,9 +2669,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // but put it in the transmission buffer as 5 alpha characters in
 	  // hex format.
 
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 	  // Write the 5 digit Port value in hex
 	  if (nParsedNum == 0) emb_itoa(stored_port, OctetArray, 16, 5);
 	  else emb_itoa(stored_mqttport, OctetArray, 16, 5);
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 	    
 	  // Copy OctetArray characters to output. Advance pointers.
           pBuffer = stpcpy(pBuffer, OctetArray);
@@ -2238,7 +2688,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	}
 	
 
-#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
+#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
         else if ((nParsedMode == 'e') && (nParsedNum < 22)) {
 	  // This displays the statistics information (10 characters per
 	  // data item). We need to get a single uint32_t from storage but
@@ -2295,21 +2745,23 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  }
         pBuffer = stpcpy(pBuffer, OctetArray);
 	}
-#endif // UIP_STATISTICS
+#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
         else if ((nParsedMode == 'e') && (nParsedNum >= 30) && (nParsedNum < 40)) {
-          if (nParsedNum == 31) emb_itoa(second_counter, OctetArray, 10, 10);
-	  if (nParsedNum == 32) emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
-          if (nParsedNum == 31 || nParsedNum == 32) {
-          pBuffer = stpcpy(pBuffer, OctetArray);
+          if (nParsedNum == 31) {
+	    emb_itoa(second_counter, OctetArray, 10, 10);
+            pBuffer = stpcpy(pBuffer, OctetArray);
+	  }
+          else if (nParsedNum == 32) {
+	    emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
+            pBuffer = stpcpy(pBuffer, OctetArray);
 	  }
           else if (nParsedNum == 33) {
-	    for (i=20; i<25; i++) {
+	    for (i=0; i<5; i++) {
               int2hex(stored_debug[i]);
-              *pBuffer++ = OctetArray[0];
-              *pBuffer++ = OctetArray[1];
+              pBuffer = stpcpy(pBuffer, OctetArray);
 	    }
 	  }
           else if (nParsedNum == 35) {
@@ -2318,14 +2770,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
             *pBuffer++ = '0';
             *pBuffer++ = '0';
             int2hex(MQTT_resp_tout_counter);
-            *pBuffer++ = OctetArray[0];
-            *pBuffer++ = OctetArray[1];
+            pBuffer = stpcpy(pBuffer, OctetArray);
             int2hex(MQTT_not_OK_counter);
-            *pBuffer++ = OctetArray[0];
-            *pBuffer++ = OctetArray[1];
+            pBuffer = stpcpy(pBuffer, OctetArray);
             int2hex(MQTT_broker_dis_counter);
-            *pBuffer++ = OctetArray[0];
-            *pBuffer++ = OctetArray[1];
+            pBuffer = stpcpy(pBuffer, OctetArray);
 	  }
 	}
 #endif // DEBUG_SUPPORT
@@ -2333,7 +2782,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 
 #if DEBUG_SENSOR_SERIAL == 1
         else if ((nParsedMode == 'e') && (nParsedNum >= 40)) {
-	  // This is for diagnostic use only and in NOT normally enabled
+	  // This is for diagnostic use only and is NOT normally enabled
 	  // in the compile options. This displays the Temperature Sensor
 	  // Serial Numbers and was made necessary due to some suppliers
 	  // providing DS18B20 devices with identical serial numbers.
@@ -2342,8 +2791,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
               int n;
               for (n=6; n>0; n--) {
                 int2hex(FoundROM[nParsedNum - 40][n]);
-                *pBuffer++ = (OctetArray[0]);
-                *pBuffer++ = (OctetArray[1]);
+	        pBuffer = stpcpy(pBuffer, OctetArray);
               }
 	    }
           }
@@ -2412,8 +2860,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  
 	  // Convert Config settngs byte into two hex characters
           int2hex(stored_config_settings);
-          *pBuffer++ = OctetArray[0];
-          *pBuffer++ = OctetArray[1];
+	  pBuffer = stpcpy(pBuffer, OctetArray);
 	}
 	
 	
@@ -2440,14 +2887,13 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 		}
 	      }
 	      int2hex(j);
-              *pBuffer++ = OctetArray[0];
-              *pBuffer++ = OctetArray[1];
+	      pBuffer = stpcpy(pBuffer, OctetArray);
             }
 	  }
 	}
 
 
-#if MQTT_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
         else if (nParsedMode == 'i') {
 	  // This sends the IO Timer units and IO Timer values to the Browser
 	  // defined as follows:
@@ -2458,23 +2904,23 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    uint8_t j;
 	    j = (uint8_t)((IO_TIMER[nParsedNum] & 0xff00) >> 8);
 	    int2hex(j);
-            *pBuffer++ = OctetArray[0];
-            *pBuffer++ = OctetArray[1];
+            pBuffer = stpcpy(pBuffer, OctetArray);
 	    j = (uint8_t)(IO_TIMER[nParsedNum] & 0x00ff);
 	    int2hex(j);
-            *pBuffer++ = OctetArray[0];
-            *pBuffer++ = OctetArray[1];
+            pBuffer = stpcpy(pBuffer, OctetArray);
           }
 	}
 	
 	
         else if (nParsedMode == 'j') {
 	  // This displays IO Names in user friendly format (1 to 15 characters)
-          pBuffer = stpcpy(pBuffer, IO_NAME[nParsedNum]); break;
+          pBuffer = stpcpy(pBuffer, IO_NAME[nParsedNum]);
+//	  break;
 	}
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
         else if (nParsedMode == 'l') {
 	  // This displays MQTT Username information (0 to 10 characters)
           pBuffer = stpcpy(pBuffer, stored_mqtt_username);
@@ -2492,6 +2938,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	  // red/green boxes showing Connections available, ARP status,
 	  // TCP status, MQTT Connect status, and MQTT Error status.
 	  no_err = 0;
+
           switch (nParsedNum)
 	  {
 	    case 0:
@@ -2517,11 +2964,14 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    default:
 	      break;
 	  }
+	  
 	  if (no_err == 1) *pBuffer++ = '1'; // Paint a green square
 	  else *pBuffer++ = '0'; // Paint a red square
 	}
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
         else if ((nParsedMode == 't') && (stored_config_settings & 0x08)) {
 	  // This displays temperature sensor data for 5 sensors and the
 	  // text fields around that data IF DS18B20 mode is enabled.
@@ -2559,6 +3009,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 	    #undef TEMPTEXT
 	  }
 	}
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
         else if (nParsedMode == 'w') {
@@ -2643,6 +3094,9 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
         *ppData = *ppData + 1;
         *pDataLeft = *pDataLeft - 1;
         pBuffer++;
+#if OB_EEPROM_SUPPORT == 1
+        off_board_eeprom_index++;
+#endif // OB_EEPROM_SUPPORT == 1
       }
     }
     else break;
@@ -2651,6 +3105,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pD
 }
 
 
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 char *show_temperature_string(char *pBuffer, uint8_t nParsedNum)
 {
   // Display temperature strings in degrees C and degrees F
@@ -2670,13 +3125,22 @@ char *show_temperature_string(char *pBuffer, uint8_t nParsedNum)
   
   return pBuffer;
 }
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
 void HttpDInit()
 {
   //Start listening on our port
   uip_listen(htons(Port_Httpd));
+  
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   current_webpage = WEBPAGE_IOCONTROL;
+  init_off_board_string_pointers();
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+  current_webpage = WEBPAGE_UPDATER;
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
   
   // Initialize the insertion string flag
   
@@ -2697,7 +3161,20 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   uint8_t j;
   char local_buf[300];
   uint16_t local_buf_index_max;
-  
+  char saved_content_type[16];
+
+  // HttpDCall() is used to:
+  // a) Receive a request or data from the Browser:
+  //    In the form of a GET if the Browser is requesting a web page or other
+  //    other action.
+  //    In the form of a POST if the Broswer is sending data to the
+  //    application.
+  //    "if (uip_newdata()" part of the code below.
+  // b) Send a requsted web page to the Browser:
+  //    This uses the "if (uip_connected())" part of the code below to start a
+  //    new page transmission and the "if (uip_acked())" part of the code
+  //    below if continuing a page transmission.
+
   i = 0;
   j = 0;
   local_buf_index_max = 290; // local_buf index maximum
@@ -2705,43 +3182,66 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   if (uip_connected()) {
     //Initialize this connection
 
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     if (current_webpage == WEBPAGE_IOCONTROL) {
       pSocket->pData = g_HtmlPageIOControl;
-      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
+      pSocket->nDataLeft = HtmlPageIOControl_size;
       // nDataLeft above is used when we get around to calling CopyHttpData
       // in state STATE_SENDDATA
+      init_off_board_string_pointers();
     }
     
-    else if (current_webpage == WEBPAGE_CONFIGURATION) {
+    if (current_webpage == WEBPAGE_CONFIGURATION) {
       pSocket->pData = g_HtmlPageConfiguration;
-      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
+      pSocket->nDataLeft = HtmlPageConfiguration_size;
+      init_off_board_string_pointers();
+    }
+    
+    if (current_webpage == WEBPAGE_SSTATE) {
+      pSocket->pData = g_HtmlPageSstate;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
     }
 
-#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
-    else if (current_webpage == WEBPAGE_STATS1) {
+#if OB_EEPROM_SUPPORT == 1
+    if (current_webpage == WEBPAGE_LOADUPDATER) {
+      pSocket->pData = g_HtmlPageLoadUpdater;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageLoadUpdater) - 1);
+    }
+#endif // OB_EEPROM_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    if (current_webpage == WEBPAGE_STATS1) {
       pSocket->pData = g_HtmlPageStats1;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
     }
-#endif // UIP_STATISTICS
+#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-    else if (current_webpage == WEBPAGE_STATS2) {
+    if (current_webpage == WEBPAGE_STATS2) {
       pSocket->pData = g_HtmlPageStats2;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
     }
 #endif // DEBUG_SUPPORT
 
 #if DEBUG_SENSOR_SERIAL == 1
-    else if (current_webpage == WEBPAGE_SENSOR_SERIAL) {
+    if (current_webpage == WEBPAGE_SENSOR_SERIAL) {
       pSocket->pData = g_HtmlPageTmpSerialNum;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
     }
 #endif // DEBUG_SENSOR_SERIAL
 
-    else if (current_webpage == WEBPAGE_SSTATE) {
-      pSocket->pData = g_HtmlPageSstate;
-      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+    if (current_webpage == WEBPAGE_UPDATER) {
+      pSocket->pData = g_HtmlPageUpdater;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUpdater) - 1);
     }
+
+    if (current_webpage == WEBPAGE_EXISTING_IMAGE) {
+      pSocket->pData = g_HtmlPageExistingImage;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageExistingImage) - 1);
+    }
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
 
     pSocket->nState = STATE_CONNECTED;
     pSocket->nPrevBytes = 0xFFFF;
@@ -2752,16 +3252,19 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     // steps.
   }
 
-
-  else if (uip_newdata() || uip_acked()) {
-    if (uip_acked()) {
-      // if uip_acked() is true we will be in the STATE_SENDDATA state and
-      // only need to run the "senddata" part of this routine. This typically
-      // happens when there are multiple packets to send to the Broswer in
-      // response to a POST, so we may repeat this loop in STATE_SENDDATA
-      // several times.
-      goto senddata;
-    }
+  else if (uip_acked()) {
+    // if uip_acked() is true we will be in the STATE_SENDDATA state and
+    // only need to run the "senddata" part of this routine. This typically
+    // happens when there are multiple packets to send to the Broswer in
+    // response to a POST, so we may repeat this loop in STATE_SENDDATA
+    // several times.
+    goto senddata;
+  }
+  
+  else if (uip_newdata()) {
+    // This is the start of a new Browser session, or it is additional packets
+    // sent to complete a transmission from the Browser.
+    //
     // In this limited application the only "new data" packets a browser can
     // send to the web server are "POST" or "GET" packets, as the browser can
     // only reply to the pages the web server sent to it. We're going to parse
@@ -2796,9 +3299,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     //      fragment coming in to complete the TCP Fragment series. Note this
     //      should never happen if we parse the end of POST data.
     //   3) The first POST/GET packet will always start with "POST" or "GET "
-    //      as the first characters in the datagram. This comes right after
-    //      the LLH, IP, and TCP Headers, so it will start at byte 55 of the
-    //      uip_buf. We won't count on that exact byte number, but it is
+    //      as the first four characters in the datagram. This comes right
+    //      after the LLH, IP, and TCP Headers, so it will start at byte 55 of
+    //      the uip_buf. We won't count on that exact byte number, but it is
     //      reasonable to assume that the buffer is always 400 bytes or more,
     //      and that the "POST" or "GET " phrase will be completely contained
     //      within the first packet, thus the phrase itself will never be
@@ -2817,9 +3320,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     //      message will occur prior to the post-amble and has zero chance of
     //      being fragmented. So the code is not written to handle any
     //      fragmentation of GET requests.
-    //   3c) This code by-passes all the preamble/post-amble stuff but saves
-    //      the parsing state so it knows we are either looking for data or
-    //      disposing of extraneous fragments.
+    //   3c) With the addition of Off-Board EEPROMs and the ability to upload
+    //      replacement code via Ethernet the POST pre-amble is parsed for the
+    //      "Content-Type" phrase. The phrase is used to determine if the POST
+    //      data contains a new firmware file, or if the POST data contains
+    //      user entered responses to GUI fields.
+    //   3d) Otherwise this code by-passes all the preamble/post-amble stuff
+    //      but saves the parsing state so it knows we are either looking for
+    //      data or disposing of extraneous fragments.
     //
     // The "saved_nstate" value starts out as STATE_NULL if this is the first
     // packet in a parse. If we already finished collecting all useful data in
@@ -2854,6 +3362,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	//   STATE_PARSEGET
       pSocket->nParseLeft = saved_nparseleft;
         // nParseLeft is the number of bytes left to parse in the POST data
+	// OR is used as a flag in POSTed file data
+	// OR is used as a flag in GET parsing.
       pSocket->nNewlines = saved_newlines;
         // nNewlines tracks where we are in detecting the \r\n\r\n sequence
 	// that indicates start of POST data
@@ -2868,13 +3378,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     // during that search.
     //
     // If we are parsing a TCP fragment then pSocket->nState may have been
-    // restored to STATE_PARSEPOST or STATE_PARSEGET. If so the parse code will
-    // run but won't do anything.
+    // restored to STATE_PARSEPOST or STATE_PARSEGET. If so the parse code
+    // will run but won't do anything.
     
-    // If we are in STATE_CONNECTED (meaning we are reading the
-    // first and perhaps only packet in a series) check the first
-    // five characters of the uip_buf to see if this is a POST or
-    // GET request.
+    // If we are in STATE_CONNECTED (meaning we are reading the first and
+    // perhaps only packet in a series) check the first five characters of the
+    // uip_buf to see if this is a POST or GET request.
     if (pSocket->nState == STATE_CONNECTED) {
       if (memcmp("POST", &pBuffer[0], 4) == 0) pSocket->nState = STATE_GOTPOST;
       if (memcmp("GET", &pBuffer[0], 3) == 0)  pSocket->nState = STATE_GOTGET;
@@ -2883,11 +3392,32 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       // We are in STATE_NULL, which means we are collecting the first packet.
       // Clear parse_tail so it will be ready if there is a TCP Fragment.
       parse_tail[0] = '\0';
+
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+      // Initialize the find_content_type state. It is used to manage the
+      // search for the Content-Type phrase.
+      find_content_type = SEEK_CONTENT_TYPE;
+
+// UARTPrintf("\r\n");
+// UARTPrintf("find_content_type = SEEK_CONTENT_TYPE initialize");
+// UARTPrintf("\r\n");
+
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+
     }
     
 
     if (pSocket->nState == STATE_GOTPOST) {
-      //Search for \r\n\r\n
+      // Determine if this POST is receiving user entered responses in the GUI
+      // or if this POST carries a replacement firmware file, then search for
+      // the \r\n\r\n that indicates start of the POST data.
+
+// UARTPrintf("\r\n");
+// UARTPrintf("pSocket->nState == STATE_GOTPOST Search for rnrn");
+// UARTPrintf("\r\n");
+
       saved_nstate = STATE_GOTPOST;
       if (nBytes == 0) {
         // If we enter the search at end of fragment we exit and will come
@@ -2897,15 +3427,83 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       }
 
       while (nBytes != 0) {
-  	// We're processing packets but haven't found the \r\n\r\n sequence
-	// yet. The sequence detector really just looks for two \n in a row,
-	// ignoring the first \r. If any other character other than \r
-	// appears between the \n and \n the counter is zero'd.
+        // If a POST we need to determine if this POST includes a file. This
+	// is done by searching for the phrase
+	//   "Content-Type: multipart/form-data; boundary=multipartboundary"
+	// preceding the first \r\n\r\n. We really only need to search for
+	// a portion of the phrase "Content-Type: m". If this phrase is found
+	// we will parse the POST with a file extraction function.
+	//
+	// For this application it is assumed that the phrase "Content-Type"
+	// always appears early enough in a POST that it cannot be split
+	// between incoming packets.
+	// 
+	// If the "Content-Type: m" phrase is not found then we know this is
+	// a POST containing only user entered settings. In that case we will
+	// encounter the \r\n\r\n sequence and will parse the POST using for
+	// user entered settings.
+	//
+
+
+
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+	// Search for "Content-Type: m" phrase
+        // We're processing the first packet but haven't found the
+	// "Content-Type: m" phrase yet.
+        if ((*pBuffer == 'C') && (find_content_type == SEEK_CONTENT_TYPE)) {
+          // Might have first character of the phrase. Start copying
+	  // characters from pBuffer into a temporary buffer and check for a
+	  // match to the phrase.
+          {
+            int i;
+            
+	    for (i=0; i<15; i++) {
+              saved_content_type[i] = *pBuffer;
+              pBuffer++;
+              nBytes--;
+            }
+            // At this point we have captured enough characters to check for
+            // the phrase.
+            if (strncmp(saved_content_type, "Content-Type: ", 14) == 0) {
+              // Found "Content-Type: "
+              // Determine if this is a multi-part form. If yes this is a
+              // data file transmission. If no this is a regular POST.
+              if (saved_content_type[14] == 'm') {
+	        find_content_type = SEEK_FIRST_RNRN;
+
+// UARTPrintf("\r\n");
+// UARTPrintf("find_content_type = SEEK_FIRST_RNRN found M");
+// UARTPrintf("\r\n");
+
+              }
+              else {
+	        find_content_type = FOUND_CONTENT_TYPE; // This will stop
+                // any further search for the phrase and will tell the POST
+		// parsing routine that this is a normal POST.
+
+// UARTPrintf("\r\n");
+// UARTPrintf("find_content_type = FOUND_CONTENT_TYPE normal POST");
+// UARTPrintf("\r\n");
+
+              }
+	    }
+	  }
+        }	
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+
+	// The following searches for the \r\n\r\n sequence
 	if (saved_newlines == 2) {
-	  // This handles the case where a TCP Fragment occcured just as we
-	  // collected the second \n
+	  // This handles the case where a TCP Fragmentation occured in the
+	  // previous packet just as we collected the second \n. In that case
+	  // the search does not continue.
 	}
 	else {
+          // We're processing packets but haven't found the \r\n\r\n sequence
+          // yet. The sequence detector really just looks for two \n in a row,
+          // ignoring the first \r. If any character other than \r appears
+	  // between the \n and \n the Newlines counter is zero'd.
           if (*pBuffer == '\n') pSocket->nNewlines++;
           else if (*pBuffer == '\r') { }
           else pSocket->nNewlines = 0;
@@ -2918,19 +3516,15 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             return;
           }
         }
-	 
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	// What if we never find it?
-	// The POST packet will be disregarded.
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
         if (pSocket->nNewlines == 2) {
-          // Beginning found.
+          // Beginning of non-file POST found.
           // Initialize Parsing variables
           if (current_webpage == WEBPAGE_IOCONTROL) {
 	    pSocket->nParseLeft = PARSEBYTES_IOCONTROL;
 	  }
-          if (current_webpage == WEBPAGE_CONFIGURATION) {
+          else if (current_webpage == WEBPAGE_CONFIGURATION) {
 	    pSocket->nParseLeft = PARSEBYTES_CONFIGURATION;
 	  }
 	  saved_nparseleft = pSocket->nParseLeft;
@@ -2944,22 +3538,96 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  }
           break;
         }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+	
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+        if ((pSocket->nNewlines == 2) && (find_content_type == SEEK_FIRST_RNRN)) {
+	  // Need to search for next \r\n\r\n
+          pSocket->nNewlines = 0;
+          saved_newlines = 0;
+	  find_content_type = SEEK_SECOND_RNRN;
+
+// UARTPrintf("\r\n");
+// UARTPrintf("find_content_type = SEEK_SECOND_RNRN");
+// UARTPrintf("\r\n");
+
+	}
+        else if ((pSocket->nNewlines == 2) && (find_content_type == SEEK_SECOND_RNRN)) {
+	  // Found second set of \r\n\r\n
+	  // We are parsing a data file
+	  // The next character in the POST should be the first character of
+	  // the payload (in this case, the new program file).
+          find_content_type = FOUND_CONTENT_TYPE;
+
+// UARTPrintf("\r\n");
+// UARTPrintf("find_content_type = FOUND_CONTENT_TYPE FINAL");
+// UARTPrintf("\r\n");
+
+	  // Beginning of a data file found.
+	  // Initialize parsing variables.
+          byte_index = 0;
+          parse_index = 0;
+          address_index = I2C_EEPROM0_BASE;
+          parse_tail[0] = '\0';
+          byte_tail[0] = '\0';
+          line_count = 0;
+          checksum = 0;
+          upgrade_failcode = 0;
+          // Start parsing
+          pSocket->nState = STATE_PARSEFILE;
+	  saved_nstate = STATE_PARSEFILE;
+	  pSocket->ParseState = PARSE_FILE_SEEK_SX;
+	  saved_ParseState = PARSE_FILE_SEEK_SX;
+          
+          // nParseLeft is normally set to the size of the POST data when
+	  // parsing user entered values from a Browser GUI. In this case the
+	  // data file is much larger than the nParseLeft variable can contain
+	  // so nParseLeft is just set to 1 and used as a flag to indicate
+	  // receipt of all file data (at which time it is set to 0). This
+	  // allows the normal POST processing termination processes to
+	  // complete as they do with user POST entries.
+	  pSocket->nParseLeft = 1;
+	  saved_nparseleft = pSocket->nParseLeft;
+
+// UARTPrintf("\r\n");
+// UARTPrintf("Starting STATE_PARSEFILE");
+// UARTPrintf("\r\n");
+
+	  if (nBytes == 0) {
+	    // If we are at end of fragment here we exit and will return in
+	    // STATE_PARSEFILE
+	    return;
+	  }
+          break;
+	}
+	  
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
       }
     }
 
 
     if (pSocket->nState == STATE_GOTGET) {
+
+// UARTPrintf("\r\n");
+// UARTPrintf("pSocket->nState == STATE_GOTGET Going to PARSEGET");
+// UARTPrintf("\r\n");
+
       // Don't search for \r\n\r\n ... instead parse what we've got
       // Initialize Parsing variables
-      // Small parse number since we should have short filenames
-      pSocket->nParseLeft = 6;
+      // nParseLeft is used as a flag in GET parsing. nParseLeft == 1 will
+      // cause parsing to continue. nParseLeft == 0 will cause parsing to
+      // end.
+      pSocket->nParseLeft = 1;
       pSocket->ParseState = PARSE_SLASH1;
       // Start parsing
       pSocket->nState = STATE_PARSEGET;
     }
 
 
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     if (pSocket->nState == STATE_PARSEPOST) {
+      // This code parses data the user entered in the GUI.
+      
       // Parse pre-process
       // Copy the POST from the uip_buf to the local_buf until one of two
       // things happens:
@@ -2973,6 +3641,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       
       uint16_t i = 0;
       uint16_t j = 0;
+
+// UARTPrintf("\r\n");
+// UARTPrintf("pSocket->nState == STATE_PARSEPOST Parsing");
+// UARTPrintf("\r\n");
+
+// UARTPrintf("Parsing normal POST");
+// UARTPrintf("\r\n");
 
       // If we are continuing data collection due to a TCP Fragment parse_tail
       // will have any fragment of the previous POST in it. Otherwise
@@ -2997,16 +3672,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // If this is also the end of the POST (as indicated by parse_tail
 	    // equal to "&z00=0") then send the entire local_buf to parsing.
 	    // Parse the local_buf
-//
+
 // UARTPrintf("parse_tail: \r\n");
 // UARTPrintf(parse_tail);
 // UARTPrintf("\r\n");
 // UARTPrintf("End of POST: \r\n");
 // UARTPrintf(local_buf);
 // UARTPrintf("\r\n");
-//
-//
-//
+
 	    parse_local_buf(pSocket, local_buf, strlen(local_buf));
 	    break;
 	  }
@@ -3039,16 +3712,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pSocket->nParseLeft--;
               
               // Parse the local_buf
-//
+
 // UARTPrintf("parse_tail: \r\n");
 // UARTPrintf(parse_tail);
 // UARTPrintf("\r\n");
 // UARTPrintf("local_buf: \r\n");
 // UARTPrintf(local_buf);
 // UARTPrintf("\r\n");
-//
-//
-//
+
               parse_local_buf(pSocket, local_buf, strlen(local_buf));
               // Save the nParseLeft value for the next pass
               saved_nparseleft = pSocket->nParseLeft;
@@ -3103,9 +3774,15 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	}
       }
     }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     
 
     if (pSocket->nState == STATE_PARSEGET) {
+
+// UARTPrintf("\r\n");
+// UARTPrintf("pSocket->nState == STATE_PARSEGET Parsing");
+// UARTPrintf("\r\n");
+
       // This section will parse a GET request sent by the user. Normally in a
       // general purpose web server a GET request would be used to obtain
       // files or other items from the server. In that general case the data
@@ -3131,27 +3808,32 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       // would send the IOControl web page if I didn't understand the inquiry.
       // Now I will just throw the request away if it doesn't exactly match an
       // expected request. The only exception will be if I get a "/" or "/ "
-      // then I will send the IOControl web page.
+      // then I will send the default web page.
 
       while (nBytes != 0) {
         if (pSocket->ParseState == PARSE_SLASH1) {
 	  // When we entered the loop *pBuffer should already be pointing at
 	  // the "/". If there isn't one we should display the IOControl page.
           pSocket->ParseCmd = *pBuffer;
-          pSocket->nParseLeft--;
           pBuffer++;
-	  nBytes--;
 	  if (pSocket->ParseCmd == (uint8_t)0x2f) { // Compare to '/'
 	    pSocket->ParseState = PARSE_NUM10;
 	  }
           else {
             // Didn't find '/' - send default page
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 	    current_webpage = WEBPAGE_IOCONTROL;
             pSocket->pData = g_HtmlPageIOControl;
-            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
-            pSocket->nParseLeft = 0; // This will cause the while() to exit
-            pSocket->nState = STATE_CONNECTED;
-            pSocket->nPrevBytes = 0xFFFF;
+            pSocket->nDataLeft = HtmlPageIOControl_size;
+            init_off_board_string_pointers();
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+	    current_webpage = WEBPAGE_UPDATER;
+            pSocket->pData = g_HtmlPageUpdater;
+            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUpdater) - 1);
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+            pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
+	                             // SENDHEADER
 	  }
         }
 
@@ -3159,14 +3841,21 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // It's possible we got here because the user did not request a
 	  // filename (ie, the user entered "192.168.1.4:8080/". In this case
 	  // there will be a space here instead of a digit, and we should just
-	  // exit the while() loop and send the IOControl page.
+	  // exit the while() loop and send the default page.
 	  if (*pBuffer == ' ') {
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 	    current_webpage = WEBPAGE_IOCONTROL;
             pSocket->pData = g_HtmlPageIOControl;
-            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
-            pSocket->nParseLeft = 0;
-            pSocket->nState = STATE_CONNECTED;
-            pSocket->nPrevBytes = 0xFFFF;
+            pSocket->nDataLeft = HtmlPageIOControl_size;
+            init_off_board_string_pointers();
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+	    current_webpage = WEBPAGE_UPDATER;
+            pSocket->pData = g_HtmlPageUpdater;
+            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUpdater) - 1);
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+            pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
+	                             // SENDHEADER
 	  }
 	  // Parse first ParseNum digit. Looks like the user did input a
 	  // filename digit, so collect it here.
@@ -3174,14 +3863,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // Still good - parse number
             pSocket->ParseNum = (uint8_t)((*pBuffer - '0') * 10);
 	    pSocket->ParseState = PARSE_NUM1;
-            pSocket->nParseLeft--;
+            pSocket->nParseLeft = 1; // Set to 1 so PARSE_NUM1 will be called
             pBuffer++;
-	    nBytes--;
 	  }
 	  else {
 	    // Something out of sync or invalid filename - exit while() loop
 	    // but do not change the current_webpage
-            pSocket->nParseLeft = 0;
+            pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
+	                             // SENDHEADER
             pSocket->ParseState = PARSE_FAIL;
 	  }
         }
@@ -3194,12 +3883,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             pSocket->ParseState = PARSE_VAL;
             pSocket->nParseLeft = 1; // Set to 1 so PARSE_VAL will be called
             pBuffer++;
-	    nBytes--;
 	  }
 	  else {
 	    // Something out of sync or invalid filename - exit while() loop
 	    // but do not change the current_webpage
-            pSocket->nParseLeft = 0;
+            pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
+	                             // SENDHEADER
             pSocket->ParseState = PARSE_FAIL;
 	  }
 	}
@@ -3267,12 +3956,15 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/68  Show Network Statistics page
 	  // http://IP/69  Clear Network Statistics and refresh page
           // http://IP/70  Clear the "Reset Status Register" counters
+          // http://IP/71  Display the Temperature Sensor Serial Numbers
+          // http://IP/72  Load the Code Updater
 	  // http://IP/91  Reboot
 	  // http://IP/98  Show Very Short Form IO States page
 	  // http://IP/99  Show Short Form IO States page
 	  //
           switch(pSocket->ParseNum)
 	  {
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 	    case 55:
 	      // Turn all outputs ON. Verify that each pin is an output
 	      // and that it is enabled.
@@ -3302,18 +3994,17 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    case 60: // Show IO Control page
 	      current_webpage = WEBPAGE_IOCONTROL;
               pSocket->pData = g_HtmlPageIOControl;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
+              pSocket->nDataLeft = HtmlPageIOControl_size;
+              init_off_board_string_pointers();
 	      break;
 	      
 	    case 61: // Show Configuration page
 	      current_webpage = WEBPAGE_CONFIGURATION;
               pSocket->pData = g_HtmlPageConfiguration;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
+              pSocket->nDataLeft = HtmlPageConfiguration_size;
+              init_off_board_string_pointers();
 	      break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 	    case 65: // Flash LED for diagnostics
 	      // XXXXXXXXXXXXXXXXXXXXXX
@@ -3332,8 +4023,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      current_webpage = WEBPAGE_STATS2;
               pSocket->pData = g_HtmlPageStats2;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
 	      break;
 	      
             case 67: // Clear Link Error Statistics
@@ -3341,8 +4030,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // Important: 
 	      // The debug[] byte indexes used may change if the
 	      // number of debug bytes changes.
-	      debug[23] = 0; // Clear TXERIF counter
-	      debug[24] = 0; // Clear RXERIF counter
+	      debug[3] = 0; // Clear TXERIF counter
+	      debug[4] = 0; // Clear RXERIF counter
 	      update_debug_storage1();
 	      TRANSMIT_counter = 0;
 	      MQTT_resp_tout_counter = 0;
@@ -3352,18 +4041,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      current_webpage = WEBPAGE_STATS2;
               pSocket->pData = g_HtmlPageStats2;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
 	      break;
 #endif // DEBUG_SUPPORT
 
-#if UIP_STATISTICS == 1 && MQTT_SUPPORT == 0
+#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
             case 68: // Show Network Statistics page
 	      current_webpage = WEBPAGE_STATS1;
               pSocket->pData = g_HtmlPageStats1;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
 	      break;
 	      
             case 69: // Clear Network Statistics and refresh page
@@ -3371,37 +4056,70 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      current_webpage = WEBPAGE_STATS1;
               pSocket->pData = g_HtmlPageStats1;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
 	      break;
-#endif // UIP_STATISTICS
+#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+// #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
             case 70: // Clear the "Reset Status Register" counters
 	      // Clear the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
 	      // These only display via the UART
 	      // Important: 
 	      // The debug[] byte indexes used may change if the
 	      // number of debug bytes changes.
-	      for (i = 25; i < 30; i++) debug[i] = 0;
+	      for (i = 5; i < 10; i++) debug[i] = 0;
 	      update_debug_storage1();
 	      break;
-#endif // DEBUG_SUPPORT
+// #endif // DEBUG_SUPPORT
 
 #if DEBUG_SENSOR_SERIAL == 1
             case 71: // Display the Temperature Sensor Serial Numbers
 	      current_webpage = WEBPAGE_SENSOR_SERIAL;
               pSocket->pData = g_HtmlPageTmpSerialNum;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
 	      break;
 #endif // DEBUG_SENSOR_SERIAL
+
+#if OB_EEPROM_SUPPORT == 1
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+            case 72: // Load Code Updater
+	      // Load the Code Updater from Off-Board EEPROM1, display the
+	      // Loading Code Updater webpage, then reboot.
+
+// UARTPrintf("\r\nCmd 72 detected\r\n");
+
+	      current_webpage = WEBPAGE_LOADUPDATER;
+              pSocket->pData = g_HtmlPageLoadUpdater;
+              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageLoadUpdater) - 1);
+              eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_REQUEST;
+	      unlock_eeprom();
+	      stored_upload_flag = 2; // Indicate image load from Off-Board EEPROM.
+	      lock_eeprom();
+	      break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+	      
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+            case 73: // Reload firmware existing image
+	      // Load the existing firmware image from Off-Board EEPROM0,
+	      // display the Loading Existing Image webpage, then reboot.
+
+// UARTPrintf("\r\nCmd 73 detected\r\n");
+
+	      current_webpage = WEBPAGE_EXISTING_IMAGE;
+              pSocket->pData = g_HtmlPageExistingImage;
+              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageExistingImage) - 1);
+              eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_REQUEST;
+	      unlock_eeprom();
+	      stored_upload_flag = 2; // Indicate image load from Off-Board EEPROM.
+	      lock_eeprom();
+	      break;
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+#endif // OB_EEPROM_SUPPORT == 1
 
 	    case 91: // Reboot
 	      user_reboot_request = 1;
 	      break;
 
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
             case 98: // Show Very Short Form IO state page
             case 99: // Show Short Form IO state page
 	      // Normally when a page is transmitted the "current_webpage" is
@@ -3414,22 +4132,29 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      current_webpage = WEBPAGE_SSTATE;
               pSocket->pData = g_HtmlPageSstate;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
-              pSocket->nState = STATE_CONNECTED;
-              pSocket->nPrevBytes = 0xFFFF;
 	      break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 	    default:
 	      if (pSocket->ParseNum < 32) {
                 // Output-01..16 OFF/ON
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
                 update_ON_OFF((uint8_t)(pSocket->ParseNum/2), (uint8_t)(pSocket->ParseNum%2));
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
               }
               else {
-	        // Show IO Control page
+	        // Show default page
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 	        current_webpage = WEBPAGE_IOCONTROL;
                 pSocket->pData = g_HtmlPageIOControl;
-                pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
-                pSocket->nState = STATE_CONNECTED;
-                pSocket->nPrevBytes = 0xFFFF;
+                pSocket->nDataLeft = HtmlPageIOControl_size;
+                init_off_board_string_pointers();
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+	        current_webpage = WEBPAGE_UPDATER;
+                pSocket->pData = g_HtmlPageUpdater;
+                pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUpdater) - 1);
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
               }
               break;
 
@@ -3443,6 +4168,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // inefficient this will satisfy the browser's need for a
 	  // reply when it requests favicon.ico or whatever else it
 	  // requests that we don't have.
+          pSocket->nPrevBytes = 0xFFFF; // This is used to determine if the
+                                        // send header was successful
           pSocket->nState = STATE_SENDHEADER200;
 	  break;
 	}
@@ -3450,11 +4177,635 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         if (pSocket->nParseLeft == 0) {
           // Finished parsing ... even if nBytes is not zero
 	  // Send the response
+          pSocket->nPrevBytes = 0xFFFF; // This is used to determine if the
+                                        // send header was successful
           pSocket->nState = STATE_SENDHEADER200;
           break;
         }
       }
     }
+    
+    
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+    if (pSocket->nState == STATE_PARSEFILE) {
+
+// UARTPrintf("\r\n");
+// UARTPrintf("pSocket->nState == STATE_PARSEFILE Parsing");
+// UARTPrintf("\r\n");
+
+      // This step is entered if a POST containing a firmware file was
+      // detected. The file contents will be copied to the Off-Board EEPROM,
+      // then the Off-B0ard EEPROM will be copied to the internal Flash, then
+      // the device will reboot.
+      //
+      // Some notes:
+      // - This application normally parses POST files providing user data
+      //   entries in a Browser session. As such, the size of the data is
+      //   easily less than 65536 characters, thus the nParseLeft variable
+      //   used in normal parsing is a uint16_t type.
+      // - When a firmware file is attached to a POST the datagram is 512
+      //   lines x 134 bytes = 68608 characters. So nParseLeft cannot be used
+      //   in receiving the firmware file other than as a flag to indicate
+      //   that parsing is complete. Instead the program file parser uses a
+      //   line counter to find the end of the data, then sets nParseLeft to
+      //   signal that the end of data was reached.
+      //
+      // The new Flash contents provided in the firmware datagram must be in a
+      // very specific format. The SRECPreprocessor must have been run on the
+      // .sx file so that a simplified data format is provided to this
+      // function. This was done to simplify the code contained in the Network
+      // Module.
+      //
+      // Format of the data is as follows:
+      //   SX<XX>YY\n
+      //     where:
+      //     <XX> is always 64 hex encoded data bytes (128
+      //          characters to represent the data). If the
+      //          datafile does not contain 32768 data bytes
+      //          the last lines in the output file are end
+      //          padded with 00 character pairs.
+      //     YY   ones' complement checksum
+      //     \n   terminating newline
+
+      
+      // Restore the ParseState. This is necessary if re-entering this due to
+      // a TCP Fragmentation.
+      pSocket->ParseState = saved_ParseState;
+
+// UARTPrintf("\r\n");
+// UARTPrintf("Parsing data file\r\n");
+
+// UARTPrintf(" byte_index = ");
+// emb_itoa(byte_index, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+// UARTPrintf(" parse_index = ");
+// emb_itoa(parse_index, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+// UARTPrintf(" address_index = ");
+// emb_itoa(address_index, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+// UARTPrintf(" ParseState = ");
+// emb_itoa(pSocket->ParseState, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+
+      // nBytes is tracked in this function using the global file_nBytes to
+      // enable passing the nBytes value between this function and the
+      // read_two_characters function.
+      file_nBytes = nBytes;
+
+      // This function uses a step by step state machine to read the data file
+
+      // When first starting the data file read keep in mind that even though
+      // the data part of the packet is just starting, a packet boundary can
+      // occur anywhere. However, we know that there will be at least one byte
+      // left in the current packet when we start.
+
+      while (1) {
+      
+        if (pSocket->ParseState == PARSE_FILE_SEEK_SX) {
+
+// UARTPrintf(" ParseState = PARSE_FILE_SEEK_SX\r\n");
+
+	  // This parse looks for the start of record and will parse the
+	  // address value for the record.
+	  while (1) {
+            // Read two characters from the data line
+            pBuffer = read_two_characters(pBuffer);
+            if (byte_tail[1] == '\0') {
+              // We just read the last character in this packet. Break out
+              // of the local while loop so the next packet will be read.
+              break;
+            }
+            
+	    // If we didn't break out then we successfully read two characters
+	    
+	    if (byte_index == 0) {
+	      if (strncmp(byte_tail, "S0", 2) == 0) {
+                // Check if the two characters are "S0", indicating the start
+		// of a file.
+
+// UARTPrintf("Found S0\r\n");
+
+		file_type = FILETYPE_SEARCH;
+	        byte_index = 2;
+                // Clear byte_tail for subsequent reads
+                byte_tail[0] = '\0';
+	        // Continue to read the address value on this data line
+	        continue;
+	      }
+	      else if (strncmp(byte_tail, "S3", 2) == 0) {
+                // Check if the two characters are "S3", indicating the start
+		// of a new line of data.
+	        byte_index = 2;
+                // Clear byte_tail for subsequent reads
+                byte_tail[0] = '\0';
+	        // Continue to read the address value on this data line
+	        continue;
+	      }
+	      else if (strncmp(byte_tail, "S7", 2) == 0) {
+                // Check if the two characters are "S7", indicating the end of
+		// data. Set new_address to the start of the user entered
+		// data area, then go to the fill data routine to finish
+		// filling Off-Board EEPROM0.
+                // Clear byte_tail for subsequent reads
+                byte_tail[0] = '\0';
+	        new_address = FLASH_START_IO_TIMERS;
+	        pSocket->ParseState = PARSE_FILE_FILL_DATA;
+		break;
+	      }
+	      else {
+	        // Throw away characters and continue search
+                // Clear byte_tail for subsequent reads
+                byte_tail[0] = '\0';
+		continue;
+              }
+	    }
+	    
+	    if (byte_index == 2) {
+	      // Read the data count value
+
+// UARTPrintf("byte_index == 2\r\n");
+
+              data_count = two_hex2int(byte_tail[0], byte_tail[1]);
+	      // Start checksum
+	      checksum = data_count;
+	      byte_index = 4;
+              // Clear byte_tail for subsequent reads
+              byte_tail[0] = '\0';
+	      continue;
+	    }
+	    
+	    if (byte_index == 4) {
+	      // Ignore first byte of address value
+
+// UARTPrintf("byte_index == 4\r\n");
+
+	      data_count--;
+	      // Add to checksum. Value is always 00
+	      checksum += 0;
+	      byte_index = 6;
+              // Clear byte_tail for subsequent reads
+              byte_tail[0] = '\0';
+	      continue;
+	    }
+	    
+	    if (byte_index == 6) {
+	      // Ignore the second byte of address value
+
+// UARTPrintf("byte_index == 6\r\n");
+
+	      data_count--;
+	      // Add to checksum. Value is always 00
+	      checksum += 0;
+	      byte_index = 8;
+              // Clear byte_tail for subsequent reads
+              byte_tail[0] = '\0';
+	      continue;
+	    }
+	    
+	    if (byte_index == 8 && file_type != FILETYPE_SEARCH) {
+	      // Capture the high order byte of the address value
+
+// UARTPrintf("byte_index == 8\r\n");
+
+              temp_address = two_hex2int(byte_tail[0], byte_tail[1]);
+	      data_count--;
+	      checksum += (uint8_t)temp_address;
+	      new_address = temp_address << 8;
+	      byte_index = 10;
+              // Clear byte_tail for subsequent reads
+              byte_tail[0] = '\0';
+	      continue;
+	    }
+	    
+	    if (byte_index == 8 && file_type == FILETYPE_SEARCH) {
+	      // Determine file_type
+
+// UARTPrintf("byte_index == 8\r\n");
+
+	      data_count--;
+	      // Capture the first byte of the file type
+	      // 'N' (0x4E) is a NetworkModule program file
+	      // 'S' (0x53) is a String File
+              if (two_hex2int(byte_tail[0], byte_tail[1]) == 0x4E) {
+	        file_type = FILETYPE_PROGRAM;
+
+UARTPrintf("file_type = FILETYPE_PROGRAM\r\n");
+	      
+	      }
+	      else {
+	        file_type = FILETYPE_STRING;
+
+UARTPrintf("file_type = FILETYPE_STRING\r\n");
+	      
+              }
+	      // Reset byte_index and byte_tail
+	      byte_index = 0;
+              byte_tail[0] = '\0';
+	      // Break out of while loop so that next line of input will
+	      // be read
+              break;
+	    }
+	    
+	    if (byte_index == 10) {
+	      // Capture the low order byte of the address value
+              temp_address = two_hex2int(byte_tail[0], byte_tail[1]);
+	      data_count--;
+	      checksum += (uint8_t)temp_address;
+              new_address |= temp_address;
+
+// UARTPrintf("\r\nnew_address = ");
+// emb_itoa(new_address, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+	      
+	      // If the address is not in the range 0x8000 to
+	      // FLASH_START_IO_TIMERS we ignore the data line
+	      if ((new_address < 0x8000) || (new_address > (FLASH_START_IO_TIMERS - 1))) {
+	        byte_index = 0;
+                // Clear byte_tail for subsequent reads
+                byte_tail[0] = '\0';
+	        break;
+	      }
+	      
+	      if (new_address == 0x8000) {
+	        // If this is the start of the firmware image set address and
+	        // parse the first line of data
+	        address = 0x8000;
+                pSocket->ParseState = PARSE_FILE_READ_DATA;
+                // Clear byte_tail for subsequent reads
+                byte_tail[0] = '\0';
+                break;
+	      }
+	      
+	      if (new_address > 0x8000) {
+	        // If the new address is just an increment from the previous
+		// address then continue reading data
+	        if (new_address == address) {
+                  pSocket->ParseState = PARSE_FILE_READ_DATA;
+                  // Clear byte_tail for subsequent reads
+                  byte_tail[0] = '\0';
+	          break;
+	        }
+	        else {
+		// If the new address is not an increment from the previous
+		// address then we must begin filling data with zeroes until
+		// we reach this new address.
+	          pSocket->ParseState = PARSE_FILE_FILL_DATA;
+                  // Clear byte_tail for subsequent reads
+                  byte_tail[0] = '\0';
+	          break;
+		}
+	      }
+	    }
+	    
+            if (file_nBytes == 0) {
+              // We just read the last character in this packet. Break out
+              // of the local while loop so the next packet will be read.
+              break;
+            }
+	  }
+	}
+	  
+        else if (pSocket->ParseState == PARSE_FILE_READ_DATA) {
+// UARTPrintf(" ParseState = PARSE_FILE_READ_DATA\r\n");
+	  // This parse is entered knowing that the next two characters are a
+	  // data byte.
+	  while (1) {
+            // Read two characters from the data line
+            pBuffer = read_two_characters(pBuffer);
+            if (byte_tail[1] == '\0') {
+              // We just read the last character in this packet. Break out
+              // of the local while loop so the next packet will be read.
+              break;
+            }
+	    
+	    // If we didn't break out then we successfully read two characters
+            data_value = two_hex2int(byte_tail[0], byte_tail[1]);
+            checksum += data_value;
+	    data_count--;
+            // Clear byte_tail for subsequent reads
+            byte_tail[0] = '\0';
+	    
+	    if (data_count > 0) {
+	      // Copy data to parse_tail
+	      parse_tail[parse_index++] = data_value;
+	      address++; // Increment the incoming address counter
+	    }
+	    
+	    if (data_count == 0) {
+	      // We just read the last byte in this data line. The byte just
+	      // read was the checksum. Check for validity.
+	      if (checksum != 0xff) {
+	        // Handle Checksum Error
+                upgrade_failcode = UPGRADE_FAIL_FILE_READ_CHECKSUM;
+
+// UARTPrintf("checksum = ");
+// emb_itoa(checksum, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+	      
+UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_FILE_READ_CHECKSUM\r\n");
+                pSocket->ParseState = PARSE_FILE_FAIL;
+		break;
+	      }
+	    }
+	    
+	    if (parse_index == 64 && file_type == FILETYPE_PROGRAM) {
+	      // Copy parse_tail to Off-Board EEPROM0
+	      parse_index = 0; // Clear for next data
+	      
+	      if (address_index < OFFSET_TO_IO_TIMERS) {
+                // Write the 64 bytes of data that are in the parse_tail array
+                // into the Off-Board EEPROM.
+                // Time to write 64 bytes is about 20ms due to the need to
+                // pause 20ms between each block write to the Off-Board
+		// EEPROM. Total time to write 32K is about 2048 x 20ms = 40
+		// sec.
+                {
+                  int i;
+                  uint8_t I2C_last_flag;
+                  uint8_t temp_byte;
+                  
+                  I2C_control(I2C_EEPROM0_WRITE); // Send Write Control Byte
+                  I2C_byte_address(address_index);
+// UARTPrintf("\r\nEEPROM0 write: \r\n");
+                  for (i=0; i<64; i++) {
+                    I2C_write_byte(parse_tail[i]);
+// emb_itoa(parse_tail[i], OctetArray, 16, 2);
+// UARTPrintf(" ");
+// UARTPrintf(OctetArray);
+                  }
+                  I2C_stop();
+                  wait_timer(20000); // Wait 20ms
+                  IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from
+                                  // firing.
+                  // Validate data in Off-Board EEPROM
+                  // Read addressing sequence: Send Write Control byte, send Byte
+                  // address, send Read Control Byte
+                  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, address_index);
+	          I2C_last_flag = 0;
+// UARTPrintf("\r\nEEPROM contents: \r\n");
+                  for (i=0; i<64; i++) {
+                   if (i == 63) I2C_last_flag = 1;
+                     temp_byte = I2C_read_byte(I2C_last_flag);
+// emb_itoa(temp_byte, OctetArray, 16, 2);
+// UARTPrintf(" ");
+// UARTPrintf(OctetArray);
+                      if (temp_byte != parse_tail[i]) {
+                        upgrade_failcode = UPGRADE_FAIL_EEPROM_MISCOMPARE;
+UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_EEPROM_MISCOMPARE\r\n");
+                        pSocket->ParseState = PARSE_FILE_FAIL;
+                    }
+                  }
+                  address_index += 64;
+                }
+              }
+	    }
+	    
+	    if (parse_index == 64 && file_type == FILETYPE_STRING) {
+	      // Copy parse_tail to Off-Board EEPROM2
+	      parse_index = 0; // Clear for next data
+	      
+	      if (address_index < OFFSET_TO_IO_TIMERS) {
+                // Write the 64 bytes of data that are in the parse_tail array
+                // into the Off-Board EEPROM.
+                // Time to write 64 bytes is about 20ms due to the need to
+                // pause 20ms between each block write to the Off-Board
+		// EEPROM. Total time to write 32K is about 2048 x 20ms = 40
+		// sec.
+                {
+                  int i;
+                  uint8_t I2C_last_flag;
+                  uint8_t temp_byte;
+                  
+                  I2C_control(I2C_EEPROM2_WRITE); // Send Write Control Byte
+                  I2C_byte_address(address_index);
+// UARTPrintf("\r\nEEPROM2 write: \r\n");
+                  for (i=0; i<64; i++) {
+                    I2C_write_byte(parse_tail[i]);
+// emb_itoa(parse_tail[i], OctetArray, 16, 2);
+// UARTPrintf(" ");
+// UARTPrintf(OctetArray);
+                  }
+                  I2C_stop();
+                  wait_timer(20000); // Wait 20ms
+                  IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from
+                                  // firing.
+                  // Validate data in Off-Board EEPROM
+                  // Read addressing sequence: Send Write Control byte, send Byte
+                  // address, send Read Control Byte
+                  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, address_index);
+	          I2C_last_flag = 0;
+// UARTPrintf("\r\nEEPROM contents: \r\n");
+                  for (i=0; i<64; i++) {
+                   if (i == 63) I2C_last_flag = 1;
+                     temp_byte = I2C_read_byte(I2C_last_flag);
+// emb_itoa(temp_byte, OctetArray, 16, 2);
+// UARTPrintf(" ");
+// UARTPrintf(OctetArray);
+                      if (temp_byte != parse_tail[i]) {
+                        upgrade_failcode = STRING_EEPROM_MISCOMPARE;
+UARTPrintf("UPGRADE_FAILCODE = STRING_EEPROM_MISCOMPARE\r\n");
+                        pSocket->ParseState = PARSE_FILE_FAIL;
+                    }
+                  }
+                  address_index += 64;
+                }
+              }
+	    }
+	    
+	    if (data_count == 0) {
+              // Go on to read next data line
+              byte_index = 0;
+              pSocket->ParseState = PARSE_FILE_SEEK_SX;
+              break;
+	    }
+	    
+            if (file_nBytes == 0) {
+              // We just read the last character in this packet. Break out
+              // of the local while loop so the next packet will be read.
+              break;
+            }
+	  }
+	}
+	
+        else if (pSocket->ParseState == PARSE_FILE_FILL_DATA) {
+UARTPrintf(" ParseState = PARSE_FILE_FILL_DATA\r\n");
+	  // This section is entered knowing that we need to fill the
+	  // Off-Board EEPROM with zeroes until the address_index equals the
+	  // new_address found in the next data line.
+	  while (address < new_address) {
+
+// UARTPrintf("\r\n address = ");
+// emb_itoa(address, OctetArray, 16, 4);
+// UARTPrintf(" ");
+// UARTPrintf(OctetArray);
+// UARTPrintf("  new_address = ");
+// emb_itoa(new_address, OctetArray, 16, 4);
+// UARTPrintf(" ");
+// UARTPrintf(OctetArray);
+
+            data_value = 0;
+	    while (parse_index < 64) {
+	      parse_tail[parse_index++] = data_value;
+	      address++; // Increment the incoming address counter
+	      // Note: new_address is always on a 64 byte boundary, so there
+	      // will be no aliasing of the parse_tail and the termination of
+	      // the parse_tail copy process.
+	    }
+	    
+            // Copy parse_tail to Off-Board EEPROM
+	    parse_index = 0; // Clear for next data
+	    
+            // Write the 64 bytes of data that are in the parse_tail array
+            // into the off-board EEPROM.
+            // Time to write 64 bytes is about 20ms due to the need to
+            // pause 20ms between each block write to the Off-Board EEPROM.
+	    // Total time to write 32K is about 2048 x 20ms = 40 sec.
+            {
+              int i;
+              uint8_t I2C_last_flag;
+              uint8_t temp_byte;
+              
+	      if (file_type == FILETYPE_PROGRAM) {
+                I2C_control(I2C_EEPROM0_WRITE); // Send Write Control Byte
+	      }
+	      if (file_type == FILETYPE_STRING) {
+                I2C_control(I2C_EEPROM2_WRITE); // Send Write Control Byte
+	      }
+              I2C_byte_address(address_index);
+// UARTPrintf("\r\nEEPROM write: \r\n");
+              for (i=0; i<64; i++) {
+                I2C_write_byte(parse_tail[i]);
+// emb_itoa(parse_tail[i], OctetArray, 16, 2);
+// UARTPrintf(" ");
+// UARTPrintf(OctetArray);
+
+// UARTPrintf(".");
+
+              }
+              I2C_stop();
+              wait_timer(20000); // Wait 20ms
+              IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from
+                              // firing.
+              // Validate data in Off-Board EEPROM
+              // Read addressing sequence: Send Write Control byte, send Byte
+              // address, send Read Control Byte
+	      if (file_type == FILETYPE_PROGRAM) {
+                prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, address_index);
+              }
+	      if (file_type == FILETYPE_STRING) {
+                prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, address_index);
+	      }
+	      I2C_last_flag = 0;
+// UARTPrintf("\r\nEEPROM contents: \r\n");
+              for (i=0; i<64; i++) {
+                if (i == 63) I2C_last_flag = 1;
+                temp_byte = I2C_read_byte(I2C_last_flag);
+// emb_itoa(temp_byte, OctetArray, 16, 2);
+// UARTPrintf(" ");
+// UARTPrintf(OctetArray);
+                if (temp_byte != parse_tail[i]) {
+                  upgrade_failcode = UPGRADE_FAIL_EEPROM_MISCOMPARE;
+UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_EEPROM_MISCOMPARE\r\n");
+                  pSocket->ParseState = PARSE_FILE_FAIL;
+                }
+              }
+              address_index += 64;
+            }
+	    if (address == new_address) {
+	      break;
+            }
+	    if (address_index == OFFSET_TO_IO_TIMERS) {
+	      break;
+	    }
+	  } // End of local while loop
+	  
+	  if (address_index == OFFSET_TO_IO_TIMERS) {
+	    // Done with file upload.
+            pSocket->ParseState = PARSE_FILE_COMPLETE;
+	    break; // Break out of main while loop
+	  }
+	  else {
+	    // Fill data caught the address_index up with the next data in the
+	    // packet.
+            pSocket->ParseState = PARSE_FILE_READ_DATA;
+	  }
+	}
+	  
+        if (file_nBytes == 0) {
+          // We just read the last character in this packet. Break out
+          // of the main while loop so the next packet will be read.
+          saved_ParseState = pSocket->ParseState;
+          break;
+        }
+      } // End of main while loop
+	  
+    
+      if (pSocket->ParseState == PARSE_FILE_COMPLETE && file_type == FILETYPE_PROGRAM) {
+
+// UARTPrintf("\r\n");
+// UARTPrintf("File Upload Complete - entering 5 second pause");
+// UARTPrintf("\r\n");
+
+
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        // All data is now in Off-Board EEPROM0. Now need to copy it to Flash,
+	// then reboot.
+	// But first we need to close the connection with the Browser, so
+	// here we will set a flag to cause the main loop to call the copy
+	// to flash function after about 5 seconds.
+	eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_REQUEST;
+	// Set the flag to cause the memcpy_update segment to be copied
+        unlock_eeprom();
+	stored_upload_flag = 1; // Indicate image load from upload
+        lock_eeprom();
+        pSocket->nDataLeft = 0;
+        pSocket->nParseLeft = 0;
+	saved_nstate = STATE_NULL;
+        pSocket->nState = STATE_SENDHEADER204;
+      }
+      
+      if (pSocket->ParseState == PARSE_FILE_COMPLETE && file_type == FILETYPE_STRING) {
+
+// UARTPrintf("\r\n");
+// UARTPrintf("File Upload Complete - entering 5 second pause");
+// UARTPrintf("\r\n");
+
+
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        // All data is now in Off-Board EEPROM2. Now need to reboot.
+	// But first we need to close the connection with the Browser.
+        pSocket->nDataLeft = 0;
+        pSocket->nParseLeft = 0;
+	saved_nstate = STATE_NULL;
+        pSocket->nState = STATE_SENDHEADER204;
+      }
+      
+      if (pSocket->ParseState == PARSE_FILE_FAIL) {
+        // Abort parsing.
+
+// UARTPrintf("\r\n");
+// UARTPrintf("Parse FAIL XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+// UARTPrintf("\r\n");
+
+        pSocket->nDataLeft = 0;
+        pSocket->nParseLeft = 0;
+	saved_nstate = STATE_NULL;
+        pSocket->nState = STATE_SENDHEADER204;
+        user_reboot_request = 1;
+      }
+    }
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
 
     if (pSocket->nState == STATE_SENDHEADER200) {
       // This step is entered after GET processing is complete in order to
@@ -3482,12 +4833,25 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     senddata:
     if (pSocket->nState == STATE_SENDDATA) {
       // We have sent the HTML Header or HTML Data previously. Now we send
-      // Data. Data is always sent at the end of a "uip_newdata()" response.
-      // There may be more data than will fit in one packet, so that
-      // additional data (if any) will be sent on return to this function in
-      // response to "uip_acked()". If there is no data to send, or if all
-      // data has been sent, we close the connection.
-      
+      // data using the CopyHttpData() function as a pre-processor, and the
+      // uip_send() function to actually copy data from the internal buffer
+      // to the ENC28J60 hardware.
+      // Data is always sent at the end of a "uip_newdata()" as a response to
+      // a Browser request.
+      // When transmitting data to the Browser there may be more data than
+      // will fit in one packet. For instance transmitting one of the Webpage
+      // templates can easily take 10 or more transmit packets. So, additional
+      // data (if any) will be sent on return to this function in response to
+      // "uip_acked()". Whether or not there is additional data to send in a
+      // series of packets is tracked in the nDataLeft variable.
+      // If there is no data to send, or if all data has been sent, we close
+      // the connection.
+
+// UARTPrintf("Send Data, off_board_eeprom_index: ");
+// emb_itoa(off_board_eeprom_index, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
       if (pSocket->nDataLeft == 0) {
         // There is no data to send. Close connection
         nBufSize = 0;
@@ -3518,7 +4882,19 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size()));
     }
     else {
+
+UARTPrintf("XXXX RETRANSMIT XXXX\r\n");
+
+      // The pData pointer needs to be moved back by the number of bytes
+      // consumed from the webpage template.
       pSocket->pData -= pSocket->nPrevBytes;
+      
+#if OB_EEPROM_SUPPORT == 1
+      // A similar adjustment is required for off_board_eeprom_index when
+      // the webpage is sourced from Off-Board EEPROM.
+      off_board_eeprom_index -= pSocket->nPrevBytes;
+#endif // OB_EEPROM_SUPPORT == 1
+      
       pSocket->nDataLeft += pSocket->nPrevBytes;
       pSocket->nPrevBytes = pSocket->nDataLeft;
       nBufSize = CopyHttpData(uip_appdata, &pSocket->pData, &pSocket->nDataLeft, uip_mss());
@@ -3538,6 +4914,85 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 }
 
 
+
+#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+char *read_two_characters(char *pBuffer)
+{
+  // This function attempts to read two characters from the data file.
+  // - Normal function is that two characters are read.
+  // - The function must also handle the case where we only need to read one
+  //   character because a character was already read at the tail of a
+  //   previous packet.
+  // - The function must also handle the case where we can only read one
+  //   character because it is the last remaining character in a packet.
+  // - The function discards any CR or LF character
+  //
+  // The function updates and returns the pBuffer pointer as characters are
+  // consumed from the incoming data buffer.
+  //
+  // The function updates the byte_tail string with the characters read from
+  // the incoming data buffer.
+  //
+  // The function updates the nParseLeft and file_nBytes counters
+  
+  while(1) {
+    // Discard CR and LF characters
+    if ((*pBuffer == '\r') || (*pBuffer == '\n')) {
+      pBuffer++;
+      file_nBytes--;
+      if (file_nBytes == 0) {
+        return pBuffer;
+      }
+    }
+    else break;
+  }
+  
+  if ((byte_tail[0] != '\0') && (byte_tail[1] == '\0')) {
+    // This is a check for TCP Fragmentation during a prior packet. byte_tail
+    // will have length 0 if no prior fragmentation occurred. If TCP
+    // Fragmentation DID occur then byte_tail will contain the last character
+    // read from the data file.
+    // Note that the data file is read one character at a time, but a two
+    // character pair is needed for any processing to occur. So, if only one
+    // character of the two character pair is captured when a packet boundary
+    // is encountered that character must be saved in byte_tail so that the
+    // two character pair can be completed and processed when the next packet
+    // is received.
+    byte_tail[1] = *pBuffer;
+    pBuffer++;
+    file_nBytes--;
+    byte_tail[2] = '\0';
+    return pBuffer;
+  }
+  
+  else if (file_nBytes > 1) {
+    // Check that there are at least two characters remaining in the file and
+    // if so read them.
+    byte_tail[0] = *pBuffer;
+    pBuffer++;
+    byte_tail[1] = *pBuffer;
+    pBuffer++;
+    byte_tail[2] = '\0';
+    file_nBytes -= 2;
+    return pBuffer;
+  }
+  
+  else {
+    // Only 1 byte remains in the file. Read it and store in byte_tail. We
+    // will have to wait for the next packet to read the character that
+    // forms this character pair.
+    byte_tail[0] = *pBuffer;
+    byte_tail[1] = '\0';
+    pBuffer++;
+    file_nBytes--;
+    return pBuffer;
+  }
+}
+#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+
+
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 {
   uint16_t lbi; // Local buffer index
@@ -3685,8 +5140,8 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	    case 'm':
 	      memcpy(Pending_mqtt_password, tmp_Pending, num_chars);
 	      break;
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 	    case 'j':
-#if MQTT_SUPPORT == 0
 	      unlock_flash();
 	      if (strcmp(IO_NAME[pSocket->ParseNum], tmp_Pending) != 0) {
 	        // The write to Flash will occur 4 bytes at a time to
@@ -3702,8 +5157,8 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	        }
               }
 	      lock_flash();
-#endif // MQTT_SUPPORT
 	      break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 	  }
         }
       }
@@ -3896,7 +5351,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
       }
 
 
-#if MQTT_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
       // Parse 'i' ------------------------------------------------------//
       else if (pSocket->ParseCmd == 'i') {
         // This code updates the IO Timer units and values in Pending
@@ -3928,7 +5383,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	  Pending_IO_TIMER[pSocket->ParseNum] = temp;
         }
       }
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
       // Parse 'z' ------------------------------------------------------//
@@ -4014,11 +5469,13 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 
     if (current_webpage == WEBPAGE_IOCONTROL) {
       pSocket->pData = g_HtmlPageIOControl;
-      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
+      pSocket->nDataLeft = HtmlPageIOControl_size;
+      init_off_board_string_pointers();
     }
-    if (current_webpage == WEBPAGE_CONFIGURATION) {
+    else if (current_webpage == WEBPAGE_CONFIGURATION) {
       pSocket->pData = g_HtmlPageConfiguration;
-      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
+      pSocket->nDataLeft = HtmlPageConfiguration_size;
+      init_off_board_string_pointers();
     }
   }
 
@@ -4041,6 +5498,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
     uip_len = 0;
   }
 }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
 void update_ON_OFF(uint8_t i, uint8_t j)

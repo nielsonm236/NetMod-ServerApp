@@ -354,7 +354,8 @@ uint8_t arp_timer_expired(void)
 void wait_timer(uint16_t wait)
 {
   // This function waits for expiration of TIM3 and will not return until the
-  // timer expires. Basically a "wait" or "delay" function.
+  // timer expires. Basically a "wait" or "delay" function. No code execution
+  // occurs during the wait.
   //
   // Call the function by supplying a wait value in micro-seconds. A 16 bit
   // unsigned value may be provided for a maximum of 50000 micro-seconds wait

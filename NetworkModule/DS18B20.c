@@ -35,12 +35,13 @@
 #include "uart.h"
 #include "uipopt.h"
 
-
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 extern uint8_t DS18B20_scratch_byte[2]; // Array to store scratchpad bytes
                                         // read from DS18B20
-extern uint8_t OctetArray[11];		// Used in conversion of integer
-                                        // values to character values and
-					// used to store generic strings
+extern uint8_t OctetArray[11];		// Used in emb_itoa conversions but
+                                        // also repurposed as a temporary
+					// buffer for transferring data
+					// between functions.
 
 // Table used for rounding the decimal part of temperatures
 static const uint8_t dec_temp[] = {
@@ -369,26 +370,26 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
 
 
   if (device_num <= numROMs) { // Check that sensor exists
-      // Collect temperature value
-      whole_temp = DS18B20_scratch[device_num][1];
-      whole_temp = whole_temp << 8;
-      whole_temp |= DS18B20_scratch[device_num][0];
+    // Collect temperature value
+    whole_temp = DS18B20_scratch[device_num][1];
+    whole_temp = whole_temp << 8;
+    whole_temp |= DS18B20_scratch[device_num][0];
+    // Default is Positive number
+    sign_char = ' ';
       
     if (degCorF == 0) {
       // Convert to degrees C
       // First convert negative number to absolute number
       if ((DS18B20_scratch[device_num][1] & 0x80) == 0x80) {
-        whole_temp = DS18B20_scratch[device_num][1];
-        whole_temp = whole_temp << 8;
-        whole_temp |= DS18B20_scratch[device_num][0];
+        // Negative number
         whole_temp = whole_temp ^ 0xffff;
         whole_temp++;
         sign_char = '-';
       }
-      else {
-        // Positive number
-        sign_char = ' ';
-      }
+//      else {
+//        // Positive number
+//        sign_char = ' ';
+//      }
       
       // Extract whole temp and decimal temp parts of the DS18B20
       // values
@@ -439,7 +440,7 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
         whole_temp = (int16_t)(F_temp2 / 16);
         // Now calculate the "decimal" part of the display in degrees F
         decimal_temp = (uint8_t)(F_temp2 & 0xf);
-        sign_char = ' ';
+//        sign_char = ' ';
         if (F_temp2 < 0) {
 	  // Must use twos complement if the degrees F result is negative
           whole_temp = whole_temp * -1;
@@ -478,11 +479,9 @@ int reset_pulse()
   // The pulse must be a minimum of 480us
   int rtn;
   
-  PC_ODR |= 0x40;           // write IO ODR to 1
-  PC_DDR |= 0x40;           // write IO DDR to output
-  PC_ODR &= (uint8_t)~0x40; // write IO ODR to 0
-  wait_timer(500);          // wait 500us
-  PC_DDR &= (uint8_t)~0x40; // write IO DDR to input
+  one_wire_low(100);        // Drive one-wire low, wait 50 us
+  wait_timer(450);          // wait additional 450 us
+  PC_DDR &= (uint8_t)~0x40; // write IO DDR to input (float high)
   wait_timer(100);          // wait 100us
   
   // Check for "presence" state on the 1-wire. 0 = device(s) present.
@@ -538,11 +537,8 @@ int read_bit()
 
   bit = 0;
 
-  PC_ODR |= 0x40;            // write IO ODR to 1
-  PC_DDR |= 0x40;            // write IO DDR to output
-  PC_ODR &= (uint8_t)~0x40;  // write IO ODR to 0
-  for (nop_cnt=0; nop_cnt<4; nop_cnt++) nop(); // Provides a 1us pulse
-  PC_DDR &= (uint8_t)~0x40;  // write IO DDR to input
+  one_wire_low(4);           // drive one-wire low, wait 2us
+  PC_DDR &= (uint8_t)~0x40;  // write IO DDR to input (float high)
   for (nop_cnt=0; nop_cnt<30; nop_cnt++) nop(); // Wait 15us
   if (PC_IDR & 0x40) bit = 1;
   
@@ -565,16 +561,26 @@ void write_bit(uint8_t transmit_bit)
   //   15us before returning to the calling routine. To reduce code size we
   //   will wait 60us.
   
-  PC_ODR |= 0x40;              // write IO ODR to 1
-  PC_DDR |= 0x40;              // write IO DDR to output
-  PC_ODR &= (uint8_t)~0x40;    // write IO ODR to 0
-  for (i=0; i<10; i++) nop();  // If sending a 1 just provide 5us low time
+  one_wire_low(10);            // drive one wire low, wait 5us
   if (!(transmit_bit)) wait_timer(60); // If sending a 0 provide additional
                                        // 60us low time
-  PC_DDR &= (uint8_t)~0x40;    // write IO DDR to input - will float high
+  PC_DDR &= (uint8_t)~0x40;    // write IO DDR to input (float high)
   
   wait_timer(60); // Wait 60us before returning. This is needed to provide a
                   // pause brfore sending the next bit.
+}
+
+
+void one_wire_low(int wait)
+{
+  // Drive one wire low then wait x us.
+  // The wait value is actually 1/2 us per increment so if wait = 200 this is
+  // 100 us.
+  int i;
+  PC_ODR |= 0x40;               // write IO ODR to 1
+  PC_DDR |= 0x40;               // write IO DDR to output
+  PC_ODR &= (uint8_t)~0x40;     // write IO ODR to 0
+  for (i=0; i<wait; i++) nop(); // wait time = wait / 2 us
 }
 
 
@@ -649,7 +655,7 @@ uint8_t Next(void)
   // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
   //
   uint8_t m = 1; // ROM Bit index
-  int n = 0; // ROM Byte index
+  int n = 0;     // ROM Byte index
   uint8_t k = 1; // bit mask
   int x = 0;
   uint8_t discrepMarker = 0; // discrepancy marker
@@ -703,10 +709,10 @@ uint8_t Next(void)
   // Calculate CRC for first 8 ROM bytes
   crc = dallas_crc8(ROM, 8);
   
-  if (m < 65 || (crc != ROM[8])) lastDiscrep = 0;  // if search was
-  // unsuccessful then reset the last discrepancy to 0
+  if (m < 65 || (crc != ROM[8])) lastDiscrep = 0;
+    // if search was unsuccessful then reset the last discrepancy to 0
   else {
-    // search was successful, so set lastDiscrep, lastOne, nxt
+    // Else search was successful, so set lastDiscrep, lastOne, nxt
     lastDiscrep = discrepMarker;
     doneFlag = (uint8_t)(lastDiscrep == 0);
     nxt = 1; // indicates search is not complete yet, more parts remain
@@ -717,6 +723,8 @@ uint8_t Next(void)
 
 uint8_t dallas_crc8(uint8_t *data, uint8_t size)
 {
+    // Calculate CRC with Dallas Semi algorithm
+    // CRC requires 86 bytes of Flash
     int i;
     int j;
     uint8_t inbyte;
@@ -768,3 +776,4 @@ void check_temperature_sensor_changes(void)
   }
 }
 
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD

@@ -49,6 +49,21 @@
 
 #include <stdint.h>
 
+#define SEEK_CONTENT_TYPE	0
+#define SEEK_FIRST_RNRN		1
+#define SEEK_SECOND_RNRN	2
+#define FOUND_CONTENT_TYPE	4
+
+#define UPGRADE_FAIL_BYTE_INDEX_NOTSX		1
+#define UPGRADE_FAIL_FILE_READ_CHECKSUM		2
+#define UPGRADE_FAIL_EEPROM_MISCOMPARE		3
+#define STRING_EEPROM_MISCOMPARE		4
+
+#define FILETYPE_SEARCH		0
+#define FILETYPE_PROGRAM	1
+#define FILETYPE_STRING		2
+
+
 struct tHttpD
 {
   uint8_t nState;
@@ -63,9 +78,12 @@ struct tHttpD
 };
 
 
+void httpd_diagnostic(void);
+
+void HttpDStringInit(void);
+void init_off_board_string_pointers(void);
 uint16_t adjust_template_size(void);
 
-static uint16_t CopyStringP(uint8_t** ppBuffer, const char* pString);
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen);
 static uint16_t CopyHttpData(uint8_t* pBuffer, const char** ppData, uint16_t* pDataLeft, uint16_t nMaxBytes);
 char *show_temperature_string(char * pBuffer, uint8_t nParsedNum);
@@ -73,10 +91,13 @@ char *show_temperature_string(char * pBuffer, uint8_t nParsedNum);
 void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad);
 int hex2int(char ch);
 uint8_t two_hex2int(char chmsb, char chlsb);
+uint8_t int2nibble(uint8_t j);
 void int2hex(uint8_t i);
 
 void HttpDInit(void);
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);
+// char *read_two_characters(struct tHttpD* pSocket, char *pBuffer);
+char *read_two_characters(char *pBuffer);
 void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max);
 void encode_16bit_registers(void);
 void update_pin_control_bytes(void);

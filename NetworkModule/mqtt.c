@@ -49,7 +49,7 @@ SOFTWARE.
 #include "uart.h"
 #include "uipopt.h"
 
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
 
 extern uint32_t second_counter;
 extern uint16_t uip_slen;
@@ -61,15 +61,15 @@ uint8_t suback_received;   // Used to communicate SUBSCRIBE SUBACK received
                            // from mqtt.c to main.c
 
 uint8_t mqtt_sendbuf[140]; // Buffer to contain MQTT transmit queue
-			   // and data. Restrict to 200 bytes if
-			   // debug is enabled.
+			   // and data.
 extern uint8_t mqtt_start; // Tracks the MQTT startup steps
 
 
+/*
 #if DEBUG_SUPPORT != 0
 extern uint8_t debug[NUM_DEBUG_BYTES];
 #endif // DEBUG_SUPPORT
-
+*/
 
 
 // Implements the functionality of MQTT-C.
@@ -1247,4 +1247,4 @@ int16_t __mqtt_pack_str(uint8_t *buf, const char* str)
     return length + 2;
 }
 
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD

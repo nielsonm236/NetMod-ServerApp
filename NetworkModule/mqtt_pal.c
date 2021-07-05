@@ -54,11 +54,13 @@ extern const char code_revision[];        // Code Revision
 extern uint8_t stored_devicename[20];     // Device name stored in EEPROM
 extern char mac_string[13];               // MAC formatted as string
 
+/*
 #if DEBUG_SUPPORT != 0
 // Variables used to store debug information
 extern uint8_t debug[NUM_DEBUG_BYTES];
 extern uint8_t stored_debug[NUM_DEBUG_BYTES];
 #endif // DEBUG_SUPPORT
+*/
 
 //char *stpcpy(char * dest, const char * src)
 char *stpcpy(char * dest, char * src)
@@ -513,9 +515,15 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         pBuffer = stpcpy(pBuffer, mac_string);
    
-        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, "_output_");
-        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, "_input_");
-        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, "_temp_");
+//        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, "_output_");
+//        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, "_input_");
+//        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, "_temp_");
+	
+	switch(payload_buf[1]) {
+	  case 'O': pBuffer = stpcpy(pBuffer, "_output_"); break;
+	  case 'I': pBuffer = stpcpy(pBuffer, "_input_"); break;
+	  case 'T': pBuffer = stpcpy(pBuffer, "_temp_"); break;
+	}
 	
         // Copy the IO pin number or Temperature Sensor ID to the pBuffer.
 	pBuffer = stpcpy(pBuffer, &payload_buf[2]);
@@ -524,9 +532,15 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         pBuffer = stpcpy(pBuffer, stored_devicename);
     
-        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, " output ");
-        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, " input ");
-        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, " temp ");
+//        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, " output ");
+//        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, " input ");
+//        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, " temp ");
+	
+	switch(payload_buf[1]) {
+	  case 'O': pBuffer = stpcpy(pBuffer, " output "); break;
+	  case 'I': pBuffer = stpcpy(pBuffer, " input "); break;
+	  case 'T': pBuffer = stpcpy(pBuffer, " temp "); break;
+	}
 
         // Copy the IO pin number or Temperature Sensor ID to the pBuffer.
 	pBuffer = stpcpy(pBuffer, &payload_buf[2]);
@@ -537,9 +551,15 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         
         pBuffer = stpcpy(pBuffer, "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/");
 
-        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, "output/");
-        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, "input/");
-        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, "temp/");
+//        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, "output/");
+//        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, "input/");
+//        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, "temp/");
+	
+	switch(payload_buf[1]) {
+	  case 'O': pBuffer = stpcpy(pBuffer, "output/"); break;
+	  case 'I': pBuffer = stpcpy(pBuffer, "input/"); break;
+	  case 'T': pBuffer = stpcpy(pBuffer, "temp/"); break;
+	}
 	
         // Copy the IO pin number or Temperature Sensor ID to the pBuffer.
 	pBuffer = stpcpy(pBuffer, &payload_buf[2]);

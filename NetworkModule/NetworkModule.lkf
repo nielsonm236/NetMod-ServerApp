@@ -11,6 +11,8 @@
 +seg .bit -a .ubsct -n .bit -id
 +seg .data -a .bit -m 0x800 -n .data
 +seg .bss -a .data -n .bss
++seg .flash_update -b 0xfcc0
++seg .memcpy_update -b 0xfe80
 +seg .iconst -b 0x5fe -n .iconst
 
 ## interrupt vectors

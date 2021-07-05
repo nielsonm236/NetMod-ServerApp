@@ -76,6 +76,11 @@
 #define UIP_BIG_ENDIAN     1234
 #endif /* UIP_BIG_ENDIAN */
 
+#define BROWSER_ONLY_BUILD	0
+#define MQTT_BUILD		1
+#define CODE_UPDATER_BUILD	2
+
+
 #include "uip_types.h"
 #include "Enc28j60.h"
 #include "uip_TcpAppHub.h"
@@ -211,7 +216,8 @@
 // Statistics pages and processes will free up considerable space.
 // Note that Network Statistics will not fit in the memory when an MQTT build
 // is created. It will only fit if a Browser Only build is created. So,
-// MQTT_SUPPORT = 1 will override this setting and force it to disabled.
+// UIP_STATISTICS == 1 will only work when BUILD_SUPPORT == BROWSER_ONLY_BUILD
+// is also set.
 // 0 = disabled
 // 1 = included
 #define UIP_STATISTICS  1
@@ -219,10 +225,6 @@
 
 // DEBUG_SUPPORT
 // Determines if DEBUG code is compiled in
-// IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
-// DEBUG requires a lot of RAM and EEPROM - about 55 bytes depending on the
-// debug funtionality selected. Be sure there is enough space available in
-// RAM and EEPROM before enabling.
 //
 // DEBUG support allocates EEPROM and RAM space to collect debug data and
 // store it in the EEPROM for viewing with the STVP programmer, the UART, or
@@ -238,36 +240,25 @@
 //      No Link Error Stats browser page
 //      USAGE: Smallest memory footprint. Useful during development if
 //      in-development code needs a little more space.
-// 1 =  General purpose debug bytes enabled (visible only via STVP)
-//      No UART
-//      No Link Error Stats browser page
-//      USAGE: Moderate memory footprint. Allows the developer to utilize
-//      more debug RAM and EEPROM for capturing developer specific debug
-//      values.
-// 7 =  General purpose debug bytes enabled (visible only via STVP)
-//      Last 10 bytes of debug[] allocated to specific debug data*
+// 7 =  10 bytes of debug[] allocated to specific debug data*
 //      UART enabled for display of basic debug data on IO pin 11
 //      No Link Error Stats browser page
 //      USAGE: Useful mode for displaying most in-development debug without
 //      the overhead of the Link Error Stats web page.
 // 11 = USE FOR PRODUCTION BUILDS.
-//      General purpose debug bytes enabled (visible only via STVP)
-//      Last 10 bytes of debug allocated to specific debug data*
+//      10 bytes of debug allocated to specific debug data*
 //      No UART
 //      Link Error Stats browser page enabled
 //      USAGE: provides the user with the Link Error Stats in a web page
-//      without the overhead of the UART and debug[] bytes functionality.
-// 15 = General purpose debug bytes enabled (visible only via STVP)
-//      Last 10 bytes of debug allocated to specific debug data*
-//      UART enabled on IO pin 11
+//      without the overhead of the UART functionality.
+// 15 = 10 bytes of debug allocated to specific debug data*
+//      UART TX enabled on IO pin 11
 //      Link Error Stats browser page enabled
-//      USAGE: Provides the most run time error data, but may not be useful
-//      during most development cycles as the developer is typically using
-//      only the internal debug (debug[] bytes, last 10 bytes, UART display)
-//      OR the developer is focused on external Link Error Stats information.
+//      USAGE: Provides the most run time error data and UART display.
 // * Specific debug data: Reset Status Register counters, TXERIF counter,
 //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
-#define DEBUG_SUPPORT 11
+
+#define DEBUG_SUPPORT 15
 
 
 // IWDG_ENABLE
@@ -283,13 +274,53 @@
 #define IWDG_ENABLE 1
 
 
-// MQTT_SUPPORT
-// Determines if MQTT Support and Home Assistant Support is to be compiled
-// into the build. Note this will over-ride the UIP_STATISTICS setting
-// forcing it to "disabled".
-// 0 = Browser Only Support
-// 1 = MQTT Support
-#define MQTT_SUPPORT 1
+// BUILD_SUPPORT
+// Determines the type of code build to create.
+// BROWSER_ONLY_BUILD excludes MQTT support but includes the extra Browser
+//   only features like IO Names and IO Timers.
+// MQTT_BUILD includes MQTT support and Home Assistant support, but excludes
+//   the Browser Only IO Names and IO Timers. This build selection will
+//   over-ride the UIP_STATISTICS setting forcing it to be disabled.
+// CODE_UPDATER_BUILD excludes all Browser Only and MQTT features. It produces
+//   a build that can only be used to upload and update the runtime code. The
+//   Code Updater requires additional hardware in the form of an off-board I2C
+//   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
+// Un-comment ONLY ONE of the following:
+// #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
+#define BUILD_SUPPORT     MQTT_BUILD
+// #define BUILD_SUPPORT     CODE_UPDATER_BUILD
+
+
+// I2C_SUPPORT
+// Determines if I2C Support is to be compiled into the build. I2C_SUPPORT
+// enables use of various I2C devices using IO pins 14 and 15 as the I2C data
+// and clock pins.
+// 0 = Not supported
+// 1 = Supported
+#define I2C_SUPPORT 1
+
+
+// OB_EEPROM_SUPPORT
+// Determines if Off-Board EEPROM support is to be compiled into the build.
+// Off-Board EEPROM support adds the ability to upload new firmware to the
+// device via the Ethernet connection. Off-Board EEPROM support also enables
+// off-board storage of some webpage templates in a "Strings File" to make
+// more STM8 Flash space available for use as code space. The requirements to
+// use this function are:
+// 1) An Off-Board I2C EEPROM must be added that provides 256KB of off-board
+//    EEPROM space (see the manual). This requires use of IO pins 14 and 15
+//    for the I2C bus.
+// 2) I2C Support MUST be enabled.
+// 3) The Code Updater version of the code must be loaded via the SWIM
+//    interface at least one time. After that the Code Updater will have
+//    copied itself into the Off-Board EEPROM and, in the future, the Code
+//    Updater code will be obtained from that location.
+// 4) When code updates are perfromed the Code Updater must be used to
+//    a) Load the Strings File
+//    b) Load the Runtime code
+// 0 = Not supported
+// 1 = Supported
+#define OB_EEPROM_SUPPORT 1
 
 
 // DEBUG_SENSOR_SERIAL

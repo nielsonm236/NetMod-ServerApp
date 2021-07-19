@@ -51,9 +51,10 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
+const char code_revision[] = "20210719 2017"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
-const char code_revision[] = "20210529 2999"; // MQTT test build
-// const char code_revision[] = "20210531 CU01"; // Code Updater test build
+// const char code_revision[] = "20210529 2999"; // MQTT test build
+// const char code_revision[] = "20210531 CU01"; // Code Uploader test build
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -156,11 +157,11 @@ uint8_t stack_limit2;
 					   //        1 = Enable, 0 = Disable
 @eeprom uint8_t stored_prior_config;       // Copy of stored_config_settings
                                            // prior to reboot
-@eeprom uint8_t stored_unused5;            // Byte 80 unused
-@eeprom uint8_t stored_unused4;            // Byte 79 unused
-@eeprom uint8_t stored_unused3;            // Byte 78 unused
-@eeprom uint8_t stored_unused2;            // Byte 77 unused
-@eeprom uint8_t stored_upload_flag;        // Byte 76 Code Updater Upload Flag
+@eeprom uint8_t stored_unused6;            // Byte 80 unused
+@eeprom uint8_t stored_unused5;            // Byte 79 unused
+@eeprom uint8_t stored_unused4;            // Byte 78 unused
+@eeprom uint8_t stored_unused3;            // Byte 77 unused
+@eeprom uint8_t stored_unused2;            // Byte 76 unused
 @eeprom char stored_mqtt_password[11];     // Byte 65 MQTT Password
 @eeprom char stored_mqtt_username[11];     // Byte 54 MQTT Username
 @eeprom uint8_t stored_mqttserveraddr[4];  // Bytes 50-53 mqttserveraddr
@@ -393,10 +394,12 @@ uint8_t redefine_temp_sensors;   // Used to trigger the temperature
                                  // sensor add/delete process
 // #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
-#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
 extern uint8_t find_content_type;    // Signals that a file is contained
                                      // within a POST
-#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+extern uint8_t upgrade_failcode;     // Failure codes for Flash upgrade
+                                     // process
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 #if OB_EEPROM_SUPPORT == 1
 // Off-Board EEPROM variables
@@ -409,6 +412,7 @@ extern char * flash_ptr;             // Used in code update routines to copy
 extern uint8_t eeprom_num_write;     // Used in code update routines
 extern uint8_t eeprom_num_read;      // Used in code update routines
 extern uint16_t eeprom_base;         // Used in code update routines
+uint8_t eeprom_detect;               // Used in code update routines
 				     
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -417,7 +421,6 @@ extern uint16_t eeprom_base;         // Used in code update routines
 int main(void)
 {
   uip_ipaddr_t IpAddr;
-  uint8_t eeprom_detect;
   uint8_t flash_mismatch;
   
   parse_complete = 0;
@@ -564,10 +567,10 @@ int main(void)
   flash_mismatch = 0;
 #endif // OB_EEPROM_SUPPORT == 1
 
-#if BUILD_SUPPORT == CODE_UPDATER_BUILD
-  // Intialize the Code Updater variables
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+  // Intialize the Code Uploader variables
   find_content_type = SEEK_CONTENT_TYPE;
-#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -628,37 +631,32 @@ int main(void)
 #if OB_EEPROM_SUPPORT == 1
   // Verify that Off-Board EEPROM(s) exist.
   eeprom_detect = off_board_EEPROM_detect();
-
-  // Update the (memory_update) code segment.
-//  if (eeprom_detect == 2) memcpy_update_refresh();
-  if (eeprom_detect == 1) memcpy_update_refresh();
 #endif // OB_EEPROM_SUPPORT == 1
   
-#if BUILD_SUPPORT == CODE_UPDATER_BUILD
-  // If a Code Updater Build determine if Flash matches the content of
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+  // If a Code Uploader Build determine if Flash matches the content of
   // Off-Board EEPROM1.
-//  if (eeprom_detect == 2) flash_mismatch = compare_flash_to_EEPROM1();
   if (eeprom_detect == 1) flash_mismatch = compare_flash_to_EEPROM1();
-  // If a Code Updater build and Flash does not match the content of Off-Board
-  // EEPROM1 copy the Flash to Off-Board EEPROM1.
-//  if ((eeprom_detect == 2) && (flash_mismatch)) copy_code_updater_to_EEPROM1();
-  if ((eeprom_detect == 1) && (flash_mismatch)) copy_code_updater_to_EEPROM1();
-#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+  // If a Code Uploader build and Flash does not match the content of
+  // Off-Board EEPROM1 copy the Flash to Off-Board EEPROM1. This is needed to
+  // allow a user to upload a new Code Uploader with the SWIM interface.
+  if ((eeprom_detect == 1) && (flash_mismatch)) copy_code_uploader_to_EEPROM1();
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 #if OB_EEPROM_SUPPORT == 1
   // These calls are only needed if we want to protect the user from a
   // scenario where they:
-  // a) Have the Updater installed in Off-Board EEPROM
+  // a) Have the Uploader installed in Off-Board EEPROM
   // b) Use SWIM to load a new runtime firmware
-  // c) When they start the Updater they select "reinstall".
+  // c) When they start the Uploader they select "reinstall".
   // The above scenario fails because SWIM installed the runtime firmware
-  // rather than the Updater. If the Updater had been used to install the
+  // rather than the Uploader. If the Uploader had been used to install the
   // runtime firmware a copy of the firmware image would be in Off-Board
   // EEPROM. If the below calls are un-commented it will protect against
-  // this scenario assuming that the Updater and the Strings File are still
-  // compatible with the code the uers loaded via swim. This functionality
-  // costs about 250 bytes of firmware.
+  // this scenario assuming that the Uploader and the Strings File are still
+  // compatible with the code the user loaded via the SWIM interface. This
+  // functionality costs about 250 bytes of firmware.
   //
   // If a Browser Only or MQTT build determine if Flash matches the content of
   // Off-Board EEPROM0.
@@ -669,13 +667,10 @@ int main(void)
 #endif // OB_EEPROM_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD    
 
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-httpd_diagnostic();
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+// Call the httpd_diagnotic() to verify that the content of the String file
+// is correct. The UART must be enabled for this to work.
+// httpd_diagnostic();
 
 
   //-------------------------------------------------------------------------//
@@ -910,17 +905,19 @@ httpd_diagnostic();
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
-#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
     // Check for a request to copy the Off-Board EEPROM0 to Flash. The request
     // is automatically generated by the process that uploads the user
     // specified file after the file is copied to the Off-Board EEPROM.
+    // Block the request if no EEPROM was detected.
+    // Block the request if an error occurred during SREC download.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_WAIT;
       check_I2C_EEPROM_ctr = second_counter;
     }
-    // Pause for 5 seconds for browser update
+    // Pause for 2 seconds for browser update
     if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_WAIT) &&
-        (second_counter > (check_I2C_EEPROM_ctr + 5))) {
+        (second_counter > (check_I2C_EEPROM_ctr + 2))) {
       unlock_flash();
       // eeprom_copy_to_flash will cause a reboot on completion of the
       // function.
@@ -932,25 +929,41 @@ httpd_diagnostic();
       eeprom_num_read = I2C_EEPROM0_READ;
       eeprom_base = I2C_EEPROM0_BASE;
       flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-      eeprom_copy_to_flash();
+      
+      // Call function to copy the Flash writer to RAM
+      // This will copy the memcpy_update segment to RAM, then the
+      // eeprom_copy_to_flash() function will call the function in
+      // the memcpy_update segment from RAM.
+      if (_fctcpy ('m') == 0) {
+// UARTPrintf("eeprom0 fctcpy failed\r\n");
+      }
+      else {
+// UARTPrintf("eeprom0 fctcpy success\r\n");
+      }
+      
+      if (eeprom_detect == 1 && upgrade_failcode == UPGRADE_OK) {
+        eeprom_copy_to_flash();
+      }
+      lock_flash();
 
 // UARTPrintf("Completed eeprom_copy_to_flash for EEPROM0\r\n");
 
     }
-#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 
 #if OB_EEPROM_SUPPORT == 1
     // Check for a request to copy the Off-Board EEPROM1 to Flash. The request
     // is generated when the user inputs a /72 command.
+    // Block the request if no EEPROM was detected.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_WAIT;
       check_I2C_EEPROM_ctr = second_counter;
 // UARTPrintf("\r\nCmd 72 waiting\r\n");
     }
-    // Pause for 5 seconds for browser update
+    // Pause for 2 seconds for browser update
     if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_WAIT) &&
-        (second_counter > (check_I2C_EEPROM_ctr + 5))) {
+        (second_counter > (check_I2C_EEPROM_ctr + 2))) {
 // UARTPrintf("\r\nCmd 72 executing\r\n");
       unlock_flash();
       // eeprom_copy_to_flash will cause a reboot on completion of the
@@ -960,7 +973,20 @@ httpd_diagnostic();
       eeprom_num_read = I2C_EEPROM1_READ;
       eeprom_base = I2C_EEPROM1_BASE;
       flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-      eeprom_copy_to_flash();
+      
+      // Call function to copy the Flash writer to RAM
+      // This will copy the memcpy_update segment to RAM, then the
+      // eeprom_copy_to_flash() function will call the function in
+      // the memcpy_update segment from RAM.
+      if (_fctcpy ('m') == 0) {
+// UARTPrintf("eeprom1 fctcpy failed\r\n");
+      }
+      else {
+// UARTPrintf("eeprom1 fctcpy success\r\n");
+      }
+      
+      if (eeprom_detect) eeprom_copy_to_flash();
+      lock_flash();
     }
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -996,7 +1022,7 @@ httpd_diagnostic();
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     // Check for changes in Output control states, IP address, IP gateway
     // address, Netmask, MAC, and Port number.
-    // This functionality is not needed for the CODE_UPDATER build.
+    // This functionality is not needed for the CODE_UPLOADER build.
     check_runtime_changes();
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     
@@ -1019,11 +1045,10 @@ uint8_t off_board_EEPROM_detect(void)
   // detecting a 256KB EEPROM.
   //
   // Presence verification is performed by:
-  //
-  // Reading the first byte of the Off-Board EEPROM, inverting the byte,
-  // writing the inverted byte to the Off-Board EEPROM, and verifying that
-  // the inversion occurred. If the inversion occurred then eeprom_detect is
-  // set to 1 and the original byte is restored.
+  //   Reading the first byte of the Off-Board EEPROM, inverting the byte,
+  //   writing the inverted byte to the Off-Board EEPROM, and verifying that
+  //   the inversion occurred. If the inversion occurred then eeprom_detect is
+  //   set to 1 and the original byte is restored.
   //
   // If detection fails Off-Board EEPROM support is turned off.
   
@@ -1036,7 +1061,7 @@ uint8_t off_board_EEPROM_detect(void)
 
   // Make sure the I2C bus is in a sane condition.
   I2C_reset();
-  wait_timer(20000);
+  wait_timer(1000); // Wait 1 ms
   
   // Read 1 byte from Off-Board EEPROM.
 // UARTPrintf("\r\nStep 1\r\n");
@@ -1070,8 +1095,10 @@ uint8_t off_board_EEPROM_detect(void)
 
   return eeprom_detect;
 }
+#endif // OB_EEPROM_SUPPORT == 1
 
 
+#if OB_EEPROM_SUPPORT == 1
 void prep_read(uint8_t eeprom_num_write, uint8_t eeprom_num_read, uint16_t byte_address) {
   // Function to set up a sequential read from the Off-Board EEPROMs.
   // eeprom_num_write / eeprom_num_read are the Control Bytes needed to
@@ -1090,8 +1117,10 @@ void prep_read(uint8_t eeprom_num_write, uint8_t eeprom_num_read, uint16_t byte_
   I2C_byte_address(byte_address);
   I2C_control(eeprom_num_read);
 }
+#endif // OB_EEPROM_SUPPORT == 1
 
 
+#if OB_EEPROM_SUPPORT == 1
 void write_one(uint8_t byte) {
   // Function to write one byte to the Off-Board EEPROM
   // This is only used for the Off-Board EEPROM detection routine, thus only
@@ -1100,155 +1129,33 @@ void write_one(uint8_t byte) {
   I2C_byte_address(0x0000);
   I2C_write_byte(byte);
   I2C_stop();
-  wait_timer(20000); // Wait 20ms
-}
-
-
-
-
-void memcpy_update_refresh(void)
-{
-  // This function maintains and updates the memcpy_update segment. The
-  // memcpy_update function is used to copy the flash_update segment from
-  // RAM to Flash. Running the memcpy_update function is the last step in the
-  // upgrade process with the exception that the memcpy_update function
-  // cannot copy itself (running code can't replace itself if that code has
-  // changed). But, we need to be able to update the memcpy_update segment,
-  // so the chicken-and-egg problem needed to be solved.
-  // The solution:
-  // a) It is assumed that if a new Code Updater build is developed there will
-  //    also be corresponding new Browser Only and MQTT builds so that all
-  //    have the same memcpy_update segment.
-  // b) It is assumed that a user will not attempt to use the SWIM interface
-  //    to randomly install out-of-sync versions of the code. They must all
-  //    have the same memcpy_update segment. The only way to assure this if
-  //    the user programs new code with the SWIM interface is to 1) Program
-  //    a Code Updater build via SWIM and run it, then 2) Program a
-  //    corresponding Browser Only or MQTT build either via SWIM or the
-  //    Code Updater and run it. In this step the Code Updater and the
-  //    Browser Only / MQTT builds must be of the same generation.
-  // Assuming the user has adhered to (b) the code does the following:
-  // c) Any time any build starts it checks the stored_upload_flag in the STM8
-  //    EPROM.
-  // c1) If the stored_upload_flag == 1 it indicates that the firmware that
-  //     is running was just installed from an upload via the Code Updater
-  //     process. This indicates that the memcpy_update segment must be copied
-  //     to Flash from Off-Board EEPROM0, the stored_upload_flag is cleared
-  //     then go to step(d).
-  // c2) If the stored_upload_flag == 2 it indicates that the firmware that is
-  //     running was just installed from an existing Off-Board EEPROM0 or
-  //     EEPROM1 image. This indicates that the memcpy_update segment needs to
-  //     be copied from Off-Board EEPROM0 or EEPROM1 as follows:
-  // c2a) If running a Browser Only / MQTT build the memcpy_update segment is
-  //      copied from Off-Board EEPROM0, the stored_upload_flag is cleared
-  //      then go to step(d).
-  // c2b) If running a Code Updater build the memcpy_update segment is copied
-  //      from Off-Board EEPROM1, the stored_upload_flag is cleared then go to
-  //      step(d).
-  // c3) If the stored_upload_flag == 0 it indicates that the firmware
-  //     currently running was installed via SWIM or it is an existing image
-  //     that is starting from a reboot. In this case the memcpy_update
-  //     segment is used as-is.
-  // d) After the steps in (c) are accomplished the code continues running.
-  // d1) If the code is a Code Updater build it will be copied to Off-Board
-  //    EEPROM1 if it is different than the code already in Off-Board EEPROM1.
-  //    Since writing to Off-Board EEPROM1 can be time consuming the first
-  //    step of this process is to perform a compare of Flash to Off-Board
-  //    EEPROM1. As soon as any difference is detected the entire Flash is
-  //    copied to Off-Board EEPROM1. If no difference is detected no copy
-  //    occurs.
-  // What if a new Browser Only / MQTT build is started and the memcpy_update
-  // segment is different than the Code Updater memcpy_update segment in
-  // Off-Board EEPROM0? This cannot happen if the user has followed the rules
-  // in (b) above.
-  // In general once the Code Updater process is being used it should ALWAYS
-  // be used to update Browser Only / MQTT code builds.
-  // The exception to the general case is if the user is repurposing hardware
-  // or recovering from a "brick" condition. In that case the best recovery
-  // process is to follow (b) above.
-  
-  flash_ptr = (char *)FLASH_START_MEMCPY_UPDATE_SEGMENT;
-  
-  if (stored_upload_flag == 0) {
-UARTPrintf("\r\nCopy (memcpy_update) Bypassed\r\n");
-    return;
-  }
-  
-  else if (stored_upload_flag == 1) {
-    // Copy the (memcpy_update) segment from Off-Board EEPROM0 to Flash
-UARTPrintf("\r\nCopying (memcpy_update) segment from EEPROM0 to Flash\r\n");
-    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE + OFFSET_TO_MEMCPY_UPDATE_SEGMENT);
-  }
-  
-  else if (stored_upload_flag == 2) {
-#if BUILD_SUPPORT == CODE_UPDATER_BUILD
-    // Copy the (memcpy_update) segment from Off-Board EEPROM1 to Flash
-UARTPrintf("\r\nCopying (memcpy_update) segment from EEPROM1 to Flash\r\n");
-    prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, I2C_EEPROM1_BASE + OFFSET_TO_MEMCPY_UPDATE_SEGMENT);
-#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-    // Copy the (memcpy_update) segment from Off-Board EEPROM0 to Flash
-UARTPrintf("\r\nCopying (memcpy_update) segment from EEPROM0 to Flash\r\n");
-    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE + OFFSET_TO_MEMCPY_UPDATE_SEGMENT);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-  }
-    
-  unlock_flash();
-  {
-    uint16_t i;
-    uint8_t eeprom_temp[4];
-    // Copy the memcpy_update segment. "i" can be an int if the segment is
-    // less than 128 bytes (watch out for this if code is changed in the
-    // future). Note that "i" increments by 4 because read/writes are 4 bytes
-    // at a time, so the final read has be done when i == endpoint - 4.
-  
-    i = 0;
-    while (i<(FLASH_START_IO_TIMERS - FLASH_START_MEMCPY_UPDATE_SEGMENT)) {
-      eeprom_temp[0] = I2C_read_byte(0);
-      eeprom_temp[1] = I2C_read_byte(0);
-      eeprom_temp[2] = I2C_read_byte(0);
-      if (i == (FLASH_START_IO_TIMERS - FLASH_START_MEMCPY_UPDATE_SEGMENT - 4)) eeprom_temp[3] = I2C_read_byte(1);
-      else eeprom_temp[3] = I2C_read_byte(0);
-      // Enable Word Write Once
-      FLASH_CR2 |= FLASH_CR2_WPRG;
-      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-      memcpy(flash_ptr, &eeprom_temp[0], 4);
-      flash_ptr += 4;
-      i += 4;
-    }
-  }
-  lock_flash();
-UARTPrintf("\r\nCopy (memcpy_update) Complete\r\n");
-  // Clear the flag
-  unlock_eeprom();
-  stored_upload_flag = 0;
-  lock_eeprom();
+  wait_timer(5000); // Wait 5ms
 }
 #endif // OB_EEPROM_SUPPORT == 1
 
 
-#if BUILD_SUPPORT == CODE_UPDATER_BUILD
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
 uint8_t compare_flash_to_EEPROM1(void)
 {
   // Compare Flash to Off-Board EEPROM1 up to but not including the
-  // memcpy_update segment.
+  // IO_TIMERS and IO_NAMES memory.
   uint16_t i;
   uint8_t fail;
   uint8_t temp;
   
   flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
   
-UARTPrintf("\r\nComparing EEPROM1 to Flash\r\n");
+// UARTPrintf("\r\nComparing EEPROM1 to Flash\r\n");
   prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, I2C_EEPROM1_BASE);
   
   fail = 0;
 
-UARTPrintf("\r\n");
+// UARTPrintf("\r\n");
 
   // Compare Flash to Off-Board EEPROM1 up to but not including the
-  // memcpy_update segment.
+  // IO_TIMERS and IO_NAMES.
   // Terminate at the first mis-compare
-  for (i=0; i<(OFFSET_TO_MEMCPY_UPDATE_SEGMENT - 1); i++) {
+  for (i=0; i<(OFFSET_TO_FLASH_START_USER_RESERVE - 1); i++) {
     temp = I2C_read_byte(0);
     if (*flash_ptr != temp) {
       fail = 1;
@@ -1267,18 +1174,18 @@ UARTPrintf("\r\n");
   }
   
   if (fail == 0) {
-UARTPrintf("\r\nEEPROM1 matches Flash\r\n");
+// UARTPrintf("\r\nEEPROM1 matches Flash\r\n");
   }
   else {
-UARTPrintf("\r\nEEPROM1 doesn't match Flash\r\n");
-UARTPrintf("  Miscompare at: ");
-emb_itoa(i, OctetArray, 16, 4);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("\r\nEEPROM1 doesn't match Flash\r\n");
+// UARTPrintf("  Miscompare at: ");
+// emb_itoa(i, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
   }
   return fail;
 }
-#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 
 
@@ -1286,36 +1193,36 @@ UARTPrintf("\r\n");
 #if OB_EEPROM_SUPPORT == 1
 uint8_t compare_flash_to_EEPROM0(void)
 {
-  // Compare Flash to Off-Board EEPROM0 up to but not including the
-  // memcpy_update segment. This is only needed to cover the case where there
-  // is an Off-Board EEPROM but the user has used the SWIM interface to update
-  // the Runtime code.
+  // Compare Flash to Off-Board EEPROM0 up to but not including the IO_TIMERS
+  // memory. This is only needed to cover the case where there is an Off-Board
+  // EEPROM but the user has used the SWIM interface to update the Runtime
+  // code.
   uint16_t i;
   uint8_t fail;
   uint8_t temp;
   
   flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
   
-UARTPrintf("\r\nComparing EEPROM0 to Flash\r\n");
+// UARTPrintf("\r\nComparing EEPROM0 to Flash\r\n");
 
   prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
   
   fail = 0;
 
-UARTPrintf("\r\n");
+// UARTPrintf("\r\n");
 
   // Compare Flash to Off-Board EEPROM0 up to but not including the
-  // memcpy_update segment
+  // IO_TIMERS and IO_NAMES.
   // Terminate at the first mis-compare
-  for (i=0; i<(OFFSET_TO_MEMCPY_UPDATE_SEGMENT - 1); i++) {
+  for (i=0; i<(OFFSET_TO_FLASH_START_USER_RESERVE - 1); i++) {
     temp = I2C_read_byte(0);
     if (*flash_ptr != temp) {
       fail = 1;
 
-UARTPrintf("\r\nMiscompare at address: \r\n");
-emb_itoa(i, OctetArray, 16, 4);
-UARTPrintf(" ");
-UARTPrintf(OctetArray);
+// UARTPrintf("\r\nMiscompare at address: \r\n");
+// emb_itoa(i, OctetArray, 16, 4);
+// UARTPrintf(" ");
+// UARTPrintf(OctetArray);
 
       break;
     }
@@ -1332,10 +1239,10 @@ UARTPrintf(OctetArray);
   }
   
   if (fail == 0) {
-    UARTPrintf("\r\nEEPROM0 matches Flash\r\n");
+//    UARTPrintf("\r\nEEPROM0 matches Flash\r\n");
   }
   else {
-    UARTPrintf("\r\nEEPROM0 doesn't match Flash\r\n");
+//     UARTPrintf("\r\nEEPROM0 doesn't match Flash\r\n");
   }
   return fail;
 }
@@ -1344,62 +1251,61 @@ UARTPrintf(OctetArray);
 
 
 
-#if BUILD_SUPPORT == CODE_UPDATER_BUILD
-void copy_code_updater_to_EEPROM1(void)
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+void copy_code_uploader_to_EEPROM1(void)
 {
-  // This function copies a Code Updater build to Off-Board EEPROM1.
+  // This function copies a Code Uploader build to Off-Board EEPROM1.
+  // The entire Flash is copied up to but not including the IO_TIMERS and
+  // IO_NAMES area of memory.
   uint16_t i;
   uint16_t address_index;
   char * flash = (char *)FLASH_START_PROGRAM_MEMORY;
   uint8_t I2C_last_flag;
   uint8_t temp_byte;
 
-  i = 0;
   address_index = I2C_EEPROM1_BASE;
 
-UARTPrintf("\r\nCopying Code Updater from Flash to off-board EEPROM1\r\n");
+UARTPrintf("\r\nCopying Code Uploader from Flash to off-board EEPROM1\r\n");
 
   I2C_reset();
-  wait_timer(20000);
+  wait_timer(1000); // Wait 1 ms
   
-  while (address_index <= (uint16_t)0xFF9C) {
+  while (address_index < FLASH_START_USER_RESERVE) {
     // Note for above "while" statement: address_index will be incremented
-    // by 64 with each loop, so the start of the last loop will be at 0xFF9B.
+    // by 128 with each loop.
 
 UARTPrintf(".");
 
     I2C_control(I2C_EEPROM1_WRITE); // Send Write Control Byte for upper
                                     // Off-Board EEPROM area
     I2C_byte_address(address_index);
-    for (i=0; i<64; i++) {
-      parse_tail[i] = *flash;
-      I2C_write_byte(parse_tail[i]);
+    for (i=0; i<128; i++) {
+      I2C_write_byte(*flash);
       flash++;
     }
     I2C_stop();
-    wait_timer(20000); // Wait 20ms
+    wait_timer(5000); // Wait 5ms
     
     // Validate data in Off-Board EEPROM
-    // Read addressing sequence: Send Write Control byte, send Byte
-    // address, send Read Control Byte
+    flash -= 128;
     prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, address_index);
     I2C_last_flag = 0;
-    for (i=0; i<64; i++) {
-      if (i == 63) I2C_last_flag = 1;
+    for (i=0; i<128; i++) {
+      if (i == 127) I2C_last_flag = 1;
       temp_byte = I2C_read_byte(I2C_last_flag);
 
-if (temp_byte != parse_tail[i]) {
-UARTPrintf("\r\nCode Updater copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
+if (temp_byte != *flash) {
+UARTPrintf("\r\nCode Uploader copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
 }
-
+      flash++;
     }
-    address_index += 64;
+    address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
 
-UARTPrintf("\r\nCode Updater copy complete\r\n");
+UARTPrintf("\r\nCode Uploader copy complete\r\n");
 }
-#endif // BUILD_SUPPORT == CODE_UPDATER_BUILD
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 
 
@@ -1412,10 +1318,12 @@ UARTPrintf("\r\nCode Updater copy complete\r\n");
 void copy_flash_to_EEPROM0(void)
 {
   // This function copies a Browser Only or MQTT build to Off-Board EEPROM0.
-  // It should only be called to cover the case where the user has the
-  // Off-Board EEPROM installed but has updated the Runtime firmware via the
-  // SWIM interface.
-  int i;
+  // The entire Flash is copied up to but not including the IO_TIMERS and
+  // IO_NAMES area of memory.
+  // The function should only be called to cover the case where the user has
+  // the Off-Board EEPROM installed but has updated the Runtime firmware via
+  // the SWIM interface.
+  uint8_t i;
   uint16_t address_index;
   char * flash = (char *)FLASH_START_PROGRAM_MEMORY;
   uint8_t I2C_last_flag;
@@ -1426,56 +1334,44 @@ void copy_flash_to_EEPROM0(void)
 UARTPrintf("\r\nCopying Flash to off-board EEPROM0\r\n");
 
   I2C_reset();
-  wait_timer(20000);
+  wait_timer(1000); // Wait 1 ms
   
-  while (address_index < 0x8000) {
+//  while (address_index < (FLASH_START_USER_RESERVE - 0x8000)) {
+  while (address_index < OFFSET_TO_FLASH_START_USER_RESERVE) {
+
 UARTPrintf(".");
 
     I2C_control(I2C_EEPROM0_WRITE);
     I2C_byte_address(address_index);
-    for (i=0; i<64; i++) {
-      parse_tail[i] = *flash;
-      I2C_write_byte(parse_tail[i]);
+    for (i=0; i<128; i++) {
+      I2C_write_byte(*flash);
       flash++;
     }
     I2C_stop();
-    wait_timer(20000); // Wait 20ms
+    wait_timer(5000); // Wait 5 ms
     
     // Validate data in Off-Board EEPROM
-    // Read addressing sequence: Send Write Control byte, send Byte
-    // address, send Read Control Byte
+    flash -= 128;
     prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, address_index);
     I2C_last_flag = 0;
-    for (i=0; i<64; i++) {
-      if (i == 63) I2C_last_flag = 1;
+    for (i=0; i<128; i++) {
+      if (i == 127) I2C_last_flag = 1;
       temp_byte = I2C_read_byte(I2C_last_flag);
 
-if (temp_byte != parse_tail[i]) {
+if (temp_byte != *flash) {
 UARTPrintf("\r\nFlash copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
 }
-
+    flash++;
     }
-    address_index += 64;
+    address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
 
-UARTPrintf("\r\nFlash copy complete\r\n");
+// UARTPrintf("\r\nFlash copy complete\r\n");
 }
+
 #endif // OB_EEPROM_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3274,8 +3170,7 @@ void check_eeprom_settings(void)
     //    for(i=0; i<11; i++) { stored_mqtt_username[i] = '\0'; }
     //    for(i=0; i<11; i++) { stored_mqtt_password[i] = '\0'; }
     //
-    // 2 Code Updater revision bytes - fill with NULL
-    // 3 unused bytes - fill with NULL
+    // 5 unused bytes - fill with NULL
     // 1 prior config byte currently unused - fill with NULL
     //
     // Clear the Config settings in EEPROM
@@ -4599,32 +4494,6 @@ void oneflash(void)
 }
 
 
-/*
-void clear_eeprom_debug_bytes(void)
-{
-  // Clear debug bytes in the EEPROM
-  int i;
-  
-#if DEBUG_SUPPORT == 1
-  // Clear all debug bytes
-  for (i = 0; i < NUM_DEBUG_BYTES; i++) debug[i] = 0x00;
-  // Update EEPROM bytes that changed
-  update_debug_storage1();
-#endif // DEBUG_SUPPORT
-
-#if DEBUG_SUPPORT > 1
-  // Clear the general debug bytes
-//  for (i = 0; i < (NUM_DEBUG_BYTES - 10); i++) debug[i] = 0x00;
-  // Recover the stored debug bytes
-//  for (i = 20; i < 30; i++) debug[i] = stored_debug[i];
-  for (i = 0; i < 10; i++) debug[i] = stored_debug[i];
-  // Update EEPROM bytes that changed
-  update_debug_storage1();
-#endif // DEBUG_SUPPORT
-}
-*/
-
-
 void restore_eeprom_debug_bytes(void)
 {
   // Restore debug bytes from EEPROM to RAM
@@ -4636,40 +4505,6 @@ void restore_eeprom_debug_bytes(void)
 #endif // DEBUG_SUPPORT
 }
 
-
-/*
-#if DEBUG_SUPPORT != 0
-// Note: Make sure there is enough RAM for the debug[] values.
-void update_debug_storage() {
-  uint8_t i;
-  
-  unlock_eeprom();
-  
-  // To use this function it is intended that you fill the debug[]
-  // bytes somewhere in inline code, then call this function to
-  // commit the debug[] bytes to EEPROM. debug[0] should be 0
-  // until your are ready for the snapshot to occur, then set
-  // debug[0] to one and call this function. The function will
-  // set debug[0] to two after the snapshot to help assure it only
-  // happens once. You can then read the stored values from EEPROM
-  // with the STVP programmer.
-  if (debug[0] == 0x01) {
-    debug[0] = 0x02;
-    for (i = 0; i < NUM_DEBUG_BYTES; i++) {
-      if (stored_debug[i] != debug[i]) stored_debug[i] = debug[i];
-    }
-    fastflash();
-  }
-  
-  lock_eeprom();
-  
-//
-//  while(debug[0] == 0x02);
-//    // This loop can be enabled if you want the program to
-//    // hang after capturing data.
-}
-#endif // DEBUG_SUPPORT
-*/
 
 #if DEBUG_SUPPORT != 0
 // Note: Make sure there is enough RAM for the debug[] values.
@@ -4687,7 +4522,6 @@ void update_debug_storage1() {
   // calls.
   // Consider putting a while(something) in the code to stop
   // processing so you can look at the results.
-//  for (i = 0; i < NUM_DEBUG_BYTES; i++) {
   for (i = 0; i < 10; i++) {
     if (stored_debug[i] != debug[i]) stored_debug[i] = debug[i];
   }
@@ -4697,105 +4531,3 @@ void update_debug_storage1() {
   
 }
 #endif // DEBUG_SUPPORT
-
-/*
-#if DEBUG_SUPPORT != 0
-void capture_uip_buf_transmit()
-{
-  uint8_t i;
-  // This function was written specifically to capture the uip_buf
-  // when it contains transmit data. There is a nearly identical
-  // routine for capturing the uip_buf when it contains receive data,
-  // the principal difference being the triggers used to examine the
-  // debug[] bytes before committing to EEPROM. Note that an offset
-  // can be added to uip_buf to capture bytes further out in the
-  // buffer.
-  // debug[0] is used to signal completion of a capture and to prevent
-  //   overwriting an existing capture.
-  // debug[1] can be used to set an easily recognizable "marker byte"
-  //   in the EEPROM, and/or to act as a counter for capturing the
-  //   second, third, fourth, etc calls of the function.
-  if (debug[0] == 0x00) {
-    pBuffer2 = uip_buf;
-    for (i = 2; i < NUM_DEBUG_BYTES; i++) {
-      debug[i] = *pBuffer2;
-      pBuffer2++;
-    }
-//    if ((debug[1] == 0x00) && (debug[38] == 0x07) && (debug[39] == 0x5b) && ((debug[49] & 0x10) == 0x10)) {
-      // Signal a capture on ACK transmission to the Broker Server.
-//    if (debug[1] == 0x00 && debug[38] == 0x07 && debug[39] == 0x5b) {
-      // Signal a capture on any transmission to the Broker Server.
-      // Set debug[1] == xx to a higher number if you want to capture
-      // subsequent transmissions.
-    if (debug[1] == 0x00) {
-      // Signal a capture on anything
-      debug[0] = 0x01;
-      debug[1] = 0x98; // Signal a transmit capture
-    }
-//    else if (debug[38] == 0x07 && debug[39] == 0x5b) {
-//      // Else increment the capture trigger.
-//      debug[1]++;
-//    }
-    update_debug_storage();
-  }
-}
-#endif // DEBUG_SUPPORT
-*/
-
-
-/*
-#if DEBUG_SUPPORT != 0 && BUILD_SUPPORT == MQTT_BUILD
-void capture_mqtt_sendbuf()
-{
-  uint8_t i;
-  // This function was written specifically to capture the mqtt_sendbuf.
-  // debug[0] is used to make sure a single capture occurs.
-  if (debug[0] == 0x00) {
-    // debug[1] and debug[2] are used for capture tags
-    pBuffer2 = mqtt_sendbuf;
-    for (i = 3; i < NUM_DEBUG_BYTES; i++) {
-      debug[i] = *pBuffer2;
-      pBuffer2++;
-    }
-    debug[0] = 0x01; // Signal a capture
-    update_debug_storage(); // Write to EEPROM
-  }
-}
-#endif // DEBUG_SUPPORT != 0 && BUILD_SUPPORT == MQTT_BUILD
-*/
-
-
-/*
-#if DEBUG_SUPPORT != 0
-void capture_uip_buf_receive()
-{
-  uint8_t i;
-  // See the description for capture_uip_buf_transmit
-  if (debug[0] == 0x00) {
-    pBuffer2 = uip_buf;
-    for (i = 2; i < NUM_DEBUG_BYTES; i++) {
-      debug[i] = *pBuffer2;
-      pBuffer2++;
-    }
-//    if (debug[1] == 0x00 && debug[38] == 0x07 && debug[39] == 0x5b && (debug[49] & 0x12) == 0x12) {
-    // Signal a capture on SYN-ACK from Broker Server
-//    if (debug[1] == 0x00 && debug[38] == 0x07 && debug[39] == 0x5b && (debug[49] & 0x10) == 0x10) {
-    // Signal a capture on ACK from Broker Server
-//    if (debug[1] == 0x00 && debug[38] == 0x07 && debug[39] == 0x5b) {
-    // Signal a capture on anything from Broker Server
-    if (debug[1] == 0x01) {
-      // Signal a capture on anything from Ethernet
-      // Set debug[1] == xx to a higher number if you want to capture
-      // subsequent transmissions.
-      debug[0] = 0x01;
-      debug[1] = 0x99;  // Signal a receive capture
-    }
-    else if (debug[38] == 0x07 && debug[39] == 0x5b) {
-      // Else increment the capture trigger.
-      debug[1]++;
-    }
-    update_debug_storage();
-  }
-}
-#endif // DEBUG_SUPPORT
-*/

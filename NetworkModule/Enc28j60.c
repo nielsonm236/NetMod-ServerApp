@@ -53,7 +53,6 @@
 
 #if DEBUG_SUPPORT != 0
 // Variables used to store debug information
-// extern uint8_t debug[NUM_DEBUG_BYTES];
 extern uint8_t debug[10];
 #endif // DEBUG_SUPPORT
 

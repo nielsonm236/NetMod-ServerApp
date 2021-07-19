@@ -54,15 +54,6 @@ extern const char code_revision[];        // Code Revision
 extern uint8_t stored_devicename[20];     // Device name stored in EEPROM
 extern char mac_string[13];               // MAC formatted as string
 
-/*
-#if DEBUG_SUPPORT != 0
-// Variables used to store debug information
-extern uint8_t debug[NUM_DEBUG_BYTES];
-extern uint8_t stored_debug[NUM_DEBUG_BYTES];
-#endif // DEBUG_SUPPORT
-*/
-
-//char *stpcpy(char * dest, const char * src)
 char *stpcpy(char * dest, char * src)
 {
   // stpcpy - copy a string from src to dest returning a pointer to the new

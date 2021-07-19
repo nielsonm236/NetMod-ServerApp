@@ -78,7 +78,7 @@
 
 #define BROWSER_ONLY_BUILD	0
 #define MQTT_BUILD		1
-#define CODE_UPDATER_BUILD	2
+#define CODE_UPLOADER_BUILD	2
 
 
 #include "uip_types.h"
@@ -258,7 +258,7 @@
 // * Specific debug data: Reset Status Register counters, TXERIF counter,
 //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
 
-#define DEBUG_SUPPORT 15
+#define DEBUG_SUPPORT 11
 
 
 // IWDG_ENABLE
@@ -281,14 +281,14 @@
 // MQTT_BUILD includes MQTT support and Home Assistant support, but excludes
 //   the Browser Only IO Names and IO Timers. This build selection will
 //   over-ride the UIP_STATISTICS setting forcing it to be disabled.
-// CODE_UPDATER_BUILD excludes all Browser Only and MQTT features. It produces
+// CODE_UPLOADER_BUILD excludes all Browser Only and MQTT features. It produces
 //   a build that can only be used to upload and update the runtime code. The
-//   Code Updater requires additional hardware in the form of an off-board I2C
+//   Code Uploader requires additional hardware in the form of an off-board I2C
 //   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
 // Un-comment ONLY ONE of the following:
 // #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
-#define BUILD_SUPPORT     MQTT_BUILD
-// #define BUILD_SUPPORT     CODE_UPDATER_BUILD
+// #define BUILD_SUPPORT     MQTT_BUILD
+#define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 
 
 // I2C_SUPPORT
@@ -311,11 +311,11 @@
 //    EEPROM space (see the manual). This requires use of IO pins 14 and 15
 //    for the I2C bus.
 // 2) I2C Support MUST be enabled.
-// 3) The Code Updater version of the code must be loaded via the SWIM
-//    interface at least one time. After that the Code Updater will have
+// 3) The Code Uploader version of the code must be loaded via the SWIM
+//    interface at least one time. After that the Code Uploader will have
 //    copied itself into the Off-Board EEPROM and, in the future, the Code
-//    Updater code will be obtained from that location.
-// 4) When code updates are perfromed the Code Updater must be used to
+//    Uploader code will be obtained from that location.
+// 4) When code updates are perfromed the Code Uploader must be used to
 //    a) Load the Strings File
 //    b) Load the Runtime code
 // 0 = Not supported
@@ -325,7 +325,7 @@
 
 // DEBUG_SENSOR_SERIAL
 // Determines if the Display Temperature Sensor Serial Numbers support is
-// to be compiled into the build. This is for diagnostic support during
+// to be compiled into the build. This is for DIAGNOSTIC support during
 // development and is not expected to be part of normal releases.
 // 0 = Not Supported
 // 1 = Supported

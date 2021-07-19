@@ -24,35 +24,17 @@
 
 #include <stdint.h>
 
-// NUM_DEBUG_BYTES defines the number of debug bytes available.
-// IMPORTANT: Be sure to update this define if the number of debug bytes
-// available changes. A change is typically caused by adding variables
-// to EEPROM storage, thus reducing what can be used for debug.
-// #define NUM_DEBUG_BYTES 30
-// #define NUM_DEBUG_BYTES 10
-
 // Start of flash program memory segment
 #define FLASH_START_PROGRAM_MEMORY 		0x8000
 //
 // Start of flash_update segment
-#define FLASH_START_FLASH_UPDATE_SEGMENT	0xfcc0
+#define FLASH_START_FLASH_UPDATE_SEGMENT	0xfc80
 //
-// Start of memcpy_update segment
-#define FLASH_START_MEMCPY_UPDATE_SEGMENT	0xfe80
-//
-// Define length of program segment
-#define PROGRAM_SEGMENT_LENGTH			FLASH_START_FLASH_UPDATE_SEGMENT - FLASH_START_PROGRAM_MEMORY
+// Start of user reserved area
+#define FLASH_START_USER_RESERVE		0xfe80
+#define OFFSET_TO_FLASH_START_USER_RESERVE	FLASH_START_USER_RESERVE - FLASH_START_PROGRAM_MEMORY
 
 
-#define OFFSET_TO_FLASH_UPDATE_SEGMENT		FLASH_START_FLASH_UPDATE_SEGMENT - FLASH_START_PROGRAM_MEMORY
-#define OFFSET_TO_MEMCPY_UPDATE_SEGMENT		FLASH_START_MEMCPY_UPDATE_SEGMENT - FLASH_START_PROGRAM_MEMORY
-#define OFFSET_TO_IO_TIMERS			FLASH_START_IO_TIMERS - FLASH_START_PROGRAM_MEMORY
-
-
-//
-// Define length of flash_update segment
-#define UPDATE_SEGMENT_LENGTH			FLASH_START_MEMCPY_UPDATE_SEGMENT - FLASH_START_FLASH_UPDATE_SEGMENT
-//
 // The .lnk file requires these command lines to make this work:
 //   +seg .flash_update -b 0xfcb0
 //   +seg .memcpy_update -b 0xfe70
@@ -83,21 +65,15 @@ void reboot(void);
 void oneflash(void);
 void fastflash(void);
 void debugflash(void);
-// void clear_eeprom_debug_bytes(void);
 void restore_eeprom_debug_bytes(void);
-// void update_debug_storage(void);
 void update_debug_storage1(void);
-// void capture_uip_buf_transmit(void);
-// void capture_uip_buf_receive(void);
-// void capture_mqtt_sendbuf(void);
 uint8_t off_board_EEPROM_detect(void);
 void write_one(uint8_t byte);
 void prep_read(uint8_t eeprom_num_write, uint8_t eeprom_num_read, uint16_t byte_address);
-void memcpy_update_refresh(void);
 uint8_t compare_flash_to_EEPROM0(void);
 void copy_flash_to_EEPROM0(void);
 uint8_t compare_flash_to_EEPROM1(void);
-void copy_code_updater_to_EEPROM1(void);
+void copy_code_uploader_to_EEPROM1(void);
 
 // void load_timer(uint8_t timer_num);
 uint32_t calculate_timer(uint16_t timer_value);

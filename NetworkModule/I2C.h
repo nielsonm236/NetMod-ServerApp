@@ -39,6 +39,9 @@
 
 #define I2C_EEPROM0_BASE		0x0000 // Base address of EEPROM0 region
 #define I2C_EEPROM1_BASE		0x8000 // Base address of EEPROM1 region
+#define I2C_EEPROM2_BASE		0x0000 // Base address of EEPROM2 region
+#define I2C_EEPROM3_BASE		0x8000 // Base address of EEPROM3 region
+
 
 #define I2C_COPY_EEPROM0_REQUEST	1
 #define I2C_COPY_EEPROM0_WAIT		2

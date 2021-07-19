@@ -65,13 +65,6 @@ uint8_t mqtt_sendbuf[140]; // Buffer to contain MQTT transmit queue
 extern uint8_t mqtt_start; // Tracks the MQTT startup steps
 
 
-/*
-#if DEBUG_SUPPORT != 0
-extern uint8_t debug[NUM_DEBUG_BYTES];
-#endif // DEBUG_SUPPORT
-*/
-
-
 // Implements the functionality of MQTT-C.
 
 

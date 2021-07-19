@@ -112,14 +112,6 @@
 //---------------------------------------------------------------------------//
 /* Variable definitions. */
 
-/*
-#if DEBUG_SUPPORT != 0
-// Variables used to store debug information
-extern uint8_t *pBuffer2;
-extern uint8_t debug[NUM_DEBUG_BYTES];
-#endif // DEBUG_SUPPORT
-*/
-
 /* The IP address of this host */
 uip_ipaddr_t uip_hostaddr;
 /* The IP address of the default router (aka gateway) */
@@ -144,7 +136,7 @@ struct uip_eth_addr uip_ethaddr = {0x01,   // MAC MSB
 				   
 
 uint8_t uip_buf[UIP_BUFSIZE + 2];     /* The packet buffer that contains
-                                         incoming packets. */
+                                          incoming packets. */
 
 char *uip_appdata;                    /* The uip_appdata pointer points to
                                          application data. */

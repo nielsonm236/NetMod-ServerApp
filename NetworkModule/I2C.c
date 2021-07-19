@@ -41,6 +41,7 @@ extern uint8_t OctetArray[11];
 
 uint8_t I2C_failcode;
 
+/*
 // These variables are used only by the eeprom_copy_to_flash() function.
 // The variables are located at the end of the Stack space. This is done so
 // that the various builds that use the eeprom_copy_to_flash() function will
@@ -54,7 +55,13 @@ uint16_t copy_ram_index @0x608;   // 2 bytes
 uint8_t eeprom_num_write @0x610;  // 1 byte
 uint8_t eeprom_num_read @0x611;   // 1 byte
 uint16_t eeprom_base @0x612;      // 2 bytes
-
+*/
+char * flash_ptr;
+char * ram_ptr;
+uint16_t copy_ram_index;
+uint8_t eeprom_num_write;
+uint8_t eeprom_num_read;
+uint16_t eeprom_base;
 
 
 
@@ -284,131 +291,197 @@ void I2C_stop(void)
 #endif // I2C_SUPPORT == 1
 
 
+
 #if OB_EEPROM_SUPPORT == 1
 void eeprom_copy_to_flash(void)
 {
   uint16_t eeprom_index;
-  uint8_t eeprom_temp[4];
+  uint16_t blocks;
 
   // This function will copy a Flash image from the Off-Board EEPROM to the
-  // STM8 Flash. In this application there are two image locations in the
-  // Off-Board EEPROM:
-  //   1) The lower 32KB of the Off-Board EEPROM contains an image of new
-  //      Runtime code.
-  //   2) The upper 32KB of the Off-Board EEPROM contans an image of the
-  //      Code Updater. The Code Updater is used to allow the user to specify
-  //      the file location of a new Runtime image.
+  // STM8 Flash.
   //
-  // Copying data from the Off-Board EEPROM to Flash needs to be done 4 bytes
-  // at a time. I'm not implementing "block programming" of the Flash at this
-  // time due to the need to execute code from RAM.
+  // The following variables must be global and must be set prior to calling
+  // this function:
+  //   *flash_ptr
+  //   eeprom_base
+  //
+  // In this application there are four image locations in the Off-Board
+  // EEPROM:
+  //   1) EEPROM Region 0 (EEPROM0) of the Off-Board EEPROM contains an image
+  //      of new Runtime code.
+  //   2) EEPROM Region 1 (EEPROM1) of the Off-Board EEPROM contans an image
+  //      of the Code Uploader. The Code Uploader provides a GUI to allow the
+  //      user to specify the file location of a new Runtime image.
+  //   3) EEPROM Region 2 (EEPROM2) of the Off-Board EEPROM contains an image
+  //      of the large strings used for html population of the GUI.
+  //   4) EEPROM Region 3 (EEPROM3) - not currently used.
+  //
+  // Copying data from the Off-Board EEPROM to Flash needs to be done using 128
+  // byte block programming.
   //
   // If we were to copy the entire Off-Board EEPROM to Flash the copy would be
-  // 32768 bytes. 4 at a time would be 8192 cycles. The time to complete this
-  // copy is about 8192 x 6ms = 50 sec.
+  // 32768 bytes. 128 at a time would be 256 cycles. Each cycle takes about
+  // 12ms for the I2C writes to the EEPROM plus a 6ms wait cycle for the
+  // EEPROM internal program cycle. The time to complete the entire copy is
+  // about 256 x (12ms + 6ms) = 4.6 sec.
   //
   // I have to assume that the Stack is still functional when this code runs,
-  // as it needs to call the I2C functions contained in this segment. Initial
-  // testing shows that the Stack must be working, as the Flash is updated
-  // with new Base code.
+  // as it needs to call the I2C functions contained in this segment and the
+  // functions need to utilize locally declared variables. Initial testing
+  // shows this to be true.
   //
   // IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
-  // Changes to the eeprom_copy_to_flash() and copy_ram_to_flash() code must
-  // be made VERY carefully. These two functions have been packed into as few
-  // bytes as possible and they barely fit in their respective memory segment
-  // allocations. So, if any changes are made the resultant binary needs to
-  // be checked to make sure they do not go outside their segment boundaries.
+  // Changes to the functions contained in the flash_update segment need to be
+  // made VERY carfully. The functions have been packed into as few bytes as
+  // possible, and must fit into Flash on 128 byte boundaries (start and end).
+  // In this application a maximum of 512 bytes can be used for the
+  // flash_update segment.
+  // Changes to the memcpy_update segment also need to be made very carefully
+  // as that segment gets copied to RAM - a resource that is always in short
+  // supply. The memcpy_update segment is currently about 40 bytes.
+  //
+  // In these functions the uip_buf is repurposed as the buffer to enable
+  // copies from Off-Board EEPROM to Flash. Because the I2C IO functions are
+  // needed to perform reads from Off-Board EEPROM the EEPROM content is first
+  // copied to RAM then copied to Flash. And because we can't overwrite the
+  // I2C functions in Flash until we are done using them, the final copy from
+  // Off-Board EEPROM to RAM to Flash must contain the entire flash_update
+  // segment and must fit safely in RAM. Since we must always copy 128 byte
+  // blocks the flash_update segment copy requires 4 blocks, or 512 bytes,
+  // which is larger than the size of the uip_buf. So, the data will over-run
+  // the end of the RAM space allocated to the uip_buf RAM space. This will
+  // still work because of the following:
+  // a) The .lkf file is set up to place the memcpy_update code at the start
+  //    of RAM. This is required for the next item to work.
+  // b) The Cosmic compiler/linker always places the largest RAM item at the
+  //    end of RAM ... and that turns out to be the uip_buf. This is why step
+  //    (a) is critical: the memcpy_update code must not be placed in RAM
+  //    after the uip_buf. Likewise, no other variables used in the copy
+  //    processes can appear in RAM after uip_buf as they will be over-written
+  //    when the copy processes run.
+  // So, with (a) and (b) established, writes to the uip_buf can over-run the
+  // end of RAM and can encroach on the Stack space without causing harm to
+  // operation of the copy routines. And since the copy routines are the last
+  // thing to run before a reboot occurs we don't have to worry about inter-
+  // ferring with operation of other runtime code.
+  //
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // NOTE: MIGHT BE ABLE TO SIMPLIFY THINGS BY SIMPLY MAKING THE UIP_BUF 512
+  // BYTES LONG. THE MQTT VERSION OF THE APPLICATION IS SHORT OF RAM SO IT
+  // MIGHT HAVE TO BE MODIFIED TO REDUCE RAM USAGE IN SOME OTHER AREA.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   
-  eeprom_index = eeprom_base; // Set index to base address
+  ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
+  eeprom_index = eeprom_base;
 			      
   // The Flash must be unlocked to allow any writes to it. The unlock occurs
   // by the routine that calls this function. Note that when Flash is written
   // the STM8 hardware will stall code execution until the write completes.
   // This typically takes 6ms per write.
-
   
-  while(eeprom_index < eeprom_base + PROGRAM_SEGMENT_LENGTH) {
-    // Copying program data up to but not including the flash_update segment
-    // Read 4 bytes from the Off-Board EEPROM.
+  blocks = 0;
+  while (blocks < 249 ) {
+    // In this application the main code area is always 249 blocks of 128
+    // bytes per block. Copy that first.
+    // Note: This routine is only run to replace the code in Flash.
+    
+    ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
+    // Enable sequential read from the Off-Board EEPROM.
     // Read addressing sequence: Send Write Control byte, send Byte address,
     // send Read Control Byte
     I2C_control(eeprom_num_write);  // Write control byte to establish address
     I2C_byte_address(eeprom_index); // Byte address of first byte
     I2C_control(eeprom_num_read);   // Read control byte
+    
+    // Copy 128 bytes from Off-Board EEPROM to RAM
+    {
+      uint8_t i;
+      for (i=0; i<127; i++) {
+        *ram_ptr = I2C_read_byte(0);
+	ram_ptr++;
+      }
+    }
+    *ram_ptr = I2C_read_byte(1); // Final read with I2C_last_flag set
 
-    eeprom_temp[0] = I2C_read_byte(0);
-    eeprom_temp[1] = I2C_read_byte(0);
-    eeprom_temp[2] = I2C_read_byte(0);
-    eeprom_temp[3] = I2C_read_byte(1); // I2C_last_flag set
-
-    // The fastest (and least wear) method for writing Flash is to perform the
-    // write with a 4 byte word. To do this the WPRG bit of the FLASH_CR2
-    // register must be set before the 4 bytes are written. This requires a
-    // complementary write to the FLASH_NCR2 register. This will allow four
-    // bytes to be written in 6ms, rather than 6ms per single byte write. Note
-    // that the STM8 hardware design will stall program execution while the
-    // Flash write completes, so there is no need for the code to have a wait
-    // function or to poll for completion of the write.
-    // Enable Word Write Once
-    FLASH_CR2 |= FLASH_CR2_WPRG;
-    FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-    memcpy(flash_ptr, &eeprom_temp, 4);
-
-    eeprom_index += 4;
-    flash_ptr += 4;
-
+    // Copy data from RAM to Flash
+    ram_ptr = &uip_buf[0]; // Reset the ram_ptr to the start of the uip_buf
+    copy_ram_to_flash(); // As part of the copy the flash_ptr will be
+                         // incremented to the start of the next 64 byte
+                         // block.
+    eeprom_index += 128; // Increment the eeprom_index to the start of the
+                         // next block.
+    blocks++;
+    
     // Prevent the IWDG hardware watchdog from firing.
     IWDG_KR = 0xaa;
   }
-
-  // Copy the (flash_update) segment from Off-Board EEPROM to RAM
+  
+  // We are copying contiguous 128 byte blocks. There are no gaps between the
+  // blocks. So, the eeprom_index should already be correct, the flash_ptr
+  // should already be correct, and eeprom_num_write and eeprom_num_read
+  // remain the same.  So we just need to copy 4 blocks to RAM then copy those
+  // to Flash. A note is that this will cause a small overwrite into the Stack
+  // area ... which shouldn't hurt anything since this is the last step before
+  // reboot.
+  
+  // Copy the flash_update segment to Flash.
+  // This copy is performed separately from the main code copy because the I2C
+  // functions are contained in the flash_update segment, and we need to stop
+  // using those functions at the time they are over-written in Flash. So, in
+  // this final step we use the I2C functions to copy the entire flash_update
+  // segment to RAM, then the memcpy_update function runs in RAM to write the
+  // segment from RAM to Flash. Then, we just wait for an IDWG to reboot the
+  // STM8.
+  ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
+  
+  // Enable sequential read from the Off-Board EEPROM.
   // Read addressing sequence: Send Write Control byte, send Byte address,
   // send Read Control Byte
-  // Since we are writing to RAM all bytes can be copied without a pause.
+  I2C_control(eeprom_num_write);  // Write control byte to establish address
+  I2C_byte_address(eeprom_index); // Byte address of first byte
+  I2C_control(eeprom_num_read);   // Read control byte
   
-  // IMPORTANT NOTE FOR FUTURE CODE CHANGES:
-  //   The uip_buf is re-purposed as temporary storage for the (flash_update)
-  //   segment. This is safe to do because once the eeprom_copy_to_flash()
-  //   function begins running no furhter Ethernet traffic can occur, thus
-  //   the uip_buf is no longer used for normal runtime functions.
-  //
-  //   The size of the copy from the (flash_update) segment to RAM must never
-  //   exceed the size of the uip_buf. At this writing the (flash_update)
-  //   segment is allocated 512 bytes, but the code inside the segment is
-  //   about 440 bytes. The size of the uip_buf is about 500 bytes. Size of
-  //   the uip_buf is set in the uip.c file using UIP_BUFSIZE defined in
-  //   uipopt.h, which in turn is based on ENC28J60_MAXFRAME defined in
-  //   enc28j60.h.
-  
-  eeprom_index = eeprom_base + PROGRAM_SEGMENT_LENGTH;
-  ram_ptr = &uip_buf[0];
-  
-  I2C_control(eeprom_num_write); // Write control byte to establish address
-  I2C_byte_address(eeprom_index);
-  I2C_control(eeprom_num_read);  // Read control byte
-  
-  while(eeprom_index < eeprom_base + PROGRAM_SEGMENT_LENGTH + UPDATE_SEGMENT_LENGTH - 1) {
-    // Note: The copy size must not exceed the size of uip_buf.
-    *ram_ptr = I2C_read_byte(0);
-    ram_ptr++;
-    eeprom_index++;    
+  {
+    uint16_t j;
+    // In this application the flash_update segment is always 4 blocks (512
+    // bytes).
+    //
+    // First the segment is copied to RAM. This will occupy four 128 byte
+    // blocks. The blocks are copied to RAM, then copy_ram_to_flash() is
+    // called to copy the data from RAM to Flash. Note that the copy to RAM
+    // may exceed the size allocated to the uip_buf. This is OK as the uip_buf
+    // RAM area (and beyond) is no longer being used by regular runtime code
+    // ... and it is also OK if the RAM usage extends into the Stack area as
+    // very little Stack is being used when this code is running.
+      
+    for (j = 0; j < 511; j++) {
+      *ram_ptr = I2C_read_byte(0);
+      ram_ptr++;
+      eeprom_index++;
+    }
+    *ram_ptr = I2C_read_byte(1); // Final read with I2C_last_flag set
   }
-  // One more read to terminate sequential read
-  *ram_ptr = I2C_read_byte(1);
-  
-  // Set pointers for copy_ram_to_flash. Note: initializing these pointers
-  // was moved here from the copy_ram_to_flash functions to reduce the size of
-  // the copy_ram_to_flash function to get it to fit in 64 bytes (thus taking
-  // only 1 block for that function).
-  flash_ptr = (char *)FLASH_START_FLASH_UPDATE_SEGMENT;
-  ram_ptr = &uip_buf[0];
+
+
+  // Copy 512 bytes of data from RAM to Flash
+  ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
   copy_ram_to_flash();
+  copy_ram_to_flash();
+  copy_ram_to_flash();
+  copy_ram_to_flash();
+  
+  // Flash was unlocked before this function was entered. It will re-lock as
+  // a result of the reboot that will occur during the following while().
+  while(1); // Wait here for IDWG to reset the module.
 }
 #endif // OB_EEPROM_SUPPORT == 1
 
 #pragma section ()
-
-
 
 
 
@@ -417,26 +490,39 @@ void eeprom_copy_to_flash(void)
 #if OB_EEPROM_SUPPORT == 1
 void copy_ram_to_flash(void)
 {
-  // This function copies the (flash_update) segment from RAM to Flash. This
-  // is done so that the entry and exit points and the RAM usage in the
-  // functions match the main runtime code associated with the segment. Later
-  // the (memory_update) segment must be copied to Flash. That will happen
-  // when the new code boots.
+  // This function copies 128 byte blocks of data from RAM to Flash as part of
+  // the Flash update process.
+
+  uint8_t i;
   
-  copy_ram_index = 0;
-  while (copy_ram_index < (FLASH_START_MEMCPY_UPDATE_SEGMENT - FLASH_START_FLASH_UPDATE_SEGMENT)) {
-    // Enable Word Write Once
-    FLASH_CR2 |= FLASH_CR2_WPRG;
-    FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-    memcpy(flash_ptr, ram_ptr, 4);
-    ram_ptr += 4;
-    flash_ptr += 4;
-    copy_ram_index += 4;
+  // Note: This function is only run to copy code to Flash in 128 byte blocks.
+  // The segment is relocatable and must be run from RAM as a requirement of
+  // the STM8 hardware. The _fctcpy function is used to copy this segment to
+  // RAM in a way that allows the function to be called from code running in
+  // Flash.
+    
+  // The following must be defined in global memory before calling the
+  // function:
+  //  char *flash_ptr
+  //  char *ram_ptr
+
+  // Enable Flash Block Programming
+  // The fastest (and least wear) method for writing Flash is to perform
+  // 128 byte block writes. To do this the PRG bit of the FLASH_CR2 register
+  // must be set before the 128 bytes are written. This requires a complement-
+  // ary write to the FLASH_NCR2 register. This will allow 128 bytes to be
+  // written in 6ms. Note that the STM8 hardware design will stall program
+  // execution while the Flash write completes, so there is no need for the
+  // code to have a wait function or to poll for completion of the write.
+  FLASH_CR2 |= FLASH_CR2_PRG;
+  FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NPRG);
+
+  // Copy 128 bytes from RAM to Flash
+  for (i=0; i<128; i++) {
+    *flash_ptr = *ram_ptr;
+    flash_ptr++;
+    ram_ptr++;
   }
-  
-  // Flash was unlocked before this function was entered. It will re-lock as
-  // a result of the reboot that will occur.
-  while(1); // Wait here for IDWG to reset the module.
 }
 #endif // OB_EEPROM_SUPPORT == 1
 

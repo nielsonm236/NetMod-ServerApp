@@ -33,7 +33,9 @@
 #include "timer.h"
 #include "uipopt.h"
 
-
+extern uint8_t pin_control[16];
+extern uint8_t stored_pin_control[16];
+extern uint8_t Pending_pin_control[16];
 
 //---------------------------------------------------------------------------//
 // This function enables the use of the STM8S UART to output characters to a
@@ -124,9 +126,26 @@
 // Setup the UART to run at 115200 baud, no parity, one stop bit, 8 data bits.
 // Important: This relies upon the system clock being set to run at 16 MHz.
 //
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 void InitializeUART(void)
 {
   unsigned char tmp;
+  
+  // If UART debug support is enabled the following code forces IO 11 to
+  // an output state and keeps it that way. The UART code will operate
+  // the pin for IO 11 as needed for UART transmit to a terminal.
+  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // Set pin 11 to output/enabled
+  // Update the stored_pin_control[] variables
+  unlock_eeprom();
+  if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
+  lock_eeprom();
+  // For UART mode Port D Bit 5 needs to be set to Output / Push-Pull /
+  // 10MHz slope
+  PD_ODR |= 0x20; // Set Output data to 1
+  PD_DDR |= 0x20; // Set Output mode
+  PD_CR1 |= 0x20; // Set Push-Pull
+  PD_CR2 |= 0x20; // Set 10MHz
+
 
   // Clear the Idle Line Detected bit in the status register by a read to the
   // UART2_SR register followed by a Read to the UART2_DR register.
@@ -178,28 +197,6 @@ void UARTPrintf(char *message)
     ch++;
   }
 }
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
-
-// Sample main program to control the application.
-//
-//  Main program loop.
-//
-/*
-void main() // No interrupts
-{
-  char buffer[50];
-  
-  InitialiseSystemClock()
-  InitializeUART()
-
-  UARTPrintf("Hello ....\n\r");
-  
-  strcpy(temp, "Hello again ...\n\r");
-  UARTPrintf(temp);
-
-  int a = 10, b = 20;
-  sprintf(buffer, "Value a is %a and b is %b\n\r", a, b);
-  UARTPrintf(buffer);
-}
-*/
 

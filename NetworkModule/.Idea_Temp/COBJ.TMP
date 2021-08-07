@@ -4,17 +4,17 @@ header:
 executable format
 processor number 6, type 3
 15 sections
-554 symbols
-4294 debug symbols
+560 symbols
+4812 debug symbols
 
 sections:
 
 .vector: hilo code, at address 0x8000
       128 data  bytes (0x0080)
 .const: hilo code, at address 0x8080
-     2732 data  bytes (0x0aac)
-.text: hilo code, at address 0x8b2c
-    15103 data  bytes (0x3aff)
+     4688 data  bytes (0x1250)
+.text: hilo code, at address 0x92d0
+    18511 data  bytes (0x484f)
 .eeprom: hilo, at address 0x4000
       108 data  bytes (0x006c)
 .bsct: no attribute, at address 0x0
@@ -23,178 +23,172 @@ sections:
        10 reserved bytes (0x000a)
 .bit: no attribute, at address 0xa
         0 data  bytes (0x0000)
-.data: hilo (init), at address 0xc638
+.data: hilo (init), at address 0xdb2c
         8 data  bytes (0x0008)
-memcpy_update: hilo code (init), at address 0xc640
+memcpy_update: hilo code (init), at address 0xdb34
        40 data  bytes (0x0028)
 .bss: bss hilo, at address 0x3a
-     1193 reserved bytes (0x04a9)
+     1324 reserved bytes (0x052c)
 .flash_update: hilo code, at address 0xfc80
-      431 data  bytes (0x01af)
+      451 data  bytes (0x01c3)
 .iconst: bss hilo, at address 0x5fe
         2 reserved bytes (0x0002)
 .debug: hilo, at address 0x0
-    85930 data  bytes (0x14faa)
+    87768 data  bytes (0x156d8)
 .info.: no attribute, at address 0x0
-     3444 data  bytes (0x0d74)
-.init: hilo code, at address 0xc62b
+     3658 data  bytes (0x0e4a)
+.init: hilo code, at address 0xdb1f
        13 data  bytes (0x000d)
 
 symbols:
 
-__memory:       000004e3 section .bss defined public
-c_y:            00000007 section .ubsct defined public zpage
+__memory:       00000566 section .bss defined public
+_uip_ipchksum:  0000c7d8 section .text defined public
+_uip_tcpchksum: 0000c83e section .text defined public
 _stored_EEPROM_revision1: 00004015 section .eeprom defined public
-_compare_flash_to_EEPROM1: 0000ac40 section .text defined public
-_copy_code_updater_to_EEPROM1: 0000ac96 section .text defined public
 _stack_limit1:  000005ff section .iconst defined public
 _stored_unused1: 00004014 section .eeprom defined public
-_ON_OFF_word_new1: 000001ba section .bss defined public
+_ON_OFF_word_new1: 0000017d section .bss defined public
 _stored_unused3: 0000404c section .eeprom defined public
-_uip_listenports: 000001ee section .bss defined public
+_uip_listenports: 00000211 section .bss defined public
 _stored_unused4: 0000404d section .eeprom defined public
-c_divul:        0000c438 section .text defined public
-_write_one:     0000ac26 section .text defined public
+c_divul:        0000d8a4 section .text defined public
+_write_one:     0000b820 section .text defined public
 _stored_unused5: 0000404e section .eeprom defined public
-_init_IWDG:     0000b053 section .text defined public
+_init_IWDG:     0000c1c1 section .text defined public
 _stored_prior_config: 00004050 section .eeprom defined public
-_check_DS18B20_ctr: 0000012c section .bss defined public
-_check_DS18B20_sensor_ctr: 00000128 section .bss defined public
-_check_I2C_EEPROM_ctr: 000000c6 section .bss defined public
-_uip_arp_arpin: 0000c071 section .text defined public
-_uip_conns:     0000020f section .bss defined public
-_check_reset_button: 0000b0d1 section .text defined public
-_restart:       0000afd8 section .text defined public
-_mqtt_close_tcp: 00000167 section .bss defined public
-_uip_buf:       000002b9 section .bss defined public
+_check_I2C_EEPROM_ctr: 00000089 section .bss defined public
+_check_DS18B20_ctr: 000000ef section .bss defined public
+_check_DS18B20_sensor_ctr: 000000eb section .bss defined public
+_uip_arp_arpin: 0000d4d8 section .text defined public
+_check_reset_button: 0000c392 section .text defined public
+_unlock_eeprom: 0000b91b section .text defined public
+_lock_eeprom:   0000b92b section .text defined public
+_restart:       0000c146 section .text defined public
+c_lgsbc:        0000d9c0 section .text defined public
+_mqtt_close_tcp: 0000012a section .bss defined public
+_I2C_stop:      0000fd76 section .flash_update defined public
 _SDA_high:      0000fd23 section .flash_update defined public
 _SCL_high:      0000fd11 section .flash_update defined public
-_eeprom_base:   000000bb section .bss defined public
-_I2C_stop:      0000fd76 section .flash_update defined public
-c_lumd:         0000c5a6 section .text defined public
-_HttpDCall:     00009b8b section .text defined public
-_periodic_timer_expired: 0000b386 section .text defined public
-_t100ms_timer_expired: 0000b396 section .text defined public
-_arp_timer_expired: 0000b3a6 section .text defined public
-_uip_TcpAppHubCall: 0000c26b section .text defined public
-_mac_string:    0000016c section .bss defined public
-_show_temperature_string: 00009b25 section .text defined public
-_update_mac_string: 0000af64 section .text defined public
-__idesc__:      0000c62b section .init defined public
-_uip_flags:     0000020a section .bss defined public
-_current_webpage: 00000049 section .bss defined public
-_update_debug_storage1: 0000b17e section .text defined public
-_htons:         0000bed2 section .text defined public
+_I2C_byte_address: 0000fca6 section .flash_update defined public
+_uip_process:   0000c941 section .text defined public
+_eeprom_base:   0000007d section .bss defined public
+_uip_init_stats: 0000c874 section .text defined public
+c_lumd:         0000da28 section .text defined public
+_HttpDCall:     0000a771 section .text defined public
+_periodic_timer_expired: 0000c66d section .text defined public
+_t100ms_timer_expired: 0000c67d section .text defined public
+_arp_timer_expired: 0000c68d section .text defined public
+_uip_TcpAppHubCall: 0000d6d2 section .text defined public
+_mac_string:    0000012f section .bss defined public
+_show_temperature_string: 0000a6f9 section .text defined public
+_update_mac_string: 0000bca5 section .text defined public
+__idesc__:      0000db1f section .init defined public
+_uip_flags:     0000022d section .bss defined public
+_IO_NAME:       0000ff00 section absolute defined public absolute
+_update_debug_storage1: 0000c465 section .text defined public
+_htons:         0000d339 section .text defined public
 _Read_Slave_NACKACK: 0000fd5c section .flash_update defined public
-_parse_tail:    0000004c section .bss defined public
-_byte_tail:     000000a8 section .bss defined public
-_hex2int:       000095d8 section .text defined public
-_two_hex2int:   00009606 section .text defined public
-_line_count:    00000096 section .bss defined public
-_data_count:    00000099 section .bss defined public
-_InitializeUART: 0000b3da section .text defined public
-_ON_OFF_word_sent: 000001b6 section .bss defined public
-_prep_read:     0000ac15 section .text defined public
-_eeprom_num_read: 000000bd section .bss defined public
-_check_restart_reboot: 0000af9b section .text defined public
-_reboot:        0000b007 section .text defined public
-_HtmlPageIOControl_size: 00000047 section .bss defined public
-_HtmlPageConfiguration_size: 00000045 section .bss defined public
-_adjust_template_size: 000094d9 section .text defined public
-_break_while:   0000004a section .bss defined public
+_parse_tail:    00000047 section .bss defined public
+_uip_stat:      0000022e section .bss defined public
+_hex2int:       00009eaf section .text defined public
+_two_hex2int:   00009edd section .text defined public
+_InitializeUART: 0000c6c1 section .text defined public
+_ON_OFF_word_sent: 00000179 section .bss defined public
+_prep_read:     0000b80f section .text defined public
+_eeprom_num_read: 0000007f section .bss defined public
+_check_restart_reboot: 0000c0f3 section .text defined public
+_reboot:        0000c175 section .text defined public
+_HtmlPageIOControl_size: 00000044 section .bss defined public
+_HtmlPageConfiguration_size: 00000042 section .bss defined public
+_adjust_template_size: 00009d0f section .text defined public
 _stored_devicename: 00004000 section .eeprom defined public
 _stored_mqtt_username: 00004035 section .eeprom defined public
-_data_value:    00000098 section .bss defined public
-_Pending_devicename: 00000190 section .bss defined public
-_Pending_mqtt_username: 00000148 section .bss defined public
-_find_content_type: 000000ab section .bss defined public
-_file_type:     00000092 section .bss defined public
-_strlen:        0000c2c0 section .text defined public
-_uip_listen:    0000b55d section .text defined public
-_uip_len:       000002b5 section .bss defined public
+_Pending_devicename: 00000153 section .bss defined public
+_Pending_mqtt_username: 0000010b section .bss defined public
+_parse_local_buf: 0000aeaf section .text defined public
+_uip_buf:       0000033c section .bss defined public
+_strlen:        0000d74e section .text defined public
+_uip_listen:    0000c8fa section .text defined public
+_uip_len:       00000338 section .bss defined public
 _stored_unused6: 0000404f section .eeprom defined public
-_uip_slen:      000001f6 section .bss defined public
-_uip_conn:      000002b3 section .bss defined public
-_code_revision: 000089c2 section .const defined public
-_z_diag:        0000004b section .bss defined public
-_ps:            0000864c section .const defined public
-c_eewrc:        0000c35b section .text defined public
-c_ludv:         0000c592 section .text defined public
-_int2hex:       00009621 section .text defined public
-_off_board_eeprom_index: 0000008e section .bss defined public
-_byte_index:    000000a5 section .bss defined public
-_parse_index:   000000a4 section .bss defined public
-_eeprom_address_index: 000000a2 section .bss defined public
-_copy_ram_index: 000000bf section .bss defined public
-c_lglsh:        0000c51c section .text defined public
+_uip_slen:      00000219 section .bss defined public
+_uip_conn:      00000336 section .bss defined public
+_code_revision: 000091f5 section .const defined public
+_z_diag:        00000046 section .bss defined public
+c_y:            00000007 section .ubsct defined public zpage
+_ps:            00008de0 section .const defined public
+c_eewrc:        0000d7c7 section .text defined public
+_off_board_eeprom_index: 0000006f section .bss defined public
+_int2hex:       00009ef8 section .text defined public
+_copy_ram_index: 00000081 section .bss defined public
+c_ludv:         0000da14 section .text defined public
+c_lglsh:        0000d988 section .text defined public
 _stored_mqtt_password: 00004040 section .eeprom defined public
-_Invert_word:   000001b4 section .bss defined public
-_ON_OFF_word:   000001bc section .bss defined public
-_Pending_mqtt_password: 0000013d section .bss defined public
-c_eewrd:        0000c38e section .text defined public
-_checksum:      00000095 section .bss defined public
-_uip_ipchksum:  0000b4c3 section .text defined public
-_uip_tcpchksum: 0000b529 section .text defined public
-_debugflash:    0000b13d section .text defined public
+_Pending_mqtt_password: 00000100 section .bss defined public
+_Invert_word:   00000177 section .bss defined public
+_ON_OFF_word:   0000017f section .bss defined public
+c_eewrd:        0000d7fa section .text defined public
+_uip_conns:     0000028a section .bss defined public
+_update_ON_OFF: 0000b336 section .text defined public
+_debugflash:    0000c3fe section .text defined public
+_unlock_flash:  0000b930 section .text defined public
+_lock_flash:    0000b939 section .text defined public
 _eeprom_copy_to_flash: 0000fd7f section .flash_update defined public
 _copy_ram_to_flash: 00000012 section memcpy_update defined public
-_unlock_flash:  0000ad56 section .text defined public
+_fastflash:     0000c432 section .text defined public
 __endzp:        0000000a section .ubsct defined public
-_unlock_eeprom: 0000ad41 section .text defined public
-_lock_eeprom:   0000ad51 section .text defined public
-_I2C_byte_address: 0000fca6 section .flash_update defined public
-_temp_address:  0000009e section .bss defined public
-_new_address:   000000a0 section .bss defined public
-_address:       0000009a section .bss defined public
-_uip_process:   0000b5a4 section .text defined public
 _stored_magic1: 0000402b section .eeprom defined public
 _stored_magic3: 0000402d section .eeprom defined public
-_write_output_pins: 0000b068 section .text defined public
+_write_output_pins: 0000c293 section .text defined public
+_read_input_pins: 0000c1d6 section .text defined public
 _io_map:        000080a3 section .const defined public
-_encode_16bit_registers: 0000a70f section .text defined public
-_uip_netmask:   00000202 section .bss defined public
-_read_two_characters: 0000a676 section .text defined public
+_encode_16bit_registers: 0000b377 section .text defined public
+_init_off_board_string_pointers: 00009c93 section .text defined public
+_uip_netmask:   00000225 section .bss defined public
+_Pending_netmask: 00000169 section .bss defined public
+_decrement_pin_timers: 0000c36c section .text defined public
 _stored_netmask: 0000401f section .eeprom defined public
-_Pending_netmask: 000001a6 section .bss defined public
-_Enc28j60Send:  00009276 section .text defined public
-_uip_send:      0000bed3 section .text defined public
-_Enc28j60ReadPhy: 00008ff4 section .text defined public
-_Enc28j60WritePhy: 00009041 section .text defined public
-_stpcpy:        0000b19e section .text defined public
-__fctcpy:       0000c302 section .text defined public
-_select:        00008f71 section .text defined public
-_deselect:      00008f77 section .text defined public
-_non_sequential_detect: 00000091 section .bss defined public
-_off_board_EEPROM_detect: 0000abcf section .text defined public
-_RXERIF_counter: 00000138 section .bss defined public
-_TXERIF_counter: 00000137 section .bss defined public
-_TRANSMIT_counter: 00000133 section .bss defined public
-_second_counter: 000001d8 section .bss defined public
-_MQTT_resp_tout_counter: 00000132 section .bss defined public
-_MQTT_not_OK_counter: 00000131 section .bss defined public
-_MQTT_broker_dis_counter: 00000130 section .bss defined public
-_Enc28j60SwitchBank: 00008fe2 section .text defined public
-_SpiReadChunk:  0000b26c section .text defined public
-_SpiWriteChunk: 0000b203 section .text defined public
-_mqtt_start_status: 0000015a section .bss defined public
-_MQTT_error_status: 00000159 section .bss defined public
-_saved_newlines: 000000ac section .bss defined public
+_Enc28j60Send:  00009a1a section .text defined public
+_uip_send:      0000d33a section .text defined public
+_Enc28j60ReadPhy: 00009798 section .text defined public
+_Enc28j60WritePhy: 000097e5 section .text defined public
+_stpcpy:        0000c485 section .text defined public
+__fctcpy:       0000d75a section .text defined public
+_select:        00009715 section .text defined public
+_deselect:      0000971b section .text defined public
+_init_tHttpD_struct: 0000a768 section .text defined public
+_parsepost:     0000acae section .text defined public
+_off_board_EEPROM_detect: 0000b7c9 section .text defined public
+_eeprom_detect: 00000088 section .bss defined public
+_RXERIF_counter: 000000fb section .bss defined public
+_TXERIF_counter: 000000fa section .bss defined public
+_TRANSMIT_counter: 000000f6 section .bss defined public
+_second_counter: 000001fb section .bss defined public
+_MQTT_resp_tout_counter: 000000f5 section .bss defined public
+_MQTT_not_OK_counter: 000000f4 section .bss defined public
+_MQTT_broker_dis_counter: 000000f3 section .bss defined public
+_Enc28j60SwitchBank: 00009786 section .text defined public
+_SpiReadChunk:  0000c553 section .text defined public
+_SpiWriteChunk: 0000c4ea section .text defined public
+_mqtt_start_status: 0000011d section .bss defined public
+_MQTT_error_status: 0000011c section .bss defined public
 _stored_config_settings: 00004051 section .eeprom defined public
-_check_eeprom_settings: 0000ada0 section .text defined public
-_Pending_config_settings: 0000018f section .bss defined public
-_debug:         000001ce section .bss defined public
+_Pending_config_settings: 00000152 section .bss defined public
+_check_eeprom_settings: 0000b97f section .text defined public
+_debug:         000001f1 section .bss defined public
 _stored_debug:  00004062 section .eeprom defined public
 _stored_uip_ethaddr_oct: 00004017 section .eeprom defined public
-_eeprom_copy_to_flash_request: 00000090 section .bss defined public
-_user_reboot_request: 0000016a section .bss defined public
-_reboot_request: 0000016b section .bss defined public
-_restart_request: 00000169 section .bss defined public
-_Pending_uip_ethaddr_oct: 00000189 section .bss defined public
-_state_request: 000001b3 section .bss defined public
+_eeprom_copy_to_flash_request: 00000071 section .bss defined public
+_user_reboot_request: 0000012d section .bss defined public
+_Pending_uip_ethaddr_oct: 0000014c section .bss defined public
+_reboot_request: 0000012e section .bss defined public
+_restart_request: 0000012c section .bss defined public
+_state_request: 00000176 section .bss defined public
 _CLK_PCKENR1:   000050c7 section absolute defined public absolute
 _UART2_BRR1:    00005242 section absolute defined public absolute
-_uip_appdata:   000002b7 section .bss defined public
-_uip_sappdata:  000001f8 section .bss defined public
+_uip_appdata:   0000033a section .bss defined public
+_uip_sappdata:  0000021b section .bss defined public
 _TIM1_ARRH:     00005262 section absolute defined public absolute
 _TIM1_CCR2H:    00005267 section absolute defined public absolute
 _TIM2_ARRH:     0000530d section absolute defined public absolute
@@ -202,9 +196,13 @@ _TIM2_CCR2H:    00005311 section absolute defined public absolute
 _TIM3_ARRH:     0000532b section absolute defined public absolute
 _TIM3_CCR2H:    0000532f section absolute defined public absolute
 _DM_BK2RH:      00007f94 section absolute defined public absolute
-c_lzmp:         0000c5c0 section .text defined public
-_FindDevices:   00008db5 section .text defined public
-_check_temperature_sensor_changes: 00008f4a section .text defined public
+c_lzmp:         0000da42 section .text defined public
+_compare_flash_to_EEPROM0: 0000b83a section .text defined public
+_copy_flash_to_EEPROM0: 0000b891 section .text defined public
+c_smodx:        0000da67 section .text defined public
+_FindDevices:   00009559 section .text defined public
+_check_temperature_sensor_changes: 000096ee section .text defined public
+_check_runtime_changes: 0000bcdc section .text defined public
 c_x:            00000004 section .ubsct defined public zpage
 _PA_ODR:        00005000 section absolute defined public absolute
 _PB_ODR:        00005005 section absolute defined public absolute
@@ -299,7 +297,7 @@ _FLASH_DUKR:    00005064 section absolute defined public absolute
 _SPI_RXCRCR:    00005206 section absolute defined public absolute
 _SPI_TXCRCR:    00005207 section absolute defined public absolute
 _TIM1_RCR:      00005264 section absolute defined public absolute
-c_ltor:         0000c580 section .text defined public
+c_ltor:         0000da02 section .text defined public
 _RST_SR:        000050b3 section absolute defined public absolute
 _CLK_CSSR:      000050c8 section absolute defined public absolute
 _BEEP_CSR:      000050f3 section absolute defined public absolute
@@ -311,7 +309,7 @@ _TIM1_SMCR:     00005252 section absolute defined public absolute
 _TIM4_SR:       00005342 section absolute defined public absolute
 _ADC_CSR:       00005400 section absolute defined public absolute
 _SWIM_CSR:      00007f80 section absolute defined public absolute
-c_lgor:         0000c53d section .text defined public
+c_lgor:         0000d9a9 section .text defined public
 _CLK_CMSR:      000050c3 section absolute defined public absolute
 _CLK_SWCR:      000050c5 section absolute defined public absolute
 _CLK_SWIMCCR:   000050cd section absolute defined public absolute
@@ -323,39 +321,39 @@ _TIM2_PSCR:     0000530c section absolute defined public absolute
 _TIM3_PSCR:     0000532a section absolute defined public absolute
 _TIM4_PSCR:     00005345 section absolute defined public absolute
 _CFG_GCR:       00007f60 section absolute defined public absolute
-_ON_OFF_word_new2: 000001b8 section .bss defined public
+_ON_OFF_word_new2: 0000017b section .bss defined public
 _CLK_SWR:       000050c4 section absolute defined public absolute
 _WWDG_WR:       000050d2 section absolute defined public absolute
 _TIM1_EGR:      00005257 section absolute defined public absolute
 _TIM2_EGR:      00005304 section absolute defined public absolute
 _TIM3_EGR:      00005324 section absolute defined public absolute
 _TIM4_EGR:      00005343 section absolute defined public absolute
-c_lgsub:        0000c554 section .text defined public
-_uip_add32:     0000b41e section .text defined public
+c_lgsub:        0000d9d6 section .text defined public
+_uip_add32:     0000c733 section .text defined public
 _CLK_CKDIVR:    000050c6 section absolute defined public absolute
 _CLK_PCKENR2:   000050ca section absolute defined public absolute
 _UART2_BRR2:    00005243 section absolute defined public absolute
 _CLK_CCOR:      000050c9 section absolute defined public absolute
 _stored_magic2: 0000402c section .eeprom defined public
-_uip_acc32:     0000020b section .bss defined public
+_uip_acc32:     00000286 section .bss defined public
 _CLK_HSITRIMR:  000050cc section absolute defined public absolute
 _IWDG_PR:       000050e1 section absolute defined public absolute
 _SPI_CRCPR:     00005205 section absolute defined public absolute
-_uip_hostaddr:  00000206 section .bss defined public
-_uip_draddr:    000001fe section .bss defined public
-_uip_mqttserveraddr: 000001fa section .bss defined public
+_uip_hostaddr:  00000229 section .bss defined public
+_uip_draddr:    00000221 section .bss defined public
+_uip_mqttserveraddr: 0000021d section .bss defined public
+_Pending_hostaddr: 00000171 section .bss defined public
+_Pending_draddr: 0000016d section .bss defined public
+_Pending_mqttserveraddr: 00000118 section .bss defined public
 _stored_hostaddr: 00004027 section .eeprom defined public
-_IpAddr:        0000015f section .bss defined public
+_IpAddr:        00000122 section .bss defined public
 _stored_draddr: 00004023 section .eeprom defined public
 _stored_mqttserveraddr: 00004031 section .eeprom defined public
 _uip_ethaddr:   0000000c section .data defined public
-_Pending_hostaddr: 000001ae section .bss defined public
-_Pending_draddr: 000001aa section .bss defined public
-_Pending_mqttserveraddr: 00000155 section .bss defined public
 _stored_unused2: 0000404b section .eeprom defined public
 _AWU_APR:       000050f1 section absolute defined public absolute
-_ram_ptr:       000000c1 section .bss defined public
-_flash_ptr:     000000c3 section .bss defined public
+_ram_ptr:       00000083 section .bss defined public
+_flash_ptr:     00000085 section .bss defined public
 _stack_limit2:  000005fe section .iconst defined public
 _AWU_TBR:       000050f2 section absolute defined public absolute
 _stored_EEPROM_revision2: 00004016 section .eeprom defined public
@@ -365,7 +363,8 @@ _DM_BK1RL:      00007f92 section absolute defined public absolute
 _I2C_OARH:      00005214 section absolute defined public absolute
 _DM_BK1RH:      00007f91 section absolute defined public absolute
 _lastDiscrep:   0000000a section .data defined public
-c_bmulx:        0000c337 section .text defined public
+c_bmulx:        0000d78f section .text defined public
+c_cmulx:        0000d79d section .text defined public
 _I2C_SR3:       00005219 section absolute defined public absolute
 _UART2_CR3:     00005246 section absolute defined public absolute
 _ADC_CR3:       00005403 section absolute defined public absolute
@@ -377,30 +376,32 @@ _I2C_CCRH:      0000521c section absolute defined public absolute
 _TIM1_PSCRH:    00005260 section absolute defined public absolute
 _ADC_AWSRH:     0000540c section absolute defined public absolute
 _ADC_AWCRH:     0000540e section absolute defined public absolute
-c_itolx:        0000c3ab section .text defined public
-_memcmp:        0000c290 section .text defined public
-c_uitolx:       0000c624 section .text defined public
-_strncmp:       0000c2cc section .text defined public
-_restart_reboot_step: 00000168 section .bss defined public
-c_lcmp:         0000c3e2 section .text defined public
+c_itolx:        0000d817 section .text defined public
+_memcmp:        0000d6f7 section .text defined public
+c_uitolx:       0000dadc section .text defined public
+_strcmp:        0000d73b section .text defined public
+_restart_reboot_step: 0000012b section .bss defined public
+c_lcmp:         0000d84e section .text defined public
 _I2C_TRISER:    0000521d section absolute defined public absolute
 _UART2_CR4:     00005247 section absolute defined public absolute
-c_divsl:        0000c421 section .text defined public
+c_divsl:        0000d88d section .text defined public
 _UART2_CR5:     00005248 section absolute defined public absolute
-_second_toggle: 000001dc section .bss defined public
+_second_toggle: 000001ff section .bss defined public
 _UART2_CR6:     00005249 section absolute defined public absolute
-_UARTPrintf:    0000b409 section .text defined public
+_UARTPrintf:    0000c71e section .text defined public
 _TIM1_IER:      00005254 section absolute defined public absolute
 _TIM2_IER:      00005301 section absolute defined public absolute
 _TIM3_IER:      00005321 section absolute defined public absolute
 _TIM4_IER:      00005341 section absolute defined public absolute
+_IO_TIMER:      0000fec0 section absolute defined public absolute
+_Pending_IO_TIMER: 000001d1 section .bss defined public
 _TIM1_CCMR1:    00005258 section absolute defined public absolute
 _TIM1_CCER1:    0000525c section absolute defined public absolute
 _TIM2_CCMR1:    00005305 section absolute defined public absolute
 _TIM2_CCER1:    00005308 section absolute defined public absolute
 _TIM3_CCMR1:    00005325 section absolute defined public absolute
 _TIM3_CCER1:    00005327 section absolute defined public absolute
-_OctetArray:    000000b0 section .bss defined public
+_OctetArray:    00000072 section .bss defined public
 _TIM1_CCMR2:    00005259 section absolute defined public absolute
 _TIM1_CCER2:    0000525d section absolute defined public absolute
 _TIM2_CCMR2:    00005306 section absolute defined public absolute
@@ -409,7 +410,7 @@ _TIM3_CCMR2:    00005326 section absolute defined public absolute
 _TIM1_CCMR3:    0000525a section absolute defined public absolute
 _TIM2_CCMR3:    00005307 section absolute defined public absolute
 _TIM1_CCMR4:    0000525b section absolute defined public absolute
-_Port_Mqttd:    00000139 section .bss defined public
+_Port_Mqttd:    000000fc section .bss defined public
 _TIM1_CNTRH:    0000525e section absolute defined public absolute
 _TIM2_CNTRH:    0000530a section absolute defined public absolute
 _TIM3_CNTRH:    00005328 section absolute defined public absolute
@@ -424,7 +425,7 @@ _ADC_DRL:       00005405 section absolute defined public absolute
 _ADC_TDRL:      00005407 section absolute defined public absolute
 _ADC_HTRL:      00005409 section absolute defined public absolute
 _ADC_LTRL:      0000540b section absolute defined public absolute
-_uip_arp_out:   0000c120 section .text defined public
+_uip_arp_out:   0000d587 section .text defined public
 _TIM1_ARRL:     00005263 section absolute defined public absolute
 _TIM1_CCR2L:    00005268 section absolute defined public absolute
 _TIM2_ARRL:     0000530e section absolute defined public absolute
@@ -432,122 +433,121 @@ _TIM2_CCR2L:    00005312 section absolute defined public absolute
 _TIM3_ARRL:     0000532c section absolute defined public absolute
 _TIM3_CCR2L:    00005330 section absolute defined public absolute
 _DM_BK2RL:      00007f95 section absolute defined public absolute
-_I2C_reset:     0000a77e section .text defined public
+_I2C_reset:     0000b3e6 section .text defined public
 _TIM1_CCR1H:    00005265 section absolute defined public absolute
 _TIM2_CCR1H:    0000530f section absolute defined public absolute
 _TIM3_CCR1H:    0000532d section absolute defined public absolute
 _TIM1_CCR1L:    00005266 section absolute defined public absolute
 _TIM2_CCR1L:    00005310 section absolute defined public absolute
 _TIM3_CCR1L:    0000532e section absolute defined public absolute
-c_smul:         0000c5e5 section .text defined public
+c_smul:         0000da92 section .text defined public
+c_umul:         0000dae3 section .text defined public
 _TIM1_CCR3H:    00005269 section absolute defined public absolute
 _TIM2_CCR3H:    00005314 section absolute defined public absolute
 _TIM1_CCR3L:    0000526a section absolute defined public absolute
 _TIM2_CCR3L:    00005314 section absolute defined public absolute
 _stored_pin_control: 00004052 section .eeprom defined public
-_LEDcontrol:    0000946f section .text defined public
-_pin_control:   000001be section .bss defined public
+_LEDcontrol:    00009c13 section .text defined public
+_pin_control:   00000181 section .bss defined public
+_Pending_pin_control: 0000013c section .bss defined public
 _I2C_control:   0000fc80 section .flash_update defined public
-_Pending_pin_control: 00000179 section .bss defined public
 _TIM1_CCR4H:    0000526b section absolute defined public absolute
+c_sdivx:        0000da6d section .text defined public
 _TIM1_CCR4L:    0000526c section absolute defined public absolute
 _TIM1_DTR:      0000526e section absolute defined public absolute
 _TIM4_ARR:      00005346 section absolute defined public absolute
 _ITC_SPR1:      00007f70 section absolute defined public absolute
-_t100ms_ctr1:   0000015b section .bss defined public
+_t100ms_ctr1:   0000011e section .bss defined public
 _ITC_SPR2:      00007f71 section absolute defined public absolute
 _ITC_SPR4:      00007f73 section absolute defined public absolute
-c_ladd:         0000c3ca section .text defined public
+c_ladd:         0000d836 section .text defined public
 _stored_port:   0000401d section .eeprom defined public
 _stored_mqttport: 0000402f section .eeprom defined public
-_Pending_port:  000001a4 section .bss defined public
-_Pending_mqttport: 00000153 section .bss defined public
-_mqttport:      0000013b section .bss defined public
+_Pending_port:  00000167 section .bss defined public
+_Pending_mqttport: 00000116 section .bss defined public
+_mqttport:      000000fe section .bss defined public
 _ITC_SPR5:      00007f74 section absolute defined public absolute
 _ITC_SPR6:      00007f75 section absolute defined public absolute
 _ITC_SPR7:      00007f76 section absolute defined public absolute
-c_eewrw:        0000c345 section .text defined public
+c_eewrw:        0000d7b1 section .text defined public
 _ITC_SPR8:      00007f77 section absolute defined public absolute
 _DM_BK1RE:      00007f90 section absolute defined public absolute
 _DM_BK2RE:      00007f93 section absolute defined public absolute
-_Enc28j60Receive: 000091c7 section .text defined public
-_emb_itoa:      0000950c section .text defined public
-_wait_timer:    0000b3b7 section .text defined public
-_uip_arp_timer: 0000bf1a section .text defined public
-_periodic_timer: 000001e3 section .bss defined public
-_mqtt_timer:    000001e2 section .bss defined public
-_t100ms_timer:  000001de section .bss defined public
-_arp_timer:     000001e0 section .bss defined public
-_mqtt_outbound_timer: 000001df section .bss defined public
-c_ldiv:         0000c402 section .text defined public
-_one_wire_low:  00008d99 section .text defined public
-_temp_address_low: 0000009c section .bss defined public
+_Enc28j60Receive: 0000996b section .text defined public
+_emb_itoa:      00009de3 section .text defined public
+_wait_timer:    0000c69e section .text defined public
+_uip_arp_timer: 0000d381 section .text defined public
+_calculate_timer: 0000c2fc section .text defined public
+_pin_timer:     00000191 section .bss defined public
+_periodic_timer: 00000206 section .bss defined public
+_mqtt_timer:    00000205 section .bss defined public
+_t100ms_timer:  00000201 section .bss defined public
+_arp_timer:     00000203 section .bss defined public
+_mqtt_outbound_timer: 00000202 section .bss defined public
+c_ldiv:         0000d86e section .text defined public
+_one_wire_low:  0000953d section .text defined public
 _SDA_low:       0000fd30 section .flash_update defined public
 _SCL_low:       0000fd1e section .flash_update defined public
-_numROMs:       0000011b section .bss defined public
-_file_nBytes:   000000a6 section .bss defined public
-_restore_eeprom_debug_bytes: 0000b171 section .text defined public
-_First:         00008e1f section .text defined public
+_numROMs:       000000de section .bss defined public
+_restore_eeprom_debug_bytes: 0000c458 section .text defined public
+_First:         000095c3 section .text defined public
 _stored_magic4: 0000402e section .eeprom defined public
-_reset_pulse:   00008d03 section .text defined public
+_reset_pulse:   000094a7 section .text defined public
 _SCL_pulse:     0000fd0b section .flash_update defined public
 c_lreg:         00000000 section .ubsct defined public zpage
-_Enc28j60ReadReg: 00008f7d section .text defined public
-_Enc28j60WriteReg: 00008f9d section .text defined public
-_Enc28j60SetMaskReg: 00008fb4 section .text defined public
-_Enc28j60ClearMaskReg: 00008fcb section .text defined public
+_Enc28j60ReadReg: 00009721 section .text defined public
+_Enc28j60WriteReg: 00009741 section .text defined public
+_Enc28j60SetMaskReg: 00009758 section .text defined public
+_Enc28j60ClearMaskReg: 0000976f section .text defined public
 _io_reg:        00005000 section absolute defined public absolute
-c_lneg:         0000c56b section .text defined public
-c_lgneg:        0000c52a section .text defined public
+c_lneg:         0000d9ed section .text defined public
+c_lgneg:        0000d996 section .text defined public
 _doneFlag:      0000000b section .data defined public
-_insertion_flag: 00000042 section .bss defined public
-_DS18B20_scratch: 0000011e section .bss defined public
-_get_temperature: 00008b35 section .text defined public
-_convert_temperature: 00008bee section .text defined public
-_send_mqtt_temperature: 0000011d section .bss defined public
-_transmit_byte: 00008d2e section .text defined public
-_FoundROM:      000000f3 section .bss defined public
+_DS18B20_scratch: 000000e1 section .bss defined public
+_get_temperature: 000092d9 section .text defined public
+_convert_temperature: 00009392 section .text defined public
+_send_mqtt_temperature: 000000e0 section .bss defined public
+_transmit_byte: 000094d2 section .text defined public
+_FoundROM:      000000b6 section .bss defined public
 _ROM:           0000003a section .bss defined public
-_temp_FoundROM: 000000cb section .bss defined public
-_SpiWriteByte:  0000b1d9 section .text defined public
-_SpiReadByte:   0000b242 section .text defined public
+_temp_FoundROM: 0000008e section .bss defined public
+_SpiWriteByte:  0000c4c0 section .text defined public
+_SpiReadByte:   0000c529 section .text defined public
 _I2C_read_byte: 0000fcc6 section .flash_update defined public
-_int2nibble:    00009640 section .text defined public
-_saved_nstate:  000000af section .bss defined public
-_upgrade_failcode: 00000093 section .bss defined public
-_saved_ParseState: 00000094 section .bss defined public
-_I2C_write_byte: 0000a770 section .text defined public
-_parse_complete: 00000166 section .bss defined public
+_int2nibble:    00009f17 section .text defined public
+_parse_complete: 00000129 section .bss defined public
 _I2C_transmit_byte: 0000fd3d section .flash_update defined public
-_I2C_failcode:  000000c5 section .bss defined public
-_eeprom_num_write: 000000be section .bss defined public
-_upgrade_EEPROM: 0000ad5f section .text defined public
-_timer_update:  0000b34c section .text defined public
-_mqtt_parse_complete: 00000165 section .bss defined public
-_read_bit:      00008d4e section .text defined public
-_write_bit:     00008d7c section .text defined public
-_Enc28j60Init:  00009075 section .text defined public
-_gpio_init:     000093ec section .text defined public
-_HttpDStringInit: 00009488 section .text defined public
-_HttpDInit:     00009b69 section .text defined public
-_clock_init:    0000b2ac section .text defined public
-_spi_init:      0000b1b4 section .text defined public
-_uip_arp_init:  0000bef7 section .text defined public
-_uip_init:      0000b52e section .text defined public
-c_rtol:         0000c5d3 section .text defined public
-_Port_Httpd:    00000163 section .bss defined public
-_saved_nparseleft: 000000ad section .bss defined public
-_dallas_crc8:   00008f07 section .text defined public
-_main:          0000a7bb section .text defined public
+_I2C_failcode:  00000087 section .bss defined public
+_eeprom_num_write: 00000080 section .bss defined public
+_I2C_write_byte: 0000b3d8 section .text defined public
+_upgrade_EEPROM: 0000b93e section .text defined public
+_timer_update:  0000c633 section .text defined public
+_mqtt_parse_complete: 00000128 section .bss defined public
+_read_bit:      000094f2 section .text defined public
+_write_bit:     00009520 section .text defined public
+_Enc28j60Init:  00009819 section .text defined public
+_gpio_init:     00009b90 section .text defined public
+_HttpDStringInit: 00009c2c section .text defined public
+_HttpDInit:     0000a73d section .text defined public
+_clock_init:    0000c593 section .text defined public
+_spi_init:      0000c49b section .text defined public
+_uip_arp_init:  0000d35e section .text defined public
+_uip_init:      0000c843 section .text defined public
+_strcat:        0000d727 section .text defined public
+c_rtol:         0000da55 section .text defined public
+_Port_Httpd:    00000126 section .bss defined public
+c_uitol:        0000dad1 section .text defined public
+_dallas_crc8:   000096ab section .text defined public
+_main:          0000b423 section .text defined public
 __stack:        000007ff section absolute defined public absolute
 _ITC_SPR3:      00007f72 section absolute defined public absolute
-_redefine_temp_sensors: 000000ca section .bss defined public
-c_lgadc:        0000c50c section .text defined public
-c_ladc:         0000c3b9 section .text defined public
-_exit:          00008b33 section .text defined public
+_redefine_temp_sensors: 0000008d section .bss defined public
+c_lgadc:        0000d978 section .text defined public
+c_ladc:         0000d825 section .text defined public
+_exit:          000092d7 section .text defined public
 __vectab:       00008000 section .vector defined public
 _CLK_ICKR:      000050c0 section absolute defined public absolute
 _CLK_ECKR:      000050c1 section absolute defined public absolute
 _IWDG_KR:       000050e0 section absolute defined public absolute
-_stack_error:   000001b2 section .bss defined public
-__stext:        00008b2c section .text defined public
+_stack_error:   00000175 section .bss defined public
+__stext:        000092d0 section .text defined public

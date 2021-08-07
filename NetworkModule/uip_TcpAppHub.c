@@ -72,9 +72,8 @@ void uip_TcpAppHubCall(void)
     // the incoming data from the uip_buf, then create any needed output
     // data and put it in the uip_buf.
     // This code is also called if the UIP functions are just checking to
-    // see if there is anything pending to send even is there was no
-    // incoming data to trigger a send. This situation shouldn't happen in
-    // this application.
+    // see if there is anything pending to send - for instance in the case
+    // where multiple packets must be sent to fulfill a browser request.
     HttpDCall(uip_appdata, uip_datalen(), &uip_conn->appstate.HttpDSocket);
   }
 

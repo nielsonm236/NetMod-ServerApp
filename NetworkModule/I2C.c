@@ -40,22 +40,6 @@
 extern uint8_t OctetArray[11];
 
 uint8_t I2C_failcode;
-
-/*
-// These variables are used only by the eeprom_copy_to_flash() function.
-// The variables are located at the end of the Stack space. This is done so
-// that the various builds that use the eeprom_copy_to_flash() function will
-// have identical code in the #pragma segment. This allocation method prevents
-// the various builds from locating the variables in RAM at locations of their
-// own choosing - which will be different for each build using normal
-// variable declarations.
-char * flash_ptr @0x600;          // 4 bytes; Placed at even address
-char * ram_ptr @0x604;            // 4 bytes; Placed at even address
-uint16_t copy_ram_index @0x608;   // 2 bytes
-uint8_t eeprom_num_write @0x610;  // 1 byte
-uint8_t eeprom_num_read @0x611;   // 1 byte
-uint16_t eeprom_base @0x612;      // 2 bytes
-*/
 char * flash_ptr;
 char * ram_ptr;
 uint16_t copy_ram_index;
@@ -127,10 +111,10 @@ void I2C_control(uint8_t control_byte)
   PE_ODR &= (uint8_t)~0x08; // Write SCL ODR to 0
   
   // Start condition:
-  SDA_high(); // Make sure SDA is high
-  SCL_high(); // Make sure SCL is high
+  SDA_high(); // Make sure SDA is high, then wait 5us
+  SCL_high(); // Make sure SCL is high, then wait 5us
   SDA_low(); // Drive SDA low, then wait 5us
-  SCL_low(); // Drive SCL low, then no wait
+  SCL_low(); // Drive SCL low, SCL_low() has no wait
 
   // Output Device Control Byte. Bits 7 to 1 are address information, bit 0 is
   // the Read/Write bit
@@ -190,7 +174,7 @@ uint8_t I2C_read_byte(uint8_t I2C_last_flag)
   if (I2C_last_flag == 0) {
     SDA_low();  // Drive SDA low, then wait 5us. ACK for sequential reads.
     SCL_pulse();
-    SDA_high(); // Release SDA (float).
+    SDA_high(); // Float SDA high, then wait 5us.
   }
   else {
     SDA_high(); // Float SDA high, then wait 5us. NACK for last byte.
@@ -257,6 +241,13 @@ void I2C_transmit_byte(uint8_t I2C_transmit_data)
     data_mask = (uint8_t)(data_mask >> 1);
     if (data_mask==0) break;
   }
+  // NOTE: AT THE END OF THE LAST SCL_PULSE (WHEN SCL GOES LOW) THE SLAVE
+  // MAY START TRANSMITTING ITS NACK/ACK. BUT THE MASTER MIGHT STILL BE
+  // DRIVING THE SDA LINE ... SHOULD SDA BE RELEASED IN THIS ROUTINE
+  // IMMEDIATELY AT THE END OF SCL_PULSE? NOT SURE IT MATTERS, AS
+  // IMMEDIATELY AFTER I2C_TRANSMIT_BYTE WE CALL READ_SLAVE_NACKACK WHICH
+  // IMMEDIATELY RELEASES SDA. BUT TIMING COULD BE IMPROVED BY RELEASING
+  // SDA IN THIS ROUTINE WHEN DATA_MASK == 0.
 }
   
   
@@ -353,7 +344,8 @@ void eeprom_copy_to_flash(void)
   // the end of the RAM space allocated to the uip_buf RAM space. This will
   // still work because of the following:
   // a) The .lkf file is set up to place the memcpy_update code at the start
-  //    of RAM. This is required for the next item to work.
+  //    of RAM. This is required for the next item to work. See the main.h
+  //    file for proper settings in the .lkf file.
   // b) The Cosmic compiler/linker always places the largest RAM item at the
   //    end of RAM ... and that turns out to be the uip_buf. This is why step
   //    (a) is critical: the memcpy_update code must not be placed in RAM
@@ -366,15 +358,9 @@ void eeprom_copy_to_flash(void)
   // thing to run before a reboot occurs we don't have to worry about inter-
   // ferring with operation of other runtime code.
   //
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // NOTE: MIGHT BE ABLE TO SIMPLIFY THINGS BY SIMPLY MAKING THE UIP_BUF 512
-  // BYTES LONG. THE MQTT VERSION OF THE APPLICATION IS SHORT OF RAM SO IT
-  // MIGHT HAVE TO BE MODIFIED TO REDUCE RAM USAGE IN SOME OTHER AREA.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // I thought about simply making the uip_buf 512 bytes long, but that wastes
+  // RAM in the non-upgradeable versions. So since it doesn't matter that we
+  // encroach on the Stack area this seems the best solution.
   
   ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
   eeprom_index = eeprom_base;
@@ -383,6 +369,12 @@ void eeprom_copy_to_flash(void)
   // by the routine that calls this function. Note that when Flash is written
   // the STM8 hardware will stall code execution until the write completes.
   // This typically takes 6ms per write.
+  
+  // Memory map in 128 byte blocks:
+  //  Blocks 0 to 248 (249 blocks) are the main program memory.
+  //  Blocks 249 to 252 (4 blocks) are "pragma section (flash_update)".
+  //  Blocks 253-255 (3 blocks) are reserved for user data storage and are
+  //    only written when the user makes GUI input changes.
   
   blocks = 0;
   while (blocks < 249 ) {
@@ -468,16 +460,27 @@ void eeprom_copy_to_flash(void)
   }
 
 
+  // Prevent the IWDG hardware watchdog from firing.
+  IWDG_KR = 0xaa;
+  
   // Copy 512 bytes of data from RAM to Flash
   ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
-  copy_ram_to_flash();
-  copy_ram_to_flash();
-  copy_ram_to_flash();
-  copy_ram_to_flash();
+  copy_ram_to_flash(); // Each call to copy_ram_to_flash updates the pointers
+  copy_ram_to_flash(); // so the next call writes the next contiguous 128 byte
+  copy_ram_to_flash(); // block.
+  copy_ram_to_flash(); //
   
-  // Flash was unlocked before this function was entered. It will re-lock as
-  // a result of the reboot that will occur during the following while().
-  while(1); // Wait here for IDWG to reset the module.
+  // Lock the Flash
+  FLASH_IAPSR &= (uint8_t)(~0x02);
+  
+  // Set the Window Watchdog to reboot the module
+  WWDG_WR = (uint8_t)0x7f;     // Window register reset
+  WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
+  WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
+                               // much as we plan to reset
+
+  // Wait here for WWDG to reset the module.
+  while(1);
 }
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -499,7 +502,8 @@ void copy_ram_to_flash(void)
   // The segment is relocatable and must be run from RAM as a requirement of
   // the STM8 hardware. The _fctcpy function is used to copy this segment to
   // RAM in a way that allows the function to be called from code running in
-  // Flash.
+  // Flash. So, when updating Flash the first thing that happens is this
+  // is copied to RAM, then Flash code updates start.
     
   // The following must be defined in global memory before calling the
   // function:

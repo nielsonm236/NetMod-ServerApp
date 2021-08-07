@@ -348,7 +348,8 @@ uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
 {
   register struct uip_conn *conn, *cconn;
   
-  // Find an empty connection table entry to use
+  // Find an empty connection table entry to use. An "empty connection" is
+  // essentially just a connection that is "closed".
   conn = 0;
   for(c = 0; c < UIP_CONNS; ++c) {
     cconn = &uip_conns[c];

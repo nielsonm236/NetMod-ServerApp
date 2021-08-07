@@ -51,7 +51,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210719 2017"; // Normal Release Revision
+const char code_revision[] = "20210807 1544"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -69,44 +69,15 @@ const char code_revision[] = "20210719 2017"; // Normal Release Revision
 // into the variable storage RAM, or that a "wild pointer" may have caused
 // writes to RAM to exceed the space allocated to RAM.
 //
+// The following creates the two variables in a special section named
+// ".iconst". The linker needs to be told where to place this section in
+// memory. See the main.h file for the required directives in the .lkf file
+// (the linker file).
 #pragma section @near [iconst]
 uint8_t stack_limit1;
 uint8_t stack_limit2;
 #pragma section @near []
-//
-// The above creates the two variables in a special section named ".iconst".
-// The linker needs to be told where to place this section in memory. The
-// following directive needs to be placed in the linker file before the
-// object file where the variables are declared. This directive will place
-// the two stack limit variables at 0x5fe and 0x5ff.
-//   +seg .iconst -b 0x5fe -n .iconst
-//
-// For reference the +seg part of the .lkf file for this project looks like
-// this:
-//
-// +seg .vector -b 0x8000 -m 0x8000 -n .vector	# vectors start address
-// -k
-// +seg .const -a .vector -n .const		# constants follow vectors
-// +seg .text -a .const -n .text		# code follow constants
-// +seg .eeprom -b 0x4000 -m 128		# internal eeprom
-// +seg .bsct -b 0 -m 0x100 -n .bsct		# internal ram
-// +seg .ubsct -a .bsct -n .ubsct
-// +seg .bit -a .ubsct -n .bit -id
-// +seg .data -a .bit -m 0x800 -n .data
-// +seg .bss -a .data -n .bss
-// +seg .iconst -b 0x5fe -n .iconst
-//
-// NOTE: To enable editing the Linker .lkf file in IdeaSTM8 you must first
-// edit the .prjsm8 file. Make sure the following line is in the .prjsm8
-// file:
-//   LinkFileAutomatic=NO
-// When you first install IdeaSTM8 the default is for the program to auto
-// generate the .lkf file each time a build is done. This is useful because
-// it creates all the linker commands you typically need. However, when you
-// reach the point that you need to make your own changes to the .lkf file
-// edit access is disabled until the LinkFileAutomatic line is modified.
 //---------------------------------------------------------------------------//
-
 
 
 //---------------------------------------------------------------------------//
@@ -191,6 +162,7 @@ uint8_t stack_limit2;
 uint8_t debug[10];
 //---------------------------------------------------------------------------//
 #endif // DEBUG_SUPPORT
+
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 // Define Flash addresses for IO Names and IO Timers
@@ -395,7 +367,7 @@ uint8_t redefine_temp_sensors;   // Used to trigger the temperature
 // #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-extern uint8_t find_content_type;    // Signals that a file is contained
+// extern uint8_t find_content_type;    // Signals that a file is contained
                                      // within a POST
 extern uint8_t upgrade_failcode;     // Failure codes for Flash upgrade
                                      // process
@@ -413,8 +385,15 @@ extern uint8_t eeprom_num_write;     // Used in code update routines
 extern uint8_t eeprom_num_read;      // Used in code update routines
 extern uint16_t eeprom_base;         // Used in code update routines
 uint8_t eeprom_detect;               // Used in code update routines
-				     
+
 #endif // OB_EEPROM_SUPPORT == 1
+
+
+#if I2C_SUPPORT == 1
+extern uint8_t I2C_failcode;         // Used in monitoring I2C transactions
+#endif // I2C_SUPPORT == 1
+
+
 
 
 //---------------------------------------------------------------------------//
@@ -476,6 +455,23 @@ int main(void)
                                          // disconnect event counter
 
 
+#if I2C_SUPPORT == 1
+  // Initialize error reporting for I2C
+  I2C_failcode = I2C_FAIL_NULL;
+#endif // I2C_SUPPORT == 1
+
+
+#if OB_EEPROM_SUPPORT == 1
+  // Intialize the Update Support variables
+  eeprom_copy_to_flash_request = I2C_COPY_EEPROM_IDLE;
+  check_I2C_EEPROM_ctr = 0;
+  flash_mismatch = 0;
+#endif // OB_EEPROM_SUPPORT == 1
+
+
+
+
+
   clock_init();            // Initialize and enable clocks and timers
 
   upgrade_EEPROM();        // Check for down revision EEPROM and upgrade if
@@ -488,14 +484,19 @@ int main(void)
 			   // gpio_init() uses settings in the EEPROM and we
 			   // need to make sure it is up to date.
 
-
 #if DEBUG_SUPPORT != 0
   // Restore the saved debug statistics
   restore_eeprom_debug_bytes();
 #endif // DEBUG_SUPPORT
 
   gpio_init();             // Initialize and enable gpio pins
-  
+    
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+  // Initialize the UART for debug output
+  // Note: gpio_init() must be called prior to this call
+  InitializeUART();
+#endif // DEBUG_SUPPORT
+
   spi_init();              // Initialize the SPI bit bang interface to the
                            // ENC28J60 and perform hardware reset on ENC28J60
 
@@ -510,30 +511,6 @@ int main(void)
   HttpDInit();             // Initialize listening ports
   
   HttpDStringInit();       // Initialize HttpD string sizes
-
-  
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-  // If UART debug support is enabled the following code forces IO 11 to
-  // an output state and keeps it that way. The UART code will operate
-  // the pin for IO 11 as needed for UART transmit to a terminal.
-  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // Set pin 11 to output/enabled
-  // Update the stored_pin_control[] variables
-  unlock_eeprom();
-  if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
-  lock_eeprom();
-  // For UART mode Port D Bit 5 needs to be set to Output / Push-Pull /
-  // 10MHz slope
-  PD_ODR |= 0x20; // Set Output data to 1
-  PD_DDR |= 0x20; // Set Output mode
-  PD_CR1 |= 0x20; // Set Push-Pull
-  PD_CR2 |= 0x20; // Set 10MHz
-#endif // DEBUG_SUPPORT
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-  // Initialize the UART for debug output
-  InitializeUART();
-#endif // DEBUG_SUPPORT
-
 
   {
     int i;
@@ -558,19 +535,6 @@ int main(void)
   }
   // Initialize the redefine temp sensors control
   redefine_temp_sensors = 0;
-
-
-#if OB_EEPROM_SUPPORT == 1
-  // Intialize the Update Support variables
-  eeprom_copy_to_flash_request = I2C_COPY_EEPROM_IDLE;
-  check_I2C_EEPROM_ctr = 0;
-  flash_mismatch = 0;
-#endif // OB_EEPROM_SUPPORT == 1
-
-#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-  // Intialize the Code Uploader variables
-  find_content_type = SEEK_CONTENT_TYPE;
-#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -862,10 +826,9 @@ int main(void)
     if (t100ms_timer_expired()) {
       t100ms_ctr1++;     // Increment the 100ms counter. ctr1 is used in the
                          // restart/reboot process. Normally the counter is
-			 // not used and will just roll over every 256
-			 // counts. Any code that uses crt1 must reset it to
-			 // zero then compare to a value needed for a
-			 // timeout.
+			 // not used and will just roll over every 2^32
+			 // counts. Any code that uses crt1 should reset it to
+			 // zero then compare to a value needed for a timeout.
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
       decrement_pin_timers(); // Decrement the pin_timers every 100ms
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
@@ -906,24 +869,23 @@ int main(void)
 
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-    // Check for a request to copy the Off-Board EEPROM0 to Flash. The request
-    // is automatically generated by the process that uploads the user
-    // specified file after the file is copied to the Off-Board EEPROM.
-    // Block the request if no EEPROM was detected.
-    // Block the request if an error occurred during SREC download.
+    // Check for a request to copy the Off-Board EEPROM0 to Flash.
+    // The request is automatically generated by the process that uploads the
+    // user specified file after the file is copied to the Off-Board EEPROM.
+    // The request is also generated if the user presses the Restore button
+    // (generating a /73 command) while in the Uploader GUI.
+    // Block the request if no EEPROM was detected or if an error occurred
+    // during SREC download.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_WAIT;
-      check_I2C_EEPROM_ctr = second_counter;
+      check_I2C_EEPROM_ctr = t100ms_ctr1;
     }
-    // Pause for 2 seconds for browser update
+    // Give main loop 500ms for browser update
     if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_WAIT) &&
-        (second_counter > (check_I2C_EEPROM_ctr + 2))) {
+        (t100ms_ctr1 > (check_I2C_EEPROM_ctr + 5))) {
       unlock_flash();
       // eeprom_copy_to_flash will cause a reboot on completion of the
       // function.
-
-// UARTPrintf("Calling eeprom_copy_to_flash for EEPROM0\r\n");
-
       // Set values needed by eeprom_copy_to_flash()
       eeprom_num_write = I2C_EEPROM0_WRITE;
       eeprom_num_read = I2C_EEPROM0_READ;
@@ -935,19 +897,16 @@ int main(void)
       // eeprom_copy_to_flash() function will call the function in
       // the memcpy_update segment from RAM.
       if (_fctcpy ('m') == 0) {
-// UARTPrintf("eeprom0 fctcpy failed\r\n");
+        // UARTPrintf("eeprom0 fctcpy failed\r\n");
       }
       else {
-// UARTPrintf("eeprom0 fctcpy success\r\n");
+        // UARTPrintf("eeprom0 fctcpy success\r\n");
       }
-      
+
       if (eeprom_detect == 1 && upgrade_failcode == UPGRADE_OK) {
         eeprom_copy_to_flash();
       }
       lock_flash();
-
-// UARTPrintf("Completed eeprom_copy_to_flash for EEPROM0\r\n");
-
     }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
@@ -958,12 +917,12 @@ int main(void)
     // Block the request if no EEPROM was detected.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_WAIT;
-      check_I2C_EEPROM_ctr = second_counter;
+      check_I2C_EEPROM_ctr = t100ms_ctr1;
 // UARTPrintf("\r\nCmd 72 waiting\r\n");
     }
-    // Pause for 2 seconds for browser update
+    // Give main loop 500ms for browser update
     if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_WAIT) &&
-        (second_counter > (check_I2C_EEPROM_ctr + 2))) {
+        (t100ms_ctr1 > (check_I2C_EEPROM_ctr + 5))) {
 // UARTPrintf("\r\nCmd 72 executing\r\n");
       unlock_flash();
       // eeprom_copy_to_flash will cause a reboot on completion of the
@@ -1173,16 +1132,16 @@ uint8_t compare_flash_to_EEPROM1(void)
     fail = 1;
   }
   
-  if (fail == 0) {
+// if (fail == 0) {
 // UARTPrintf("\r\nEEPROM1 matches Flash\r\n");
-  }
-  else {
+// }
+// else {
 // UARTPrintf("\r\nEEPROM1 doesn't match Flash\r\n");
 // UARTPrintf("  Miscompare at: ");
 // emb_itoa(i, OctetArray, 16, 4);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-  }
+// }
   return fail;
 }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -1238,12 +1197,12 @@ uint8_t compare_flash_to_EEPROM0(void)
     fail = 1;
   }
   
-  if (fail == 0) {
-//    UARTPrintf("\r\nEEPROM0 matches Flash\r\n");
-  }
-  else {
-//     UARTPrintf("\r\nEEPROM0 doesn't match Flash\r\n");
-  }
+// if (fail == 0) {
+// UARTPrintf("\r\nEEPROM0 matches Flash\r\n");
+// }
+// else {
+// UARTPrintf("\r\nEEPROM0 doesn't match Flash\r\n");
+// }
   return fail;
 }
 #endif // OB_EEPROM_SUPPORT == 1
@@ -1259,51 +1218,51 @@ void copy_code_uploader_to_EEPROM1(void)
   // IO_NAMES area of memory.
   uint16_t i;
   uint16_t address_index;
-  char * flash = (char *)FLASH_START_PROGRAM_MEMORY;
   uint8_t I2C_last_flag;
   uint8_t temp_byte;
 
+  flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
   address_index = I2C_EEPROM1_BASE;
 
-UARTPrintf("\r\nCopying Code Uploader from Flash to off-board EEPROM1\r\n");
+// UARTPrintf("\r\nCopying Code Uploader from Flash to off-board EEPROM1\r\n");
 
   I2C_reset();
   wait_timer(1000); // Wait 1 ms
   
   while (address_index < FLASH_START_USER_RESERVE) {
-    // Note for above "while" statement: address_index will be incremented
-    // by 128 with each loop.
+    // Note for "while" statement: address_index will be incremented by 128
+    // with each loop.
 
-UARTPrintf(".");
+// UARTPrintf(".");
 
     I2C_control(I2C_EEPROM1_WRITE); // Send Write Control Byte for upper
                                     // Off-Board EEPROM area
     I2C_byte_address(address_index);
     for (i=0; i<128; i++) {
-      I2C_write_byte(*flash);
-      flash++;
+      I2C_write_byte(*flash_ptr);
+      flash_ptr++;
     }
     I2C_stop();
     wait_timer(5000); // Wait 5ms
     
     // Validate data in Off-Board EEPROM
-    flash -= 128;
+    flash_ptr -= 128;
     prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, address_index);
     I2C_last_flag = 0;
     for (i=0; i<128; i++) {
       if (i == 127) I2C_last_flag = 1;
       temp_byte = I2C_read_byte(I2C_last_flag);
 
-if (temp_byte != *flash) {
-UARTPrintf("\r\nCode Uploader copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
-}
-      flash++;
+// if (temp_byte != *flash) {
+// UARTPrintf("\r\nCode Uploader copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
+// }
+      flash_ptr++;
     }
     address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
 
-UARTPrintf("\r\nCode Uploader copy complete\r\n");
+// UARTPrintf("\r\nCode Uploader copy complete\r\n");
 }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
@@ -1325,13 +1284,13 @@ void copy_flash_to_EEPROM0(void)
   // the SWIM interface.
   uint8_t i;
   uint16_t address_index;
-  char * flash = (char *)FLASH_START_PROGRAM_MEMORY;
   uint8_t I2C_last_flag;
   uint8_t temp_byte;
 
+  flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
   address_index = I2C_EEPROM0_BASE;
 
-UARTPrintf("\r\nCopying Flash to off-board EEPROM0\r\n");
+// UARTPrintf("\r\nCopying Flash to off-board EEPROM0\r\n");
 
   I2C_reset();
   wait_timer(1000); // Wait 1 ms
@@ -1339,29 +1298,29 @@ UARTPrintf("\r\nCopying Flash to off-board EEPROM0\r\n");
 //  while (address_index < (FLASH_START_USER_RESERVE - 0x8000)) {
   while (address_index < OFFSET_TO_FLASH_START_USER_RESERVE) {
 
-UARTPrintf(".");
+// UARTPrintf(".");
 
     I2C_control(I2C_EEPROM0_WRITE);
     I2C_byte_address(address_index);
     for (i=0; i<128; i++) {
-      I2C_write_byte(*flash);
-      flash++;
+      I2C_write_byte(*flash_ptr);
+      flash_ptr++;
     }
     I2C_stop();
     wait_timer(5000); // Wait 5 ms
     
     // Validate data in Off-Board EEPROM
-    flash -= 128;
+    flash_ptr -= 128;
     prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, address_index);
     I2C_last_flag = 0;
     for (i=0; i<128; i++) {
       if (i == 127) I2C_last_flag = 1;
       temp_byte = I2C_read_byte(I2C_last_flag);
 
-if (temp_byte != *flash) {
-UARTPrintf("\r\nFlash copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
-}
-    flash++;
+// if (temp_byte != *flash) {
+// UARTPrintf("\r\nFlash copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
+// }
+    flash_ptr++;
     }
     address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
@@ -1786,13 +1745,13 @@ void mqtt_startup(void)
 	  // Pin is an Enabled Input pin
 	  if (auto_discovery_step == SEND_OUTPUT_DELETE) {
             // Create Output pin delete msg.
-            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE, 0);
+            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE_IOT, 0);
 	    auto_discovery_step = SEND_INPUT_DEFINE;
 	  }
 	  
 	  else if (auto_discovery_step == SEND_INPUT_DEFINE) {
             // Create Input pin define msg.
-            send_IOT_msg(pin_ptr, INPUTMSG, DEFINE, 0);
+            send_IOT_msg(pin_ptr, INPUTMSG, DEFINE_IOT, 0);
 	    
 	    if (pin_ptr == 16) {
 	      pin_ptr = 1;
@@ -1828,13 +1787,13 @@ void mqtt_startup(void)
 	  // Pin is an Enabled Output pin
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
-            send_IOT_msg(pin_ptr, INPUTMSG, DELETE, 0);
+            send_IOT_msg(pin_ptr, INPUTMSG, DELETE_IOT, 0);
 	    auto_discovery_step = SEND_OUTPUT_DEFINE;
 	  }
 	  
 	  else if (auto_discovery_step == SEND_OUTPUT_DEFINE) {
             // Create Output pin define msg.
-            send_IOT_msg(pin_ptr, OUTPUTMSG, DEFINE, 0);
+            send_IOT_msg(pin_ptr, OUTPUTMSG, DEFINE_IOT, 0);
 	    
 	    if (pin_ptr == 16) {
 	      pin_ptr = 1;
@@ -1867,13 +1826,13 @@ void mqtt_startup(void)
 	  // Pin is Disabled
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
-            send_IOT_msg(pin_ptr, INPUTMSG, DELETE, 0);
+            send_IOT_msg(pin_ptr, INPUTMSG, DELETE_IOT, 0);
 	    auto_discovery_step = SEND_OUTPUT_DELETE;
 	  }
 	  
 	  else if (auto_discovery_step == SEND_OUTPUT_DELETE) {
             // Create Output pin delete msg.
-            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE, 0);
+            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE_IOT, 0);
 	    
 	    if (pin_ptr == 16) {
               auto_discovery = DEFINE_TEMP_SENSORS;
@@ -1992,7 +1951,7 @@ void define_temp_sensors(void)
   if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
     // Create temperature sensor delete msg for every entry in the
     // FoundROM table
-    send_IOT_msg(sensor_number, TMPRMSG, DELETE, 0);
+    send_IOT_msg(sensor_number, TMPRMSG, DELETE_IOT, 0);
     if (sensor_number == 4) {
       sensor_number = 0;
       auto_discovery_step = SEND_TEMP_SENSOR_DELETE2;
@@ -2003,7 +1962,7 @@ void define_temp_sensors(void)
   else if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE2) {
     // Create temperature sensor delete msg for every entry in the
     // temp_FoundROM table
-    send_IOT_msg(sensor_number, TMPRMSG, DELETE, 1);
+    send_IOT_msg(sensor_number, TMPRMSG, DELETE_IOT, 1);
       
     if (sensor_number == 4) {
       sensor_number = 0;
@@ -2025,7 +1984,7 @@ void define_temp_sensors(void)
       // If the test is true Temperature Sensors are enabled and a
       // sensor is defined.
       // Send Temp Sensor define messages.
-      send_IOT_msg(sensor_number, TMPRMSG, DEFINE, 0);
+      send_IOT_msg(sensor_number, TMPRMSG, DEFINE_IOT, 0);
     }
       
     if (sensor_number == 4) {
@@ -2114,7 +2073,7 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel, uint8_t flag)
   strcat(topic_base, "/config");
       
   // If deleting the pin or sensor replace the app_message with NULL
-  if (DefOrDel == DELETE) app_message[0] = '\0';
+  if (DefOrDel == DELETE_IOT) app_message[0] = '\0';
 
   // Send the message
   // Note: This message will be intercepted in the mqtt_pal.c 
@@ -3250,8 +3209,6 @@ void check_eeprom_settings(void)
       FLASH_CR2 |= FLASH_CR2_WPRG;
       FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
       memcpy(&IO_TIMER[i], 0, 4);
-      // Poll the IAPSR_EOP bit to make sure the write to the Flash
-      // completed.
       i += 4;
     }
 
@@ -3486,7 +3443,7 @@ void check_runtime_changes(void)
   // values in EEPROM.
 
   uint8_t update_EEPROM;
-  uint32_t temp_pin_timer;
+//  uint32_t temp_pin_timer;
 
   unlock_eeprom();
 
@@ -3855,19 +3812,6 @@ void check_runtime_changes(void)
     // Check for changes in the IP Address, Gateway Address,
     // Netmask, and MQTT Server IP Address. Combined into one
     // loop for code size reduction.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// This performa a lot more EEPROM writes than needed. Since 4 bytes are
-// always written it would be better to reorganize the EEPROM so that all
-// of these values are stored on 4 byte boundaries and, if a write is
-// needed, to write a 4 byte word only once instead of writing a byte at
-// a time. Changing the method may also be overkill, as these bytes change
-// very infrequently, and the EEPROM can be written hundreds of thousands
-// of times.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     {
       int i;
       for (i=0; i<4; i++) {
@@ -4384,10 +4328,10 @@ uint32_t calculate_timer(uint16_t timer_value)
   //   If units = 1h   pin_timer = IO_TIMER Value * 10 * 60 * 60
   //   (note for manual: Any setting selected may be up to 100ms
   //    longer that the selected value)
-  if ((timer_value & 0xc000) == 0x0000) return (uint32_t)((timer_value & 0x3fff));
-  if ((timer_value & 0xc000) == 0x4000) return (uint32_t)(((timer_value & 0x3fff) * 10));
-  if ((timer_value & 0xc000) == 0x8000) return (uint32_t)(((timer_value & 0x3fff) * 600));
-  if ((timer_value & 0xc000) == 0xc000) return (uint32_t)(((timer_value & 0x3fff) * 36000));
+  if ((timer_value & 0xc000) == 0x0000) return (uint32_t)(           (timer_value & 0x3fff)          );
+  if ((timer_value & 0xc000) == 0x4000) return (uint32_t)(((uint32_t)(timer_value & 0x3fff) * 10U)   );
+  if ((timer_value & 0xc000) == 0x8000) return (uint32_t)(((uint32_t)(timer_value & 0x3fff) * 600U)  );
+  if ((timer_value & 0xc000) == 0xc000) return (uint32_t)(((uint32_t)(timer_value & 0x3fff) * 36000U));
   return 0;
 }
 

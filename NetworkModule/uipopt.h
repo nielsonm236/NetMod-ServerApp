@@ -206,7 +206,7 @@
 //  - Controls inclusion of Debug support
 //  - Controls inclusion of the Independent Watchdog
 //  - Controls inclusion of MQTT functionality
-//  - Controls "Browser Only" build type
+//  - Controls "MQTT" vs "Browser Only" vs "Code Uploader" build type
 
 
 // UIP_STATISTICS
@@ -258,7 +258,7 @@
 // * Specific debug data: Reset Status Register counters, TXERIF counter,
 //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
 
-#define DEBUG_SUPPORT 11
+#define DEBUG_SUPPORT 15
 
 
 // IWDG_ENABLE
@@ -286,9 +286,9 @@
 //   Code Uploader requires additional hardware in the form of an off-board I2C
 //   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
 // Un-comment ONLY ONE of the following:
-// #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
+#define BUILD_SUPPORT     BROWSER_ONLY_BUILD
 // #define BUILD_SUPPORT     MQTT_BUILD
-#define BUILD_SUPPORT     CODE_UPLOADER_BUILD
+// #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 
 
 // I2C_SUPPORT
@@ -297,7 +297,7 @@
 // and clock pins.
 // 0 = Not supported
 // 1 = Supported
-#define I2C_SUPPORT 1
+#define I2C_SUPPORT 0
 
 
 // OB_EEPROM_SUPPORT
@@ -320,7 +320,7 @@
 //    b) Load the Runtime code
 // 0 = Not supported
 // 1 = Supported
-#define OB_EEPROM_SUPPORT 1
+#define OB_EEPROM_SUPPORT 0
 
 
 // DEBUG_SENSOR_SERIAL

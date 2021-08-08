@@ -611,6 +611,9 @@ void FindDevices(void)
   
   numROMs = -1; // -1 indicates no devices
   if (!reset_pulse()) {  //Begins when a presence is detected
+
+UARTPrintf("\r\nPresence detected\r\n");
+
     if (First()) {       //Begins when at least one part is found
       do {
         numROMs++; // On first pass this increments numROMs to index 0
@@ -629,6 +632,15 @@ void FindDevices(void)
       }
     }
   }
+
+UARTPrintf("\r\nDS18B20 FindDevices numROMs = ");
+if (numROMs >= 0) {
+  emb_itoa(numROMs, OctetArray, 10, 2);
+  UARTPrintf(OctetArray);
+}
+else if (numROMs == -1) UARTPrintf("-1");
+else UARTPrintf("unitialized");
+UARTPrintf("\r\n");
 }
 
 
@@ -705,9 +717,27 @@ uint8_t Next(void)
       }
     }
   } while(n < 8); //loop until through all ROM bytes 0-7
-  
+
+
+{
+uint8_t i;
+UARTPrintf("\r\nROM bytes: ");
+for (i=0; i<8; i++) {
+  emb_itoa(ROM[i], OctetArray, 16, 2);
+  UARTPrintf(OctetArray);
+  UARTPrintf(" ");
+}
+UARTPrintf("\r\n");
+}
+
   // Calculate CRC for first 8 ROM bytes
   crc = dallas_crc8(ROM, 8);
+
+UARTPrintf("\r\nDS18B20 CRC:");
+if (crc != ROM[7]) UARTPrintf("Fail");
+else UARTPrintf("Pass");
+UARTPrintf("\r\n");
+
   
   if (m < 65 || (crc != ROM[8])) lastDiscrep = 0;
     // if search was unsuccessful then reset the last discrepancy to 0
@@ -724,7 +754,7 @@ uint8_t Next(void)
 uint8_t dallas_crc8(uint8_t *data, uint8_t size)
 {
     // Calculate CRC with Dallas Semi algorithm
-    // CRC requires 86 bytes of Flash
+    // CRC calculation requires 86 bytes of Flash
     int i;
     int j;
     uint8_t inbyte;

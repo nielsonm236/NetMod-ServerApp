@@ -3467,8 +3467,8 @@ void check_runtime_changes(void)
 
   // Check the DS18B20 Enable bit. If enabled over-ride the pin_control byte
   // bits for IO 16 to force them to all zero. This forces the disabled
-  // state and makes sure all other bits are in a neutral condition should
-  // the DS18B20 be Disabled at some future time.
+  // state for IO 16 and makes sure all other bits are in a neutral condition
+  // should the DS18B20 be Disabled at some future time.
   if (Pending_config_settings & 0x08) {
     pin_control[15] = Pending_pin_control[15] = (uint8_t)0x00;
     // Update the stored_pin_control[] variables
@@ -4299,16 +4299,23 @@ void write_output_pins(void)
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // When DS18B20 mode is enabled do not write Output 16
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  if (stored_config_settings & 0x08) j = 15;
-  else j = 16;
+//  if (stored_config_settings & 0x08) j = 15;
+//  else j = 16;
+  j = 16;
 
-#if I2C_SUPPORT == 1
+//#if I2C_SUPPORT == 1
 // THIS IS A TEMPORARY WORKAROUND TO TEST I2C SUPPORT
-j = 13;
-#endif // I2C_SUPPORT
+//j = 13;
+//#endif // I2C_SUPPORT
 
-  // loop across all i/o and set or clear them according to the mask
+  // Loop across all IO and set or clear them according to the mask
+  // Skip IO pins that are being used for I2C or DS18B20  
   for (i=0; i<j; i++) {
+#if I2C_SUPPORT == 1
+    if (i == 13) continue;
+    if (i == 14) continue;
+#endif // I2C_SUPPORT
+    if (i == 15 && (stored_config_settings & 0x08)) break;
     if (xor_tmp & (1 << i))
       io_reg[ io_map[i].port ].odr |= io_map[i].bit;
     else

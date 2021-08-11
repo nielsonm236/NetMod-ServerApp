@@ -78,6 +78,31 @@ struct tHttpD
   uint16_t nPrevBytes;
   uint8_t current_webpage;
   uint8_t insertion_index;
+  
+// nState		Tracks the parsing state of a POST and subsequent
+//			response to the Browser
+// pData		Pointer to the webpage data to be transmitted
+// nDataLeft		Tracks the data remaining to be transmitted from a
+//			page pointed to by pData
+// nNewlines		Tracks discovery of the \r\n\r\n sequence in a
+//			received POST
+// nParseLeft		Tracks parsing of POST data
+// ParseCmd		Contains the Cmd part of a variable sequence when
+//			parsing a POST, and used to store the Mode part of
+//			a transmit sequence when bridging a packet sequence
+//			when transmitting a webpage.
+// ParseNum		Contains the Num parter of a variable sequence when
+//			parsing a POST, and used to store the Num part of
+//			a transmit sequence when bridging a packet sequence
+//			when transmitting a webpage.
+// ParseState		Tracks the state of a POST parsing process to allow
+//			bridging of TCP Fragmentation.
+// nPrevBytes		Used in the case of uip_rexmit to determine if the
+//			header needs to be retransmitted.
+// current_webpage	Tracks the current webpage being displaed in the GUI.
+// insertion_index	Tracks the position in a "long string" being trans-
+//			mitted in a webpage to allow bridging of TCP Frag-
+//			mentation.
 };
 
 

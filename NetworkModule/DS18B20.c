@@ -479,6 +479,10 @@ int reset_pulse()
   // The pulse must be a minimum of 480us
   int rtn;
   
+//  PC_ODR |= 0x40;           // write IO ODR to 1
+//  PC_DDR |= 0x40;           // write IO DDR to output
+//  PC_ODR &= (uint8_t)~0x40; // write IO ODR to 0
+//  wait_timer(500);          // wait 500us
   one_wire_low(100);        // Drive one-wire low, wait 50 us
   wait_timer(450);          // wait additional 450 us
   PC_DDR &= (uint8_t)~0x40; // write IO DDR to input (float high)
@@ -537,6 +541,10 @@ int read_bit()
 
   bit = 0;
 
+//  PC_ODR |= 0x40;            // write IO ODR to 1
+//  PC_DDR |= 0x40;            // write IO DDR to output
+//  PC_ODR &= (uint8_t)~0x40;  // write IO ODR to 0
+//  for (nop_cnt=0; nop_cnt<4; nop_cnt++) nop(); // Provides a 1us pulse
   one_wire_low(4);           // drive one-wire low, wait 2us
   PC_DDR &= (uint8_t)~0x40;  // write IO DDR to input (float high)
   for (nop_cnt=0; nop_cnt<30; nop_cnt++) nop(); // Wait 15us
@@ -561,6 +569,10 @@ void write_bit(uint8_t transmit_bit)
   //   15us before returning to the calling routine. To reduce code size we
   //   will wait 60us.
   
+//  PC_ODR |= 0x40;              // write IO ODR to 1
+//  PC_DDR |= 0x40;              // write IO DDR to output
+//  PC_ODR &= (uint8_t)~0x40;    // write IO ODR to 0
+//  for (i=0; i<10; i++) nop();  // If sending a 1 just provide 5us low time
   one_wire_low(10);            // drive one wire low, wait 5us
   if (!(transmit_bit)) wait_timer(60); // If sending a 0 provide additional
                                        // 60us low time
@@ -578,9 +590,9 @@ void one_wire_low(int wait)
   // 100 us.
   int i;
   PC_ODR |= 0x40;               // write IO ODR to 1
-  PC_DDR |= 0x40;               // write IO DDR to output
-  PC_ODR &= (uint8_t)~0x40;     // write IO ODR to 0
-  for (i=0; i<wait; i++) nop(); // wait time = wait / 2 us
+  PC_DDR |= 0x40;               // write IO DDR to output (drive output high)
+  PC_ODR &= (uint8_t)~0x40;     // write IO ODR to 0 (drive output low)
+  for (i=0; i<wait; i++) nop(); // wait time = (wait / 2) us
 }
 
 
@@ -612,7 +624,7 @@ void FindDevices(void)
   numROMs = -1; // -1 indicates no devices
   if (!reset_pulse()) {  //Begins when a presence is detected
 
-UARTPrintf("\r\nPresence detected\r\n");
+// UARTPrintf("\r\nPresence detected\r\n");
 
     if (First()) {       //Begins when at least one part is found
       do {
@@ -633,14 +645,14 @@ UARTPrintf("\r\nPresence detected\r\n");
     }
   }
 
-UARTPrintf("\r\nDS18B20 FindDevices numROMs = ");
-if (numROMs >= 0) {
-  emb_itoa(numROMs, OctetArray, 10, 2);
-  UARTPrintf(OctetArray);
-}
-else if (numROMs == -1) UARTPrintf("-1");
-else UARTPrintf("unitialized");
-UARTPrintf("\r\n");
+// UARTPrintf("\r\nDS18B20 FindDevices numROMs = ");
+// if (numROMs >= 0) {
+//   emb_itoa(numROMs, OctetArray, 10, 2);
+//   UARTPrintf(OctetArray);
+// }
+// else if (numROMs == -1) UARTPrintf("-1");
+// else UARTPrintf("unitialized");
+// UARTPrintf("\r\n");
 }
 
 
@@ -718,28 +730,27 @@ uint8_t Next(void)
     }
   } while(n < 8); //loop until through all ROM bytes 0-7
 
+// {
+// uint8_t i;
+// UARTPrintf("\r\nROM bytes: ");
+// for (i=0; i<8; i++) {
+//   emb_itoa(ROM[i], OctetArray, 16, 2);
+//   UARTPrintf(OctetArray);
+//   UARTPrintf(" ");
+// }
+// UARTPrintf("\r\n");
+// }
 
-{
-uint8_t i;
-UARTPrintf("\r\nROM bytes: ");
-for (i=0; i<8; i++) {
-  emb_itoa(ROM[i], OctetArray, 16, 2);
-  UARTPrintf(OctetArray);
-  UARTPrintf(" ");
-}
-UARTPrintf("\r\n");
-}
+  // Calculate CRC for first 7 ROM bytes
+  crc = dallas_crc8(ROM, 7);
 
-  // Calculate CRC for first 8 ROM bytes
-  crc = dallas_crc8(ROM, 8);
-
-UARTPrintf("\r\nDS18B20 CRC:");
-if (crc != ROM[7]) UARTPrintf("Fail");
-else UARTPrintf("Pass");
-UARTPrintf("\r\n");
+// UARTPrintf("\r\nDS18B20 CRC:");
+// if (crc != ROM[7]) UARTPrintf("Fail");
+// else UARTPrintf("Pass");
+// UARTPrintf("\r\n");
 
   
-  if (m < 65 || (crc != ROM[8])) lastDiscrep = 0;
+  if (m < 65 || (crc != ROM[7])) lastDiscrep = 0;
     // if search was unsuccessful then reset the last discrepancy to 0
   else {
     // Else search was successful, so set lastDiscrep, lastOne, nxt

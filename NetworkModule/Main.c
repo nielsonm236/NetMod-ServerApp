@@ -51,7 +51,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210807 1544"; // Normal Release Revision
+const char code_revision[] = "20210810 1514"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -877,6 +877,7 @@ int main(void)
     // Block the request if no EEPROM was detected or if an error occurred
     // during SREC download.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_REQUEST) {
+// UARTPrintf("\r\neeprom0_copy_to_flash_request received\r\n");
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_WAIT;
       check_I2C_EEPROM_ctr = t100ms_ctr1;
     }
@@ -892,10 +893,9 @@ int main(void)
       eeprom_base = I2C_EEPROM0_BASE;
       flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
       
-      // Call function to copy the Flash writer to RAM
-      // This will copy the memcpy_update segment to RAM, then the
-      // eeprom_copy_to_flash() function will call the function in
-      // the memcpy_update segment from RAM.
+      // The _fctcpy function will copy the memcpy_update segment to RAM, then
+      // the eeprom_copy_to_flash() function will call the copy_ram_to_flash()
+      // function in the memcpy_update segment from RAM.
       if (_fctcpy ('m') == 0) {
         // UARTPrintf("eeprom0 fctcpy failed\r\n");
       }
@@ -904,6 +904,8 @@ int main(void)
       }
 
       if (eeprom_detect == 1 && upgrade_failcode == UPGRADE_OK) {
+        // eeprom_copy_to_flash() will reprogram the Flash with the EEPROM
+	// contents. On completion of the copy the module will reboot.
         eeprom_copy_to_flash();
       }
       lock_flash();
@@ -913,7 +915,8 @@ int main(void)
 
 #if OB_EEPROM_SUPPORT == 1
     // Check for a request to copy the Off-Board EEPROM1 to Flash. The request
-    // is generated when the user inputs a /72 command.
+    // is generated when the user inputs a /72 command to start the Code
+    // Uploader.
     // Block the request if no EEPROM was detected.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_WAIT;
@@ -933,10 +936,9 @@ int main(void)
       eeprom_base = I2C_EEPROM1_BASE;
       flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
       
-      // Call function to copy the Flash writer to RAM
-      // This will copy the memcpy_update segment to RAM, then the
-      // eeprom_copy_to_flash() function will call the function in
-      // the memcpy_update segment from RAM.
+      // The _fctcpy function will copy the memcpy_update segment to RAM, then
+      // the eeprom_copy_to_flash() function will call the copy_ram_to_flash()
+      // function in the memcpy_update segment from RAM.
       if (_fctcpy ('m') == 0) {
 // UARTPrintf("eeprom1 fctcpy failed\r\n");
       }
@@ -944,7 +946,11 @@ int main(void)
 // UARTPrintf("eeprom1 fctcpy success\r\n");
       }
       
-      if (eeprom_detect) eeprom_copy_to_flash();
+      if (eeprom_detect) {
+        // eeprom_copy_to_flash() will reprogram the Flash with the EEPROM
+	// contents. On completion of the copy the module will reboot.
+        eeprom_copy_to_flash();
+      }
       lock_flash();
     }
 #endif // OB_EEPROM_SUPPORT == 1
@@ -3732,9 +3738,9 @@ void check_runtime_changes(void)
           if ((pin_control[i] & 0x01) != (Pending_pin_control[i] & 0x01)) {
             // There is a change:
 	    //   Signal an EEPROM update
-	    //   Signal a "reboot needed". Note that a reboot is really only
-	    //   needed if MQTT is enabled, but it will be done even if MQTT is
-	    //   not enabled to simplify code.
+	    //   Signal a "reboot needed". Note that in this case a reboot is
+	    //   really only needed if MQTT is enabled, but it will be done
+	    //   even if MQTT is not enabled to simplify code.
             update_EEPROM = 1;
             user_reboot_request = 1;
           }
@@ -3909,25 +3915,24 @@ void check_runtime_changes(void)
   lock_eeprom();
   
   
-  // Decide if a restart or reboot is needed. If both are set the
-  // reboot request will take precedence in the check_restart_reboot()
-  // function.
-  // Explanation of "user_reboot_request": This variable is used to
-  // communicate that the user pressed the Reboot button on the
-  // Configuration page. We can't just set "reboot_request" when the
-  // Reboot button click is detected in the httpd.c code because we
-  // need to make sure a restart or reboot isn't already occurring, and
-  // that check occurs here.
-  // Note: To simplify code user_reboot_request is also set when user
-  // changes are detected in the check_runtime_changes() function. This
-  // eliminates an additional check below.
+  // Decide if a restart or reboot is needed. If both are set the reboot
+  // request will take precedence in the check_restart_reboot() function.
+  //
+  // Explanation of "user_reboot_request": This variable is used to commun-
+  // icate that the user pressed a button in the GUI that signals the need
+  // to reboot. We can't just set "reboot_request" when the button click is
+  // detected because we need to make sure a restart or reboot isn't already
+  // occurring.
+  // Note: To simplify code user_reboot_request is also set when user changes
+  // are detected in the check_runtime_changes() function. This eliminates an
+  // additional check below.
   if (restart_request || user_reboot_request) {
     // Arm the restart function but first make sure we aren't already
     // performing a restart or reboot so we don't get stuck in a loop.
     if (restart_reboot_step == RESTART_REBOOT_IDLE) {
       restart_reboot_step = RESTART_REBOOT_ARM;
     }
-    if (user_reboot_request) { // Did user click on Reboot?
+    if (user_reboot_request) { // Did user request Reboot?
       user_reboot_request = 0;
       reboot_request = 1;
     }
@@ -3948,16 +3953,16 @@ void check_runtime_changes(void)
     fastflash();
     
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-  // Report the stack overflow bit
-  // Important - Verify that the correct debug[] byte is selected as
-  // these may have moved. Also check that this byte is reported in
-  // httpd.c for display in the Browser.
-  unlock_eeprom();
-  if (stack_error) {
-    debug[2] |= 0x80;
-    update_debug_storage1();
-  }
-  lock_eeprom();
+    // Report the stack overflow bit
+    // Important - Verify that the correct debug[] byte is selected as these
+    // may have moved. Also check that this byte is reported in httpd.c for
+    // display in the Browser.
+    unlock_eeprom();
+    if (stack_error) {
+      debug[2] |= 0x80;
+      update_debug_storage1();
+    }
+    lock_eeprom();
 #endif // DEBUG_SUPPORT
 
   }

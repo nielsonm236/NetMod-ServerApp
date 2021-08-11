@@ -267,8 +267,6 @@ uint32_t file_length;         // Length of the body (the file data) in a
 
 uint8_t z_diag;               // The last value in a POST (hidden), used for
                               // diagnostics
-// uint8_t current_webpage;      // Tracks the web page that is currently
-                              // displayed
 uint16_t HtmlPageIOControl_size;     // Size of the IOControl template
 uint16_t HtmlPageConfiguration_size; // Size of the Configuration template
 
@@ -323,8 +321,8 @@ extern int numROMs;                       // Count of DS18B20 devices found
 
 
 
-// Variables stored in Flash
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+// Variables stored in Flash
 // Define Flash addresses for IO Names and IO Timers
 extern uint16_t IO_TIMER[16] @FLASH_START_IO_TIMERS;
 extern char IO_NAME[16][16] @FLASH_START_IO_NAMES;
@@ -1910,7 +1908,6 @@ void init_off_board_string_pointers(struct tHttpD* pSocket) {
 
 #if OB_EEPROM_SUPPORT == 1
 
-//  if (current_webpage == WEBPAGE_IOCONTROL) {
   if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
 
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -1936,7 +1933,6 @@ void init_off_board_string_pointers(struct tHttpD* pSocket) {
     }
   }
       
-//  if (current_webpage == WEBPAGE_CONFIGURATION) {
   if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
 
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -2056,7 +2052,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   // A no-function check for current_webpage that allows the various options
   // to compile as "else if" statements.
   //-------------------------------------------------------------------------//
-//  if (current_webpage == WEBPAGE_NULL) { }
   if (pSocket->current_webpage == WEBPAGE_NULL) { }
 
 
@@ -2065,7 +2060,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   // Adjust the size reported by the WEBPAGE_IOCONTROL template
   //-------------------------------------------------------------------------//
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-//  else if (current_webpage == WEBPAGE_IOCONTROL) {
   else if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
     size = HtmlPageIOControl_size;
 
@@ -2170,7 +2164,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   // Adjust the size reported by the WEBPAGE_CONFIGURATION template
   //-------------------------------------------------------------------------//
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-//  else if (current_webpage == WEBPAGE_CONFIGURATION) {
   else if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
     size = HtmlPageConfiguration_size;
 
@@ -2304,7 +2297,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   // Adjust the size reported by the WEBPAGE_STATS1 template
   //-------------------------------------------------------------------------//
 #if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
-//  else if (current_webpage == WEBPAGE_STATS1) {
   else if (pSocket->current_webpage == WEBPAGE_STATS1) {
     size = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
 
@@ -2331,7 +2323,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   // Adjust the size reported by the WEBPAGE_STATS2 template
   //-------------------------------------------------------------------------//
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-//  else if (current_webpage == WEBPAGE_STATS2) {
   else if (pSocket->current_webpage == WEBPAGE_STATS2) {
     size = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
 
@@ -2358,7 +2349,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   // Adjust the size reported by the DEBUG_SENSOR_SERIAL template
   //-------------------------------------------------------------------------//
 #if DEBUG_SENSOR_SERIAL == 1
-//  else if (current_webpage == WEBPAGE_SENSOR_SERIAL) {
   else if (pSocket->current_webpage == WEBPAGE_SENSOR_SERIAL) {
     size = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
 
@@ -2378,7 +2368,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   // Adjust the size reported by the WEBPAGE_SSTATE template
   //-------------------------------------------------------------------------//
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-//  else if (current_webpage == WEBPAGE_SSTATE) {
   else if (pSocket->current_webpage == WEBPAGE_SSTATE) {
     size = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
     
@@ -2404,7 +2393,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_LOADUPLOADER template
   //-------------------------------------------------------------------------//
-//  else if (current_webpage == WEBPAGE_LOADUPLOADER) {
   else if (pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
     size = (uint16_t)(sizeof(g_HtmlPageLoadUploader) - 1);
     
@@ -2420,7 +2408,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_UPLOADER template
   //-------------------------------------------------------------------------//
-//  else if (current_webpage == WEBPAGE_UPLOADER) {
   else if (pSocket->current_webpage == WEBPAGE_UPLOADER) {
     size = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
 
@@ -2433,7 +2420,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_EXISTING_IMAGE template
   //-------------------------------------------------------------------------//
-//  else if (current_webpage == WEBPAGE_EXISTING_IMAGE) {
   else if (pSocket->current_webpage == WEBPAGE_EXISTING_IMAGE) {
     size = (uint16_t)(sizeof(g_HtmlPageExistingImage) - 1);
     
@@ -2446,7 +2432,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_TIMER template
   //-------------------------------------------------------------------------//
-//  else if (current_webpage == WEBPAGE_TIMER) {
   else if (pSocket->current_webpage == WEBPAGE_TIMER) {
     size = (uint16_t)(sizeof(g_HtmlPageTimer) - 1);
     
@@ -2459,7 +2444,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_UPLOAD_COMPLETE template
   //-------------------------------------------------------------------------//
-//  else if (current_webpage == WEBPAGE_UPLOAD_COMPLETE) {
   else if (pSocket->current_webpage == WEBPAGE_UPLOAD_COMPLETE) {
     size = (uint16_t)(sizeof(g_HtmlPageUploadComplete) - 1);
     
@@ -2472,7 +2456,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_PARSEFAIL template
   //-------------------------------------------------------------------------//
-//  else if (current_webpage == WEBPAGE_PARSEFAIL) {
   else if (pSocket->current_webpage == WEBPAGE_PARSEFAIL) {
     size = (uint16_t)(sizeof(g_HtmlPageParseFail) - 1);
     
@@ -2493,7 +2476,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_EEPROM_MISSING template
   //-------------------------------------------------------------------------//
-//  else if (current_webpage == WEBPAGE_EEPROM_MISSING) {
   else if (pSocket->current_webpage == WEBPAGE_EEPROM_MISSING) {
     size = (uint16_t)(sizeof(g_HtmlPageEEPROMMissing) - 1);
     
@@ -2749,7 +2731,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 
   //-------------------------------------------------------------------------//
 #if OB_EEPROM_SUPPORT == 1
-//  if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
   if (pSocket->current_webpage == WEBPAGE_IOCONTROL || pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
     // This code is applicable only when the Off-Board EERPOM is used to store
     // the IOControl and Configuration webpage templates.
@@ -2846,7 +2827,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 #endif // OB_EEPROM_SUPPORT == 0
 
 #if OB_EEPROM_SUPPORT == 1
-//        if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
         if (pSocket->current_webpage == WEBPAGE_IOCONTROL || pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
           {
             uint16_t i;
@@ -2923,7 +2903,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
           (*ppData)++;
           (*pDataLeft)--;
 #if OB_EEPROM_SUPPORT == 1
-//          if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
           if (pSocket->current_webpage == WEBPAGE_IOCONTROL || pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
 	    off_board_eeprom_index++;
             pre_buf_ptr++;
@@ -2937,7 +2916,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  nParsedMode = **ppData;
 #endif // OB_EEPROM_SUPPORT == 0
 #if OB_EEPROM_SUPPORT == 1
-//          if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
           if (pSocket->current_webpage == WEBPAGE_IOCONTROL || pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
 	    // Read 1 byte from pre_buf
 	    nParsedMode = pre_buf[pre_buf_ptr];
@@ -2950,13 +2928,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
           (*pDataLeft)--;
           
           // Collect the first digit of the "nParsedNum" which follows the
-	  // "nParseMode". This is the "tens" digit of the two character
+	  // "nParsedMode". This is the "tens" digit of the two character
 	  // nParsedNum.
 #if OB_EEPROM_SUPPORT == 0
 	  temp = **ppData;
 #endif // OB_EEPROM_SUPPORT == 0
 #if OB_EEPROM_SUPPORT == 1
-//          if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
           if (pSocket->current_webpage == WEBPAGE_IOCONTROL || pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
 	    // Read 1 byte from pre_buf
 	    temp = pre_buf[pre_buf_ptr];
@@ -2976,7 +2953,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  temp = **ppData;
 #endif // OB_EEPROM_SUPPORT == 0
 #if OB_EEPROM_SUPPORT == 1
-//          if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
           if (pSocket->current_webpage == WEBPAGE_IOCONTROL || pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
 	    // Read 1 byte from pre_buf
 	    temp = pre_buf[pre_buf_ptr];
@@ -3495,7 +3471,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
         *pDataLeft = *pDataLeft - 1;
         pBuffer++;
 #if OB_EEPROM_SUPPORT == 1
-//        if (current_webpage == WEBPAGE_IOCONTROL || current_webpage == WEBPAGE_CONFIGURATION) {
         if (pSocket->current_webpage == WEBPAGE_IOCONTROL || pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
           off_board_eeprom_index++;
 	  pre_buf_ptr++;
@@ -3775,8 +3750,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       if (memcmp("GET", &pBuffer[0], 3) == 0)  pSocket->nState = STATE_GOTGET;
       pBuffer += 4;
       nBytes -= 4;
-      // We are in STATE_NULL, which means we are collecting the first packet.
-      // Clear parse_tail so it will be ready if there is a TCP Fragment.
+      // We are collecting the first packet. Clear parse_tail so it will be
+      // ready if there is a TCP Fragment.
       parse_tail[0] = '\0';
 
 
@@ -3973,6 +3948,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	}
         else if ((pSocket->nNewlines == 2) && (find_content_info == SEEK_SECOND_RNRN)) {
 	  // Found second set of \r\n\r\n
+	  // Clear nNewlines for future searches
+	  pSocket->nNewlines = 0;
+	  
 	  // We are parsing a data file
 	  // The next character in the POST should be the first character of
 	  // the payload (in this case, the new program file).
@@ -4479,8 +4457,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // inefficient this will satisfy the browser's need for a
 	  // reply when it requests favicon.ico or whatever else it
 	  // requests that we don't have.
-          pSocket->nPrevBytes = 0xFFFF; // This is used to determine if the
-                                        // send header was successful
+          pSocket->nPrevBytes = 0xFFFF;
           pSocket->nState = STATE_SENDHEADER200;
 	  break;
 	}
@@ -4488,8 +4465,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         if (pSocket->nParseLeft == 0) {
           // Finished parsing ... even if nBytes is not zero
 	  // Send the response
-          pSocket->nPrevBytes = 0xFFFF; // This is used to determine if the
-                                        // send header was successful
+          pSocket->nPrevBytes = 0xFFFF;
           if (GET_response_type == 200) {
 	    // Update GUI with appropriate webpage
             pSocket->nState = STATE_SENDHEADER200;
@@ -4873,9 +4849,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	          pSocket->ParseState = PARSE_FILE_COMPLETE;
 		  
 		  continue; // Continue reading characters until end of file
-		 
-//		    break; // Exit the local while loop to end file processing.
-
 	        }
 	        else {
 	          // Throw away characters and continue search
@@ -5586,7 +5559,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // packet and then we return to this routine to read and deplete
 	      // that packet.
 	      // Also note that when file_length reaches zero file_nBytes should
-	      // also be zero if all is working correctly, 
+	      // also be zero if all is working correctly.
 	      
               // Read two characters from the data line
               pBuffer = read_two_characters(pBuffer);
@@ -5639,7 +5612,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       if (pSocket->ParseState == PARSE_FILE_COMPLETE && file_type == FILETYPE_PROGRAM) {
 
 // UARTPrintf("\r\n");
-// UARTPrintf("File Upload Complete - entering 3 second pause");
+// UARTPrintf("File Upload Complete - entering 500ms pause");
 // UARTPrintf("\r\n");
 
         // All data is now in Off-Board EEPROM0. Signal the main.c loop to
@@ -5651,9 +5624,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	pSocket->current_webpage = WEBPAGE_TIMER;
         pSocket->pData = g_HtmlPageTimer;
         pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageTimer) - 1);
+	
 	// Send the response
-        pSocket->nPrevBytes = 0xFFFF; // This is used to determine if the
-                                      // send header was successful
+        pSocket->nPrevBytes = 0xFFFF;
         pSocket->nState = STATE_SENDHEADER200;
       }
 
@@ -5661,7 +5634,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       if (pSocket->ParseState == PARSE_FILE_COMPLETE && file_type == FILETYPE_STRING) {
 
 // UARTPrintf("\r\n");
-// UARTPrintf("File Upload Complete - entering 3 second pause");
+// UARTPrintf("File Upload Complete - entering 500ms pause");
 // UARTPrintf("\r\n");
 
         // All data is now in Off-Board EEPROM2.
@@ -5672,9 +5645,18 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	pSocket->current_webpage = WEBPAGE_UPLOAD_COMPLETE;
         pSocket->pData = g_HtmlPageUploadComplete;
         pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploadComplete) - 1);
-	// Send the response
-        pSocket->nPrevBytes = 0xFFFF; // This is used to determine if the
-                                      // send header was successful
+	
+	// Set user_reboot_request to signal main.c to reboot the module.
+	// Note: I don't think a reboot should really be needed here, but
+	// I've repeatedly encountered problems uploading runtime code after
+	// a strings upload without the reboot. I suspect a state or variable
+	// is not being properly initialized but a reboot takes care of it,
+	// and since we are in the Code Uploader an additional reboot doesn't
+	// matter much.
+//        user_reboot_request = 1;
+	
+        // Send the response
+        pSocket->nPrevBytes = 0xFFFF;
         pSocket->nState = STATE_SENDHEADER200;
       }
 
@@ -5692,8 +5674,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         pSocket->pData = g_HtmlPageParseFail;
         pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageParseFail) - 1);
 	// Send the response
-        pSocket->nPrevBytes = 0xFFFF; // This is used to determine if the
-                                      // send header was successful
+        pSocket->nPrevBytes = 0xFFFF;
         pSocket->nState = STATE_SENDHEADER200;
       }
     }

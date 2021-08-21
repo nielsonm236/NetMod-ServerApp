@@ -9,7 +9,9 @@ I decided to write my own firmware for the device to provide a web server interf
 
 Feature Comparison of the MQTT and Browser builds:
 |Feature                      | MQTT  | Browser |    MQTT     | Browser Only |
+|:----------------------------|:-----:|:-------:|:-----------:|:------------:|
 |                             | Build |  Only   | Upgradeable |  Upgradeable |
+|:----------------------------|:-----:|:-------:|:-----------:|:------------:|
 |                             |       | Build   |    Build    |     Build    |
 |:----------------------------|:-----:|:-------:|:-----------:|:------------:|
 |MQTT Support                 |   x   |         |      x      |              |

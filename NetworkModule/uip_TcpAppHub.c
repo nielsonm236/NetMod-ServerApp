@@ -58,11 +58,11 @@
 extern uint16_t Port_Httpd;
 extern uint16_t Port_Mqttd;
 
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
 extern struct mqtt_client mqttclient; // Pointer to MQTT client declared in main.c
 extern uint8_t mqtt_start;
 extern uint8_t mqtt_close_tcp;
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 void uip_TcpAppHubCall(void)
 // We get here via UIP_APPCALL in the uip.c code
@@ -72,13 +72,12 @@ void uip_TcpAppHubCall(void)
     // the incoming data from the uip_buf, then create any needed output
     // data and put it in the uip_buf.
     // This code is also called if the UIP functions are just checking to
-    // see if there is anything pending to send even is there was no
-    // incoming data to trigger a send. This situation shouldn't happen in
-    // this application.
+    // see if there is anything pending to send - for instance in the case
+    // where multiple packets must be sent to fulfill a browser request.
     HttpDCall(uip_appdata, uip_datalen(), &uip_conn->appstate.HttpDSocket);
   }
 
-#if MQTT_SUPPORT == 1
+#if BUILD_SUPPORT == MQTT_BUILD
   else if(uip_conn->lport == htons(Port_Mqttd)) {
     // This code is called if incoming traffic is MQTT. mqtt_sync will read
     // the incoming data (if any) from the uip_buf, then create any needed
@@ -96,5 +95,5 @@ void uip_TcpAppHubCall(void)
       if (mqtt_close_tcp) uip_close();
     }
   }
-#endif // MQTT_SUPPORT
+#endif // BUILD_SUPPORT == MQTT_BUILD
 }

@@ -4,6 +4,7 @@
 - enc28j60.o
 - gpio.o
 - httpd.o
+- i2c.o
 - main.o
 - mqtt.o
 - mqtt_pal.o
@@ -21,6 +22,7 @@
 - enc28j60.o
 - gpio.o
 - httpd.o
+- i2c.o
 - main.o
 - mqtt.o
 - mqtt_pal.o
@@ -38,6 +40,7 @@ ds18b20.o:
 enc28j60.o:
 gpio.o:
 httpd.o:
+i2c.o:
 main.o:
 mqtt.o:
 mqtt_pal.o:

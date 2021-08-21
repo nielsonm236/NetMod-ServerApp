@@ -164,6 +164,7 @@
 /* Uncomment the line below to enable the FLASH functions execution from RAM */
 #if !defined (RAM_EXECUTION)
 /* #define RAM_EXECUTION  (1) */
+#define RAM_EXECUTION  (1)
 #endif /* RAM_EXECUTION */
 
 #ifdef RAM_EXECUTION

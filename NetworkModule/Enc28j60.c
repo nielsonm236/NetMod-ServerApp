@@ -53,15 +53,17 @@
 
 #if DEBUG_SUPPORT != 0
 // Variables used to store debug information
-extern uint8_t debug[NUM_DEBUG_BYTES];
+extern uint8_t debug[10];
 #endif // DEBUG_SUPPORT
 
 extern uint8_t RXERIF_counter;         // Counts RXERIF errors
 extern uint8_t TXERIF_counter;         // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;      // Counts any transmit
 extern uint8_t stored_config_settings; // Config settings stored in EEPROM
-extern uint8_t OctetArray[11];         // Used in conversion of integer values to
-                                       // character values
+extern uint8_t OctetArray[11];         // Used in emb_itoa conversions but
+                                       // also repurposed as a temporary
+				       // buffer for transferring data
+				       // between functions.
 
 
 // SPI Opcodes
@@ -616,7 +618,8 @@ void Enc28j60Init(void)
   
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // Read the ENC28J60 revision level and store for output to the UART
-  debug[22] = (uint8_t)((Enc28j60ReadReg(BANK3_EREVID)) & 0x07);
+//  debug[22] = (uint8_t)((Enc28j60ReadReg(BANK3_EREVID)) & 0x07);
+  debug[2] = (uint8_t)((Enc28j60ReadReg(BANK3_EREVID)) & 0x07);
 #endif // DEBUG_SUPPORT
 
   // Enable Packet Reception

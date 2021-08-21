@@ -1534,17 +1534,26 @@ static const char g_HtmlPageUploader[] =
     "};"
   "</script>"
 
+  "<p>"
+  "Use BROWSE to select a .sx file then click SUBMIT. The 30 second Upload<br>"
+  "and Flash programming process will start.<br>"
+  "</p>"
+  
   "<p><input input type='file' name='file1' accept='.sx' required /></p>"
-  "<p><button type='submit' onclick='start()'>Submit</button>"
+  "<p><button type='submit' onclick='start()'>Submit</button></p>"
 
-  "<br><br>"
+  "<p>"
+  "Once you click Submit do not access via your browser until Flash programming<br>"
+  "completes.<br>"
+  "</p>"
+  
+  "<p>"
   "<progress id='progressBar' value='0' max='20'></progress>"
-  "<br>"
+  "<br><br><br>"
 
   "</form>"
+  
   "<p>"
-  "SUBMIT: 30 second Upload and Flash programming starts. ONCE SUBMITTED<br>"
-  "DO NOT ACCESS VIA BROWSER DURING THIS 30 SECOND PERIOD.<br><br>"
   "RESTORE: If you arrived here unintentionally DO NOT CLICK SUBMIT. Instead<br>"
   "use the Restore button to reinstall your previous firmware version.<br>"
   "</p>"
@@ -2372,13 +2381,13 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     size = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
     
     // Account for header replacement strings %y04 %y05
-    size = size + ps[4].size_less4
-                + ps[5].size_less4;
+//    size = size + ps[4].size_less4
+//                + ps[5].size_less4;
 
     // Account for Device Name field %a00 in <title>
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
-    size = size + strlen_devicename_adjusted;
+//    size = size + strlen_devicename_adjusted;
 
     // Account for Short Form IO Settings field (%f00)
     // size = size + (value size - marker_field_size)
@@ -4211,9 +4220,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/69  Clear Network Statistics and refresh page
           // http://IP/70  Clear the "Reset Status Register" counters
           // http://IP/71  Display the Temperature Sensor Serial Numbers
-          // http://IP/72  Load the Code Uploader (works only in runtime builds)
+          // http://IP/72  Load the Code Uploader (works only in runtime
+	  //               builds)
           // http://IP/73  Restore (works only in the Code Uploader build)
-          // http://IP/74  Erase EEPROM (works only in the Code Uploader build)
+          // http://IP/74  Erase EEPROM (works only in the Code Uploader
+	  //               build)
+          // http://IP/75  Show Code Uploader Timer (works only in the Code
+	  //               Uploader build)
 	  // http://IP/91  Reboot
 	  // http://IP/98  Show Very Short Form IO States page
 	  // http://IP/99  Show Short Form IO States page
@@ -5617,7 +5630,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
         // All data is now in Off-Board EEPROM0. Signal the main.c loop to
 	// copy the data to Flash and display a Timer window to have the
-	// user wait until Flash programming completes.
+	// user wait until Flash programming completes and the module reboots.
 	eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_REQUEST;
         pSocket->nParseLeft = 0;
 	
@@ -5645,15 +5658,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	pSocket->current_webpage = WEBPAGE_UPLOAD_COMPLETE;
         pSocket->pData = g_HtmlPageUploadComplete;
         pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploadComplete) - 1);
-	
-	// Set user_reboot_request to signal main.c to reboot the module.
-	// Note: I don't think a reboot should really be needed here, but
-	// I've repeatedly encountered problems uploading runtime code after
-	// a strings upload without the reboot. I suspect a state or variable
-	// is not being properly initialized but a reboot takes care of it,
-	// and since we are in the Code Uploader an additional reboot doesn't
-	// matter much.
-//        user_reboot_request = 1;
 	
         // Send the response
         pSocket->nPrevBytes = 0xFFFF;

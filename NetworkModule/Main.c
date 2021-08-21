@@ -51,7 +51,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210810 1514"; // Normal Release Revision
+const char code_revision[] = "20210821 1541"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build

@@ -7,25 +7,32 @@ Did you buy one (or more) of these Network Modules and then find disappointment 
 
 I decided to write my own firmware for the device to provide a web server interface that let's you change the IP Address, Gateway (Default Router) Address, Netmask, Port number (a REAL port number), and MAC Address. I also added the ability for the device to remember all these settings through a power cycle. Any Relay settings you make are also optionally saved through a power cycle. In addition the Network Module can be operated as a generic MQTT device or as a Home Assistant device with Auto Discovery.
 
+Feature Comparison of the MQTT and Browser builds:
+|Feature                      | MQTT  | Browser |    MQTT     | Browser Only |
+|                             | Build |  Only   | Upgradeable |  Upgradeable |
+|                             |       | Build   |    Build    |     Build    |
+|:----------------------------|:-----:|:-------:|:-----------:|:------------:|
+|MQTT Support                 |   x   |         |      x      |              |
+|Home Assistant Support       |   x   |         |      x      |              |
+|Browser IO Control           |   x   |    x    |      x      |       x      |
+|Browser Configuration        |   x   |    x    |      x      |       x      |
+|Full/Half Duplex             |   x   |    x    |      x      |       x      |
+|Link Error Statistics        |   x   |    x    |      x      |       x      |
+|DS18B20 Temp Sensor          |   x   |    x    |      x      |       x      |
+|IO Naming                    |       |    x    |             |       x      |
+|IO Timers                    |       |    x    |             |       x      |
+|Network Statistics           |       |    x    |             |       x      |
+|I2C Support                  |       |         |      x      |       x      |
+|Upgradeable over Ethernet  * |       |         |      x      |       x      |
+* Requires additonal hardware - see Manual
+
 Short summary of release history:
+
+August 20, 2021 - Several fixes and added the ability to upgrade firmware over Ethernet via the Browser GUI (requires added EEPROM device - see Manual).
 
 May 9, 2021 - Numerous fixes and improvements for HA Auto Discovery, Temperature Sensors, and Timers
 
 April 12, 2021 - Released a parallel build for "Browser Only" users that does not include MQTT, but adds some requested features for users that do not want MQTT. The "Browser Only" version includes individual IO Names, IO Timers, and restores the Network Statistics page.
-
-Feature Comparison of the MQTT and Browser builds:
-|Feature                  | MQTT Build   | Browser Only Build |
-|:------------------------|:------------:|:------------------:|
-|MQTT Support             |      x       |                    |
-|Home Assistant Support   |      x       |                    |
-|Browser IO Control       |      x       |       x            |
-|Browser Configuration    |      x       |       x            |
-|Full/Half Duplex         |      x       |       x            |
-|Link Error Statistics    |      x       |       x            |
-|DS18B20 Temp Sensor      |      x       |       x            |
-|IO Naming                |              |       x            |
-|IO Timers                |              |       x            |
-|Network Statistics       |              |       x            |
 
 February 20, 2021 - Added a UART debug interface for use by developers. Beginning with this release you should obtain Source Code and Executables from the "Release" area of the GitHub page (along the right margin of the page).
 
@@ -46,11 +53,9 @@ Videos: See the video links in the Wiki
 Many thanks to Carlos Ladeira and Jevgeni Kiski for their many hours of work in the 2021 releases. Their collaboration greatly improved the code for everyone.
 
 Tested with:
-- Windows 10 Firefox 84.0.2 (64-bit)
-- Windows 10 Chrome 87.0.4280.141 (64-bit)
-- Windows 10 Chrome 88.0.4324.104 (64-bit)
-- Windows 10 Edge 87.0.664.75 (64-bit)
-- Windows 10 Edge 88.0.705.50 (64-bit)
+- Windows 10 Firefox 91.0 (64-bit)
+- Windows 10 Chrome 92.0.4515.131 (64-bit)
+- Windows 10 Edge 92.0.902.73 (64-bit)
 - Mac Safari Version 14.0.2
 - Mac Edge 87.0.664.75
 - Mac Opera 73.0.3856.344
@@ -58,8 +63,8 @@ Tested with:
 - Mac Firefox 72.0.2
 - Ubuntu 20.10 - Firefox 84.0.1 (64-bit)
 - Ubuntu 20.10 - Chromium 87.0.4280.88 (64-bit)
-- iPhone Safari on iOS 14.3
-- iPhone Chrome 87.0.4280.77 on iOS 14.3
+- iPhone Safari on iOS 14.7.1
+- iPhone Chrome 92.0.4515.90 on iOS 14.7.1
 - Mosquitto
 - Node-Red
 - Chrome MQTTLens

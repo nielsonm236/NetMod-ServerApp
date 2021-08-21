@@ -11,9 +11,7 @@ Feature Comparison of the MQTT and Browser builds:
 |Feature                      | MQTT  | Browser |    MQTT     | Browser Only |
 |:----------------------------|:-----:|:-------:|:-----------:|:------------:|
 |                             | Build |  Only   | Upgradeable |  Upgradeable |
-|:----------------------------|:-----:|:-------:|:-----------:|:------------:|
 |                             |       | Build   |    Build    |     Build    |
-|:----------------------------|:-----:|:-------:|:-----------:|:------------:|
 |MQTT Support                 |   x   |         |      x      |              |
 |Home Assistant Support       |   x   |         |      x      |              |
 |Browser IO Control           |   x   |    x    |      x      |       x      |

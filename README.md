@@ -7,6 +7,8 @@ Did you buy one (or more) of these Network Modules and then find disappointment 
 
 I decided to write my own firmware for the device to provide a web server interface that let's you change the IP Address, Gateway (Default Router) Address, Netmask, Port number (a REAL port number), and MAC Address. I also added the ability for the device to remember all these settings through a power cycle. Any Relay settings you make are also optionally saved through a power cycle. In addition the Network Module can be operated as a generic MQTT device or as a Home Assistant device with Auto Discovery.
 
+Contact: You can reach me at nielsonm.projects@gmail.com. But questions can also be asked via the Issues section. Sometimes others have the same questions and Q&A in the Issues section might help them out.
+
 Feature Comparison of the MQTT and Browser builds:
 |Feature                      | MQTT  | Browser |    MQTT     | Browser Only |
 |:----------------------------|:-----:|:-------:|:-----------:|:------------:|

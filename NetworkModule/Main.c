@@ -51,7 +51,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20210821 1541"; // Normal Release Revision
+const char code_revision[] = "20220117 9999"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -477,9 +477,10 @@ int main(void)
   upgrade_EEPROM();        // Check for down revision EEPROM and upgrade if
                            // needed.
 
-  check_eeprom_settings(); // Check the EEPROM for previously stored Address
-			   // and IO settings. Use defaults (if nothing
-			   // stored) or restore previously stored settings.
+  check_eeprom_settings(); // Apply settings stored in EEPROM such as IP
+                           // Address, Gateway Address, Netmask, Port number,
+			   // etc. If there are no previously stored settings
+			   // in the EEPROM then use defaults.
 			   // This must occur before gpio_init() because
 			   // gpio_init() uses settings in the EEPROM and we
 			   // need to make sure it is up to date.
@@ -812,6 +813,12 @@ int main(void)
 	  // an ARP request, and on a future cycle through this routine the
 	  // SYN will be sent IF the ARP request was successful.
 	  // 
+	  // Note: From time to time I see a lot of re-xmit attempts with the
+	  // Browser interface. This doesn't seem to hurt anything so far, but
+	  // it does slow down painting of a Browser page. I suspect the
+	  // timeout for uip_periodic() may be too short. On the otherhand,
+	  // shorter is better for servicing MQTT. So, it is a compromise but
+	  // might need examination in the future it it become problematic.
 	  if (uip_len > 0) {
 	    uip_arp_out(); // Verifies arp entry in the ARP table and builds
 	                   // the LLH
@@ -3665,9 +3672,16 @@ void check_runtime_changes(void)
   }
 #endif BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-
-
   if (parse_complete || mqtt_parse_complete) {
+
+// UARTPrintf("parse_complete = ");
+// emb_itoa(parse_complete, OctetArray, 10, 1);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   mqtt_parse_complete = ");
+// emb_itoa(mqtt_parse_complete, OctetArray, 10, 1);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
     // Check for changes from the user via the GUI, MQTT, or REST commands.
     // If parse_complete == 1 all TCP Fragments have been received during
     // HTML POST processing, OR a REST command was processed.
@@ -3708,7 +3722,18 @@ void check_runtime_changes(void)
     {
       int i;
       for (i=0; i<16; i++) {
-      
+
+// UARTPrintf("pin_control");
+// emb_itoa(i, OctetArray, 10, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf(" ");
+// emb_itoa(pin_control[i], OctetArray, 2, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   Pending_pin_control ");
+// emb_itoa(Pending_pin_control[i], OctetArray, 2, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
         if (pin_control[i] != Pending_pin_control[i]) {
           // Something changed - sort it out
 	
@@ -3776,6 +3801,11 @@ void check_runtime_changes(void)
             pin_control[i] &= 0x80;
 	    pin_control[i] |= (uint8_t)(Pending_pin_control[i] & 0x7f);
 	  }
+
+// UARTPrintf("Updated pin_control ");
+// emb_itoa(pin_control[i], OctetArray, 2, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 	
           if (update_EEPROM) {
             // Update the stored_pin_control[] variables
@@ -3848,7 +3878,10 @@ void check_runtime_changes(void)
     if (stored_port != Pending_port) {
       // Write the new Port number to the EEPROM
       stored_port = Pending_port;
-      // A firmware restart will occur to cause this change to take effect
+      // A firmware restart will occur to cause this change to take effect.
+      // The restart process will call uip_init() which will zero out all
+      // entries in the uip_listenports table, and will then put the new
+      // listenport number in the table.
       restart_request = 1;
     }
   
@@ -3936,6 +3969,17 @@ void check_runtime_changes(void)
       user_reboot_request = 0;
       reboot_request = 1;
     }
+
+// UARTPrintf("Restart Request ");
+// emb_itoa(restart_request, OctetArray, 10, 1);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+// UARTPrintf("Reboot Request ");
+// emb_itoa(reboot_request, OctetArray, 10, 1);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
   }
   
   
@@ -3944,7 +3988,9 @@ void check_runtime_changes(void)
   // will be called. This is done this way because we need to let
   // uip_periodic() handle the closing of connections.
 
-  parse_complete = 0; // Reset parse_complete for future changes
+  // Reset parse_complete for future changes
+  parse_complete = 0;
+  mqtt_parse_complete = 0;
 
   // Periodic check of the stack overflow guardband
   if (stack_limit1 != 0xaa || stack_limit2 != 0x55) {
@@ -4167,11 +4213,20 @@ void restart(void)
   
   spi_init();              // Initialize the SPI bit bang interface to the
                            // ENC28J60 and perform hardware reset on ENC28J60
-  check_eeprom_settings(); // Verify EEPROM up to date
-  Enc28j60Init();          // Initialize the ENC28J60 ethernet interface
-  uip_arp_init();          // Initialize the ARP module
-  uip_init();              // Initialize uIP
-  HttpDInit();             // Initialize httpd; sets up listening ports
+  check_eeprom_settings(); // Apply settings stored in EEPROM such as IP
+                           // Address, Gateway Address, Netmask, Port number,
+			   // etc. Needed in a restart to make sure all
+			   // changes made on the Configuration page are
+			   // applied.
+  Enc28j60Init();          // Initialize the ENC28J60 ethernet interface.
+                           // Needed in a restart to make sure the ENC20J60
+			   // is updated with the correct MAC address.
+  uip_arp_init();          // Initialize the ARP module. The only thing this
+                           // does is clear the IP addresses in the ARP table.
+  uip_init();              // Initialize uIP. This function call sets all
+                           // connections to "CLOSED" and clears out the
+			   // uip_listenports table.
+  HttpDInit();             // Initialize httpd and set up listening port
 
   LEDcontrol(1); // Turn LED on
   // From here we return to the main loop and should start running with new

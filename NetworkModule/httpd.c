@@ -1532,8 +1532,8 @@ static const char g_HtmlPageUploader[] =
   "</script>"
 
   "<p>"
-  "Use BROWSE to select a .sx file then click SUBMIT. The 30 second Upload<br>"
-  "and Flash programming process will start.<br>"
+  "Use CHOOSE FILE to select a .sx file then click SUBMIT. The 30 second<br>"
+  "Upload and Flash programming process will start.<br>"
   "</p>"
   
   "<p><input input type='file' name='file1' accept='.sx' required /></p>"
@@ -2213,11 +2213,11 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + (1 x (-2));
     size = size - 2;
 
-    // Account for Code Revision insertion %w00
+    // Account for Code Revision + Code Type insertion %w00
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (13 - 4));
-    // size = size + (1 x 9);
-    size = size + 9;
+    // size = size + (#instances x (26 - 4));
+    // size = size + (1 x 22);
+    size = size + 22;
 
     // Account for pin control field %h00
     // size = size + (#instances x (value_size - marker_field_size));
@@ -3390,8 +3390,26 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 
 
         else if (nParsedMode == 'w') {
-	  // This displays Code Revision information (13 characters)
+	  // This displays Code Revision information (13 characters) plus Code
+	  // Type (13 characters, '.' characters are added to make sure the
+	  // length is always 13)
           pBuffer = stpcpy(pBuffer, code_revision);
+	  
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD	&& I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
+          pBuffer = stpcpy(pBuffer, " Browser Only");
+#endif
+
+#if BUILD_SUPPORT == MQTT_BUILD	&& I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
+          pBuffer = stpcpy(pBuffer, " MQTT .......");
+#endif
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD	&& I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
+          pBuffer = stpcpy(pBuffer, " Browser UPG ");
+#endif
+
+#if BUILD_SUPPORT == MQTT_BUILD	&& I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
+          pBuffer = stpcpy(pBuffer, " MQTT UPG ...");
+#endif
 	}
 
 

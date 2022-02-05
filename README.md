@@ -30,6 +30,8 @@ Feature Comparison of the MQTT and Browser builds:
 
 Short summary of release history:
 
+February 5, 2022 - Fixed "IOControl Save causes loss of Configuration".
+
 August 20, 2021 - Several fixes and added the ability to upgrade firmware over Ethernet via the Browser GUI (requires added EEPROM device - see Manual).
 
 May 9, 2021 - Numerous fixes and improvements for HA Auto Discovery, Temperature Sensors, and Timers

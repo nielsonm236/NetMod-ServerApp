@@ -175,7 +175,15 @@
 
 
 //---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 // General configuration options
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 
 // The size of the uIP packet buffer. The uIP packet buffer should not be smaller
@@ -237,8 +245,10 @@
 // Statistics pages and processes will free up considerable space.
 // Note that Network Statistics will not fit in the memory when an MQTT build
 // is created. It will only fit if a Browser Only build is created. So,
-// UIP_STATISTICS == 1 will be ignored if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-// is also set.
+//    UIP_STATISTICS == 1 will be ignored
+//    unless BUILD_SUPPORT == BROWSER_ONLY_BUILD
+// Generally UIP_STATISTICS is alway set to 1 and the build controls will
+// manage it.
 // 0 = disabled
 // 1 = included
 #define UIP_STATISTICS  1
@@ -306,9 +316,9 @@
 //   Code Uploader requires additional hardware in the form of an off-board I2C
 //   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
 // Un-comment ONLY ONE of the following:
-// #define BUILD_SUPPORT     MQTT_BUILD
+#define BUILD_SUPPORT     MQTT_BUILD
 // #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
-#define BUILD_SUPPORT     CODE_UPLOADER_BUILD
+// #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 
 
 // I2C_SUPPORT
@@ -346,7 +356,9 @@
 // DEBUG_SENSOR_SERIAL
 // Determines if the Display Temperature Sensor Serial Numbers support is
 // to be compiled into the build. This is for DIAGNOSTIC support during
-// development and is not expected to be part of normal releases.
+// development and is not expected to be part of normal releases. When
+// enabled URL command /71 will display all serial number as read from the
+// sensors.
 // 0 = Not Supported
 // 1 = Supported
 #define DEBUG_SENSOR_SERIAL 0

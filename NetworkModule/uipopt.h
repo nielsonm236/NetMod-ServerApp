@@ -115,10 +115,12 @@
 //
 // Comment MN: Experiment shows the 2 bytes of RAM estimate to be correct.
 // Comment MN: In order to allow multiple browsers on >different< IP
-// addresses to work UIP_LISTENPORTS had to be the same value as UIP_CONNS,
-// even though only the MQTT port was set to 1883 and the HTTP port was set
-// to 80, which I would think would only require 2 listen ports. Examining
-// the uip.c code did not explain why this is the case.
+// addresses to work UIP_LISTENPORTS had to be the same value as UIP_CONNS.
+// Examining the uip.c code did not explain why this is the case.
+// Comment MN: Note that the MQTT port does not require an entry in the
+// listen ports table. It is handled separately. However, MQTT DOES require
+// an entry in the uip_conns table. So, when MQTT is in use there can be a
+// maximum of 3 Browser connections.
 #define UIP_LISTENPORTS 4
 
 
@@ -144,11 +146,11 @@
 // In this application the headers occupy a total of 54 bytes.
 // #define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN)
 #define UIP_TCP_MSS     440
+// production should be 440
 
 
-// The size of the advertised receiver's window. Should be set low (i.e., to the
-// size of the uip_buf buffer) if the application is slow to process incoming
-// data, or high (32768 bytes) if the application processes data quickly.
+// The size of the advertised receiver's window. Should be set low (i.e., to
+// less than the size of the uip_buf buffer).
 #define UIP_RECEIVE_WINDOW UIP_TCP_MSS
 
 
@@ -173,7 +175,15 @@
 
 
 //---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 // General configuration options
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 
 // The size of the uIP packet buffer. The uIP packet buffer should not be smaller
@@ -209,6 +219,25 @@
 //  - Controls "MQTT" vs "Browser Only" vs "Code Uploader" build type
 
 
+// Guide for Production Builds
+//                         MQTT   Browser   MQTT      Browser    Code
+//                                Only      Upgrade   Only       Uploader
+//                                                    Upgrade    Build
+//
+// UIP_STATISTICS          1      1         1         1          1
+// DEBUG_SUPPORT           11     11        11        11         11
+// IWDG_ENABLE             1      1         1         1          1
+// BUILD_SUPPORT           *      **        *         **         ***
+// I2C_SUPPORT             0      0         1         1          1
+// OB_EEPROM_SUPPORT       0      0         1         1          1
+// DEBUG_SENSOR_SERIAL     0      0         0         0          0
+//
+// *   = #define BUILD_SUPPORT     MQTT_BUILD
+// **  = #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
+// *** = #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
+// Be sure to put the appropriate revision (date/time) in the main.c file
+
+
 // UIP_STATISTICS
 // Determines if Network Statistics support should be compiled in. Network
 // Statistics are useful for debugging Network related problems. If you are
@@ -216,8 +245,10 @@
 // Statistics pages and processes will free up considerable space.
 // Note that Network Statistics will not fit in the memory when an MQTT build
 // is created. It will only fit if a Browser Only build is created. So,
-// UIP_STATISTICS == 1 will only work when BUILD_SUPPORT == BROWSER_ONLY_BUILD
-// is also set.
+//    UIP_STATISTICS == 1 will be ignored
+//    unless BUILD_SUPPORT == BROWSER_ONLY_BUILD
+// Generally UIP_STATISTICS is alway set to 1 and the build controls will
+// manage it.
 // 0 = disabled
 // 1 = included
 #define UIP_STATISTICS  1
@@ -257,7 +288,6 @@
 //      USAGE: Provides the most run time error data and UART display.
 // * Specific debug data: Reset Status Register counters, TXERIF counter,
 //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
-
 #define DEBUG_SUPPORT 11
 
 
@@ -276,18 +306,18 @@
 
 // BUILD_SUPPORT
 // Determines the type of code build to create.
-// BROWSER_ONLY_BUILD excludes MQTT support but includes the extra Browser
-//   only features like IO Names and IO Timers.
 // MQTT_BUILD includes MQTT support and Home Assistant support, but excludes
 //   the Browser Only IO Names and IO Timers. This build selection will
 //   over-ride the UIP_STATISTICS setting forcing it to be disabled.
+// BROWSER_ONLY_BUILD excludes MQTT support but includes the extra Browser
+//   only features like IO Names and IO Timers.
 // CODE_UPLOADER_BUILD excludes all Browser Only and MQTT features. It produces
 //   a build that can only be used to upload and update the runtime code. The
 //   Code Uploader requires additional hardware in the form of an off-board I2C
 //   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
 // Un-comment ONLY ONE of the following:
-// #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
 #define BUILD_SUPPORT     MQTT_BUILD
+// #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
 // #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 
 
@@ -297,7 +327,7 @@
 // and clock pins.
 // 0 = Not supported
 // 1 = Supported
-#define I2C_SUPPORT 0
+#define I2C_SUPPORT 1
 
 
 // OB_EEPROM_SUPPORT
@@ -320,13 +350,15 @@
 //    b) Load the Runtime code
 // 0 = Not supported
 // 1 = Supported
-#define OB_EEPROM_SUPPORT 0
+#define OB_EEPROM_SUPPORT 1
 
 
 // DEBUG_SENSOR_SERIAL
 // Determines if the Display Temperature Sensor Serial Numbers support is
 // to be compiled into the build. This is for DIAGNOSTIC support during
-// development and is not expected to be part of normal releases.
+// development and is not expected to be part of normal releases. When
+// enabled URL command /71 will display all serial number as read from the
+// sensors.
 // 0 = Not Supported
 // 1 = Supported
 #define DEBUG_SENSOR_SERIAL 0

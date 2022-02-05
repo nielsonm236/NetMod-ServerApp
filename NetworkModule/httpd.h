@@ -78,6 +78,7 @@ struct tHttpD
   uint16_t nPrevBytes;
   uint8_t current_webpage;
   uint8_t insertion_index;
+  int structID;
   
 // nState		Tracks the parsing state of a POST and subsequent
 //			response to the Browser
@@ -99,10 +100,14 @@ struct tHttpD
 //			bridging of TCP Fragmentation.
 // nPrevBytes		Used in the case of uip_rexmit to determine if the
 //			header needs to be retransmitted.
-// current_webpage	Tracks the current webpage being displaed in the GUI.
+// current_webpage	Tracks the current webpage being displayed in the GUI.
 // insertion_index	Tracks the position in a "long string" being trans-
 //			mitted in a webpage to allow bridging of TCP Frag-
 //			mentation.
+// structID		This was meant to be a temporary debug value to help
+//                      sort out when connections were being used. It will be
+//                      left in the code for now as it proved to be very
+//                      useful.
 };
 
 
@@ -127,7 +132,8 @@ uint8_t int2nibble(uint8_t j);
 void int2hex(uint8_t i);
 
 void HttpDInit(void);
-void init_tHttpD_struct(struct tHttpD* pSocket);
+// void init_tHttpD_struct(struct tHttpD* pSocket);
+void init_tHttpD_struct(struct tHttpD* pSocket, int i);
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);
 // char *read_two_characters(struct tHttpD* pSocket, char *pBuffer);
 char *read_two_characters(char *pBuffer);

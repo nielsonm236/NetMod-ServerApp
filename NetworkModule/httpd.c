@@ -238,18 +238,14 @@ extern uint8_t I2C_failcode;         // Used in monitoring I2C transactions
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-uint8_t parse_tail[40];       // If POST packet TCP fragmentation occurs
-                              // parse_tail will contain partial POST data
-			      // that was at the end of the packet. The size
-			      // of this array is determined by the longest
-			      // POST component. In normal POST processing the
-			      // longest component is the &h00 POST reply of
-			      // 37 bytes.
-			      // >>> The parse_tail array is also repurposed
-			      // for buffering data received in a program
-			      // update file one line of data at a time. The
-			      // maximum size required for this storage is 65
-			      // bytes.
+uint8_t parse_tail[40];       // Used to collect each component of a POST
+			      // sequence. If TCP fragmentation occurs
+                              // parse_tail will contain a part of the POST
+			      // component that was at the end of the packet.
+			      // The size of this array is determined by the
+			      // longest POST component. In normal POST
+			      // processing the longest component is the &h00
+			      // POST reply of 37 bytes.
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
@@ -260,6 +256,7 @@ uint8_t parse_tail[66];       // In the Code Uploader build the parse_tail is
 			      // received in a program update file. That data
 			      // is received one line of data at a time. The
 			      // maximum size required for this storage is 65
+			      // bytes.
 uint32_t file_length;         // Length of the body (the file data) in a
                               // firmware update POST.
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -1535,8 +1532,8 @@ static const char g_HtmlPageUploader[] =
   "</script>"
 
   "<p>"
-  "Use BROWSE to select a .sx file then click SUBMIT. The 30 second Upload<br>"
-  "and Flash programming process will start.<br>"
+  "Use CHOOSE FILE to select a .sx file then click SUBMIT. The 30 second<br>"
+  "Upload and Flash programming process will start.<br>"
   "</p>"
   
   "<p><input input type='file' name='file1' accept='.sx' required /></p>"
@@ -2216,11 +2213,11 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + (1 x (-2));
     size = size - 2;
 
-    // Account for Code Revision insertion %w00
+    // Account for Code Revision + Code Type insertion %w00
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (13 - 4));
-    // size = size + (1 x 9);
-    size = size + 9;
+    // size = size + (#instances x (26 - 4));
+    // size = size + (1 x 22);
+    size = size + 22;
 
     // Account for pin control field %h00
     // size = size + (#instances x (value_size - marker_field_size));
@@ -3393,8 +3390,26 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 
 
         else if (nParsedMode == 'w') {
-	  // This displays Code Revision information (13 characters)
+	  // This displays Code Revision information (13 characters) plus Code
+	  // Type (13 characters, '.' characters are added to make sure the
+	  // length is always 13)
           pBuffer = stpcpy(pBuffer, code_revision);
+	  
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD	&& I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
+          pBuffer = stpcpy(pBuffer, " Browser Only");
+#endif
+
+#if BUILD_SUPPORT == MQTT_BUILD	&& I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
+          pBuffer = stpcpy(pBuffer, " MQTT .......");
+#endif
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD	&& I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
+          pBuffer = stpcpy(pBuffer, " Browser UPG ");
+#endif
+
+#if BUILD_SUPPORT == MQTT_BUILD	&& I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
+          pBuffer = stpcpy(pBuffer, " MQTT UPG ...");
+#endif
 	}
 
 
@@ -3516,13 +3531,16 @@ char *show_temperature_string(char *pBuffer, uint8_t nParsedNum)
 
 void HttpDInit(void)
 {
+  // Initialize the structures that manage each connection in the form of a
+  // protosocket
   int i;
   register struct uip_conn *uip_connr = uip_conn;
   
   // Initialize the struct tHttpD values
   for (i = 0; i < UIP_CONNS; i++) {
     uip_connr = &uip_conns[i];
-    init_tHttpD_struct(&uip_connr->appstate.HttpDSocket);
+//    init_tHttpD_struct(&uip_connr->appstate.HttpDSocket);
+    init_tHttpD_struct(&uip_connr->appstate.HttpDSocket, i);
   }
 
   // Start listening on our port
@@ -3530,15 +3548,24 @@ void HttpDInit(void)
 }
 
 
-void init_tHttpD_struct(struct tHttpD* pSocket) {
+// void init_tHttpD_struct(struct tHttpD* pSocket) {
+void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
   // Initialize the contents of the struct tHttpD
+  // This function is called UIP_CONNS times by the HttpDinit function. It is
+  // called once for each possible connection. The function sets the initial
+  // values within the pSocket structure to give a new connection a "starting
+  // place", such as which page to initially display when a connection is made.
+  
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   pSocket->current_webpage = WEBPAGE_IOCONTROL;
+  pSocket->structID = i; // TEMPORARY DEBUG MARKER
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
   pSocket->current_webpage = WEBPAGE_UPLOADER;
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+
+// UARTPrintf("init_tHttpd_struct\r\n");
 
   pSocket->insertion_index = 0;
   init_off_board_string_pointers(pSocket);
@@ -3568,8 +3595,24 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   i = 0;
   j = 0;
 
+// UARTPrintf("HttpDCall: current_webpage = ");
+// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   structID = ");
+// emb_itoa(pSocket->structID, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
   if (uip_connected()) {
     //Initialize this connection
+    
+// UARTPrintf("HttpDCall: uip_connected  current_webpage = ");
+// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   structID = ");
+// emb_itoa(pSocket->structID, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
@@ -3663,15 +3706,33 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   }
 
   else if (uip_acked()) {
+
+// UARTPrintf("HttpDCall: uip_acked  current_webpage = ");
+// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   structID = ");
+// emb_itoa(pSocket->structID, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
     // if uip_acked() is true we will be in the STATE_SENDDATA state and
     // only need to run the "senddata" part of this routine. This typically
     // happens when there are multiple packets to send to the Broswer in
-    // response to a POST, so we may repeat this loop in STATE_SENDDATA
-    // several times.
+    // response to a POST or GET, so we may repeat this loop in
+    // STATE_SENDDATA several times.
     goto senddata;
   }
   
   else if (uip_newdata()) {
+
+// UARTPrintf("HttpDCall: uip_newdata  current_webpage = ");
+// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   structID = ");
+// emb_itoa(pSocket->structID, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
     // This is the start of a new Browser session, or it is additional packets
     // sent to complete a transmission from the Browser.
     //
@@ -3833,13 +3894,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // Clear nNewlines for future POSTs
 	  pSocket->nNewlines = 0;
 	  
-          // Initialize Parsing variables
-          if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
-	    pSocket->nParseLeft = PARSEBYTES_IOCONTROL;
-	  }
-          else if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
-	    pSocket->nParseLeft = PARSEBYTES_CONFIGURATION;
-	  }
+          // Set current_webpage to NULL. This will be used later to aid in
+	  // determining if the POST is coming from an IOControl POST or from
+	  // a Configuration POST.
+	  pSocket->current_webpage = WEBPAGE_NULL;
 	  
 	  // Initialize parse_tail for first pass of parsing
 	  parse_tail[0] = '\0';
@@ -4088,6 +4146,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
           else {
             // Didn't find '/' - send default page
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+// UARTPrintf("Get slash search1\r\n");
+
 	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
             pSocket->pData = g_HtmlPageIOControl;
             pSocket->nDataLeft = HtmlPageIOControl_size;
@@ -4110,6 +4171,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // exit the while() loop and send the default page.
 	  if (*pBuffer == ' ') {
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+// UARTPrintf("Get slash search2\r\n");
+
 	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
             pSocket->pData = g_HtmlPageIOControl;
             pSocket->nDataLeft = HtmlPageIOControl_size;
@@ -4264,6 +4328,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 
 	    case 60: // Show IO Control page
+
+// UARTPrintf("case 60\r\n");
+
 	      pSocket->current_webpage = WEBPAGE_IOCONTROL;
               pSocket->pData = g_HtmlPageIOControl;
               pSocket->nDataLeft = HtmlPageIOControl_size;
@@ -4271,6 +4338,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 	      
 	    case 61: // Show Configuration page
+
+// UARTPrintf("case 61\r\n");
+
 	      pSocket->current_webpage = WEBPAGE_CONFIGURATION;
               pSocket->pData = g_HtmlPageConfiguration;
               pSocket->nDataLeft = HtmlPageConfiguration_size;
@@ -4279,15 +4349,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 	    case 65: // Flash LED for diagnostics
-	      // XXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXX
 	      debugflash();
 	      debugflash();
 	      debugflash();
-	      // XXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXX
-	      // XXXXXXXXXXXXXXXXXXXXXX
 	      GET_response_type = 204; // No return webpage
 	      break;
 
@@ -4447,6 +4511,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               else {
 	        // Show default page
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+// UARTPrintf("Default GET case\r\n");
+
 	        pSocket->current_webpage = WEBPAGE_IOCONTROL;
                 pSocket->pData = g_HtmlPageIOControl;
                 pSocket->nDataLeft = HtmlPageIOControl_size;
@@ -5686,6 +5753,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
     if (pSocket->nState == STATE_SENDHEADER200) {
+
+// UARTPrintf("HttpDCall: SENDHEADER200\r\n");
+
       // This step is usually entered after GET processing is complete in
       // order to send an appropriate web page in response to the GET request.
       // In the uip_send() call we provide the CopyHttpHeader function with
@@ -5699,6 +5769,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     }
       
     if (pSocket->nState == STATE_SENDHEADER204) {
+
+// UARTPrintf("HttpDCall: SENDHEADER204\r\n");
+
       // This step is entered after POST is complete.
       // This step is also entered after GET processing is complete if no
       // webpage reply is required.
@@ -5765,6 +5838,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   }
   
   else if (uip_rexmit()) {
+
+// UARTPrintf("HttpDCall: uip_rexmit\r\n");
+
     if (pSocket->nPrevBytes == 0xFFFF) {
       // Send header again
       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(pSocket)));
@@ -5919,9 +5995,9 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
   // Each POST component is copied to the parse_tail as they are found. As
   // each POST component is found it will replace the prior POST component.
   // The objective is to let the parse_tail contain any partial POST that
-  // appears at the tail of the current packet. The parse_tail is global so
-  // that it can retain the partial POST data when leaving the function to
-  // collect additional packets.
+  // appears at the tail of the current packet (ie, when a TCP Fragment
+  // occurs). The parse_tail is global so that it will retain the partial
+  // POST data when leaving the function to collect additional packets.
   //
   // Note: local_buf is used only within this function. It is important that
   // the stack used by the local_buf is freed up so that the CopyHttpData()
@@ -5931,6 +6007,11 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
   uint16_t j;
   char local_buf[300];
   uint16_t local_buf_index_max;
+
+// UARTPrintf("parse_post: current_webpage = ");
+// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 
   local_buf_index_max = 290;
 
@@ -6082,6 +6163,11 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 {
   uint16_t lbi; // Local buffer index
   
+// UARTPrintf("parse_local_buf: current_webpage = ");
+// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
   // This function will parse a POST sent by the user (usually when they
   // click on the "submit" button on a webpage). POST data will consist
   // of:
@@ -6155,13 +6241,17 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
         // m = Update the MQTT Password field
         // j = Update the IO Name field
         
-        // If parsing 'a' 'l' 'm' 'j' we know we are parsing a Configuration
-        // page. Set current_webpage to WEBPAGE_CONFIGURATION so that the
-        // browser will display this page after Save is clicked. This is a
-        // workaround for the "multiple browser page interference" issue
-        // where another browser might have changed the current_webpage
-        // value.
+	// Notes on the "current_webpage" logic.
+	// When parsing a POST we need to know if the POST came from a
+	// IOControl page or from a Configuation page. The IOControl page
+	// starts with a 'h' value, while the Configuration page starts
+	// with a 'a' value. If we have not encountered a 'a' value yet
+	// the current_webpage will be NULL. Now that we see a 'a' value
+	// we now know we are receiving a POST from a Configuration page.
+	// Setting current_webpage here is important to subsequent POST
+	// processing decisions.
         pSocket->current_webpage = WEBPAGE_CONFIGURATION;
+        pSocket->nParseLeft = PARSEBYTES_CONFIGURATION;
 
         {
           int i;
@@ -6415,13 +6505,27 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             pSocket->nParseLeft -= 2;
 	    i += 2;
 	    
+	    // Notes on the "current_webpage" logic.
+	    // When parsing a POST we need to know if the POST came from a
+	    // IOControl page or from a Configuation page. The IOControl page
+	    // starts with a 'h' value, while the Configuration page starts
+	    // with a 'a' value. If we have not encountered a 'a' value yet
+	    // the current_webpage will be NULL, so we now know we are
+	    // receiving a POST from an IOControl page.
+	    if (pSocket->current_webpage == WEBPAGE_NULL) {
+              pSocket->current_webpage = WEBPAGE_IOCONTROL;
+	      pSocket->nParseLeft = PARSEBYTES_IOCONTROL;
+	    }
+	    
             if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
+// UARTPrintf("Received Config Data\r\n");
               // Keep the ON/OFF bit as-is
               Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x80);
               // Mask out the ON/OFF bit in the temp variable
               k = (uint8_t)(k & 0x7f);
             }
             else {
+// UARTPrintf("Received IOControl Data\r\n");
               // current_webpage is WEBPAGE_IOCONTROL
               // Keep the configuration bits as-is
               Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x7f);
@@ -6535,29 +6639,8 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	
     // Signal the main.c processes that parsing is complete
     parse_complete = 1;
+    // Set nState to close the connection
     pSocket->nState = STATE_SENDHEADER204;
-	
-    // Patch: ON CHROME ONLY: When 'Save' is clicked after changing from
-    // the IOControl page to the Configuration page for some reason no
-    // Configuration page refresh occurs. At one time the wrong page
-    // would display, but that does not seem to happen anymore. The next
-    // steps are a workaround to get Chrome to behave better. I am not
-    // sure why this happens as the 'if (uip_connected()' steps at the
-    // start of this function call should have already done this. Note
-    // that if the page change is done, then the 'Refresh' button is
-    // clicked, then the 'Save' button is clicked this problem does not
-    // appear. This problem was not seen with FireFox, Edge, or IE.
-
-    if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
-      pSocket->pData = g_HtmlPageIOControl;
-      pSocket->nDataLeft = HtmlPageIOControl_size;
-      init_off_board_string_pointers(pSocket);
-    }
-    else if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
-      pSocket->pData = g_HtmlPageConfiguration;
-      pSocket->nDataLeft = HtmlPageConfiguration_size;
-      init_off_board_string_pointers(pSocket);
-    }
   }
 
   else {

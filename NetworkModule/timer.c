@@ -272,6 +272,7 @@ uint8_t periodic_timer_expired(void)
   // indicating that 20ms have passed. If expired the function resets the
   // periodic_timer counter to zero so that it can repeat its uptick.
   if (periodic_timer > 19) {
+//  if (periodic_timer > 39) { // Produces fewer re-xmit errors
     periodic_timer = 0;
     return(1);
   }
@@ -340,8 +341,9 @@ uint8_t t100ms_timer_expired(void)
 uint8_t arp_timer_expired(void)
 {
   // This function indicates expiration of the arp timer at a count indicating
-  // that 10 seconds have passed. If expired the function resets the arp_timer
-  // counter to zero so that it can repeat its uptick.
+  // that 10 seconds have passed. The arp_timer increments once per milli-
+  // second. If expired the function resets the arp_timer counter to zero so
+  // that it can repeat its uptick.
   if (arp_timer > 9999) {
     arp_timer = 0;       // Reset arp_timer
     return(1);

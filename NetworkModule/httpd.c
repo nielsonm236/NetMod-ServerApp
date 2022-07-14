@@ -480,7 +480,7 @@ static const char g_HtmlPageIOControl[] =
 "const m=(t=>{const e=document,n=e.querySelector.bind(e)('form'),r=(Object.entries,parseI"
 "nt),o=t=>e.write(t),s=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join("
 "''),a=t=>t.match(/.{2}/g).map(t=>r(t,16)),c=t=>encodeURIComponent(t),d=[],h=[],p=(t,e,n)"
-"=>{return`<input type=radio name=o${e} value=${t} ${n==t?'checked':''}/><label>${(t?'on'"
+"=>{return`<input type=radio id=o${e} name=o${e} value=${t} ${n==t?'checked':''}/><label for=o${e}>${(t?'on'"
 ":'off').toUpperCase()}</label>`},l=()=>location.href='/60';return a(t.h00).forEach((t,e)"
 "=>{3==(3&t)?h.push(`<tr><td>Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>"
 "${p(1,e,t>>7)}${p(0,e,t>>7)}</td></tr>`):1==(3&t)&&d.push(`<tr><td>Input #${e+1}</td><td"

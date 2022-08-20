@@ -26,9 +26,10 @@ Feature Comparison of the MQTT and Browser builds:
 |Network Statistics           |       |    x    |             |       x      |
 |I2C Support                  |       |         |      x      |       x      |
 |Upgradeable over Ethernet  * |       |         |      x      |       x      |
-* Requires additonal hardware - see Manual
+* "Upgradeable over Ethernet" requires additonal hardware - see Manual
 
 Short summary of release history:
+August 17, 2022 - Fixed "MQTT state-req returning all zeroes".
 
 February 5, 2022 - Fixed "IOControl Save causes loss of Configuration".
 

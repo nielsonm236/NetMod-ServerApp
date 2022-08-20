@@ -51,7 +51,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20220205 1645"; // Normal Release Revision
+const char code_revision[] = "20220817 1508"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -2653,7 +2653,7 @@ void publish_pinstate_all(void)
   j = 0x0001;
   k = 0x0000;
   
-  for(i=0; i++; i<16) {
+  for(i=0; i<16; i++) {
     // Check for input/output
     if ((pin_control[i] & 0x02) == 0x02) {
       // Pin is an output, transmit as-is

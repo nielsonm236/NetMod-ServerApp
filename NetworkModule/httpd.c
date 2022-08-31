@@ -535,7 +535,7 @@ const m = (data => {
         outputs = [],
         make_radio_input = (type, id, checked_type) => {
             var type_str = type ? 'on' : 'off';
-            return `<input type=radio name=o${id} value=${type} ${checked_type == type ? 'checked' : ''}/><label>${type_str.toUpperCase()}</label>`;
+            return `<label><input type=radio name=o${id} value=${type} ${checked_type == type ? 'checked' : ''}/>${type_str.toUpperCase()}</label>`;
         },
         get_form_data = () => {
             const form_data = new FormData(form);
@@ -939,7 +939,7 @@ static const char g_HtmlPageIOControl[] =
 "const m=(t=>{const e=document,j=e.querySelector.bind(e)('form'),r=(Object.entries,parseInt)"
 ",n=t=>e.write(t),o=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join(''),a="
 "t=>t.match(/.{2}/g).map(t=>r(t,16)),s=t=>encodeURIComponent(t),c=[],d=[],h=(t,e,j)=>{return"
-"`<input type=radio name=o${e} value=${t} ${j==t?'checked':''}/><label>${(t?'on':'off').toUp"
+"`<label><input type=radio name=o${e} value=${t} ${j==t?'checked':''}/>${(t?'on':'off').toUp"
 "perCase()}</label>`},p=()=>location.href='/60';return a(t.h00).forEach((e,j)=>{var r=t['j'+"
 "(j+'').padStart(2,'0')];3==(3&e)?d.push(`<tr><td>${r}</td><td class='s${e>>7} t3'></td><td "
 "class=c>${h(1,j,e>>7)}${h(0,j,e>>7)}</td></tr>`):1==(3&e)&&c.push(`<tr><td>${r}</td><td cla"
@@ -995,7 +995,7 @@ const m = (data => {
         outputs = [],
         make_radio_input = (type, id, checked_type) => {
             var type_str = type ? 'on' : 'off';
-            return `<input type=radio name=o${id} value=${type} ${checked_type == type ? 'checked' : ''}/><label>${type_str.toUpperCase()}</label>`;
+            return `<label><input type=radio name=o${id} value=${type} ${checked_type == type ? 'checked' : ''}/>${type_str.toUpperCase()}</label>`;
         },
         get_form_data = () => {
             const form_data = new FormData(form);

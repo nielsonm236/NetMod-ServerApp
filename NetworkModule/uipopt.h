@@ -317,8 +317,8 @@
 //   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
 // Un-comment ONLY ONE of the following:
 // #define BUILD_SUPPORT     MQTT_BUILD
-// #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
-#define BUILD_SUPPORT     CODE_UPLOADER_BUILD
+#define BUILD_SUPPORT     BROWSER_ONLY_BUILD
+// #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 
 
 // I2C_SUPPORT

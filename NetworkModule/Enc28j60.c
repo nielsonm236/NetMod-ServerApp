@@ -616,10 +616,14 @@ void Enc28j60Init(void)
     Enc28j60WritePhy(PHY_PHCON1, 0x0000);
   }
   
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-  // Read the ENC28J60 revision level and store for output to the UART
-//  debug[22] = (uint8_t)((Enc28j60ReadReg(BANK3_EREVID)) & 0x07);
-  debug[2] = (uint8_t)((Enc28j60ReadReg(BANK3_EREVID)) & 0x07);
+#if DEBUG_SUPPORT != 0
+  // Read the ENC28J60 revision level and store for output to the UART and
+  // EEPROM. Note: debug[2] also contains the stack overflow bit in the MSB
+  // of the byte which must not be over-written here, so the existing bit is
+  // read and duplicated here.
+  debug[2] = (uint8_t)(debug[2] & 0xf0);
+  debug[2] = (uint8_t)(debug[2] & ((Enc28j60ReadReg(BANK3_EREVID)) & 0x07));
+  update_debug_storage1(); // Only write the EEPROM if the byte changed.
 #endif // DEBUG_SUPPORT
 
   // Enable Packet Reception

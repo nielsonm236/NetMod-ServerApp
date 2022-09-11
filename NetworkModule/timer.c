@@ -140,7 +140,7 @@ void clock_init(void)
   CLK_PCKENR1 &= (uint8_t)(~0x20);	// TIM2 clock disabled
   CLK_PCKENR1 &= (uint8_t)(~0x10);	// TIM4 clock disabled
 
-#if DEBUG_SUPPORT == 0 || DEBUG_SUPPORT == 1 || DEBUG_SUPPORT == 11
+#if DEBUG_SUPPORT == 11
   CLK_PCKENR1 &= (uint8_t)(~0x08);	// UART clock disabled unless we
                                         // are using the UART for debug
 					// support (then we just leave

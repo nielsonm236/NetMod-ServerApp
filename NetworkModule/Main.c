@@ -51,7 +51,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20220831 2011"; // Normal Release Revision
+const char code_revision[] = "20220911 1214"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -117,15 +117,19 @@ uint8_t stack_limit2;
 @eeprom uint8_t stored_pin_control[16];    // Byte 83-98 Config settings for
                                            // each IO pin
 @eeprom uint8_t stored_config_settings;    // Byte 82
-                                           // Bit 8: Undefined, 0 only
                                            // Bit 7: Undefined, 0 only
                                            // Bit 6: Undefined, 0 only
                                            // Bit 5: Undefined, 0 only
-                                           // Bit 4: Undefined, 0 only
-                                           // Bit 3: MQTT 1 = Enable, 0 = Disable
-                                           // Bit 2: Home Assistant Auto Discovery
-                                           // Bit 1: Duplex 1 = Full, 0 = Half
+                                           // Bit 4: Disable Cfg Button
+					   //        1 = Disable, 0 = Enable
+                                           // Bit 3: DS18B20
 					   //        1 = Enable, 0 = Disable
+                                           // Bit 2: MQTT
+					   //        1 = Enable, 0 = Disable
+                                           // Bit 1: Home Assistant Auto Discovery
+					   //        1 = Enable, 0 = Disable
+                                           // Bit 0: Duplex
+					   //        1 = Full, 0 = Half
 @eeprom uint8_t stored_prior_config;       // Copy of stored_config_settings
                                            // prior to reboot
 @eeprom uint8_t stored_unused6;            // Byte 80 unused
@@ -3998,17 +4002,14 @@ void check_runtime_changes(void)
     fastflash();
     fastflash();
     
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-    // Report the stack overflow bit
-    // Important - Verify that the correct debug[] byte is selected as these
-    // may have moved. Also check that this byte is reported in httpd.c for
-    // display in the Browser.
-    unlock_eeprom();
+#if DEBUG_SUPPORT != 0
+    // Report the stack overflow bit. The stack overflow indicator will remain
+    // set (even through reboots) until cleared with the Clear Link Error
+    // Statistics button or URL command.
     if (stack_error) {
       debug[2] |= 0x80;
       update_debug_storage1();
     }
-    lock_eeprom();
 #endif // DEBUG_SUPPORT
 
   }
@@ -4510,7 +4511,7 @@ void restore_eeprom_debug_bytes(void)
   // Restore debug bytes from EEPROM to RAM
 //  int i;
 
-#if DEBUG_SUPPORT > 1
+#if DEBUG_SUPPORT != 0
 //  for (i = 0; i < 10; i++) debug[i] = stored_debug[i];
   memcpy(&debug[0], &stored_debug[0], 10);
 #endif // DEBUG_SUPPORT
@@ -4522,22 +4523,13 @@ void restore_eeprom_debug_bytes(void)
 void update_debug_storage1() {
   int i;
   
+  // This function writes the debug[] values to EEPROM. The write occurs only
+  // if the debug[] value differs from what is in EEPROM to prevent excessive
+  // EEPROM writes.
   unlock_eeprom();
-  
-  // This function is nearly identical to update_debug_storage()
-  // with the exception that it is intended to be called multiple
-  // times as individual debug[] bytes are written in inline
-  // code. This is helpful if it is not clear where a fault may
-  // occur in a series of scattered debug[] byte writes. Note this
-  // function does not use the debug[0] flag to prevent additional
-  // calls.
-  // Consider putting a while(something) in the code to stop
-  // processing so you can look at the results.
   for (i = 0; i < 10; i++) {
     if (stored_debug[i] != debug[i]) stored_debug[i] = debug[i];
   }
-//  fastflash();
-  
   lock_eeprom();
   
 }

@@ -266,13 +266,8 @@
 // Duplex. For this reason DEBUG_SUPPORT 11 should be the default setting for
 // production code.
 //
-// 0 =  No debug bytes
-//      No UART
-//      No Link Error Stats browser page
-//      USAGE: Smallest memory footprint. Useful during development if
-//      in-development code needs a little more space.
 // 7 =  10 bytes of debug[] allocated to specific debug data*
-//      UART enabled for display of basic debug data on IO pin 11
+//      UART TX enabled on IO pin 11
 //      No Link Error Stats browser page
 //      USAGE: Useful mode for displaying most in-development debug without
 //      the overhead of the Link Error Stats web page.
@@ -316,8 +311,8 @@
 //   Code Uploader requires additional hardware in the form of an off-board I2C
 //   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
 // Un-comment ONLY ONE of the following:
-// #define BUILD_SUPPORT     MQTT_BUILD
-#define BUILD_SUPPORT     BROWSER_ONLY_BUILD
+#define BUILD_SUPPORT     MQTT_BUILD
+// #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
 // #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 
 
@@ -327,7 +322,7 @@
 // and clock pins.
 // 0 = Not supported
 // 1 = Supported
-#define I2C_SUPPORT 1
+#define I2C_SUPPORT 0
 
 
 // OB_EEPROM_SUPPORT
@@ -350,7 +345,7 @@
 //    b) Load the Runtime code
 // 0 = Not supported
 // 1 = Supported
-#define OB_EEPROM_SUPPORT 1
+#define OB_EEPROM_SUPPORT 0
 
 
 // DEBUG_SENSOR_SERIAL

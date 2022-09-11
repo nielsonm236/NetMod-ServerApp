@@ -156,9 +156,6 @@ extern uint8_t user_reboot_request;       // Communicates the need to reboot
 extern uint8_t restart_reboot_step;       // Indicates whether restart or
                                           // reboot are underway.
 
-extern uint8_t stack_error;               // Flag indicating stack overflow
-                                          // error
-
 extern const char code_revision[];        // Code Revision
        
 uint8_t OctetArray[11];		          // Used in emb_itoa conversions but
@@ -477,23 +474,25 @@ static const char g_HtmlPageIOControl[] =
                "<td colspan=2 style='text-align: left'>%a00</td>"
             "</tr>"
             "<script>"
-"const m=(t=>{const e=document,n=e.querySelector.bind(e)('form'),r=(Object.entries,parseI"
-"nt),o=t=>e.write(t),s=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join("
-"''),a=t=>t.match(/.{2}/g).map(t=>r(t,16)),c=t=>encodeURIComponent(t),d=[],h=[],p=(t,e,n)"
-"=>{return`<label><input type=radio name=o${e} value=${t} ${n==t?'checked':''}/>${(t?'on'"
-":'off').toUpperCase()}</label>`},l=()=>location.href='/60';return a(t.h00).forEach((t,e)"
-"=>{3==(3&t)?h.push(`<tr><td>Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>"
-"${p(1,e,t>>7)}${p(0,e,t>>7)}</td></tr>`):1==(3&t)&&d.push(`<tr><td>Input #${e+1}</td><td"
-" class='s${t>>7} t3'></td><td/></tr>`)}),o(d.join('')),o(`<tr><th></th><th></th>${h.leng"
-"th>0?'<th class=c>SET</th>':''}</tr>`),o(h.join('')),{s:e=>{e.preventDefault();const r=n"
-"ew XMLHttpRequest,o=Array.from((()=>{const e=new FormData(n);return e.set('h00',s(a(t.h0"
-"0).map((t,n)=>{const r='o'+n,o=e.get(r)<<7;return e.delete(r),o}))),e})().entries(),([t,"
-"e])=>`${c(t)}=${c(e)}`).join('&');r.open('POST','/',!1),r.send(o+'&z00=0'),l()},l:l}})({"
-"h00:'%h00'});"
-            "%y01"
+"const m=(t=>{let e=document,r=e.querySelector.bind(e),$=r('form'),n=(Object.entries,par"
+"seInt),h=t=>e.write(t),a=(t,e)=>n(t).toString(16).padStart(e,'0'),s=t=>t.map(t=>a(t,2))"
+".join(''),l=t=>t.match(/.{2}/g).map(t=>n(t,16)),d=t=>encodeURIComponent(t),o=[],p=[],c="
+"(t,e,r)=>{var $;return`<label><input type=radio name=o${e} value=${t} ${r==t?'checked':"
+"''}/>${(t?'on':'off').toUpperCase()}</label>`},u=()=>{let e=new FormData($);return e.se"
+"t('h00',s(l(t.h00).map((t,r)=>{let $='o'+r,n=e.get($)<<7;return e.delete($),n}))),e},i="
+"l(t.g00)[0];return cfg_page=16&i?()=>location.href='/60':()=>location.href='/61',reload"
+"_page=()=>location.href='/60',submit_form=t=>{t.preventDefault();let e=new XMLHttpReque"
+"st,r=Array.from(u().entries(),([t,e])=>`${d(t)}=${d(e)}`).join('&');e.open('POST','/',!"
+"1),e.send(r+'&z00=0'),reload_page()},l(t.h00).forEach((t,e)=>{(3&t)==3?p.push(`<tr><td>"
+"Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>${c(1,e,t>>7)}${c(0,e,t>>7)"
+"}</td></tr>`):(3&t)==1&&o.push(`<tr><td>Input #${e+1}</td><td class='s${t>>7} t3'></td>"
+"<td/></tr>`)}),h(o.join('')),h(`<tr><th></th><th></th>${p.length>0?'<th class=c>SET</th"
+">':''}</tr>`),h(p.join('')),{s:submit_form,l:reload_page,c:cfg_page}})({g00:'%g00',h00:"
+"'%h00'});"
+      "%y01"
       "<p/>"
-      "%y02`/60`'>Refresh</button> "
-      "%y02`/61`'>Configuration</button>"
+      "%y02'm.l()'>Refresh</button> "
+      "%y02'm.c()'>Configuration</button>"
       "<pre>%t00%t01%t02%t03%t04</pre>"
    "</body>"
 "</html>";
@@ -547,6 +546,15 @@ const m = (data => {
             })));
             return form_data;
         },
+        features_data = convert_from_hex(data.g00)[0],
+        common_attributes = {required: true};
+        
+        if (features_data & 0x10) {
+          cfg_page = () => location.href = '/60';
+        } else {
+          cfg_page = () => location.href = '/61';        
+        }
+
         reload_page = () => location.href = '/60',
         submit_form = (event) => {
         	event.preventDefault();
@@ -571,8 +579,12 @@ const m = (data => {
     document_write(`<tr><th></th><th></th>${outputs.length > 0 ? '<th class=c>SET</th>' : ''}</tr>`);
     document_write(outputs.join(''));
     
-    return {s: submit_form, l:reload_page}
-})({ h00: '%h00' });
+    return {s: submit_form, l:reload_page, c:cfg_page}
+})
+({
+  g00: "14",
+  h00: '00010305070b0f131781018303000000',
+});
 
 
 */
@@ -724,41 +736,42 @@ static const char g_HtmlPageConfiguration[] =
               "<th>Boot state</th>"
             "</tr>"
          "<script>"
-"const m=(e=>{const t=['b00','b04','b08','b12'],n=['c00','c01'],o={disabled:0,input:1,out"
-"put:3},r={retain:8,on:16,off:0},a=document,c=location,s=a.querySelector.bind(a),p=s('for"
-"m'),d=Object.entries,i=parseInt,l=(e,t)=>i(e).toString(16).padStart(t,'0'),u=e=>e.map(e="
-">l(e,2)).join(''),m=e=>e.match(/.{2}/g).map(e=>i(e,16)),$=e=>encodeURIComponent(e),b=(e,"
-"t)=>(e=>s(`input[name=${e}]`))(e).value=t,f=(e,t)=>{for(const n of a.querySelectorAll(e)"
-")t(n)},h=(e,t)=>{for(const[n,o]of d(t))e.setAttribute(n,o)},g=(e,t)=>d(e).map(e=>`<optio"
-"n value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),x=(e,t,n,o='')=>`<i"
-"nput type='checkbox' name='${e}' value=${t} ${(n&t)==t?'checked':''}>${o}`,y=(e,t,n)=>{c"
-"onst o=new XMLHttpRequest;o.open(e,t,!1),o.send(n)},A=()=>c.href='/61',T=()=>{a.body.inn"
-"erText='Wait 5s...',setTimeout(A,5e3)},j=m(e.g00)[0],E={required:!0};return f('.ip',e=>{"
-"h(e,{...E,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$"
-")|$)){4}'})}),f('.port',e=>{h(e,{...E,type:'number',min:10,max:65535})}),f('.up input',e"
-"=>{h(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',maxlen"
-"gth:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>b(t,m(e[t]).join('.'))),n.forEa"
-"ch(t=>b(t,i(e[t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),m(e.h00).forEac"
-"h((e,t)=>{const n=1&e?x('p'+t,4,e):'',s=3==(3&e)?`<select name='p${t}'>${g(r,24&e)}</sel"
-"ect>`:'',p='#d'==c.hash?`<td>${e}</td>`:'';(e=>a.write(e))(`<tr><td>#${t+1}</td><td><sel"
-"ect name='p${t}'>${g(o,3&e)}</select></td><td>${n}</td><td>${s}</td>${p}</tr>`)}),s('.f'"
-").innerHTML=Array.from(d({'Full Duplex':1,'HA Auto':6,MQTT:4,DS18B20:8}),([e,t])=>x('g00"
-"',t,j,e)).join('</br>'),{r:()=>{y('GET','/91'),T()},s:o=>{o.preventDefault();const r=Arr"
-"ay.from((()=>{const o=new FormData(p),r=e=>o.getAll(e).map(e=>i(e)).reduce((e,t)=>e|t,0)"
-";return t.forEach(e=>o.set(e,u(o.get(e).split('.')))),n.forEach(e=>o.set(e,l(o.get(e),4)"
-")),o.set('d00',o.get('d00').toLowerCase().replace(/[:-]/g,'')),o.set('h00',u(m(e.h00).ma"
-"p((e,t)=>{const n='p'+t,a=r(n);return o.delete(n),a}))),o.set('g00',u([r('g00')])),o})()"
-".entries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0'),T()},l:A}})({b"
-"00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g"
-"00:'%g00'});"
-            "%y01"
+"const m=(e=>{let t=['b00','b04','b08','b12'],$=['c00','c01'],r={'Full Duplex':1,'HA Aut"
+"o':6,MQTT:4,DS18B20:8,'Disable Cfg Button':16},n={disabled:0,input:1,output:3},o={retai"
+"n:8,on:16,off:0},a=document,l=location,p=a.querySelector.bind(a),c=p('form'),d=Object.e"
+"ntries,i=parseInt,_=e=>a.write(e),s=(e,t)=>i(e).toString(16).padStart(t,'0'),u=e=>e.map"
+"(e=>s(e,2)).join(''),b=e=>e.match(/.{2}/g).map(e=>i(e,16)),f=e=>encodeURIComponent(e),h"
+"=e=>p(`input[name=${e}]`),g=(e,t)=>h(e).value=t,x=(e,t)=>{for(let $ of a.querySelectorA"
+"ll(e))t($)},y=(e,t)=>{for(let[$,r]of d(t))e.setAttribute($,r)},A=(e,t)=>d(e).map(e=>`<o"
+"ption value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),E=(e,t,$,r='')"
+"=>`<input type='checkbox' name='${e}' value=${t} ${($&t)==t?'checked':''}>${r}`,S=()=>{"
+"let r=new FormData(c),n=e=>r.getAll(e).map(e=>i(e)).reduce((e,t)=>e|t,0);return t.forEa"
+"ch(e=>r.set(e,u(r.get(e).split('.')))),$.forEach(e=>r.set(e,s(r.get(e),4))),r.set('d00'"
+",r.get('d00').toLowerCase().replace(/[:-]/g,'')),r.set('h00',u(b(e.h00).map((e,t)=>{let"
+" $='p'+t,o=n($);return r.delete($),o}))),r.set('g00',u([n('g00')])),r},T=(e,t,$)=>{let "
+"r=new XMLHttpRequest;r.open(e,t,!1),r.send($)},j=()=>location.href='/60',v=()=>l.href='"
+"/61',w=()=>{a.body.innerText='Wait 5s...',setTimeout(v,5e3)},D=()=>{T('GET','/91'),w()}"
+",k=e=>{e.preventDefault();let t=Array.from(S().entries(),([e,t])=>`${f(e)}=${f(t)}`).jo"
+"in('&');T('POST','/',t+'&z00=0'),w()},q=b(e.g00)[0],z={required:!0};return x('.ip',e=>{"
+"y(e,{...z,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!"
+"$)|$)){4}'})}),x('.port',e=>{y(e,{...z,type:'number',min:10,max:65535})}),x('.up input'"
+",e=>{y(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',max"
+"length:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>g(t,b(e[t]).join('.'))),$.f"
+"orEach(t=>g(t,i(e[t],16))),g('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),b(e.h00).f"
+"orEach((e,t)=>{let $=1&e?E('p'+t,4,e):'',r=(3&e)==3?`<select name='p${t}'>${A(o,24&e)}<"
+"/select>`:'',a='#d'==l.hash?`<td>${e}</td>`:'';_(`<tr><td>#${t+1}</td><td><select name="
+"'p${t}'>${A(n,3&e)}</select></td><td>${$}</td><td>${r}</td>${a}</tr>`)}),p('.f').innerH"
+"TML=Array.from(d(r),([e,t])=>E('g00',t,q,e)).join('</br>'),{r:D,s:k,l:v,c:j}})({b00:'%b"
+"00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%"
+"g00'});"
+      "%y01"
       "<p>Code Revision %w00<br/>"
         "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
       "</p>"
-      "<button title='Save first!' onclick='m.r()'>Reboot</button>"
+      "%y02'm.r()'>Reboot</button>"
       "<br><br>"
-      "%y02`/61`'>Refresh</button> "
-      "%y02`/60`'>IO Control</button>"
+      "%y02'm.l()'>Refresh</button> "
+      "%y02'm.c()'>IO Control</button>"
    "</body>"
 "</html>";
 #endif // OB_EEPROM_SUPPORT == 0
@@ -786,9 +799,9 @@ static const char g_HtmlPageConfiguration[] = " ";
 const m = (data => {
     const ip_input_names = ['b00', 'b04', 'b08', 'b12'],
         port_input_names = ['c00', 'c01'],
-        features = { 'Full Duplex': 1, 'HA Auto': 6, 'MQTT': 4, 'DS18B20': 8 },
-        pin_types = { 'disabled': 0, 'input': 1, 'output': 3 },
-        boot_state = { 'retain': 8, 'on': 16, 'off': 0 },
+        features = { "Full Duplex": 1, "HA Auto": 6, "MQTT": 4, "DS18B20": 8, "Disable Cfg Button": 16 },
+        pin_types = { "disabled": 0, "input": 1, "output": 3 },
+        boot_state = { "retain": 8, "on": 16, "off": 0 },
         doc=document,
         loc=location,
         selector=doc.querySelector.bind(doc),
@@ -805,7 +818,7 @@ const m = (data => {
         selector_apply_fn = (query, fn) => { for (const e of doc.querySelectorAll(query)) { fn(e) } },
         set_attributes = (e, d) => { for (const [k, v] of get_entries(d)) { e.setAttribute(k, v); } },
         make_options = (o, v) => get_entries(o).map((o) => `<option value=${o[1]} ${o[1] == v ? 'selected' : ''}>${o[0]}</option>`).join(''),
-        make_checkbox = (name, bit, value, title='') => `<input type='checkbox' name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
+        make_checkbox = (name, bit, value, title='') => `<input type="checkbox" name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
         get_form_data = () => {
             const form_data = new FormData(form),
             	collect_bits = (name) => form_data.getAll(name).map(v => parse_int(v)).reduce((a, b) => a | b, 0);
@@ -830,19 +843,20 @@ const m = (data => {
           request.open(method, url, false);
           request.send(data);
         },
+        iocontrol_page = () => location.href = '/60',
         reload_page = () => loc.href = '/61',
         wait_reboot = () => {
-          doc.body.innerText = 'Wait 5s...';
+          doc.body.innerText = "Wait 5s...";
           setTimeout(reload_page, 5000);
         },
         reboot = () => {
-          send_request('GET', '/91');
+          send_request("GET", "/91");
           wait_reboot();
         },
         submitForm = (event) => {
         	event.preventDefault();
-          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
-          send_request('POST', '/', string_data + '&z00=0');
+          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join("&");
+          send_request("POST", "/", string_data + '&z00=0');
           wait_reboot();
         },
         features_data = convert_from_hex(data.g00)[0],
@@ -863,23 +877,24 @@ const m = (data => {
         document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
     });
     
-    selector('.f').innerHTML = Array.from(
+    selector(".f").innerHTML = Array.from(
     	get_entries(features),
-      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join('</br>'
+      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join("</br>"
     );
     
     
-    return {r:reboot, s: submitForm, l:reload_page};
-})({
-    b00: '%b00',
-    b04: '%b04',
-    b08: '%b08',
-    c00: '%c00',
-    d00: '%d00',
-    b12: '%b12',
-    c01: '%c01',
-    h00: '%h00',
-    g00: '%g00'
+    return {r:reboot, s: submitForm, l:reload_page, c:iocontrol_page};
+})
+({
+    b00: "c0a80004",
+    b04: "c0a80101",
+    b08: "ffffff00",
+    b12: "c0a80005",
+    c00: "0050",
+    c01: "075b",
+    d00: "aabbccddeeff",
+    g00: "04",
+    h00: "00010305070b0f131700000000000000",
 });
 
 */
@@ -936,24 +951,27 @@ static const char g_HtmlPageIOControl[] =
                "<td colspan=2 style='text-align: left'>%a00</td>"
             "</tr>"
             "<script>"
-"const m=(t=>{const e=document,j=e.querySelector.bind(e)('form'),r=(Object.entries,parseInt)"
-",n=t=>e.write(t),o=t=>t.map(t=>((t,e)=>r(t).toString(16).padStart(e,'0'))(t,2)).join(''),a="
-"t=>t.match(/.{2}/g).map(t=>r(t,16)),s=t=>encodeURIComponent(t),c=[],d=[],h=(t,e,j)=>{return"
-"`<label><input type=radio name=o${e} value=${t} ${j==t?'checked':''}/>${(t?'on':'off').toUp"
-"perCase()}</label>`},p=()=>location.href='/60';return a(t.h00).forEach((e,j)=>{var r=t['j'+"
-"(j+'').padStart(2,'0')];3==(3&e)?d.push(`<tr><td>${r}</td><td class='s${e>>7} t3'></td><td "
-"class=c>${h(1,j,e>>7)}${h(0,j,e>>7)}</td></tr>`):1==(3&e)&&c.push(`<tr><td>${r}</td><td cla"
-"ss='s${e>>7} t3'></td><td/></tr>`)}),n(c.join('')),n(`<tr><th></th><th></th>${d.length>0?'<"
-"th class=c>SET</th>':''}</tr>`),n(d.join('')),{s:e=>{e.preventDefault();const r=new XMLHttp"
-"Request,n=Array.from((()=>{const e=new FormData(j);return e.set('h00',o(a(t.h00).map((t,j)="
-">{const r='o'+j,n=e.get(r)<<7;return e.delete(r),n}))),e})().entries(),([t,e])=>`${s(t)}=${"
-"s(e)}`).join('&');r.open('POST','/',!1),r.send(n+'&z00=0'),p()},l:p}})({h00:'%h00',j00:'%j0"
-"0',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j07',j08:'%j08',"
-"j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j15'});"
+"const m=(t=>{let $=document,e=$.querySelector.bind($),j=e('form'),r=(Object.entries,par"
+"seInt),_=t=>$.write(t),a=(t,$)=>r(t).toString(16).padStart($,'0'),n=t=>t.map(t=>a(t,2))"
+".join(''),h=t=>t.match(/.{2}/g).map(t=>r(t,16)),s=t=>encodeURIComponent(t),d=[],l=[],o="
+"(t,$,e)=>{var j;return`<label><input type=radio name=o${$} value=${t} ${e==t?'checked':"
+"''}/>${(t?'on':'off').toUpperCase()}</label>`},c=()=>{let $=new FormData(j);return $.se"
+"t('h00',n(h(t.h00).map((t,e)=>{let j='o'+e,r=$.get(j)<<7;return $.delete(j),r}))),$},p="
+"h(t.g00)[0];return cfg_page=16&p?()=>location.href='/60':()=>location.href='/61',reload"
+"_page=()=>location.href='/60',submit_form=t=>{t.preventDefault();let $=new XMLHttpReque"
+"st,e=Array.from(c().entries(),([t,$])=>`${s(t)}=${s($)}`).join('&');$.open('POST','/',!"
+"1),$.send(e+'&z00=0'),reload_page()},h(t.h00).forEach(($,e)=>{var j=t['j'+(e+'').padSta"
+"rt(2,'0')];(3&$)==3?l.push(`<tr><td>${j}</td><td class='s${$>>7} t3'></td><td class=c>$"
+"{o(1,e,$>>7)}${o(0,e,$>>7)}</td></tr>`):(3&$)==1&&d.push(`<tr><td>${j}</td><td class='s"
+"${$>>7} t3'></td><td/></tr>`)}),_(d.join('')),_(`<tr><th></th><th></th>${l.length>0?'<t"
+"h class=c>SET</th>':''}</tr>`),_(l.join('')),{s:submit_form,l:reload_page,c:cfg_page}})"
+"({g00:'%g00',h00:'%h00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j0"
+"5',j06:'%j06',j07:'%j07',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j"
+"13',j14:'%j14',j15:'%j15'});"
             "%y01"
       "<p/>"
-      "%y02`/60`'>Refresh</button> "
-      "%y02`/61`'>Configuration</button>"
+      "%y02'm.l()'>Refresh</button> "
+      "%y02'm.c()'>Configuration</button>"
       "<pre>%t00%t01%t02%t03%t04</pre>"
    "</body>"
 "</html>";
@@ -964,8 +982,6 @@ static const char g_HtmlPageIOControl[] =
 // and Off-Board webpage sources.
 static const char g_HtmlPageIOControl[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
-
-
 
 /*
 // Credit to Jevgeni Kiski for the javascript work and html improvements.
@@ -1007,6 +1023,15 @@ const m = (data => {
             })));
             return form_data;
         },
+        features_data = convert_from_hex(data.g00)[0],
+        common_attributes = {required: true};
+        
+        if (features_data & 0x10) {
+          cfg_page = () => location.href = '/60';
+        } else {
+          cfg_page = () => location.href = '/61';        
+        }
+
         reload_page = () => location.href = '/60',
         submit_form = (event) => {
         	event.preventDefault();
@@ -1032,25 +1057,27 @@ const m = (data => {
     document_write(`<tr><th></th><th></th>${outputs.length > 0 ? '<th class=c>SET</th>' : ''}</tr>`);
     document_write(outputs.join(''));
     
-    return {s: submit_form, l:reload_page}
-})({
-  h00: '%h00',
-  j00: '%j00',
-  j01: '%j01',
-  j02: '%j02',
-  j03: '%j03',
-  j04: '%j04',
-  j05: '%j05',
-  j06: '%j06',
-  j07: '%j07',
-  j08: '%j08',
-  j09: '%j09',
-  j10: '%j10',
-  j11: '%j11',
-  j12: '%j12',
-  j13: '%j13',
-  j14: '%j14',
-  j15: '%j15',
+    return {s: submit_form, l:reload_page, c:cfg_page}
+})
+({
+  g00: "14",
+  h00: '01010305070b0f131781018303000000',
+  j00: 'LivingRoom12345',
+  j01: 'LivingRoom67890',
+  j02: 'IO_3',
+  j03: 'IO_4',
+  j04: 'IO_5',
+  j05: 'IO_6',
+  j06: 'IO_7',
+  j07: 'IO_8',
+  j08: 'IO_9',
+  j09: 'IO_10',
+  j10: 'IO_11',
+  j11: 'IO_12',
+  j12: 'IO_13',
+  j13: 'IO_14',
+  j14: 'Driveway_01',
+  j15: 'Garden-01',
 });
 
 */
@@ -1191,49 +1218,50 @@ static const char g_HtmlPageConfiguration[] =
               "<th>Timer</th>"
             "</tr>"
          "<script>"
-"const m=(e=>{const t=['b00','b04','b08'],i=['c00'],n={disabled:0,input:1,output:3},r={r"
-"etain:8,on:16,off:0},a={'0.1s':0,'1s':16384,'1m':32768,'1h':49152},o=document,s=locatio"
-"n,c=o.querySelector.bind(o),j=c('form'),d=Object.entries,p=parseInt,l=(e,t)=>p(e).toStr"
-"ing(16).padStart(t,'0'),m=e=>e.map(e=>l(e,2)).join(''),u=e=>e.match(/.{2}/g).map(e=>p(e"
-",16)),$=e=>encodeURIComponent(e),b=(e,t)=>(e=>c(`input[name=${e}]`))(e).value=t,f=(e,t)"
-"=>{for(const i of o.querySelectorAll(e))t(i)},h=(e,t)=>{for(const[i,n]of d(t))e.setAttr"
-"ibute(i,n)},g=(e,t)=>d(e).map(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]"
-"}</option>`).join(''),x=(e,t,i,n='')=>`<input type='checkbox' name='${e}' value=${t} ${"
-"(i&t)==t?'checked':''}>${n}`,y=(e,t,i)=>{const n=new XMLHttpRequest;n.open(e,t,!1),n.se"
-"nd(i)},S=()=>s.href='/61',v=()=>{o.body.innerText='Wait 5s...',setTimeout(S,5e3)},A=u(e"
-".g00)[0],E={required:!0};return f('.ip',e=>{h(e,{...E,title:'x.x.x.x format',pattern:'("
-"(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),f('.port',e=>{h(e,{...E,type"
-":'number',min:10,max:65535})}),t.forEach(t=>b(t,u(e[t]).join('.'))),i.forEach(t=>b(t,p("
-"e[t],16))),b('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),u(e.h00).forEach((t,i)=>{c"
-"onst c=1&t?x('p'+i,4,t):'',j=(e,i)=>3==(3&t)?e:i,d=(''+i).padStart(2,'0'),p=j(u(e['i'+d"
-"]).reduce((e,t)=>(e<<8)+t),0),l=j(`<select name='p${i}'>${g(r,24&t)}</select>`,''),m='#"
-"d'==s.hash?`<td>${t}</td>`:'',$=j(`<input type=number class=t8 name='i${d}' value='${16"
-"383&p}' min=0 max=16383><select name='i${d}'>${g(a,49152&p)}</select>`,'');(e=>o.write("
-"e))(`<tr><td>#${i+1}</td><td><select name='p${i}'>${g(n,3&t)}</select></td><td><input n"
-"ame='j${d}' value='${e['j'+d]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15"
-" letters, numbers, and -*_. no spaces' maxlength=15/></td><td>${c}</td><td>${l}</td><td"
-">${$}</td>${m}</tr>`)}),c('.f').innerHTML=Array.from(d({'Full Duplex':1,DS18B20:8}),([e"
-",t])=>x('g00',t,A,e)).join('</br>'),{r:()=>{y('GET','/91'),v()},s:n=>{n.preventDefault("
-");const r=Array.from((()=>{const n=new FormData(j),r=e=>n.getAll(e).map(e=>p(e)).reduce"
-"((e,t)=>e|t,0);t.forEach(e=>n.set(e,m(n.get(e).split('.')))),i.forEach(e=>n.set(e,l(n.g"
-"et(e),4))),n.set('d00',n.get('d00').toLowerCase().replace(/[:-]/g,'')),n.set('h00',m(u("
-"e.h00).map((e,t)=>{const i='p'+t,a=r(i);return n.delete(i),a})));for(let e=0;e<16;e++){"
-"let t=(''+e).padStart(2,'0');n.set('i'+t,l(65535&r('i'+t),4))}return n.set('g00',m([r('"
-"g00')])),n})().entries(),([e,t])=>`${$(e)}=${$(t)}`).join('&');y('POST','/',r+'&z00=0')"
-",v()},l:S}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00',g00:'%g"
-"00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%"
-"j07',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'"
-"%j15',i00:'%i00',i01:'%i01',i02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:"
-"'%i07',i08:'%i08',i09:'%i09',i10:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15"
-":'%i15'});"
+"const m=($=>{let e=['b00','b04','b08'],t=['c00'],i={'Full Duplex':1,DS18B20:8,'Disable "
+"Cfg Button':16},_={disabled:0,input:1,output:3},r={retain:8,on:16,off:0},a={'0.1s':0,'1"
+"s':16384,'1m':32768,'1h':49152},n=document,l=location,j=n.querySelector.bind(n),o=j('fo"
+"rm'),d=Object.entries,p=parseInt,s=$=>n.write($),c=($,e)=>p($).toString(16).padStart(e,"
+"'0'),u=$=>$.map($=>c($,2)).join(''),f=$=>$.match(/.{2}/g).map($=>p($,16)),b=$=>encodeUR"
+"IComponent($),h=$=>j(`input[name=${$}]`),g=($,e)=>h($).value=e,x=($,e)=>{for(let t of n"
+".querySelectorAll($))e(t)},S=($,e)=>{for(let[t,i]of d(e))$.setAttribute(t,i)},v=($,e)=>"
+"d($).map($=>`<option value=${$[1]} ${$[1]==e?'selected':''}>${$[0]}</option>`).join('')"
+",y=($,e,t,i='')=>`<input type='checkbox' name='${$}' value=${e} ${(t&e)==e?'checked':''"
+"}>${i}`,E=()=>{let i=new FormData(o),_=$=>i.getAll($).map($=>p($)).reduce(($,e)=>$|e,0)"
+";e.forEach($=>i.set($,u(i.get($).split('.')))),t.forEach($=>i.set($,c(i.get($),4))),i.s"
+"et('d00',i.get('d00').toLowerCase().replace(/[:-]/g,'')),i.set('h00',u(f($.h00).map(($,"
+"e)=>{let t='p'+e,r=_(t);return i.delete(t),r})));for(let r=0;r<16;r++){let a=(''+r).pad"
+"Start(2,'0');i.set('i'+a,c(65535&_('i'+a),4))}return i.set('g00',u([_('g00')])),i},q=($"
+",e,t)=>{let i=new XMLHttpRequest;i.open($,e,!1),i.send(t)},w=()=>location.href='/60',A="
+"()=>l.href='/61',D=()=>{n.body.innerText='Wait 5s...',setTimeout(A,5e3)},T=()=>{q('GET'"
+",'/91'),D()},z=$=>{$.preventDefault();let e=Array.from(E().entries(),([$,e])=>`${b($)}="
+"${b(e)}`).join('&');q('POST','/',e+'&z00=0'),D()},k=f($.g00)[0],B={required:!0};return "
+"x('.ip',$=>{S($,{...B,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)["
+"0-9])([.](?!$)|$)){4}'})}),x('.port',$=>{S($,{...B,type:'number',min:10,max:65535})}),e"
+".forEach(e=>g(e,f($[e]).join('.'))),t.forEach(e=>g(e,p($[e],16))),g('d00',$.d00.replace"
+"(/[0-9a-z]{2}(?!$)/g,'$&:')),f($.h00).forEach((e,t)=>{let i=1&e?y('p'+t,4,e):'',n=($,t)"
+"=>(3&e)==3?$:t,j=(''+t).padStart(2,'0'),o=n(f($['i'+j]).reduce(($,e)=>($<<8)+e),0),d=n("
+"`<select name='p${t}'>${v(r,24&e)}</select>`,''),p='#d'==l.hash?`<td>${e}</td>`:'',c=n("
+"`<input type=number class=t8 name='i${j}' value='${16383&o}' min=0 max=16383><select na"
+"me='i${j}'>${v(a,49152&o)}</select>`,'');s(`<tr><td>#${t+1}</td><td><select name='p${t}"
+"'>${v(_,3&e)}</select></td><td><input name='j${j}' value='${$['j'+j]}' pattern='[0-9a-z"
+"A-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, and -*_. no spaces' maxlength"
+"=15/></td><td>${i}</td><td>${d}</td><td>${c}</td>${p}</tr>`)}),j('.f').innerHTML=Array."
+"from(d(i),([$,e])=>y('g00',e,k,$)).join('</br>'),{r:T,s:z,l:A,c:w}})({b00:'%b00',b04:'%"
+"b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00',g00:'%g00',j00:'%j00',j01:'%j01',j02:'"
+"%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j07',j08:'%j08',j09:'%j09',j10:"
+"'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j15',i00:'%i00',i01:'%i01',i02"
+":'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%i07',i08:'%i08',i09:'%i09',i1"
+"0:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'%i15'});"
+
             "%y01"
       "<p>Code Revision %w00<br/>"
         "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
       "</p>"
-      "<button title='Save first!' onclick='m.r()'>Reboot</button>"
+      "%y02'm.r()'>Reboot</button>"
       "<br><br>"
-      "%y02`/61`'>Refresh</button> "
-      "%y02`/60`'>IO Control</button>"
+      "%y02'm.l()'>Refresh</button> "
+      "%y02'm.c()'>IO Control</button>"
    "</body>"
 "</html>";
 #endif // OB_EEPROM_SUPPORT == 0
@@ -1243,7 +1271,6 @@ static const char g_HtmlPageConfiguration[] =
 // and Off-Board webpage sources.
 static const char g_HtmlPageConfiguration[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
-
 
 /*
 // Credit to Jevgeni Kiski for the javascript work and html improvements.
@@ -1261,10 +1288,10 @@ static const char g_HtmlPageConfiguration[] = " ";
 const m = (data => {
     const ip_input_names = ['b00', 'b04', 'b08'],
         port_input_names = ['c00'],
-        features = { 'Full Duplex': 1, 'DS18B20': 8 },
-        pin_types = { 'disabled': 0, 'input': 1, 'output': 3 },
-        boot_state = { 'retain': 8, 'on': 16, 'off': 0 },
-        timer_unit = { '0.1s': 0, '1s': 0x4000, '1m': 0x8000, '1h': 0xc000 },
+        features = { "Full Duplex": 1, "DS18B20": 8, "Disable Cfg Button": 16 },
+        pin_types = { "disabled": 0, "input": 1, "output": 3 },
+        boot_state = { "retain": 8, "on": 16, "off": 0 },
+        timer_unit = { "0.1s": 0, "1s": 0x4000, "1m": 0x8000, "1h": 0xc000 },
         doc=document,
         loc=location,
         selector=doc.querySelector.bind(doc),
@@ -1281,7 +1308,7 @@ const m = (data => {
         selector_apply_fn = (query, fn) => { for (const e of doc.querySelectorAll(query)) { fn(e) } },
         set_attributes = (e, d) => { for (const [k, v] of get_entries(d)) { e.setAttribute(k, v); } },
         make_options = (o, v) => get_entries(o).map((o) => `<option value=${o[1]} ${o[1] == v ? 'selected' : ''}>${o[0]}</option>`).join(''),
-        make_checkbox = (name, bit, value, title='') => `<input type='checkbox' name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
+        make_checkbox = (name, bit, value, title='') => `<input type="checkbox" name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
         get_form_data = () => {
             const form_data = new FormData(form),
             	collect_bits = (name) => form_data.getAll(name).map(v => parse_int(v)).reduce((a, b) => a | b, 0);
@@ -1310,19 +1337,20 @@ const m = (data => {
           request.open(method, url, false);
           request.send(data);
         },
+        iocontrol_page = () => location.href = '/60',
         reload_page = () => loc.href='/61',
         wait_reboot = () => {
-          doc.body.innerText = 'Wait 5s...';
+          doc.body.innerText = "Wait 5s...";
           setTimeout(reload_page, 5000);
         },
         reboot = () => {
-          send_request('GET', '/91');
+          send_request("GET", "/91");
           wait_reboot();
         },
         submitForm = (event) => {
         	event.preventDefault();
-          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
-          send_request('POST', '/', string_data + '&z00=0');
+          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join("&");
+          send_request("POST", "/", string_data + '&z00=0');
           wait_reboot();
         },
         features_data = convert_from_hex(data.g00)[0],
@@ -1346,57 +1374,57 @@ const m = (data => {
         document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td><input name='j${input_nr}' value='${data['j'+input_nr]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, and -*_. no spaces' maxlength=15/></td><td>${invert_checkbox}</td><td>${boot_state_select}</td><td>${timer_column}</td>${debug_column}</tr>`);
     });
     
-    selector('.f').innerHTML = Array.from(
-    	get_entries(features),
-      ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join('</br>'
-    );
+    selector(".f").innerHTML = Array.from(get_entries(features),([name, bit]) => make_checkbox('g00', bit, features_data, name)).join("</br>");
     
-    
-    return {r:reboot, s: submitForm, l:reload_page};
-})({
-    b00: '%b00',
-    b04: '%b04',
-    b08: '%b08',
-    c00: '%c00',
-    d00: '%d00',
-    h00: '%h00',
-    g00: '%g00',
-    j00: '%j00',
-    j01: '%j01',
-    j02: '%j02',
-    j03: '%j03',
-    j04: '%j04',
-    j05: '%j05',
-    j06: '%j06',
-    j07: '%j07',
-    j08: '%j08',
-    j09: '%j09',
-    j10: '%j10',
-    j11: '%j11',
-    j12: '%j12',
-    j13: '%j13',
-    j14: '%j14',
-    j15: '%j15',
-    i00: '%i00',
-    i01: '%i01',
-    i02: '%i02',
-    i03: '%i03',
-    i04: '%i04',
-    i05: '%i05',
-    i06: '%i06',
-    i07: '%i07',
-    i08: '%i08',
-    i09: '%i09',
-    i10: '%i10',
-    i11: '%i11',
-    i12: '%i12',
-    i13: '%i13',
-    i14: '%i14',
-    i15: '%i15',
+    return {r:reboot, s: submitForm, l:reload_page, c:iocontrol_page};
+})
+({
+    b00: "c0a80004",
+    b04: "c0a80101",
+    b08: "ffffff00",
+    c00: "0050",
+    d00: "aabbccddeeff",
+    h00: "00010305070b0f131700000000000000",
+    g00: "04",
+    j00: "LivingRoom12345",
+    j01: "LivingRoom67890",
+    j02: "IO_3",
+    j03: "IO_4",
+    j04: "IO_5",
+    j05: "IO_6",
+    j06: "IO_7",
+    j07: "IO_8",
+    j08: "IO_9",
+    j09: "IO_10",
+    j10: "IO_11",
+    j11: "IO_12",
+    j12: "IO_13",
+    j13: "IO_14",
+    j14: "Driveway_01",
+    j15: "Garden-01",
+    i00: "0000",
+    i01: "0000",
+    i02: "0000",
+    i03: "0000",
+    i04: "30ff",
+    i05: "7f0f",
+    i06: "bff0",
+    i07: "ffff",
+    i08: "0001",
+    i09: "0000",
+    i10: "0000",
+    i11: "0000",
+    i12: "0000",
+    i13: "0000",
+    i14: "0000",
+    i15: "0000",
 });
 
 */
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+
+
 
 
 #if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
@@ -1765,7 +1793,7 @@ static const char g_HtmlPageEEPROMMissing[] =
 
 // String for %y02 replacement in web page templates
 #define s2 "" \
-  "<button title='Save first!' onclick='location="
+  "<button title='Save first!' onclick="
 
 // String for %y03 replacement in web page templates
 #define s3 "" \
@@ -2238,11 +2266,11 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     size = size + ps[1].size_less4;
 
     // String for %y02 in web page templates
-    // There are 2 instances (Refresh and IO Control buttons)
+    // There are 3 instances (Reboot, Refresh and IO Control buttons)
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances) x (ps[2].size - 4);
-    // size = size + (2) x ps[2].size_less4;
-    size = size + (2 * ps[2].size_less4);
+    // size = size + (3) x ps[2].size_less4;
+    size = size + (3 * ps[2].size_less4);
     
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
     // Account for IO Name fields %j00 to %j15
@@ -3208,14 +3236,19 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // This displays the Config string, currently defined as follows:
 	  // Communicated to and from the web pages as 2 characters making
 	  // a hex encoded byte. Stored in memory as a single byte.
-	  // Bit 8: Undefined, 0 only
-	  // Bit 7: Undefined, 0 only
-	  // Bit 6: Undefined, 0 only
-	  // Bit 5: Undefined, 0 only
-	  // Bit 4: DS18B20 1 = Enable, 0 = Disable
-	  // Bit 3: MQTT 1 = Enable, 0 = Disable
-	  // Bit 2: Home Assistant Auto Discovery 1 = Enable, 0 = Disable
-	  // Bit 1: Duplex 1 = Full, 0 = Half
+          // Bit 7: Undefined, 0 only
+          // Bit 6: Undefined, 0 only
+          // Bit 5: Undefined, 0 only
+          // Bit 4: Disable Cfg Button
+          //        1 = Disable, 0 = Enable
+          // Bit 3: DS18B20
+          //        1 = Enable, 0 = Disable
+          // Bit 2: MQTT
+          //        1 = Enable, 0 = Disable
+          // Bit 1: Home Assistant Auto Discovery
+          //        1 = Enable, 0 = Disable
+          // Bit 0: Duplex
+          //        1 = Full, 0 = Half
 	  // There is only 1 'g' ID so we don't need to check the nParsedNum.
 	  
 	  // Convert Config settngs byte into two hex characters
@@ -4363,10 +4396,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 	      
             case 67: // Clear Link Error Statistics
-	      // Clear the the Link Error Statistics bytes.
-	      // Important: 
-	      // The debug[] byte indexes used may change if the
-	      // number of debug bytes changes.
+	      // Clear the the Link Error Statistics bytes and Stack Overflow
+	      debug[2] = (uint8_t)(debug[2] & 0x7f); // Clear the Stack Overflow bit
 	      debug[3] = 0; // Clear TXERIF counter
 	      debug[4] = 0; // Clear RXERIF counter
 	      update_debug_storage1();
@@ -4501,19 +4532,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                 // Output-01..16 OFF/ON
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
                 update_ON_OFF((uint8_t)(pSocket->ParseNum/2), (uint8_t)(pSocket->ParseNum%2));
-//                // Show Short Form IO state page
-//	        pSocket->current_webpage = WEBPAGE_SSTATE;
-//                pSocket->pData = g_HtmlPageSstate;
-//                pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
 	        GET_response_type = 204; // No return webpage
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
               }
               else {
 	        // Show default page
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-// UARTPrintf("Default GET case\r\n");
-
 	        pSocket->current_webpage = WEBPAGE_IOCONTROL;
                 pSocket->pData = g_HtmlPageIOControl;
                 pSocket->nDataLeft = HtmlPageIOControl_size;

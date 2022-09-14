@@ -74,7 +74,7 @@ Tested with:
 - Ubuntu 20.10 - Firefox 84.0.1 (64-bit)
 - Ubuntu 20.10 - Chromium 87.0.4280.88 (64-bit)
 - iPhone Safari on iOS 15.6.1
-- iPhone Chrome 92.0.4515.90 on iOS 15.6.1
+- iPhone Chrome 105.0.5195.100 on iOS 15.6.1
 - Mosquitto
 - Node-Red
 - Chrome MQTTLens

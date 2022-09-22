@@ -30,7 +30,7 @@ Feature Comparison of the MQTT and Browser builds:
 
 Short summary of release history:
 
-Sept 11, 2022 - Fixed Issue #94: “ENC28J60 Revision not always reported in Link Error Statistics”. Added Enhancement Issue #100 “Remove Configuration Button”. This is an option to disable the Configuration button on the IOControl page.
+Sept 21, 2022 - Fixed Issue #94: “ENC28J60 Revision not always reported in Link Error Statistics”. Added Enhancement Issue #100 “Remove Configuration Button”. This is an option to disable the Configuration button on the IOControl page. Fixed Issue #108 "Temperature sensors loose custom names in HA on NetModule boot".
 
 August 31,2022 - Added useability enhancement "Make ON/OFF labels clickable"
 

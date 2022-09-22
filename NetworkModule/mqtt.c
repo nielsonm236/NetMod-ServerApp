@@ -64,6 +64,9 @@ uint8_t mqtt_sendbuf[140]; // Buffer to contain MQTT transmit queue
 			   // and data.
 extern uint8_t mqtt_start; // Tracks the MQTT startup steps
 
+extern uint8_t OctetArray[11];  // Used in UART debug sessions
+
+
 
 // Implements the functionality of MQTT-C.
 
@@ -238,6 +241,11 @@ int16_t mqtt_publish(struct mqtt_client *client,
     int16_t rv;
     uint16_t packet_id;
     packet_id = __mqtt_next_pid(client);
+
+// UARTPrintf("mqtt_publish flags ");
+// emb_itoa(publish_flags, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 
     // try to pack the message
     MQTT_CLIENT_TRY_PACK(
@@ -960,6 +968,11 @@ int16_t mqtt_pack_publish_request(uint8_t *buf, uint16_t bufsz,
     publish_flags &= (uint8_t)(~MQTT_PUBLISH_DUP);
 
     fixed_header.control_flags = publish_flags;
+
+// UARTPrintf("mqtt_pack_publish_request flags ");
+// emb_itoa(publish_flags, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 
     // pack fixed header
     rv = mqtt_pack_fixed_header(buf, bufsz, &fixed_header);

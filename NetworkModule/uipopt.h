@@ -251,7 +251,7 @@
 // manage it.
 // 0 = disabled
 // 1 = included
-#define UIP_STATISTICS  1
+#define UIP_STATISTICS 1
 
 
 // DEBUG_SUPPORT
@@ -322,7 +322,7 @@
 // and clock pins.
 // 0 = Not supported
 // 1 = Supported
-#define I2C_SUPPORT 0
+#define I2C_SUPPORT 1
 
 
 // OB_EEPROM_SUPPORT
@@ -345,7 +345,7 @@
 //    b) Load the Runtime code
 // 0 = Not supported
 // 1 = Supported
-#define OB_EEPROM_SUPPORT 0
+#define OB_EEPROM_SUPPORT 1
 
 
 // DEBUG_SENSOR_SERIAL

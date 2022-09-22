@@ -123,9 +123,9 @@
 #define SEND_INPUT_DEFINE		2
 #define SEND_OUTPUT_DELETE		3
 #define SEND_OUTPUT_DEFINE		4
-#define SEND_TEMP_SENSOR_DELETE		5
-#define SEND_TEMP_SENSOR_DELETE2	6
-#define SEND_TEMP_SENSOR_DEFINE		7
+// #define SEND_TEMP_SENSOR_DELETE		5
+// #define SEND_TEMP_SENSOR_DELETE2	6
+// #define SEND_TEMP_SENSOR_DEFINE		7
 
 // MQTT Input Output Temp Sensor define/delete controls
 #define DEFINE_IOT			0
@@ -188,7 +188,8 @@ void decrement_pin_timers(void);
 void mqtt_startup(void);
 void mqtt_redefine_temp_sensors(void);
 void define_temp_sensors(void);
-void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel, uint8_t flag);
+// void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel, uint8_t delete_flag);
+void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel);
 void mqtt_sanity_check(void);
 void publish_callback(void** unused, struct mqtt_response_publish *published);
 void publish_outbound(void);

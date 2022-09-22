@@ -766,7 +766,7 @@ static const char g_HtmlPageConfiguration[] =
 "g00'});"
       "%y01"
       "<p>Code Revision %w00<br/>"
-        "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
+      "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
       "</p>"
       "%y02'm.r()'>Reboot</button>"
       "<br><br>"
@@ -968,7 +968,7 @@ static const char g_HtmlPageIOControl[] =
 "({g00:'%g00',h00:'%h00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j0"
 "5',j06:'%j06',j07:'%j07',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j"
 "13',j14:'%j14',j15:'%j15'});"
-            "%y01"
+      "%y01"
       "<p/>"
       "%y02'm.l()'>Refresh</button> "
       "%y02'm.c()'>Configuration</button>"
@@ -1253,10 +1253,9 @@ static const char g_HtmlPageConfiguration[] =
 "'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j15',i00:'%i00',i01:'%i01',i02"
 ":'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%i07',i08:'%i08',i09:'%i09',i1"
 "0:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'%i15'});"
-
-            "%y01"
+      "%y01"
       "<p>Code Revision %w00<br/>"
-        "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
+      "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
       "</p>"
       "%y02'm.r()'>Reboot</button>"
       "<br><br>"
@@ -2105,6 +2104,14 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
     size = size + (2 * strlen_devicename_adjusted);
+
+    // Account for Config string %g00
+    // There is 1 instance
+    // value_size is 2 (2 characters)
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (2 - 4));
+    // size = size + (1 x (-2));
+    size = size - 2;
 
     // Account for pin control field %h00
     // size = size + (#instances x (value_size - marker_field_size));

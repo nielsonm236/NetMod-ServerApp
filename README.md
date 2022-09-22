@@ -63,9 +63,9 @@ Videos: See the video links in the Wiki
 Many thanks to Carlos Ladeira and Jevgeni Kiski for their many hours of work in the 2021 releases. Their collaboration greatly improved the code for everyone.
 
 Tested with:
-- Windows 10 Firefox 91.0 (64-bit)
-- Windows 10 Chrome 92.0.4515.131 (64-bit)
-- Windows 10 Edge 92.0.902.73 (64-bit)
+- Windows 10 Firefox 104.0.2 (64-bit)
+- Windows 10 Chrome 105.0.5195.102 (64-bit)
+- Windows 10 Edge 105.0.1343.33 (64-bit)
 - Mac Safari Version 14.0.2
 - Mac Edge 87.0.664.75
 - Mac Opera 73.0.3856.344
@@ -73,8 +73,8 @@ Tested with:
 - Mac Firefox 72.0.2
 - Ubuntu 20.10 - Firefox 84.0.1 (64-bit)
 - Ubuntu 20.10 - Chromium 87.0.4280.88 (64-bit)
-- iPhone Safari on iOS 14.7.1
-- iPhone Chrome 92.0.4515.90 on iOS 14.7.1
+- iPhone Safari on iOS 15.6.1
+- iPhone Chrome 105.0.5195.100 on iOS 15.6.1
 - Mosquitto
 - Node-Red
 - Chrome MQTTLens

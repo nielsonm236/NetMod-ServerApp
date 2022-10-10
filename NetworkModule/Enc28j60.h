@@ -77,7 +77,8 @@
 #define ENC28J60_LEDB		12
 
 // Maximum frame length in bytes to prevent possible buffer overflows
-#define ENC28J60_MAXFRAME	500
+// #define ENC28J60_MAXFRAME	500
+#define ENC28J60_MAXFRAME	550
 
 // Use this for function inlining within the ENC28J60 module
 #define ENC28J60_INLINE		static inline __attribute__ ((always_inline))

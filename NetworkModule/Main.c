@@ -51,7 +51,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20220921 0050"; // Normal Release Revision
+const char code_revision[] = "20221009 2141"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -340,15 +340,15 @@ uint32_t check_DS18B20_ctr;      // Counter used to trigger temperature
                                  // measurements
 uint32_t check_DS18B20_sensor_ctr; // Counter used to trigger temperature
                                  // sensor add/delete checks
-uint8_t DS18B20_scratch[5][2];   // Stores the temperature measurement for the
-                                 // DS18B20s
+// uint8_t DS18B20_scratch[5][2];   // Stores the temperature measurement for the
+//                                  // DS18B20s
 int8_t send_mqtt_temperature;    // Indicates if a new temperature measurement
                                  // is pending transmit on MQTT. In this
 				 // application there are 5 sensors, so setting
 				 // to 4 will cause all 5 to transmit (4,3,2,1,0).
 				 // -1 indicates nothing to transmit.
 int numROMs;                     // Count of DS18B20 devices found.
-uint8_t FoundROM[5][8];          // Table of found ROM codes
+extern uint8_t FoundROM[5][8];          // Table of found ROM codes
                                  // [x][0] = Family Code
                                  // [x][1] = LSByte serial number
                                  // [x][2] = byte 2 serial number
@@ -357,17 +357,20 @@ uint8_t FoundROM[5][8];          // Table of found ROM codes
                                  // [x][5] = byte 5 serial number
                                  // [x][6] = MSByte serial number
                                  // [x][7] = CRC
-uint8_t temp_FoundROM[5][8];     // Temporary table of old ROM codes
-                                 // [x][0] = Family Code
-                                 // [x][1] = LSByte serial number
-                                 // [x][2] = byte 2 serial number
-                                 // [x][3] = byte 3 serial number
-                                 // [x][4] = byte 4 serial number
-                                 // [x][5] = byte 5 serial number
-                                 // [x][6] = MSByte serial number
-                                 // [x][7] = CRC
-uint8_t redefine_temp_sensors;   // Used to trigger the temperature
-                                 // sensor add/delete process
+// 
+// uint8_t temp_FoundROM[5][8];     // Temporary table of old ROM codes
+//                                  // [x][0] = Family Code
+//                                  // [x][1] = LSByte serial number
+//                                  // [x][2] = byte 2 serial number
+//                                  // [x][3] = byte 3 serial number
+//                                  // [x][4] = byte 4 serial number
+//                                  // [x][5] = byte 5 serial number
+//                                  // [x][6] = MSByte serial number
+//                                  // [x][7] = CRC
+
+uint8_t redefine_temp_sensors;   // Used to trigger the temperature sensor
+                                 // update process in the Browser display and
+				 // in MQTT
 // #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -517,6 +520,7 @@ int main(void)
   
   HttpDStringInit();       // Initialize HttpD string sizes
 
+/*
   {
     int i;
     int j;
@@ -538,8 +542,21 @@ int main(void)
     // Iniialize DS18B20 transmit control variable
     send_mqtt_temperature = 0;
   }
-  // Initialize the redefine temp sensors control
-  redefine_temp_sensors = 0;
+*/
+  init_DS18B20();          // Initialize DS18B20 sensors
+  // Initialize DS18B20 control variables used in main.c 
+  if (stored_config_settings & 0x08) {
+    // Find all devices
+    FindDevices();
+    // Iniialize DS18B20 timer
+    check_DS18B20_ctr = second_counter;
+    // Initialize DS18B20 sensor add/delete check counter
+    check_DS18B20_sensor_ctr = second_counter;
+    // Collect initial temperature
+    get_temperature();
+    // Iniialize DS18B20 transmit control variable
+    send_mqtt_temperature = 0;
+  }
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -725,6 +742,7 @@ int main(void)
       // uip_len includes the headers, so it will be > 0 even if no TCP
       // payload.
       if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
+// UARTPrintf("Detected uip_len > 0 UIP_ETHTYPE_IP\r\n");
         uip_input(); // Calls uip_process(UIP_DATA) to process a received
 	// packet.
         // If the above process resulted in data that should be sent out on
@@ -739,6 +757,7 @@ int main(void)
         }
       }
       else if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_ARP)) {
+// UARTPrintf("Detected uip_len > 0 UIP_ETHTYPE_ARP\r\n");
         uip_arp_arpin();
         // If the above process resulted in data that should be sent out on
 	// the network the global variable uip_len will have been set to a
@@ -979,7 +998,10 @@ int main(void)
     // intervals
     if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_sensor_ctr + 10))) {
       check_DS18B20_sensor_ctr = second_counter;
-      check_temperature_sensor_changes();
+//      check_temperature_sensor_changes();
+      // Call FindDevices to generate a new FoundROM table and determine if
+      // any changes occured in the sensor population.
+      FindDevices();
     }
     
     
@@ -4203,6 +4225,7 @@ void check_runtime_changes(void)
       // At present any Feature bit change (config_settings) requires a
       // reboot so to simplify code the bits are not individually checked.
       // The Feature bits include:
+      //   Disable Config Button
       //   DS18B20
       //   MQTT
       //   Home Assistant Auto Discovery
@@ -4537,6 +4560,7 @@ void check_restart_reboot(void)
 	restart();
       }
       break;
+      
     } // end switch
   }
 }
@@ -4602,8 +4626,12 @@ void restart(void)
 void reboot(void)
 {
   // We need to do a hardware reset (reboot).
+  // Caution: You would think this is just like a power-off / power-on. But
+  // since power is not actually lost there could be variables in memory that
+  // retain their values and get used in code at runtime if not properly set
+  // by startup initialization.
   
-  // Flicker LED to indicate deliverate reboot
+  // Flicker LED to indicate deliberate reboot
   LEDcontrol(0);     // turn LED off
   wait_timer((uint16_t)50000); // wait 50ms
   LEDcontrol(1);     // turn LED on

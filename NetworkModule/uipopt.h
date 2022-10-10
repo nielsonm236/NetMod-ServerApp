@@ -141,12 +141,15 @@
 #define UIP_MAXSYNRTX      5
 
 
-// The TCP maximum segment size. This should not be to set to more than
-// UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN.
-// In this application the headers occupy a total of 54 bytes.
-// #define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN)
-#define UIP_TCP_MSS     440
-// production should be 440
+// The TCP Maximum Segment size. This should be set to no more than
+// UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN. This ends up being the maximum
+// size of the part of the datagram that can be transmitted to the Browser or
+// to the MQTT server in each packet. NOTE: Experimentation has shown that the
+// UIP_TCP_MSS should actually be slightly smaller to avoid errors (not sure
+// why and could use more investigation). So an additional 6 bytes are
+// subtracted.
+// In this application the headers occupy a total of 54 bytes as defined in uip.h.
+#define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN - 6)
 
 
 // The size of the advertised receiver's window. Should be set low (i.e., to

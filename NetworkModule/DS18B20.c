@@ -26,6 +26,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "iostm8s005.h"
 #include "stm8s-005.h"
@@ -36,8 +37,13 @@
 #include "uipopt.h"
 
 // #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-extern uint8_t DS18B20_scratch_byte[2]; // Array to store scratchpad bytes
+// extern uint8_t DS18B20_scratch_byte[2]; // Array to store scratchpad bytes
+uint8_t DS18B20_scratch_byte[2];        // Array to store scratchpad bytes
                                         // read from DS18B20
+// extern uint8_t DS18B20_scratch[5][2];   // Stores the temperature measurement
+uint8_t DS18B20_scratch[5][2];          // Stores the temperature measurement
+                                        // for the DS18B20s
+
 extern uint8_t OctetArray[11];		// Used in emb_itoa conversions but
                                         // also repurposed as a temporary
 					// buffer for transferring data
@@ -76,7 +82,8 @@ uint8_t ROM[8];                     // ROM bytes
                                     // [7] = CRC
 uint8_t lastDiscrep = 0;            // last discrepancy
 uint8_t doneFlag = 0;               // Done flag
-extern uint8_t FoundROM[5][8];      // Table of ROM codes
+// extern uint8_t FoundROM[5][8];      // Table of ROM codes
+uint8_t FoundROM[5][8];             // Table of ROM codes
                                     // [x][0] = Family Code
                                     // [x][1] = LSByte serial number
                                     // [x][2] = byte 2 serial number
@@ -86,15 +93,20 @@ extern uint8_t FoundROM[5][8];      // Table of ROM codes
                                     // [x][6] = MSByte serial number
                                     // [x][7] = CRC
 extern int numROMs;                 // Count of DS18B20 devices found
-extern uint8_t temp_FoundROM[5][8]; // Temporary table of old ROM codes
-                                    // [x][0] = Family Code
-                                    // [x][1] = LSByte serial number
-                                    // [x][2] = byte 2 serial number
-                                    // [x][3] = byte 3 serial number
-                                    // [x][4] = byte 4 serial number
-                                    // [x][5] = byte 5 serial number
-                                    // [x][6] = MSByte serial number
-                                    // [x][7] = CRC
+
+// extern uint8_t temp_FoundROM[5][8]; // Temporary table of old ROM codes
+//                                     // [x][0] = Family Code
+//                                     // [x][1] = LSByte serial number
+//                                     // [x][2] = byte 2 serial number
+//                                     // [x][3] = byte 3 serial number
+//                                     // [x][4] = byte 4 serial number
+//                                     // [x][5] = byte 5 serial number
+//                                     // [x][6] = MSByte serial number
+//                                     // [x][7] = CRC
+uint8_t new_FoundROM_crc;           // Used in calculation of the CRC for
+                                    // the FoundROM table. Used to determine
+                                    // if a table change has occurred.
+uint8_t old_FoundROM_crc;           // Stores the prior FoundROM table CRC.
 extern uint8_t redefine_temp_sensors; // Flag used to signal the need
                                     // to redefine the HA temp sensors
                                     // via Auto Discovery messages
@@ -162,7 +174,7 @@ void get_temperature()
   int i;
   uint8_t j;
   uint8_t device_num;
-  extern uint8_t DS18B20_scratch[5][2];
+//   extern uint8_t DS18B20_scratch[5][2];
 
   // Read current temperature from up to 5 devices
   for (device_num = 0; device_num < 5; device_num++) {
@@ -245,7 +257,7 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
   // 
   int16_t whole_temp;
   uint8_t decimal_temp;
-  extern uint8_t DS18B20_scratch[5][2];
+//  extern uint8_t DS18B20_scratch[5][2];
   uint8_t sign_char;
   
   // Convert temperature reading to string.
@@ -479,10 +491,6 @@ int reset_pulse()
   // The pulse must be a minimum of 480us
   int rtn;
   
-//  PC_ODR |= 0x40;           // write IO ODR to 1
-//  PC_DDR |= 0x40;           // write IO DDR to output
-//  PC_ODR &= (uint8_t)~0x40; // write IO ODR to 0
-//  wait_timer(500);          // wait 500us
   one_wire_low(100);        // Drive one-wire low, wait 50 us
   wait_timer(450);          // wait additional 450 us
   PC_DDR &= (uint8_t)~0x40; // write IO DDR to input (float high)
@@ -541,10 +549,6 @@ int read_bit()
 
   bit = 0;
 
-//  PC_ODR |= 0x40;            // write IO ODR to 1
-//  PC_DDR |= 0x40;            // write IO DDR to output
-//  PC_ODR &= (uint8_t)~0x40;  // write IO ODR to 0
-//  for (nop_cnt=0; nop_cnt<4; nop_cnt++) nop(); // Provides a 1us pulse
   one_wire_low(4);           // drive one-wire low, wait 2us
   PC_DDR &= (uint8_t)~0x40;  // write IO DDR to input (float high)
   for (nop_cnt=0; nop_cnt<30; nop_cnt++) nop(); // Wait 15us
@@ -569,10 +573,6 @@ void write_bit(uint8_t transmit_bit)
   //   15us before returning to the calling routine. To reduce code size we
   //   will wait 60us.
   
-//  PC_ODR |= 0x40;              // write IO ODR to 1
-//  PC_DDR |= 0x40;              // write IO DDR to output
-//  PC_ODR &= (uint8_t)~0x40;    // write IO ODR to 0
-//  for (i=0; i<10; i++) nop();  // If sending a 1 just provide 5us low time
   one_wire_low(10);            // drive one wire low, wait 5us
   if (!(transmit_bit)) wait_timer(60); // If sending a 0 provide additional
                                        // 60us low time
@@ -593,6 +593,18 @@ void one_wire_low(int wait)
   PC_DDR |= 0x40;               // write IO DDR to output (drive output high)
   PC_ODR &= (uint8_t)~0x40;     // write IO ODR to 0 (drive output low)
   for (i=0; i<wait; i++) nop(); // wait time = (wait / 2) us
+}
+
+
+void init_DS18B20(void)
+{
+  // Initialize variables used in DS18B20 operation
+  new_FoundROM_crc = 0;
+  old_FoundROM_crc = 0;
+  redefine_temp_sensors = 0;
+  // Initialize temperature sensor arrays
+  memset(&DS18B20_scratch[0][0], 0, 10);
+  memset(&FoundROM[0][0], 0, 40);
 }
 
 
@@ -644,6 +656,9 @@ void FindDevices(void)
       }
     }
   }
+  // Add up the crc values for each entry to act as a CRC for the FoundROM
+  // table
+  new_FoundROM_crc = (uint8_t)(FoundROM[0][7] + FoundROM[1][7] + FoundROM[2][7] + FoundROM[3][7] + FoundROM[4][7]);
 
 // UARTPrintf("\r\nDS18B20 FindDevices numROMs = ");
 // if (numROMs >= 0) {
@@ -653,6 +668,22 @@ void FindDevices(void)
 // else if (numROMs == -1) UARTPrintf("-1");
 // else UARTPrintf("unitialized");
 // UARTPrintf("\r\n");
+
+  if (new_FoundROM_crc != old_FoundROM_crc) {
+    // Signal the main loop that the temp sensors need to be updated in the
+    // Browser display and over MQTT
+    redefine_temp_sensors = 1;
+    old_FoundROM_crc = new_FoundROM_crc;
+  }
+
+// UARTPrintf("new_FoundROM_crc = ");
+// emb_itoa(new_FoundROM_crc, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   redefine_temp_sensors = ");
+// emb_itoa(redefine_temp_sensors, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
 }
 
 
@@ -785,36 +816,6 @@ uint8_t dallas_crc8(uint8_t *data, uint8_t size)
         }
     }
     return crc;
-}
-
-
-void check_temperature_sensor_changes(void)
-{
-  // This function will check for changes in the serial numbers of
-  // the Temperature Sensors. This is done to determine if any sensors
-  // were added or deleted during runtime.
-  
-  // Overview: The function will
-  //   - Store the existing FoundROM table in the temp_FoundROM table
-  //   - Perform a FindDevices call to update the FoundROM table
-  //   - Compare the temp_FoundROM table with the new FoundROM table to
-  //     determine if there are differences
-  //   - If there is a difference the main loop is signaled (via
-  //     redefine_temp_sensors = 1) so that Home Assistant will be
-  //     updated via Auto Discovery messages.
-  // Browser Only users will be updated simply because the FindDevices()
-  // function is run below.
-  
-  // Copy the current FoundROM table to the temp_FoundROM table
-  memcpy(&temp_FoundROM[0][0], &FoundROM[0][0], 40);
-  
-  // Call FindDevices to generate a new FoundROM table.
-  FindDevices();
-
-  if (memcmp(&temp_FoundROM[0][0], &FoundROM[0][0], 40) != 0) {
-    // Signal the main loop that the temp sensors need to be updated
-    redefine_temp_sensors = 1;
-  }
 }
 
 // #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD

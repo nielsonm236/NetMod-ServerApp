@@ -30,7 +30,8 @@ void transmit_byte(uint8_t transmit_value);
 int read_bit(void);
 void write_bit(uint8_t transmit_bit);
 void one_wire_low(int wait);
-void check_temperature_sensor_changes(void);
+// void check_temperature_sensor_changes(void);
+void init_DS18B20(void);
 
 
 void FindDevices(void);

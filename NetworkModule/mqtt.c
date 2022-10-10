@@ -378,6 +378,17 @@ int16_t __mqtt_send(struct mqtt_client *client)
 
         // we're sending the message
         {
+	  // Some notes about this part of the code. The original code was
+	  // designed to send larger messages, thus mqtt_pal_sendall might
+	  // return a tmp value that indicates there is more to send. In this
+	  // application we use a technique in the mqtt_pal_sendall routine
+	  // that can replace placeholders in the mqtt message that is to be
+	  // sent, resulting in an mqtt message that is larger than the
+	  // message template given to it to send. So the mqtt_pal_sendall
+	  // routine was redesigned to cause it to send the entire message
+	  // even if it required multiple packets. Thus the return value
+	  // always equals the size of the original template ... indicating
+	  // a complete send.
           int16_t tmp = mqtt_pal_sendall(msg->start + client->send_offset, msg->size - client->send_offset);
 	  // mqtt_pal_sendall returns a negative number if an error, or a positive
 	  // number with the number of bytes sent

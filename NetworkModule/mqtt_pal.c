@@ -53,6 +53,7 @@ extern uint16_t uip_slen;                 // Send Length for packets
 extern const char code_revision[];        // Code Revision
 extern uint8_t stored_devicename[20];     // Device name stored in EEPROM
 extern char mac_string[13];               // MAC formatted as string
+extern uint8_t OctetArray[11];            // Used in emb_itoa conversions
 
 char *stpcpy(char * dest, char * src)
 {
@@ -220,6 +221,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //                 "%Oxx",
   //                 4,
   //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+  //
   // This message triggers an Input discovery message. "xx" is the input
   // number.
   //    mqtt_publish(&mqttclient,
@@ -227,6 +229,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //                 "%Ixx",
   //                 4,
   //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+  //
   // This message triggers a Temperature Sensor discovery message.
   // "xxxxxxxxxxxx" is the sensor number.
   //    mqtt_publish(&mqttclient,
@@ -344,11 +347,29 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           payload_size = 235; // Manually calculated payload size without
 	                      // devicename
         }
+	
+	
+	
+	// 20220924 TEMPERATURE SENSOR PAYLOAD EXPERIMENTS MADE NECESSARY
+	// BY CHANGES IN HA THAT NOW REQUIRE "device_class" AND "state_class"
+	// STATEMENTS IN THE CONFIG STATEMENT. NOT SURE IF "unit_of_meas" IS
+	// NEEDED ANYMORE.
+
         if (payload_buf[1] == 'T') {
           // This is a Temperature Sensor auto discovery message
-          payload_size = 283; // Manually calculated payload size without
+//          payload_size = 283; // Manually calculated payload size without
+//	                      // devicename
+          payload_size = 332; // Manually calculated payload size without
 	                      // devicename
+//          payload_size = 311; // Manually calculated payload size without
+//	                      // devicename
         }
+	
+	
+	
+	
+	
+	
 	// Add device name size to payload size
         payload_size += (3 * (uint8_t)strlen(stored_devicename));
     
@@ -392,10 +413,10 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         payload_size = payload_size + template_buf[1] - 4;
 	if (payload_buf[1] == 'T') payload_size -= 10;
 	
-	// Calculate uip_slen (it will be used later). It is the new remaining 
-	// length plus 3 (for the control byte and the two remaining length
-	// bytes).
-	uip_slen = payload_size + 3;
+//	// Calculate uip_slen (it will be used later). It is the new remaining 
+//	// length plus 3 (for the control byte and the two remaining length
+//	// bytes).
+//	uip_slen = payload_size + 3;
 	
 	// Note: The value "len" remains unchanged. It is the length of the
 	// "app_message" provided to this function, even if we are creating a
@@ -420,6 +441,12 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	*/
 	// Since we know we actually always have more than 256 and less than
 	// 512 bytes to send a more abbreviated calculation is done.
+
+// UARTPrintf("payload_size: ");
+// emb_itoa(payload_size, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
 	if (payload_size < 384) {
           new_remaining[0] = (uint8_t)((payload_size - 256) | 0x80);
           new_remaining[1] = 2;
@@ -433,7 +460,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         mBuffer = uip_appdata + 1;
 	*((uint16_t*)mBuffer) = *((uint16_t*)&new_remaining[0]); // copy 2 bytes
 	
-	// Calculate uip_slen (it will be used later). It is the new reamining 
+	// Calculate uip_slen (it will be used later). It is the new remaining 
 	// length plus 3 (for the control byte and the two remaining length
 	// bytes). Remember that payload_size is currently equal to the new
 	// remaining length value.
@@ -500,16 +527,46 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         //                                                  // Total: 283 plus 3 x devicename
 
 
+
+
+	// 20220924 TEMPERATURE SENSOR PAYLOAD EXPERIMENTS MADE NECESSARY
+	// BY CHANGES IN HA THAT NOW REQUIRE "device_class" AND "state_class"
+	// STATEMENTS IN THE CONFIG STATEMENT.
+	// temperature sensor payload
+	// {                                                // 1
+	// "uniq_id":"aabbccddeeff_temp_xxxxxxxxxxxx",      // 43
+	// 00000000011111111112222222222333333333344444444445
+	// 12345678901234567890123456789012345678901234567890
+	// "name":"devicename123456789 temp xxxxxxxxxxxx",  // 28 (without devicename)
+	// "~":"NetworkModule/devicename123456789",         // 21 (without devicename)
+	// "avty_t":"~/availability",                       // 26
+	// "stat_t":"~/temp/xxxxxxxxxxxx",                  // 31
+        // "unit_of_meas":"\xc2\xb0\x43",                   // 21
+	// "dev_cla":"temperature",                         // 24
+	// "stat_cla":"measurement",                        // 25
+	// "dev":{                                          // 7
+	// "ids":["NetworkModule_aabbccddeeff"],            // 37
+	// "mdl":"HW-584",                                  // 15
+	// "mf":"NetworkModule",                            // 21
+	// "name":"devicename123456789",                    // 10 (without devicename)
+	// "sw":"20210204 0311"                             // 20
+	// }                                                // 1
+	// }                                                // 1
+        //                                                  // Total: 332 plus 3 x devicename
+
+
+
+
+
+
+
+
         // "stpcpy()" is used to efficiently copy data to the uip_buf
 	// utilizing the pBuffer pointer.
         pBuffer = stpcpy(pBuffer, "{\"uniq_id\":\"");
 
         pBuffer = stpcpy(pBuffer, mac_string);
    
-//        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, "_output_");
-//        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, "_input_");
-//        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, "_temp_");
-	
 	switch(payload_buf[1]) {
 	  case 'O': pBuffer = stpcpy(pBuffer, "_output_"); break;
 	  case 'I': pBuffer = stpcpy(pBuffer, "_input_"); break;
@@ -523,10 +580,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 
         pBuffer = stpcpy(pBuffer, stored_devicename);
     
-//        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, " output ");
-//        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, " input ");
-//        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, " temp ");
-	
 	switch(payload_buf[1]) {
 	  case 'O': pBuffer = stpcpy(pBuffer, " output "); break;
 	  case 'I': pBuffer = stpcpy(pBuffer, " input "); break;
@@ -542,10 +595,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         
         pBuffer = stpcpy(pBuffer, "\",\"avty_t\":\"~/availability\",\"stat_t\":\"~/");
 
-//        if (payload_buf[1] == 'O') pBuffer = stpcpy(pBuffer, "output/");
-//        if (payload_buf[1] == 'I') pBuffer = stpcpy(pBuffer, "input/");
-//        if (payload_buf[1] == 'T') pBuffer = stpcpy(pBuffer, "temp/");
-	
 	switch(payload_buf[1]) {
 	  case 'O': pBuffer = stpcpy(pBuffer, "output/"); break;
 	  case 'I': pBuffer = stpcpy(pBuffer, "input/"); break;
@@ -569,8 +618,14 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         }
 
         // Special case for temperature pin
+	// 20220924 TEMPERATURE SENSOR PAYLOAD EXPERIMENTS MADE NECESSARY
+	// BY CHANGES IN HA THAT NOW REQUIRE "device_class" AND "state_class"
+	// STATEMENTS IN THE CONFIG STATEMENT. NOT SURE IF "unit_of_meas" IS
+	// NEEDED ANYMORE.
         if (payload_buf[1] == 'T') {
           pBuffer = stpcpy(pBuffer, "\"unit_of_meas\":\"\xc2\xb0\x43\",");
+	  pBuffer = stpcpy(pBuffer, "\"dev_cla\":\"temperature\",");
+	  pBuffer = stpcpy(pBuffer, "\"stat_cla\":\"measurement\",");
 	}
 	
         pBuffer = stpcpy(pBuffer, "\"dev\":{\"ids\":[\"NetworkModule_");

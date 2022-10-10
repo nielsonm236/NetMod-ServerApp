@@ -53,6 +53,7 @@
 #include "uip.h"
 #include "main.h"
 #include "mqtt.h"
+#include "uart.h"
 #include "uipopt.h"
 
 extern uint16_t Port_Httpd;
@@ -74,6 +75,9 @@ void uip_TcpAppHubCall(void)
     // This code is also called if the UIP functions are just checking to
     // see if there is anything pending to send - for instance in the case
     // where multiple packets must be sent to fulfill a browser request.
+
+// UARTPrintf("uip_tcpapphub Browser call\r\n");
+
     HttpDCall(uip_appdata, uip_datalen(), &uip_conn->appstate.HttpDSocket);
   }
 
@@ -85,6 +89,9 @@ void uip_TcpAppHubCall(void)
     // This code is also called if the UIP functions are just checking to
     // see if there is anything pending to send. This can happen frequently
     // with MQTT.
+
+// UARTPrintf("uip_tcpapphub MQTT call\r\n");
+
     if (mqtt_start > MQTT_START_QUEUE_CONNECT) {
       // Only call mqtt_sync if we know the client has been initialized
       mqtt_sync(&mqttclient);

@@ -77,8 +77,7 @@
 #define STATE_SENDDATA		14	// ... followed by data
 #define STATE_PARSEGET		15	// We are currently parsing the
                                         // client's GET-request
-#define STATE_NULL		127     // Signals no fragment reassembly info
-                                        // present
+#define STATE_NULL		127     // Inactive state
 
 #define PARSE_CMD		0       // Parsing the command byte in a POST
 #define PARSE_NUM10		1       // Parsing the most sig digit of POST
@@ -102,6 +101,8 @@
 #define PARSE_FILE_COMPLETE	34	// Termination of good file read
 #define PARSE_FILE_FAIL		35	// Termination of failed file read
 #define PARSE_FILE_FAIL_EXIT	36	// Display of fail code
+
+#define PARSE_NULL		127	// Default init state for the parser
 
 
 #if DEBUG_SUPPORT != 0
@@ -487,8 +488,8 @@ static const char g_HtmlPageIOControl[] =
 "Output #${e+1}</td><td class='s${t>>7} t3'></td><td class=c>${c(1,e,t>>7)}${c(0,e,t>>7)"
 "}</td></tr>`):(3&t)==1&&o.push(`<tr><td>Input #${e+1}</td><td class='s${t>>7} t3'></td>"
 "<td/></tr>`)}),h(o.join('')),h(`<tr><th></th><th></th>${p.length>0?'<th class=c>SET</th"
-">':''}</tr>`),h(p.join('')),{s:submit_form,l:reload_page,c:cfg_page}})({g00:'%g00',h00:"
-"'%h00'});"
+">':''}</tr>`),h(p.join('')),{s:submit_form,l:reload_page,c:cfg_page}})({h00:'%h00',g00:"
+"'%g00'});"
       "%y01"
       "<p/>"
       "%y02'm.l()'>Refresh</button> "
@@ -504,18 +505,35 @@ static const char g_HtmlPageIOControl[] =
 static const char g_HtmlPageIOControl[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
 
-
+// Important: Don't mess with the order of the variable definitions that look
+// somethings like this:
+// ({
+//   h00: '00010305070b0f131781018303000000',
+//   g00: "14",
+// });
+// It is important that the "h00" definition be first in the sequence for
+// IOControl pages as that is how the POST interpreter determines that the
+// POST is from an IOControl page. The order doesn't matter so much in a
+// Configuration page as the HTML code inserts a "a00" definition first in
+// the POST, and that is used to determine that the POST came from a
+// Configuration page.
 
 /*
 // Credit to Jevgeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
-// 2) Copy the resulting minified script to an editor and replace all double quotes with
+// 2) Replace the variable definition test placeholders with "replaceable fields", for
+//    example:
+//    The line
+//      h00: '00010305070b0f131781018303000000',
+//    Should be replaced with
+//      h00: '%h00',
+// 3) Copy the resulting minified script to an editor and replace all double quotes with
 //    single quotes. THIS STEP IS VERY IMPORTANT.
-// 3) Copy the result to the above between the <script> and </script> lines.
-// 4) Add double quotes at the start and end of the minfied script to make it part of the
+// 4) Copy the result to the above between the <script> and </script> lines.
+// 5) Add double quotes at the start and end of the minfied script to make it part of the
 //    constant string.
-// 5) It is OK to break up the minified script into lines enclosed by double quotes (just
+// 6) It is OK to break up the minified script into lines enclosed by double quotes (just
 //    to make it all visible in the code editors). But make sure no spaces are inadvertantly
 //    removed from the minified script.
 
@@ -582,8 +600,8 @@ const m = (data => {
     return {s: submit_form, l:reload_page, c:cfg_page}
 })
 ({
-  g00: "14",
   h00: '00010305070b0f131781018303000000',
+  g00: '14',
 });
 
 
@@ -783,16 +801,35 @@ static const char g_HtmlPageConfiguration[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
 
 
+// Important: Don't mess with the order of the variable definitions that look
+// somethings like this:
+// ({
+//   h00: '00010305070b0f131781018303000000',
+//   g00: "14",
+// });
+// It is important that the "h00" definition be first in the sequence for
+// IOControl pages as that is how the POST interpreter determines that the
+// POST is from an IOControl page. The order doesn't matter so much in a
+// Configuration page as the HTML code inserts a "a00" definition first in
+// the POST, and that is used to determine that the POST came from a
+// Configuration page.
+
 /*
 // Credit to Jevgeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
-// 2) Copy the resulting minified script to an editor and replace all double quotes with
+// 2) Replace the variable definition test placeholders with "replaceable fields", for
+//    example:
+//    The line
+//      h00: '00010305070b0f131781018303000000',
+//    Should be replaced with
+//      h00: '%h00',
+// 3) Copy the resulting minified script to an editor and replace all double quotes with
 //    single quotes. THIS STEP IS VERY IMPORTANT.
-// 3) Copy the result to the above between the <script> and </script> lines.
-// 4) Add double quotes at the start and end of the minfied script to make it part of the
+// 4) Copy the result to the above between the <script> and </script> lines.
+// 5) Add double quotes at the start and end of the minfied script to make it part of the
 //    constant string.
-// 5) It is OK to break up the minified script into lines enclosed by double quotes (just
+// 6) It is OK to break up the minified script into lines enclosed by double quotes (just
 //    to make it all visible in the code editors). But make sure no spaces are inadvertantly
 //    removed from the minified script.
 
@@ -889,12 +926,12 @@ const m = (data => {
     b00: "c0a80004",
     b04: "c0a80101",
     b08: "ffffff00",
-    b12: "c0a80005",
     c00: "0050",
-    c01: "075b",
     d00: "aabbccddeeff",
-    g00: "04",
+    b12: "c0a80005",
+    c01: "075b",
     h00: "00010305070b0f131700000000000000",
+    g00: "04",
 });
 
 */
@@ -965,7 +1002,7 @@ static const char g_HtmlPageIOControl[] =
 "{o(1,e,$>>7)}${o(0,e,$>>7)}</td></tr>`):(3&$)==1&&d.push(`<tr><td>${j}</td><td class='s"
 "${$>>7} t3'></td><td/></tr>`)}),_(d.join('')),_(`<tr><th></th><th></th>${l.length>0?'<t"
 "h class=c>SET</th>':''}</tr>`),_(l.join('')),{s:submit_form,l:reload_page,c:cfg_page}})"
-"({g00:'%g00',h00:'%h00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j0"
+"({h00:'%h00',g00:'%g00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j0"
 "5',j06:'%j06',j07:'%j07',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j"
 "13',j14:'%j14',j15:'%j15'});"
       "%y01"
@@ -983,16 +1020,35 @@ static const char g_HtmlPageIOControl[] =
 static const char g_HtmlPageIOControl[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
 
+// Important: Don't mess with the order of the variable definitions that look
+// somethings like this:
+// ({
+//   h00: '00010305070b0f131781018303000000',
+//   g00: "14",
+// });
+// It is important that the "h00" definition be first in the sequence for
+// IOControl pages as that is how the POST interpreter determines that the
+// POST is from an IOControl page. The order doesn't matter so much in a
+// Configuration page as the HTML code inserts a "a00" definition first in
+// the POST, and that is used to determine that the POST came from a
+// Configuration page.
+
 /*
 // Credit to Jevgeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
-// 2) Copy the resulting minified script to an editor and replace all double quotes with
+// 2) Replace the variable definition test placeholders with "replaceable fields", for
+//    example:
+//    The line
+//      h00: '00010305070b0f131781018303000000',
+//    Should be replaced with
+//      h00: '%h00',
+// 3) Copy the resulting minified script to an editor and replace all double quotes with
 //    single quotes. THIS STEP IS VERY IMPORTANT.
-// 3) Copy the result to the above between the <script> and </script> lines.
-// 4) Add double quotes at the start and end of the minfied script to make it part of the
+// 4) Copy the result to the above between the <script> and </script> lines.
+// 5) Add double quotes at the start and end of the minfied script to make it part of the
 //    constant string.
-// 5) It is OK to break up the minified script into lines enclosed by double quotes (just
+// 6) It is OK to break up the minified script into lines enclosed by double quotes (just
 //    to make it all visible in the code editors). But make sure no spaces are inadvertantly
 //    removed from the minified script.
 
@@ -1060,8 +1116,8 @@ const m = (data => {
     return {s: submit_form, l:reload_page, c:cfg_page}
 })
 ({
-  g00: "14",
   h00: '01010305070b0f131781018303000000',
+  g00: '14',
   j00: 'LivingRoom12345',
   j01: 'LivingRoom67890',
   j02: 'IO_3',
@@ -1271,16 +1327,36 @@ static const char g_HtmlPageConfiguration[] =
 static const char g_HtmlPageConfiguration[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
 
+
+// Important: Don't mess with the order of the variable definitions that look
+// somethings like this:
+// ({
+//   h00: '00010305070b0f131781018303000000',
+//   g00: "14",
+// });
+// It is important that the "h00" definition be first in the sequence for
+// IOControl pages as that is how the POST interpreter determines that the
+// POST is from an IOControl page. The order doesn't matter so much in a
+// Configuration page as the HTML code inserts a "a00" definition first in
+// the POST, and that is used to determine that the POST came from a
+// Configuration page.
+
 /*
 // Credit to Jevgeni Kiski for the javascript work and html improvements.
 // Below is the raw script used above before minify.
 // 1) Copy raw script to minify website, for example https://javascript-minifier.com/
-// 2) Copy the resulting minified script to an editor and replace all double quotes with
+// 2) Replace the variable definition test placeholders with "replaceable fields", for
+//    example:
+//    The line
+//      h00: '00010305070b0f131781018303000000',
+//    Should be replaced with
+//      h00: '%h00',
+// 3) Copy the resulting minified script to an editor and replace all double quotes with
 //    single quotes. THIS STEP IS VERY IMPORTANT.
-// 3) Copy the result to the above between the <script> and </script> lines.
-// 4) Add double quotes at the start and end of the minfied script to make it part of the
+// 4) Copy the result to the above between the <script> and </script> lines.
+// 5) Add double quotes at the start and end of the minfied script to make it part of the
 //    constant string.
-// 5) It is OK to break up the minified script into lines enclosed by double quotes (just
+// 6) It is OK to break up the minified script into lines enclosed by double quotes (just
 //    to make it all visible in the code editors). But make sure no spaces are inadvertantly
 //    removed from the minified script.
 
@@ -2740,33 +2816,35 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
   // uip_split from this application.
   //
   //-------------------------------------------------------------------------//
-  // See the uipopt.h file: UIP_TCP_MSS must be smaller than the UIP_BUF
-  // (which is the same size as MAXFRAME) by the size of the headers (54
-  // bytes). So, if MAXFRAME is 500 bytes UIP_TCP_MSS can be up to 446 bytes.
-  // In this application UIP_TCP_MSS is set to 440.
+  // See the uipopt.h file for the UIP_TCP_MSS definition. It must be smaller
+  // than the UIP_BUF less the headers that are also inserted in the UIP_BUF
+  // by the UIP code. The UIP_BUF size is determined by the ENC28J60_MAXFRAME
+  // value set in the enc28j60.h file.
   // 
-  // We really only need to make sure that the loop below stays within the
-  // MSS boundary and within the UIP_BUF buffer size, whichever is smaller.
+  // Note: The ENC28J60 value was on the order of 900 bytes in the original
+  // code. However, due to limited RAM size, a smaller value was selected for
+  // this application. The primary limitation is when building MQTT code
+  // ENC28J60_MAXFRAME ends up being further limited to allow room for the
+  // MQTT variables and data buffer.
+  //
+  // Note: Complete transmission of the typical webpage in this application is
+  // about 4000 bytes.
+  //
   //-------------------------------------------------------------------------//
-  //
-  // #define ENC28J60_MAXFRAME	900 (in enc28j60.h)
-  //   Note: When using MQTT, ENC28J60_MAXFRAME could only be a max of 500
-  //   bytes to allow room for the MQTT variables and buffer.
-  //
-  // nMaxbytes must be 32 bytes smaller than UIP_TCP_MSS due to the need to
-  // allow for the largest string insertion that is NOT a %yxx replacement.
+  // nMaxbytes must be smaller than UIP_TCP_MSS due to the need to allow for
+  // the largest string insertion that is NOT a %yxx replacement (as %y00
+  // replacements can be interrupted if the buffer fills and can be continued
+  // at the next call of this routine).
   //
   // nMaxBytes should not cause a TCP datagram formation larger than 536
   // bytes.
   //
-  // Note: Complete transmission of the typical webpage in this application is
-  // about 4000 bytes.
-
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // This over-rides the nMaxBytes value passed to the function to account
-  // for extra bytes that might be sent in a single pass of the loop below.
+  // The following statement over-rides the nMaxBytes value passed to the
+  // function to account for extra bytes that might be sent in a single pass
+  // of the loop below. This causes most packet transmissions to be smaller,
+  // but accomodates those that have the extra bytes inserted.
   nMaxBytes = UIP_TCP_MSS - 40;
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  //-------------------------------------------------------------------------//
 
 
 
@@ -2781,7 +2859,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
     // speed. pre_buf is then used to provide data to the webpage transmission
     // code.
     // Optimization:
-    //  - Packet transmissio size will never about 440 bytes
+    //  - Packet transmission size will never about 440 bytes
     //  - There isn't enough RAM to have a 440 byte buffer so later in the
     //    process the pre_buf gets re-loaded
     //  - Thus the pre_buf only needs to be about 230 bytes (to minimize the
@@ -3470,13 +3548,15 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  //
 	  // Bridging of calls to the CopyHttpData() function is acomplished as
 	  // follows:
-	  // a) If a %yxx placeholder is detected in the template as much of the
-	  //    replacement string is inserted in the send buffer as possible.
+	  // a) If a %yxx placeholder is detected in the template as much of
+	  //    the replacement string is inserted in the send buffer as
+	  //    possible.
 	  // b) An "insertion_index" is filled to contain the index into the
 	  //    string being inserted into the transmit buffer. If this index
-	  //    is non-zero we know we are in the process of inserting a %yxx
-	  //    string. If the index is zero we are NOT in the process of
-	  //    inserting a %yxx string.
+	  //    is zero we know we are just starting to insert a %y00 string.
+	  //    If this index is non-zero on entry to this code we know we are
+	  //    already in the process of inserting a %yxx string and will
+	  //    continue that insertion here.
 	  // c) If the CopyHttpData() function hits the maximum character
 	  //    insertion limit for the packet it does a normal return to the
 	  //    calling function, and the insertion_index is retained in the
@@ -3594,11 +3674,12 @@ void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
   // This function is called UIP_CONNS times by the HttpDinit function. It is
   // called once for each possible connection. The function sets the initial
   // values within the pSocket structure to give a new connection a "starting
-  // place", such as which page to initially display when a connection is made.
-  
+  // place", such as which page to initially display when a connection is made
+  // that does not call out a specific page.
+
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   pSocket->current_webpage = WEBPAGE_IOCONTROL;
-  pSocket->structID = i; // TEMPORARY DEBUG MARKER
+//  pSocket->structID = i; // TEMPORARY DEBUG MARKER
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -3607,6 +3688,9 @@ void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
 
 // UARTPrintf("init_tHttpd_struct\r\n");
 
+  pSocket->nState = STATE_NULL;
+  pSocket->ParseState = PARSE_NULL;
+  pSocket->nNewlines = 0;
   pSocket->insertion_index = 0;
   init_off_board_string_pointers(pSocket);
 }
@@ -3626,7 +3710,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   //    other action.
   //    In the form of a POST if the Broswer is sending data to the
   //    application.
-  //    "if (uip_newdata()" part of the code below.
   // b) Send a requsted web page to the Browser:
   //    This uses the "if (uip_connected())" part of the code below to start a
   //    new page transmission and the "if (uip_acked())" part of the code
@@ -3864,6 +3947,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       // ready if there is a TCP Fragment.
       parse_tail[0] = '\0';
 
+// UARTPrintf("\r\n");
+// UARTPrintf("pSocket->nState == STATE_CONNECTED, parse_tail set to NULL");
+// UARTPrintf("\r\n");
+
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
       // Initialize the find_content_info state. It is used to manage the
@@ -3941,7 +4028,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  
 	  // Initialize parse_tail for first pass of parsing
 	  parse_tail[0] = '\0';
-	  
+
+// UARTPrintf("\r\n");
+// UARTPrintf("Beginning of POST found. parse_tail set to NULL. nBytes = ");
+// emb_itoa(nBytes, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+
           // Start parsing
           pSocket->nState = STATE_PARSEPOST;
 	  if (nBytes == 0) {
@@ -5857,6 +5951,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
       if (nBufSize == 0) {
         //No Data has been copied (or there was none to send). Close connection
+// UARTPrintf("nBufSize == 0, Closing Connection\r\n");
         uip_close();
       }
       else {
@@ -6061,6 +6156,10 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
   j = 0;
   
   while (1) {
+    // Here we start copying data from the uip_buf to the local_buf. Remember
+    // that before this routine was called we already detected the \r\n\r\n
+    // sequence in the packet, so we're only copying data starting at the
+    // point that POST data begins.
     local_buf[i] = *pBuffer;
     local_buf[i+1] = '\0';
     parse_tail[j] = *pBuffer;
@@ -6077,7 +6176,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
         // equal to "&z00=0") then send the entire local_buf to parsing.
         // Parse the local_buf
 
-// UARTPrintf("parse_tail: \r\n");
+// UARTPrintf("parse_tail chk1: \r\n");
 // UARTPrintf(parse_tail);
 // UARTPrintf("\r\n");
 // UARTPrintf("End of POST: \r\n");
@@ -6117,7 +6216,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
           
           // Parse the local_buf
 
-// UARTPrintf("parse_tail: \r\n");
+// UARTPrintf("parse_tail chk2: \r\n");
 // UARTPrintf(parse_tail);
 // UARTPrintf("\r\n");
 // UARTPrintf("local_buf: \r\n");
@@ -6152,7 +6251,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
       
       // Parse the local_buf
 
-// UARTPrintf("parse_tail: \r\n");
+// UARTPrintf("parse_tail chk3: \r\n");
 // UARTPrintf(parse_tail);
 // UARTPrintf("\r\n");
 // UARTPrintf("local_buf: \r\n");
@@ -6339,12 +6438,21 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	  {
 	    case 'a':
 	      memcpy(Pending_devicename, tmp_Pending, num_chars);
+// UARTPrintf("Pending_devicename: \r\n");
+// UARTPrintf(Pending_devicename);
+// UARTPrintf("\r\n");
 	      break;
 	    case 'l':
 	      memcpy(Pending_mqtt_username, tmp_Pending, num_chars);
+// UARTPrintf("Pending_mqtt_username: \r\n");
+// UARTPrintf(Pending_mqtt_username);
+// UARTPrintf("\r\n");
 	      break;
 	    case 'm':
 	      memcpy(Pending_mqtt_password, tmp_Pending, num_chars);
+// UARTPrintf("Pending_mqtt_password: \r\n");
+// UARTPrintf(Pending_mqtt_password);
+// UARTPrintf("\r\n");
 	      break;
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 	    case 'j':
@@ -6404,12 +6512,12 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             j = (8 - i) / 2;
           	  
             switch(pSocket->ParseNum)
-            {
-              case 0:  Pending_hostaddr[j]       = (uint8_t)temp; break;
-              case 4:  Pending_draddr[j]         = (uint8_t)temp; break;
-              case 8:  Pending_netmask[j]        = (uint8_t)temp; break;
-              case 12: Pending_mqttserveraddr[j] = (uint8_t)temp; break;
-              default: break;
+             {
+               case 0:  Pending_hostaddr[j]       = (uint8_t)temp; break;
+               case 4:  Pending_draddr[j]         = (uint8_t)temp; break;
+               case 8:  Pending_netmask[j]        = (uint8_t)temp; break;
+               case 12: Pending_mqttserveraddr[j] = (uint8_t)temp; break;
+               default: break;
             }
           }
         }
@@ -6672,6 +6780,10 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
     parse_complete = 1;
     // Set nState to close the connection
     pSocket->nState = STATE_SENDHEADER204;
+// UARTPrintf("Pending_devicename = ");
+// UARTPrintf(Pending_devicename);
+// UARTPrintf("\r\n");
+// UARTPrintf("nParseLeft == 0. nState = STATE_SENDHEADER204.\r\n");
   }
 
   else {
@@ -6691,6 +6803,10 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
     // nParseLeft = 0.
     //
     uip_len = 0;
+// UARTPrintf("Pending_devicename = ");
+// UARTPrintf(Pending_devicename);
+// UARTPrintf("\r\n");
+// UARTPrintf("nParseLeft > 0. Continue parsing.\r\n");
   }
 }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD

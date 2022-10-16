@@ -3678,7 +3678,8 @@ void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
   // that does not call out a specific page.
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-  pSocket->current_webpage = WEBPAGE_IOCONTROL;
+//  pSocket->current_webpage = WEBPAGE_IOCONTROL;
+  pSocket->current_webpage = WEBPAGE_NULL;
 //  pSocket->structID = i; // TEMPORARY DEBUG MARKER
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   
@@ -3721,14 +3722,20 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 // UARTPrintf("HttpDCall: current_webpage = ");
 // emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
 // UARTPrintf(OctetArray);
+// UARTPrintf("  listening port = ");
+// emb_itoa(uip_conn->lport, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
 // UARTPrintf("   structID = ");
 // emb_itoa(pSocket->structID, OctetArray, 10, 5);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
 
+
   if (uip_connected()) {
     //Initialize this connection
     
+// UARTPrintf("HttpDCall: uip_connected\r\n");
+
 // UARTPrintf("HttpDCall: uip_connected  current_webpage = ");
 // emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
 // UARTPrintf(OctetArray);
@@ -3830,6 +3837,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
   else if (uip_acked()) {
 
+// UARTPrintf("HttpDCall: uip_acked\r\n");
+
 // UARTPrintf("HttpDCall: uip_acked  current_webpage = ");
 // emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
 // UARTPrintf(OctetArray);
@@ -3847,6 +3856,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   }
   
   else if (uip_newdata()) {
+
+// UARTPrintf("HttpDCall: uip_newdata\r\n");
 
 // UARTPrintf("HttpDCall: uip_newdata  current_webpage = ");
 // emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);

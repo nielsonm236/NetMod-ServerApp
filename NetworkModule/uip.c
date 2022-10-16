@@ -106,11 +106,14 @@
 #include "uipopt.h"
 #include "uip_arch.h"
 #include "main.h"
+#include "uart.h"
 
 #include <string.h>
 
 //---------------------------------------------------------------------------//
 /* Variable definitions. */
+
+extern uint8_t OctetArray[11]; // Used only in debug operations
 
 /* The IP address of this host */
 uip_ipaddr_t uip_hostaddr;
@@ -479,6 +482,7 @@ void uip_process(uint8_t flag)
   // present, so uip_len should be zero when it occurs.
   if (flag == UIP_POLL_REQUEST) {
     if ((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED && !uip_outstanding(uip_connr)) {
+// UARTPrintf("  uip.c: APPCALL due to POLL REQUEST\r\n");
       uip_flags = UIP_POLL;
       UIP_APPCALL(); // Check for any data to be sent
       goto appsend;
@@ -526,6 +530,7 @@ void uip_process(uint8_t flag)
             // We call UIP_APPCALL() with uip_flags set to UIP_TIMEDOUT to
 	    // inform the application that the connection has timed out.
             uip_flags = UIP_TIMEDOUT;
+// UARTPrintf("  uip.c: APPCALL due to Timeout\r\n");
             UIP_APPCALL(); // Timeout call. uip_len was cleared above.
 
             // We also send a reset packet to the remote host.
@@ -561,6 +566,7 @@ void uip_process(uint8_t flag)
 	      // the actual retransmit after which we jump into the code for
 	      // sending out the packet (the apprexmit label).
               uip_flags = UIP_REXMIT;
+// UARTPrintf("  uip.c: APPCALL due to ESTABLISHED\r\n");
               UIP_APPCALL(); // Call to get old data for retransmit.  uip_len
 	                     // was cleared above.
               goto apprexmit;
@@ -586,6 +592,12 @@ void uip_process(uint8_t flag)
     goto drop;
   }
 
+// UARTPrintf("  uip_input: listening port = ");
+// emb_itoa(uip_conn->lport, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+
 
   //---------------------------------------------------------------------------//
   // This is where the input processing starts. We fall through to this point
@@ -597,6 +609,7 @@ void uip_process(uint8_t flag)
   if (BUF->vhl != 0x45) { // IP version and header length.
     UIP_STAT(++uip_stat.ip.drop);
     UIP_STAT(++uip_stat.ip.vhlerr);
+// UARTPrintf("  uip.c: drop invlaid header\r\n");
     goto drop;
   }
   
@@ -610,12 +623,16 @@ void uip_process(uint8_t flag)
   if ((BUF->len[0] << 8) + BUF->len[1] <= uip_len) {
     uip_len = (BUF->len[0] << 8) + BUF->len[1];
   }
-  else goto drop;
+  else {
+// UARTPrintf("  uip.c: drop invalid length\r\n");
+    goto drop;
+  }
 
   // Check the fragment flag.
   if ((BUF->ipoffset[0] & 0x3f) != 0 || BUF->ipoffset[1] != 0) {
     UIP_STAT(++uip_stat.ip.drop);
     UIP_STAT(++uip_stat.ip.fragerr);
+// UARTPrintf("  uip.c: fragerr\r\n");
     goto drop;
   }
 
@@ -624,12 +641,14 @@ void uip_process(uint8_t flag)
   // address FF:FF:FF:FF)
   if (!uip_ipaddr_cmp(BUF->destipaddr, uip_hostaddr)) {
     UIP_STAT(++uip_stat.ip.drop);
+// UARTPrintf("  uip.c: drop not our IP address\r\n");
     goto drop;
   }
 
   if (uip_ipchksum() != 0xffff) { /* Compute and check the IP header checksum. */
     UIP_STAT(++uip_stat.ip.drop);
     UIP_STAT(++uip_stat.ip.chkerr);
+// UARTPrintf("  uip.c: drop checksum error\r\n");
     goto drop;
   }
 
@@ -645,6 +664,8 @@ void uip_process(uint8_t flag)
     UIP_STAT(++uip_stat.ip.protoerr);
     goto drop;
   }
+
+// UARTPrintf("  uip.c: ICMP\r\n");
 
   UIP_STAT(++uip_stat.icmp.recv);
 
@@ -902,6 +923,7 @@ void uip_process(uint8_t flag)
     // apps do not check for UIP_CLOSED or UIP_ABORT.
     // If this call is left here it seems we should force uip_len = 0
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// UARTPrintf("  uip.c: APPCALL due to RESET\r\n");
     UIP_APPCALL(); // ????
     goto drop;
   }
@@ -993,6 +1015,7 @@ void uip_process(uint8_t flag)
           uip_add_rcv_nxt(uip_len);
         }
         uip_slen = 0;
+// UARTPrintf("  uip.c: APPCALL due to SYN_RCVD\r\n");
         UIP_APPCALL(); // We may have received data with the SYN
         goto appsend;
       }
@@ -1054,6 +1077,7 @@ void uip_process(uint8_t flag)
         uip_connr->len = 0;
         uip_len = 0;
         uip_slen = 0;
+// UARTPrintf("  uip.c: APPCALL due to SYN_SENT\r\n");
         UIP_APPCALL(); // This checks to see if there is any data to send with
 	               // the ACK. Don't call it if you want to send a pure ACK.
 		       // Note that uip_len is set to zero before the call.
@@ -1064,6 +1088,7 @@ void uip_process(uint8_t flag)
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       // In this case the applications don't do anything with this information.
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// UARTPrintf("  uip.c: APPCALL due to ABORT\r\n");
       UIP_APPCALL(); // ???
       // The connection is closed after we send the RST
       uip_conn->tcpstateflags = UIP_CLOSED;
@@ -1090,6 +1115,7 @@ void uip_process(uint8_t flag)
         if (uip_len > 0) {
           uip_flags |= UIP_NEWDATA;
         }
+// UARTPrintf("  uip.c: APPCALL due to UIP_ESTABLISHED\r\n");
         UIP_APPCALL(); // This processes any receive data and sets up any
 	               // transmit data to send with the the ACK.
 	uip_connr->len = 1;
@@ -1151,6 +1177,7 @@ void uip_process(uint8_t flag)
       // uip_len must be set to 0.
       if (uip_flags & (UIP_NEWDATA | UIP_ACKDATA)) {
         uip_slen = 0;
+// UARTPrintf("  uip.c: APPCALL due to read data from browser\r\n");
         UIP_APPCALL(); // Here is where the application will read data that
 	               // arrived from the client/browser and then the
 		       // application will fill the uip_buf with new data to
@@ -1243,6 +1270,7 @@ void uip_process(uint8_t flag)
         // Not sure why there is an APPCALL here as we are closing the
 	// connection.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// UARTPrintf("  uip.c: APPCALL due to UIP_LAST_ACK\r\n");
 	UIP_APPCALL(); // ???
       }
       break;
@@ -1269,6 +1297,7 @@ void uip_process(uint8_t flag)
         // Not sure why there is an APPCALL here as we are closing the
 	// connection.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// UARTPrintf("  uip.c: APPCALL due to FIN_WAIT\r\n");
         UIP_APPCALL(); // ???
         goto tcp_send_ack;
       }
@@ -1295,6 +1324,7 @@ void uip_process(uint8_t flag)
         // Not sure why there is an APPCALL here as we are closing the
 	// connection.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// UARTPrintf("  uip.c: APPCALL due to FIN_WAIT2\r\n");
 	UIP_APPCALL(); // ???
 	goto tcp_send_ack;
       }

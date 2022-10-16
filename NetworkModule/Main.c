@@ -743,6 +743,11 @@ int main(void)
       // payload.
       if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
 // UARTPrintf("Detected uip_len > 0 UIP_ETHTYPE_IP\r\n");
+// UARTPrintf("uip_len = ");
+// emb_itoa(uip_len, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
         uip_input(); // Calls uip_process(UIP_DATA) to process a received
 	// packet.
         // If the above process resulted in data that should be sent out on

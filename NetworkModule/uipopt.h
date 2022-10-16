@@ -286,7 +286,7 @@
 //      USAGE: Provides the most run time error data and UART display.
 // * Specific debug data: Reset Status Register counters, TXERIF counter,
 //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
-#define DEBUG_SUPPORT 11
+#define DEBUG_SUPPORT 15
 
 
 // IWDG_ENABLE

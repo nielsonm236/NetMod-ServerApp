@@ -29,6 +29,7 @@
 
 #include <stdlib.h>
 
+#include "build_options.h"
 #include "main.h"
 #include "Enc28j60.h"
 #include "Spi.h"
@@ -4084,7 +4085,7 @@ void check_runtime_changes(void)
     // received.
 
     // Check all pin_control bytes for changes.
-    // ON/OFF state: If an Output pin’s ON/OFF state changes the EEPROM is
+    // ON/OFF state: If an Output pinÂ’s ON/OFF state changes the EEPROM is
     //   updated only if Retain is set, but a restart must not occur.
     //   IMPORTANT: This routine must only change Output pin ON/OFF states.
     //   The read_input_pins() function is the only place where Input pin

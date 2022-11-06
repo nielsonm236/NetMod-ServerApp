@@ -30,6 +30,7 @@
 #include "gpio.h"
 #include "main.h"
 #include "uipopt.h"
+#include "build_options.h"
 
 extern uint8_t stored_magic4;		// MSB Magic Number stored in EEPROM
 extern uint8_t stored_magic3;		// 
@@ -52,6 +53,10 @@ extern uint8_t stored_pin_control[16];  // Per pin control settings stored in
 volatile struct io_registers io_reg[ NUM_PORTS ]	@0x5000;	// make room for PA .. PG starting at 0x5000
 
 // Define the pair PORT:BIT for each of the 16 I/Os
+#if IO_PIN_ORDER == 1
+// HW-584
+// 5V 16 15 14 13 12 11 10 09 G
+// 5V 08 07 06 05 04 03 02 01 G
 const struct io_mapping io_map[16] = {
 	{ PA, 0x08 },    // PA bit3, IO1
 	{ PA, 0x20 },    // PA bit5, IO2
@@ -70,6 +75,65 @@ const struct io_mapping io_map[16] = {
 	{ PG, 0x01 },    // PG bit0, IO15
 	{ PC, 0x40 }     // PC bit6, IO16
 };
+#endif IO_PIN_ORDER == 1
+
+#if IO_PIN_ORDER == 2
+// HW-584
+// 5V 16 15 14 13 12 11 10 09 G
+// 5V 08 07 06 05 04 03 02 01 G
+//
+// relay:
+// 5V 02 04 06 08 10 12 14 16 G
+// 5V 01 03 05 07 09 11 13 15 G
+//
+const struct io_mapping io_map[16] = {
+	{ PC, 0x80 },    // PC bit7, IO01
+	{ PC, 0x40 },    // PC bit6, IO02
+	{ PG, 0x02 },    // PG bit1, IO03
+	{ PG, 0x01 },    // PG bit0, IO04
+	{ PE, 0x01 },    // PE bit0, IO05
+	{ PE, 0x08 },    // PE bit3, IO06
+	{ PD, 0x04 },    // PD bit2, IO07
+	{ PD, 0x01 },    // PD bit0, IO08
+	{ PD, 0x10 },    // PD bit4, IO09
+	{ PD, 0x08 },    // PD bit3, IO10
+	{ PD, 0x40 },    // PD bit6, IO11
+	{ PD, 0x20 },    // PD bit5, IO12
+	{ PA, 0x20 },    // PA bit5, IO13
+	{ PD, 0x80 },    // PD bit7, IO14
+	{ PA, 0x08 },    // PA bit3, IO15
+	{ PA, 0x10 }     // PA bit4, IO16
+};
+#endif IO_PIN_ORDER == 2
+
+#if IO_PIN_ORDER == 3
+// HW-584
+// 5V 16 15 14 13 12 11 10 09 G
+// 5V 08 07 06 05 04 03 02 01 G
+//
+// relay:
+// 5V 08 07 06 05 04 03 02 01 G
+// -- -- -- -- -- -- -- -- -- -
+//
+const struct io_mapping io_map[16] = {
+	{ PA, 0x10 },    // PA bit4, IO01
+	{ PD, 0x80 },    // PD bit7, IO02
+	{ PD, 0x20 },    // PD bit5, IO03
+	{ PD, 0x08 },    // PD bit3, IO04
+	{ PD, 0x01 },    // PD bit0, IO05
+	{ PE, 0x08 },    // PE bit3, IO06
+	{ PG, 0x01 },    // PG bit0, IO07
+	{ PC, 0x40 },    // PC bit6, IO08
+	{ PA, 0x08 },    // PA bit3, IO09
+	{ PA, 0x20 },    // PA bit5, IO10
+	{ PD, 0x40 },    // PD bit6, IO11
+	{ PD, 0x10 },    // PD bit4, IO12
+	{ PD, 0x04 },    // PD bit2, IO13
+	{ PE, 0x01 },    // PE bit0, IO14
+	{ PG, 0x02 },    // PG bit1, IO15
+	{ PC, 0x80 }     // PC bit7, IO16
+};
+#endif IO_PIN_ORDER == 3
 
 
 void gpio_init(void)

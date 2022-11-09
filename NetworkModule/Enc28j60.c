@@ -639,6 +639,11 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   // Check for buffer overflow - RXERIF (bit 0) of EIR register
   // If overflow increment the error counter
   if (Enc28j60ReadReg(BANKX_EIR) & 0x01) {
+  
+#if DEBUG_SUPPORT != 11
+UARTPrintf("Enc28j60Receive OVERFLOW detected\r\n");
+#endif // DEBUG_SUPPORT != 11
+
     RXERIF_counter++;
     // Clear RXERIF
     Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_RXERIF));
@@ -646,7 +651,14 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
 
   // Check for at least 1 waiting packet in the buffer
   Enc28j60SwitchBank(BANK1);
-  if (Enc28j60ReadReg(BANK1_EPKTCNT) == 0) return 0;
+  if (Enc28j60ReadReg(BANK1_EPKTCNT) == 0) {
+    return 0;
+  }
+  else {
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("Enc28j60Receive NO PACKETS detected\r\n");
+// #endif // DEBUG_SUPPORT != 11
+  }
 
   select();
 
@@ -670,7 +682,14 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   //   host or client we connect to. For this reason we know we can throw away
   //   any packet that exceeds MAXFRAME.
   //
-  if (nBytes <= ENC28J60_MAXFRAME) SpiReadChunk(pBuffer, nBytes);
+  if (nBytes <= ENC28J60_MAXFRAME) {
+    SpiReadChunk(pBuffer, nBytes);
+  }
+  else {
+#if DEBUG_SUPPORT != 11
+UARTPrintf("Enc28j60Receive MAXFRAME exceeded\r\n");
+#endif // DEBUG_SUPPORT != 11
+  }
 
   deselect();
 

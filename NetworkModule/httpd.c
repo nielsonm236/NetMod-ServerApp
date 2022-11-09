@@ -3223,6 +3223,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
         else if ((nParsedMode == 'e') && (nParsedNum >= 30) && (nParsedNum < 40)) {
+	  // This displays the Link Error Statistics
           if (nParsedNum == 31) {
 	    emb_itoa(second_counter, OctetArray, 10, 10);
             pBuffer = stpcpy(pBuffer, OctetArray);

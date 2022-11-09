@@ -55,16 +55,16 @@ extern uint32_t second_counter;
 extern uint16_t uip_slen;
 extern uint8_t MQTT_error_status; // Global so GUI can show error status
                                   // indicator
-uint8_t connack_received;  // Used to communicate CONNECT CONNACK received
-                           // from mqtt.c to main.c
-uint8_t suback_received;   // Used to communicate SUBSCRIBE SUBACK received
-                           // from mqtt.c to main.c
+uint8_t connack_received;         // Used to communicate CONNECT CONNACK
+                                  // received from mqtt.c to main.c
+uint8_t suback_received;          // Used to communicate SUBSCRIBE SUBACK
+                                  // received from mqtt.c to main.c
 
-uint8_t mqtt_sendbuf[140]; // Buffer to contain MQTT transmit queue
-			   // and data.
-extern uint8_t mqtt_start; // Tracks the MQTT startup steps
+uint8_t mqtt_sendbuf[MQTT_SENDBUF_SIZE]; // Buffer to contain MQTT transmit
+                                         // queue and data.
+extern uint8_t mqtt_start;        // Tracks the MQTT startup steps
 
-extern uint8_t OctetArray[11];  // Used in UART debug sessions
+extern uint8_t OctetArray[11];    // Used in UART debug sessions
 
 
 
@@ -102,6 +102,19 @@ int16_t mqtt_sync(struct mqtt_client *client)
 }
 
 
+uint16_t mqtt_check_sendbuf(struct mqtt_client *client)
+{
+    // This function cleans the mqtt_sendbuf (if needed) then reports the
+    // remaining size of the mqtt_sendbuf (the free space remaining in the
+    // buffer).
+    uint16_t rv;
+    if (!(client->mq.curr_sz > (MQTT_SENDBUF_SIZE - 15))) mqtt_mq_clean(&client->mq); 
+    rv = client->mq.curr_sz;
+    return rv;
+}
+
+
+
 uint16_t __mqtt_next_pid(struct mqtt_client *client)
 {
     // This function generates a psudo random packet id (pid)
@@ -136,6 +149,14 @@ int16_t mqtt_init(struct mqtt_client *client,
                uint8_t *recvbuf, uint16_t recvbufsz,
                void (*publish_response_callback)(void** state,struct mqtt_response_publish *publish))
 {
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("__mqtt_init sendbuf size = ");
+emb_itoa(sendbufsz, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
+
     if (client == NULL || sendbuf == NULL || recvbuf == NULL) {
       return MQTT_ERROR_NULLPTR;
     }
@@ -207,6 +228,15 @@ int16_t mqtt_connect(struct mqtt_client *client,
         client->error = MQTT_OK;
     }
 
+// UARTPrintf("__mqtt_connect sendbuf rem = ");
+// emb_itoa(client->mq.curr_sz, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// mqtt_mq_clean(&client->mq); 
+// UARTPrintf("  after clean = ");
+// emb_itoa(client->mq.curr_sz, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
     // try to pack the message
     MQTT_CLIENT_TRY_PACK(rv, msg, client, 
         mqtt_pack_connection_request(
@@ -247,6 +277,16 @@ int16_t mqtt_publish(struct mqtt_client *client,
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
 
+// UARTPrintf("__mqtt_publish sendbuf rem = ");
+// emb_itoa(client->mq.curr_sz, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// mqtt_mq_clean(&client->mq); 
+// UARTPrintf("  after clean = ");
+// emb_itoa(client->mq.curr_sz, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+
     // try to pack the message
     MQTT_CLIENT_TRY_PACK(
         rv, msg, client, 
@@ -269,8 +309,35 @@ int16_t mqtt_publish(struct mqtt_client *client,
 }
 
 
+#if QOS_SUPPORT == 1
+int16_t __mqtt_puback(struct mqtt_client *client, uint16_t packet_id)
+{
+    int16_t rv;
+    struct mqtt_queued_message *msg;
+
+// UARTPrintf("mqtt_puback Generating PUBACK\r\n");
+
+    // try to pack the message
+    MQTT_CLIENT_TRY_PACK(
+        rv, msg, client, 
+        mqtt_pack_pubxxx_request(
+            client->mq.curr, client->mq.curr_sz,
+            MQTT_CONTROL_PUBACK,
+            packet_id
+        ),
+        0
+    );
+    // save the control type and packet id of the message
+    msg->control_type = MQTT_CONTROL_PUBACK;
+    msg->packet_id = packet_id;
+    return MQTT_OK;
+}
+#endif // QOS_SUPPORT == 1
+
+
 int16_t mqtt_subscribe(struct mqtt_client *client,
-                       const char* topic_name)
+                       const char* topic_name,
+		       int max_qos_level)
 {
     int16_t rv;
     uint16_t packet_id;
@@ -283,7 +350,8 @@ int16_t mqtt_subscribe(struct mqtt_client *client,
         mqtt_pack_subscribe_request(
             client->mq.curr, client->mq.curr_sz,
             packet_id,
-            topic_name
+            topic_name,
+            max_qos_level
         ), 
         1
     );
@@ -345,6 +413,7 @@ int16_t mqtt_disconnect(struct mqtt_client *client)
 }
 
 
+#if QOS_SUPPORT == 0
 int16_t __mqtt_send(struct mqtt_client *client)
 {
     int16_t len;
@@ -424,6 +493,8 @@ int16_t __mqtt_send(struct mqtt_client *client)
         // MQTT_CONTROL_PINGREQ     -> awaiting
         // MQTT_CONTROL_PINGRESP    -> n/a
         // MQTT_CONTROL_DISCONNECT  -> complete
+	
+	
 
         switch (msg->control_type) {
         case MQTT_CONTROL_DISCONNECT:
@@ -461,8 +532,177 @@ int16_t __mqtt_send(struct mqtt_client *client)
 
     return MQTT_OK;
 }
+#endif // QOS_SUPPORT == 0
 
 
+#if QOS_SUPPORT == 1
+int16_t __mqtt_send(struct mqtt_client *client)
+{
+    uint8_t inspected;
+    int16_t len;
+    int16_t i = 0;
+    
+    if (client->error < 0 && client->error != MQTT_ERROR_SEND_BUFFER_IS_FULL) {
+      return client->error;
+    }
+
+    // loop through all messages in the queue. mqtt_mq_length returns the
+    // number of messages in the message queue.
+    len = mqtt_mq_length(&client->mq);
+
+// if (len > 0) {
+// UARTPrintf("__mqtt_send number of msgs in queue = ");
+// emb_itoa(len, OctetArray, 10, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+// }    
+
+
+// Here's a problem ... I think. This next "for" loop will attempt to send all
+// messages in the mqtt_sendbuf. The problem is that mqtt_pal_sendall is designed
+// to place a single message in the uip_buf, then expects a return to the main.c
+// main loop so that the message will be transferred from the uip_buf to the
+// ENC28J60. So I think the loop below needs to break once a message is encountered
+// and submitted to mqtt_pal_sendall. We should return later to send any additional
+// messages.
+
+
+
+
+    for(; i < len; ++i) {
+        struct mqtt_queued_message *msg = mqtt_mq_get(&client->mq, i);
+        int16_t resend = 0;
+        if (msg->state == MQTT_QUEUED_UNSENT) {
+            // message has not been sent so lets send it
+            resend = 1;
+        }
+	else if (msg->state == MQTT_QUEUED_AWAITING_ACK) {
+            // check for timeout
+            if (second_counter > msg->time_sent + client->response_timeout) {
+                resend = 1;
+                client->number_of_timeouts += 1;
+                client->send_offset = 0;
+            }
+        }
+
+        // goto next message if we don't need to send
+        if (!resend) continue;
+
+        // we're sending the message
+        {
+	  // Some notes about this part of the code. The original code was
+	  // designed to send larger messages, thus mqtt_pal_sendall might
+	  // return a tmp value that indicates there is more to send. In this
+	  // application we use a technique in the mqtt_pal_sendall routine
+	  // that can replace placeholders in the mqtt message that is to be
+	  // sent, resulting in an mqtt message that is larger than the
+	  // message template given to it to send. So the mqtt_pal_sendall
+	  // routine was redesigned to cause it to send the entire message
+	  // even if it required multiple packets. Thus the return value
+	  // always equals the size of the original template ... indicating
+	  // a complete send.
+          int16_t tmp = mqtt_pal_sendall(msg->start + client->send_offset, msg->size - client->send_offset);
+	  // mqtt_pal_sendall returns a negative number if an error, or a positive
+	  // number with the number of bytes sent
+          if (tmp < 0) {
+            client->error = tmp;
+            return tmp;
+          }
+	  else {
+            client->send_offset += tmp;
+            if(client->send_offset < msg->size) {
+              // partial sent. Await additional calls
+	      // A PARTIAL SHOULD NEVER OCCUR AS ALL MQTT MESSAGES ARE SHORT
+	      // ENOUGH IN THIS APPLICATION THAT THEY WILL BE SENT IN ONE PASS.
+	      // THIS CODE COULD BE SIMPLIFIED.
+              break;
+            }
+	    else {
+              // Whole message has been sent - and by "sent" we mean copied
+	      // to the uip_buf.
+              client->send_offset = 0;
+            }
+          }
+        }
+
+        // update timeout watcher
+        client->time_of_last_send = second_counter;
+        msg->time_sent = client->time_of_last_send;
+
+        // Determine the state to put the message in.
+        // Control Types:
+        // MQTT_CONTROL_CONNECT     -> awaiting
+        // MQTT_CONTROL_CONNACK     -> n/a
+        // MQTT_CONTROL_PUBLISH     -> qos == 0 ? complete : awaiting
+        // MQTT_CONTROL_PUBACK      -> complete
+        // MQTT_CONTROL_PUBREC      -> awaiting (Only for qos 2)
+        // MQTT_CONTROL_PUBREL      -> awaiting (Only for qos 2)
+        // MQTT_CONTROL_PUBCOMP     -> complete (Only for qos 2)
+        // MQTT_CONTROL_SUBSCRIBE   -> awaiting
+        // MQTT_CONTROL_SUBACK      -> n/a
+        // MQTT_CONTROL_PINGREQ     -> awaiting
+        // MQTT_CONTROL_PINGRESP    -> n/a
+        // MQTT_CONTROL_DISCONNECT  -> complete
+	
+        switch (msg->control_type) {
+        case MQTT_CONTROL_PUBACK:
+#if DEBUG_SUPPORT != 11
+UARTPrintf("mqtt_puback Sent PUBACK\r\n");
+#endif // DEBUG_SUPPORT != 11
+            msg->state = MQTT_QUEUED_COMPLETE;
+            break;
+        case MQTT_CONTROL_DISCONNECT:
+            msg->state = MQTT_QUEUED_COMPLETE;
+            break;
+        case MQTT_CONTROL_PUBLISH:
+	        inspected = (uint8_t)((MQTT_PUBLISH_QOS_MASK & (msg->start[0])) >> 1); // determine qos
+		if (inspected == 0) {
+		    msg->state = MQTT_QUEUED_COMPLETE;
+		}
+		else {
+		    msg->state = MQTT_QUEUED_AWAITING_ACK;
+		    // set DUP flag for subsequent sends [Spec MQTT-3.3.1-1]
+		    msg->start[0] |= MQTT_PUBLISH_DUP;
+		}
+		// Above handles QOS 0 and 1. No handling for QOS 2.
+		// XXXXXXXXXXXXXXXXXXXX THE NM ONLY PUBLISHES WITH QOS0. THE ABOVE
+		// CAN BE SIMPLIFIED. XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+            break;
+        case MQTT_CONTROL_CONNECT:
+        case MQTT_CONTROL_SUBSCRIBE:
+        case MQTT_CONTROL_PINGREQ:
+            msg->state = MQTT_QUEUED_AWAITING_ACK;
+            break;
+        default:
+            client->error = MQTT_ERROR_MALFORMED_REQUEST;
+            return MQTT_ERROR_MALFORMED_REQUEST;
+        }
+	// ADDING BREAK HERE. WE SENT ONE MESSAGE (ALL WE CAN SEND PER PASS)
+	break;
+    }
+
+    // check for keep-alive
+    {
+        // At about 3/4 of the timeout period perform a ping. This calculation
+	// uses integer arithmetic so it is only an approximation. It is assumed
+	// that timeouts are not a small number (for instance, the timeout should
+	// be at least 15 seconds).
+        uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((client->keep_alive * 3) / 4);
+        if ((second_counter > keep_alive_timeout) && (mqtt_start == MQTT_START_COMPLETE)) {
+          int16_t rv = __mqtt_ping(client);
+          if (rv != MQTT_OK) {
+            client->error = rv;
+            return rv;
+          }
+        }
+    }
+
+    return MQTT_OK;
+}
+#endif // QOS_SUPPORT == 1
+
+
+#if QOS_SUPPORT == 0
 int16_t __mqtt_recv(struct mqtt_client *client)
 {
     struct mqtt_response response;
@@ -546,12 +786,213 @@ int16_t __mqtt_recv(struct mqtt_client *client)
                 break;
             }
             break;
-	    
+
         case MQTT_CONTROL_PUBLISH:
             // QOS0 only so Call Publish Callback
             client->publish_response_callback(&client->publish_response_callback_state, &response.decoded.publish);
             break;
+
+        case MQTT_CONTROL_SUBACK:
+            // release associated SUBSCRIBE
+            msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_SUBSCRIBE, &response.decoded.suback.packet_id);
+	    suback_received = 1; // Communicate SUBACK received to main.c
+            if (msg == NULL) {
+                client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+                mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+                break;
+            }
+            msg->state = MQTT_QUEUED_COMPLETE;
+            // check that subscription was successful (currently only one
+            // subscribe at a time)
+            if (response.decoded.suback.return_codes[0] == MQTT_SUBACK_FAILURE) {
+                client->error = MQTT_ERROR_SUBSCRIBE_FAILED;
+                mqtt_recv_ret = MQTT_ERROR_SUBSCRIBE_FAILED;
+                break;
+            }
+            break;
 	    
+        case MQTT_CONTROL_PINGRESP:
+            // release associated PINGREQ
+            msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_PINGREQ, NULL);
+            if (msg == NULL) {
+                client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+                mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+                break;
+            }
+            msg->state = MQTT_QUEUED_COMPLETE;
+            break;
+	    
+        default:
+            client->error = MQTT_ERROR_MALFORMED_RESPONSE;
+            mqtt_recv_ret = MQTT_ERROR_MALFORMED_RESPONSE;
+            break;
+    }
+    
+    {
+        // Because we have the UIP code as the front end to MQTT there will
+        // never be more than one receive msg in the uip_buf, so the
+        // processing above will have "consumed" it. If a new receive message
+	// comes in on the ethernet while this code is operating it will be
+	// held in the enc28j60 hardware buffer until the application gets
+	// back around to receiving it.
+        //
+        // The original code was set up to let several messages get queued in
+        // the receive buffer, then those messages are read out. When a
+        // message is read the original code "cleans the buffer" by moving any
+        // remaining messages toward the beginning of the buffer, over-writing
+        // the messages consumed. Or at least that's what I think it's doing.
+        //
+	// Reset receive pointers to start of buffer.
+	client->recv_buffer.curr = client->recv_buffer.mem_start;
+	client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
+    }
+
+    // In case there was some error handling the (well formed) message, we end
+    // up here
+    return mqtt_recv_ret;
+}
+#endif // QOS_SUPPORT == 0
+
+
+#if QOS_SUPPORT == 1
+int16_t __mqtt_recv(struct mqtt_client *client)
+{
+    struct mqtt_response response;
+    int16_t mqtt_recv_ret = MQTT_OK;
+    int16_t rv, consumed;
+    struct mqtt_queued_message *msg = NULL;
+
+    // Read the input buffer and check for errors
+
+    // The original MQTT code used a mqtt_pal_recvall() function to move
+    // data from an OS host buffer into an MQTT dedicated receive buffer.
+    // In this application that process is not needed and we only need to
+    // check if there is any receive data in the uip_buf. To do this we
+    // only need to check if uip_len is > 0. If it is not we need to
+    // generate an error by setting rv = -1.
+    if (uip_len > 0) rv = uip_len;
+    else rv = -1;
+
+    client->recv_buffer.curr += rv;
+    client->recv_buffer.curr_sz -= rv;
+
+    // attempt to parse
+    consumed = mqtt_unpack_response(&response, client->recv_buffer.mem_start, client->recv_buffer.curr - client->recv_buffer.mem_start);
+
+    if (consumed < 0) {
+        client->error = consumed;
+        return consumed;
+    }
+
+    // response was unpacked successfully
+
+    // The switch statement below manages how the client responds to messages
+    // from the broker.
+
+    // Control Types (that we expect to receive from the broker):
+    // MQTT_CONTROL_CONNACK:
+    //     -> release associated CONNECT
+    //     -> handle response
+    // MQTT_CONTROL_PUBLISH:
+    //     -> stage response, none if qos==0, PUBACK if qos==1, PUBREC if qos==2
+    //     -> call publish callback
+    // MQTT_CONTROL_PUBACK: (not implemented as we always PUBLISH with qos==0 thus
+    //                       never receive a PUBACK)
+    //     -> release associated PUBLISH
+    // MQTT_CONTROL_PUBREC: (Only for qos 2)
+    //     -> release PUBLISH
+    //     -> stage PUBREL
+    // MQTT_CONTROL_PUBREL: (Only for qos 2)
+    //     -> release associated PUBREC
+    //     -> stage PUBCOMP
+    // MQTT_CONTROL_PUBCOMP: (Only for qos 2)
+    //     -> release PUBREL
+    // MQTT_CONTROL_SUBACK:
+    //     -> release SUBSCRIBE
+    //     -> handle response
+    // MQTT_CONTROL_UNSUBACK: (Not implemented)
+    //     -> release UNSUBSCRIBE
+    // MQTT_CONTROL_PINGRESP:
+    //     -> release PINGREQ
+    
+// UARTPrintf("__mqtt_recv control_type = ");
+// emb_itoa(response.fixed_header.control_type, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+    
+    switch (response.fixed_header.control_type) {
+    
+        case MQTT_CONTROL_CONNACK:
+            // release associated CONNECT
+            msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_CONNECT, NULL);
+            connack_received = 1; // Communicate CONNACK received to main.c
+            if (msg == NULL) {
+                client->error = MQTT_ERROR_ACK_OF_UNKNOWN;
+                mqtt_recv_ret = MQTT_ERROR_ACK_OF_UNKNOWN;
+                break;
+            }
+            msg->state = MQTT_QUEUED_COMPLETE;
+            // check that connection was successful
+            if (response.decoded.connack.return_code != MQTT_CONNACK_ACCEPTED) {
+                if (response.decoded.connack.return_code == MQTT_CONNACK_REFUSED_IDENTIFIER_REJECTED) {
+                    client->error = MQTT_ERROR_CONNECT_CLIENT_ID_REFUSED;
+                    mqtt_recv_ret = MQTT_ERROR_CONNECT_CLIENT_ID_REFUSED;
+                }
+	        else {
+                    client->error = MQTT_ERROR_CONNECTION_REFUSED;
+                    mqtt_recv_ret = MQTT_ERROR_CONNECTION_REFUSED;
+                }
+                break;
+            }
+            break;
+	    
+        case MQTT_CONTROL_PUBLISH:
+	    // Stage response, none if qos==0, PUBACK if qos==1, PUBREC
+	    // if qos==2
+	    // Note1: The staged response (a PUBACK) is put in the
+	    // mqtt_sendbuf. The PUBACK will stay in the mqtt_sendbuf until
+	    // the __mqtt_send routine is called to empty the mqtt_sendbuf.
+	    // Note2: The received PUBLISH being processed here (and via the
+	    // publish_callback routine) is in the uip_buf and will stay there
+	    // until this processing completes.
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("mqtt_recv Received PUBLISH\r\n");
+#endif // DEBUG_SUPPORT != 11
+
+// UARTPrintf("__mqtt_recv sendbuf rem = ");
+// emb_itoa(client->mq.curr_sz, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// mqtt_mq_clean(&client->mq); 
+// UARTPrintf("  after clean = ");
+// emb_itoa(client->mq.curr_sz, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+	    if (response.decoded.publish.qos_level == 1) {
+	        rv = __mqtt_puback(client, response.decoded.publish.packet_id);
+		if (rv != MQTT_OK) {
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("__mqtt_puback failed\r\n");
+#endif // DEBUG_SUPPORT != 11
+
+		    client->error = rv;
+		    mqtt_recv_ret = rv;
+		    break;
+		}
+	    }
+	    // QOS2 not supported - code eliminated
+            // For QOS0 and QOS1 call Publish Callback.
+	    // Note that publish_callback doesn't actually put anything in the
+	    // mqtt_sendbuf, it only queues a process that will later place
+	    // PUBLISH messages in the mqtt_sendbuf.
+
+// UARTPrintf("mqtt_recv Calling callback\r\n");
+
+            client->publish_response_callback(&client->publish_response_callback_state, &response.decoded.publish);
+            break;
+
         case MQTT_CONTROL_SUBACK:
             // release associated SUBSCRIBE
             msg = mqtt_mq_find(&client->mq, MQTT_CONTROL_SUBSCRIBE, &response.decoded.suback.packet_id);
@@ -611,6 +1052,7 @@ int16_t __mqtt_recv(struct mqtt_client *client)
     // up here
     return mqtt_recv_ret;
 }
+#endif // QOS_SUPPORT == 1
 
 
 
@@ -950,6 +1392,7 @@ int16_t mqtt_pack_ping_request(uint8_t *buf, uint16_t bufsz)
 
 
 /* PUBLISH */
+#if QOS_SUPPORT == 0
 int16_t mqtt_pack_publish_request(uint8_t *buf, uint16_t bufsz,
                                   const char* topic_name,
                                   uint16_t packet_id,
@@ -1004,8 +1447,83 @@ int16_t mqtt_pack_publish_request(uint8_t *buf, uint16_t bufsz,
 
     return buf - start;
 }
+#endif // QOS_SUPPORT == 0
 
 
+#if QOS_SUPPORT == 1
+int16_t mqtt_pack_publish_request(uint8_t *buf, uint16_t bufsz,
+                                  const char* topic_name,
+                                  uint16_t packet_id,
+                                  const void* application_message,
+                                  uint16_t application_message_size,
+                                  uint8_t publish_flags)
+{
+    const uint8_t *const start = buf;
+    int16_t rv;
+    struct mqtt_fixed_header fixed_header;
+    uint32_t remaining_length;
+    uint8_t inspected_qos;
+
+    // check for null pointers
+    if(buf == NULL || topic_name == NULL) {
+      return MQTT_ERROR_NULLPTR;
+    }
+
+    // inspect qos level
+    inspected_qos = (uint8_t)((publish_flags & MQTT_PUBLISH_QOS_MASK) >> 1);
+
+    // build the fixed header
+    fixed_header.control_type = MQTT_CONTROL_PUBLISH;
+    
+    // calculate remaining length
+    remaining_length = (uint32_t)__mqtt_packed_cstrlen(topic_name);
+    if (inspected_qos > 0) {
+        remaining_length += 2;
+    }
+    remaining_length += (uint32_t)application_message_size;
+    fixed_header.remaining_length = remaining_length;
+
+    // force dup to 0 if qos is 0 [Spec MQTT-3.3.1-2]
+    publish_flags &= (uint8_t)(~MQTT_PUBLISH_DUP);
+    
+    // make sure that qos is not 3 [Spec MQTT-3.3.1-2]
+    if (inspected_qos == 3) {
+        return MQTT_ERROR_PUBLISH_FORBIDDEN_QOS;
+    }
+
+    fixed_header.control_flags = publish_flags;
+    
+// UARTPrintf("mqtt_pack_publish_request flags ");
+// emb_itoa(publish_flags, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+    // pack fixed header
+    rv = mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
+    if (rv <= 0) return rv; // something went wrong
+
+    buf += rv;
+    bufsz -= rv;
+
+    // check that buffer is big enough
+    if (bufsz < remaining_length) return 0;
+
+    // pack variable header
+    buf += __mqtt_pack_str(buf, topic_name);
+    if (inspected_qos > 0) {
+        buf += __mqtt_pack_uint16(buf, packet_id);
+    }
+
+    // pack payload
+    memcpy(buf, application_message, application_message_size);
+    buf += application_message_size;
+
+    return buf - start;
+}
+#endif // QOS_SUPPORT == 1
+
+
+#if QOS_SUPPORT == 0
 int16_t mqtt_unpack_publish_response(struct mqtt_response *mqtt_response, const uint8_t *buf)
 {    
     const uint8_t *const start = buf;
@@ -1039,6 +1557,99 @@ int16_t mqtt_unpack_publish_response(struct mqtt_response *mqtt_response, const 
     // return number of bytes consumed
     return buf - start;
 }
+#endif // QOS_SUPPORT == 0
+
+
+#if QOS_SUPPORT == 1
+int16_t mqtt_unpack_publish_response(struct mqtt_response *mqtt_response, const uint8_t *buf)
+{    
+    const uint8_t *const start = buf;
+    struct mqtt_fixed_header *fixed_header;
+    struct mqtt_response_publish *response;
+    
+    fixed_header = &(mqtt_response->fixed_header);
+    response = &(mqtt_response->decoded.publish);
+
+    // get flags
+    response->dup_flag = (uint8_t)((fixed_header->control_flags & MQTT_PUBLISH_DUP) >> 3);
+    response->qos_level = (uint8_t)((fixed_header->control_flags & MQTT_PUBLISH_QOS_MASK) >> 1);
+    response->retain_flag = (uint8_t)(fixed_header->control_flags & MQTT_PUBLISH_RETAIN);
+
+#if DEBUG_SUPPORT != 11
+if (response->dup_flag == 1) {
+UARTPrintf("mqtt_unpack_publish_response dup received\r\n");
+}
+#endif // DEBUG_SUPPORT != 11
+
+    // make sure that remaining length is valid
+    if (mqtt_response->fixed_header.remaining_length < 4) {
+        return MQTT_ERROR_MALFORMED_RESPONSE;
+    }
+
+    // parse variable header
+    response->topic_name_size = __mqtt_unpack_uint16(buf);
+    buf += 2;
+    response->topic_name = buf;
+    buf += response->topic_name_size;
+    
+    if (response->qos_level > 0) {
+        response->packet_id = __mqtt_unpack_uint16(buf);
+	buf += 2;
+    }
+
+    // get payload
+    response->application_message = buf;
+    if (response->qos_level == 0) {
+        response->application_message_size = (uint16_t)(fixed_header->remaining_length - response->topic_name_size - 2);
+    }
+    else {
+        response->application_message_size = (uint16_t)(fixed_header->remaining_length - response->topic_name_size - 4);
+    }
+    buf += response->application_message_size;
+        
+    // return number of bytes consumed
+    return buf - start;
+}
+#endif // QOS_SUPPORT == 1
+
+
+#if QOS_SUPPORT == 1
+/* PUBXXX */
+int16_t mqtt_pack_pubxxx_request(uint8_t *buf, uint16_t bufsz, 
+                                 enum MQTTControlPacketType control_type,
+                                 uint16_t packet_id) 
+{
+    const uint8_t *const start = buf;
+    struct mqtt_fixed_header fixed_header;
+    int16_t rv;
+    if (buf == NULL) {
+        return MQTT_ERROR_NULLPTR;
+    }
+
+    /* pack fixed header */
+    fixed_header.control_type = control_type;
+    if (control_type == MQTT_CONTROL_PUBREL) {
+        fixed_header.control_flags = 0x02;
+    } else {
+        fixed_header.control_flags = 0;
+    }
+    fixed_header.remaining_length = 2;
+    rv = mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
+    if (rv <= 0) {
+        return rv;
+    }
+    buf += rv;
+    bufsz -= rv;
+
+    if (bufsz < fixed_header.remaining_length) {
+        return 0;
+    }
+    
+    buf += __mqtt_pack_uint16(buf, packet_id);
+
+    return buf - start;
+}
+#endif // QOS_SUPPORT == 1
 
 
 /* SUBACK */
@@ -1067,7 +1678,7 @@ int16_t mqtt_unpack_suback_response (struct mqtt_response *mqtt_response, const 
 
 
 /* SUBSCRIBE */
-int16_t mqtt_pack_subscribe_request(uint8_t *buf, uint16_t bufsz, uint16_t packet_id, char *topic)
+int16_t mqtt_pack_subscribe_request(uint8_t *buf, uint16_t bufsz, uint16_t packet_id, char *topic, int max_qos_level)
 {
     int16_t rv;
     const uint8_t *const start = buf;
@@ -1094,7 +1705,7 @@ int16_t mqtt_pack_subscribe_request(uint8_t *buf, uint16_t bufsz, uint16_t packe
 
     // pack payload
     buf += __mqtt_pack_str(buf, topic);
-    *buf++ = 0; //max_qos
+    *buf++ = (uint8_t)max_qos_level; //max_qos
 
     return buf - start;
 }

@@ -474,12 +474,20 @@ void uip_process(uint8_t flag)
   // Note: When a UIP_APPCALL is made to receive data the uip_len value will
   // be set to the TCP data length. When a UIP_APPCALL is made to transmit
   // data the appcall will set the uip_len value.
+  //
+  // Note: In TcpAppHub.h this define appears:
+  //   #define UIP_APPCALL  uip_TcpAppHubCall
+  // So, a UIP_APPCALL actually calls uip_TcpAppHubCall which sorts out
+  // whether the UIP_APPCALL is for an HTTP or MQTT message based on the Port
+  // specified in the message.
   
   uip_sappdata = uip_appdata = &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN];
 
   // Check if we were invoked because of a poll request for a particular
   // connection. A UIP_POLL_REQUEST will occur without any receive data
   // present, so uip_len should be zero when it occurs.
+  // UIP_POLL_REQUEST IS NOT USED IN THIS APPLICATION, SO THIS CODE COULD BE
+  // REMOVED. THAT WOULD ONLY SAVE 21 BYTES, BUT REMOVAL IS AN OPTION.
   if (flag == UIP_POLL_REQUEST) {
     if ((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED && !uip_outstanding(uip_connr)) {
 // UARTPrintf("  uip.c: APPCALL due to POLL REQUEST\r\n");
@@ -489,7 +497,7 @@ void uip_process(uint8_t flag)
     }
     goto drop;
   }
-  
+
   // Check if we were invoked because of the perodic timer firing.  A
   // UIP_TIMER will occur without any receive data present, so uip_len
   // should be zero when it occurs.
@@ -511,12 +519,16 @@ void uip_process(uint8_t flag)
     // connection to time out. If so, we increase the connection's timer and
     // remove the connection if it times out.
     if (uip_connr->tcpstateflags == UIP_TIME_WAIT || uip_connr->tcpstateflags == UIP_FIN_WAIT_2) {
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
+#endif // DEBUG_SUPPORT != 11
       ++(uip_connr->timer);
       if (uip_connr->timer == UIP_TIME_WAIT_TIMEOUT) {
         uip_connr->tcpstateflags = UIP_CLOSED;
       }
     }
     else if (uip_connr->tcpstateflags != UIP_CLOSED) {
+// UARTPrintf("  uip.c: periodic APPCALL awaiting outstanding data\r\n");
       // If the connection has outstanding data, we increase the connection's
       // timer and see if it has reached the RTO value in which case we
       // retransmit.
@@ -530,7 +542,6 @@ void uip_process(uint8_t flag)
             // We call UIP_APPCALL() with uip_flags set to UIP_TIMEDOUT to
 	    // inform the application that the connection has timed out.
             uip_flags = UIP_TIMEDOUT;
-// UARTPrintf("  uip.c: APPCALL due to Timeout\r\n");
             UIP_APPCALL(); // Timeout call. uip_len was cleared above.
 
             // We also send a reset packet to the remote host.
@@ -566,7 +577,6 @@ void uip_process(uint8_t flag)
 	      // the actual retransmit after which we jump into the code for
 	      // sending out the packet (the apprexmit label).
               uip_flags = UIP_REXMIT;
-// UARTPrintf("  uip.c: APPCALL due to ESTABLISHED\r\n");
               UIP_APPCALL(); // Call to get old data for retransmit.  uip_len
 	                     // was cleared above.
               goto apprexmit;
@@ -581,6 +591,7 @@ void uip_process(uint8_t flag)
         }
       }
       else if ((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED) {
+// UARTPrintf("  uip.c: periodic APPCALL poll for new data\r\n");
         // If there was no need for a retransmission, we poll the application
 	// for new data.
         uip_flags = UIP_POLL;
@@ -600,6 +611,7 @@ void uip_process(uint8_t flag)
 
 
   //---------------------------------------------------------------------------//
+  // flag == UIP_DATA, ie uip_process(UIP_DATA), will start here.
   // This is where the input processing starts. We fall through to this point
   // if the call was uip_process(UIP_DATA)
   UIP_STAT(++uip_stat.ip.recv);
@@ -609,7 +621,7 @@ void uip_process(uint8_t flag)
   if (BUF->vhl != 0x45) { // IP version and header length.
     UIP_STAT(++uip_stat.ip.drop);
     UIP_STAT(++uip_stat.ip.vhlerr);
-// UARTPrintf("  uip.c: drop invlaid header\r\n");
+// UARTPrintf("  uip.c: drop invalid header\r\n");
     goto drop;
   }
   

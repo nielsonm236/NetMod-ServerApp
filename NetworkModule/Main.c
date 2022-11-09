@@ -51,7 +51,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20221009 2141"; // Normal Release Revision
+const char code_revision[] = "20221109 0109"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -194,6 +194,8 @@ uint16_t Invert_word;                   // Invert state of pins in single 16 bit
                                         // word
 uint8_t state_request;			// Indicates that a PUBLISH state
                                         // request was received
+uint8_t Enc28j60Receive_throttle;       // Used to throttle receipt of packets
+                                        // from the Enc28j60 device.
 
 uint8_t stack_error;			// Stack error flag storage
 
@@ -264,6 +266,8 @@ char client_id_text[26];              // Client ID comprised of text
 uint8_t mqtt_start;                   // Tracks the MQTT startup steps
 uint8_t mqtt_start_ctr1;              // Tracks time for the MQTT startup
                                       // steps
+uint8_t publish_outbound_throttle;    // Used to throttle calls to the
+                                      // publish_outbound function.
 uint8_t verify_count;                 // Used to limit the number of ARP and
                                       // TCP verify attempts
 uint8_t mqtt_sanity_ctr;              // Tracks time for the MQTT sanity steps
@@ -272,8 +276,8 @@ extern uint8_t connack_received;      // Used to communicate CONNECT CONNACK
 extern uint8_t suback_received;       // Used to communicate SUBSCRIBE SUBACK
                                       // received from mqtt.c to main.c
 
-extern uint8_t mqtt_sendbuf[140];     // Buffer to contain MQTT transmit queue
-				      // and data.
+extern uint8_t mqtt_sendbuf[MQTT_SENDBUF_SIZE]; // Buffer to contain MQTT
+                                      // transmit queue and data.
 
 struct uip_conn *mqtt_conn;           // mqtt_conn points to the connection
                                       // being used with the MQTT server. This
@@ -297,6 +301,7 @@ uint8_t auto_discovery;               // Used in the Auto Discovery state machin
 uint8_t auto_discovery_step;          // Used in the Auto Discovery state machine
 uint8_t pin_ptr;                      // Used in the Auto Discovery state machine
 uint8_t sensor_number;                // Used in the Auto Discovery state machine
+uint16_t MQTT_transmit;               // Used to force a publish_pinstate
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 // #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
@@ -416,6 +421,7 @@ int main(void)
   t100ms_ctr1 = 0;
   restart_reboot_step = RESTART_REBOOT_IDLE;
   stack_error = 0;
+  Enc28j60Receive_throttle = 0;
   
 #if IWDG_ENABLE == 1
   init_IWDG(); // Initialize the hardware watchdog
@@ -430,6 +436,8 @@ int main(void)
   mqtt_keep_alive = 60;                  // Ping interval in seconds
   mqtt_start_ctr1 = 0;			 // Tracks time for the MQTT startup
                                          // steps
+  publish_outbound_throttle = 0;         // Used to throttle calls to the
+                                         // publish_outbound function.
   mqtt_sanity_ctr = 0;			 // Tracks time for the MQTT sanity
                                          // steps
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
@@ -735,18 +743,58 @@ int main(void)
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing. If the
                     // processor hangs the IWDG will perform a hardware reset.
 
-    uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
+    if (Enc28j60Receive_throttle == 25) {
+      // The Enc28j60Receive_throttle was implemented when QOS 1 was
+      // introduced in the MQTT code. This was needed to prevent a burst of
+      // incoming PUBLISH messages from so fully occupying the uip_buf that
+      // no outgoing messages from MQTT could be sent during the burst.
+      // Timing note: The main loop runs in about 1ms, so the throttle value
+      // will delay extracting messages from the ENC28J60 by 100ms for a
+      // throttle value of 100.
+      // The ENC28J60 is set up for a receive buffer of 6KB (see ENC28J60.h).
+      // The ENC28J60 buffer size should be more than enough to hold all
+      // messages that are received in a burst (say from a Home Assistant
+      // "Toggle" operation) until they can be processed, assuming the burst
+      // isn't repeated at a rapid rate. A PUBLISH message in a "Toggle" burst
+      // will be about 88 bytes, consisting of 54 bytes LLH/TCPIP headers and
+      // about 34 bytes MQTT PUBLISH message. A burst of 16 PUBLISH messages
+      // from HA thus requires about 1400 bytes in the ENC28J60 receive
+      // buffer.
+      // IMPORTANT: Analysis of all messages being received by the Network
+      // Module shows that there is a lot of traffic on a typical Ethernet
+      // cable that makes it through the ENC28J60 filters and needs to be
+      // dispositioned by the uip.c code. For example:
+      // - ARP pings
+      // - ICMP traffic
+      // - Messages that match the MAC address, but not the IP address
+      // - Messages that match MAC and IP, but are not a valid Port
+      // - Other miscellaneous traffic that is discarded
+      // I have no idea where most of the above traffic originates, but it all
+      // occupies processing and buffer memory in addition to the genuine
+      // application traffic of interest. SO - throttles need to be large
+      // enough to allow enough message processing time, but small enough to
+      // prevent buffer over-runs.
+      // 
+      // SOME EXPERIMENTATION COULD BE DONE HERE TO SEE HOW SMALL THE THROTTLE
+      // VALUE CAN BE MADE AND STILL HAVE RELIABLE LONG TERM OPERATION.
+      uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
+      Enc28j60Receive_throttle = 0;
+    }
+    else Enc28j60Receive_throttle++;
 
     if (uip_len > 0) {
       // This code is executed if incoming traffic is HTTP or MQTT (not ARP).
       // uip_len includes the headers, so it will be > 0 even if no TCP
       // payload.
       if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
+      
+#if DEBUG_SUPPORT != 11
 // UARTPrintf("Detected uip_len > 0 UIP_ETHTYPE_IP\r\n");
 // UARTPrintf("uip_len = ");
 // emb_itoa(uip_len, OctetArray, 10, 5);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
 
         uip_input(); // Calls uip_process(UIP_DATA) to process a received
 	// packet.
@@ -754,7 +802,8 @@ int main(void)
 	// the network the global variable uip_len will have been set to a
 	// value > 0.
         if (uip_len > 0) {
-          uip_arp_out();
+          uip_arp_out(); // Verifies arp entry in the ARP table and builds
+	                 // the LLH
           // The original uip code has a uip_split_output function. It is not
           // needed for this application due to small packet sizes, so the
           // Enc28j60 transmit functions are called directly.
@@ -762,7 +811,9 @@ int main(void)
         }
       }
       else if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_ARP)) {
+// #if DEBUG_SUPPORT != 11
 // UARTPrintf("Detected uip_len > 0 UIP_ETHTYPE_ARP\r\n");
+// #endif // DEBUG_SUPPORT != 11
         uip_arp_arpin();
         // If the above process resulted in data that should be sent out on
 	// the network the global variable uip_len will have been set to a
@@ -796,7 +847,8 @@ int main(void)
     if (mqtt_enabled
      && mqtt_start == MQTT_START_COMPLETE
      && restart_reboot_step == RESTART_REBOOT_IDLE) {
-      mqtt_sanity_check();
+//      mqtt_sanity_check();
+      mqtt_sanity_check(&mqttclient);
     }
     
     // Check for Temperature Sensor changes and send redefine
@@ -823,14 +875,21 @@ int main(void)
         for(i = 0; i < UIP_CONNS; i++) {
 	  uip_periodic(i);
 	  // uip_periodic() calls uip_process(UIP_TIMER) for each connection.
+	  // Every connection is checked in this loop one time.
 	  // uip_process(UIP_TIMER) will check the HTTP and MQTT connections
-	  // for any unserviced outbound traffic. HTTP can have pending
-	  // transmissions because the web pages can be broken into several
-	  // packets. MQTT will always use this function to transmit packets.
+	  // for any unserviced outbound traffic one packet at a time.
+	  //   HTTP connections (the webbrowser) will generate and place its
+	  //   data in the uip_buf via a call to HttpDCall(). HTTP connections
+	  //   can have pending transmissions which are continuations of a
+	  //   series of packets because the web pages can be broken into
+	  //   several packets.
+	  //   MQTT will always use this function to transmit packets. MQTT
+	  //   will have placed its outbound packets in the mqtt_sendbuf. MQTT
+	  //   connections will consist of a complete message in one packet.
 	  //
 	  // If uip_periodic() resulted in data that should be sent out on
 	  // the network the global variable uip_len will have been set to a
-	  // value > 0.
+	  // value > 0 so that Enc28j60Send() will be called.
 	  //
 	  // Note that when the device first powers up and MQTT is enabled the
 	  // MQTT processes will attempt to send a SYN to create a TCP
@@ -874,15 +933,49 @@ int main(void)
     // If the MQTT timer expires (50ms)
     //   And MQTT is enabled
     //   And MQTT startup is complete
-    //     Then check for messages that need to be published including a
-    //     check for pin state changes
-    //   Note that publish_outbound only places the message in the queue, then
-    //   uip_periodic() will cause the actual transmission at 20ms intervals.
+    //     Then check for pin state change messages that need to be
+    //     published
+    // Note that publish_outbound only places the message in the mqtt_sendbuf
+    // queue, then uip_periodic() will cause the actual transmission at 20ms
+    // intervals.
     // Also
     //   Increment the MQTT timers every 50ms
     if (mqtt_timer_expired()) {
       if (mqtt_enabled) {
-        if (mqtt_start == MQTT_START_COMPLETE) publish_outbound();
+        if (mqtt_start == MQTT_START_COMPLETE) {
+	  if (publish_outbound_throttle == 0) {
+	    // publish_outbound() is called to send pin_control state change
+	    // PUBLISH messages. Due to the small size of the mqtt_sendbuf the
+	    // rate at which theses messages are placed in the mqtt_sendbuf
+	    // needs to be throttled so it can be assured that a message
+	    // has time to be transmitted before another is placed in the
+	    // mqtt_sendbuf, also leaving time for other transmit messages
+	    // (for example "ping" messages and PUBACK messages).
+	    // During implementation of QOS 1 the "publish_outbound_throttle"
+	    // was implemented to allow even more time for these transmit
+	    // processes if necessary.
+	    // A setting of "0" allows 50ms between calls to publish_outbound().
+	    // 50ms is the mqtt_time_expired() interval). This seems to be
+	    // adequate at this writing. Each incremental increase in the
+	    // publish_outbound_throttle test adds another 50ms:
+	    // "== 0" is 50ms interval
+	    // "== 1" is 100ms
+	    // "== 2" is 150ms
+	    // and so on.
+	    // For future reference this throttle was implemented during test
+	    // of the Home Assistant "Toggle" function, wherein a large burst
+	    // of incoming PUBLISH messages would occur. There is the need to
+	    // assure enough processing gaps to accomodate messages that need
+	    // to pass through the very small mqtt_sendbuf, which then gets
+	    // emptied through the uip_buf. The process is problematic because
+	    // the uip_buf is also used for all incoming PUBLISH messages.
+	    // IF IT TURNS OUT THIS THROTTLE NEVER NEED TO BE INCREASED THE
+	    // CODE COULD BE SIMPLIFIED A LITTLE BY ELIMINATING IT.
+	    publish_outbound();
+	    publish_outbound_throttle = 0;
+	  }
+	  else publish_outbound_throttle++;
+	}
         mqtt_start_ctr1++; // Increment the MQTT start loop timer 1. This is
                            // used to:
 			   //   - Timeout the MQTT Server ARP request or the
@@ -912,7 +1005,6 @@ int main(void)
     // Block the request if no EEPROM was detected or if an error occurred
     // during SREC download.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_REQUEST) {
-// UARTPrintf("\r\neeprom0_copy_to_flash_request received\r\n");
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_WAIT;
       check_I2C_EEPROM_ctr = t100ms_ctr1;
     }
@@ -932,10 +1024,10 @@ int main(void)
       // the eeprom_copy_to_flash() function will call the copy_ram_to_flash()
       // function in the memcpy_update segment from RAM.
       if (_fctcpy ('m') == 0) {
-        // UARTPrintf("eeprom0 fctcpy failed\r\n");
+// UARTPrintf("eeprom0 fctcpy failed\r\n");
       }
       else {
-        // UARTPrintf("eeprom0 fctcpy success\r\n");
+// UARTPrintf("eeprom0 fctcpy success\r\n");
       }
 
       if (eeprom_detect == 1 && upgrade_failcode == UPGRADE_OK) {
@@ -956,12 +1048,10 @@ int main(void)
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_WAIT;
       check_I2C_EEPROM_ctr = t100ms_ctr1;
-// UARTPrintf("\r\nCmd 72 waiting\r\n");
     }
     // Give main loop 500ms for browser update
     if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_WAIT) &&
         (t100ms_ctr1 > (check_I2C_EEPROM_ctr + 5))) {
-// UARTPrintf("\r\nCmd 72 executing\r\n");
       unlock_flash();
       // eeprom_copy_to_flash will cause a reboot on completion of the
       // function.
@@ -1003,7 +1093,6 @@ int main(void)
     // intervals
     if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_sensor_ctr + 10))) {
       check_DS18B20_sensor_ctr = second_counter;
-//      check_temperature_sensor_changes();
       // Call FindDevices to generate a new FoundROM table and determine if
       // any changes occured in the sensor population.
       FindDevices();
@@ -1060,41 +1149,30 @@ uint8_t off_board_EEPROM_detect(void)
   
   eeprom_detect = 0;
     
-// UARTPrintf("\r\nVerifying prescence of EEPROM\r\n");
-
   // Make sure the I2C bus is in a sane condition.
   I2C_reset();
   wait_timer(1000); // Wait 1 ms
   
   // Read 1 byte from Off-Board EEPROM.
-// UARTPrintf("\r\nStep 1\r\n");
   prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
   byte = I2C_read_byte(1);
 
 
   // Write inverted byte to Off-Board EEPROM.
-// UARTPrintf("\r\nStep 2\r\n");
   write_one((uint8_t)~byte);
 
 
   // Read and validate 1 byte from Off-Board EEPROM.
-// UARTPrintf("\r\nStep 3\r\n");
   prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
    
   if ((uint8_t)~byte == I2C_read_byte(1)) {
     eeprom_detect = 1;
   }
   else {
-
-// UARTPrintf("\r\nEEPROM not present XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
-
   }
     
   // Restore the original 1 byte to Off-Board EEPROM.
-// UARTPrintf("\r\nStep 4\r\n");
   write_one(byte);
-
-// UARTPrintf("\r\nExit EEPROM Verify\r\n");
 
   return eeprom_detect;
 }
@@ -1147,13 +1225,8 @@ uint8_t compare_flash_to_EEPROM1(void)
   uint8_t temp;
   
   flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-  
-// UARTPrintf("\r\nComparing EEPROM1 to Flash\r\n");
   prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, I2C_EEPROM1_BASE);
-  
   fail = 0;
-
-// UARTPrintf("\r\n");
 
   // Compare Flash to Off-Board EEPROM1 up to but not including the
   // IO_TIMERS and IO_NAMES.
@@ -1175,17 +1248,7 @@ uint8_t compare_flash_to_EEPROM1(void)
   if (*flash_ptr != temp) {
     fail = 1;
   }
-  
-// if (fail == 0) {
-// UARTPrintf("\r\nEEPROM1 matches Flash\r\n");
-// }
-// else {
-// UARTPrintf("\r\nEEPROM1 doesn't match Flash\r\n");
-// UARTPrintf("  Miscompare at: ");
-// emb_itoa(i, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-// }
+  // if (fail == 0) EEPROM1 matches Flash
   return fail;
 }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -1205,14 +1268,8 @@ uint8_t compare_flash_to_EEPROM0(void)
   uint8_t temp;
   
   flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-  
-// UARTPrintf("\r\nComparing EEPROM0 to Flash\r\n");
-
   prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
-  
   fail = 0;
-
-// UARTPrintf("\r\n");
 
   // Compare Flash to Off-Board EEPROM0 up to but not including the
   // IO_TIMERS and IO_NAMES.
@@ -1221,12 +1278,6 @@ uint8_t compare_flash_to_EEPROM0(void)
     temp = I2C_read_byte(0);
     if (*flash_ptr != temp) {
       fail = 1;
-
-// UARTPrintf("\r\nMiscompare at address: \r\n");
-// emb_itoa(i, OctetArray, 16, 4);
-// UARTPrintf(" ");
-// UARTPrintf(OctetArray);
-
       break;
     }
     else {
@@ -1241,12 +1292,7 @@ uint8_t compare_flash_to_EEPROM0(void)
     fail = 1;
   }
   
-// if (fail == 0) {
-// UARTPrintf("\r\nEEPROM0 matches Flash\r\n");
-// }
-// else {
-// UARTPrintf("\r\nEEPROM0 doesn't match Flash\r\n");
-// }
+  // if (fail == 0) EEPROM0 matches Flash
   return fail;
 }
 #endif // OB_EEPROM_SUPPORT == 1
@@ -1267,18 +1313,13 @@ void copy_code_uploader_to_EEPROM1(void)
 
   flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
   address_index = I2C_EEPROM1_BASE;
-
-// UARTPrintf("\r\nCopying Code Uploader from Flash to off-board EEPROM1\r\n");
-
+  
   I2C_reset();
   wait_timer(1000); // Wait 1 ms
   
   while (address_index < FLASH_START_USER_RESERVE) {
     // Note for "while" statement: address_index will be incremented by 128
     // with each loop.
-
-// UARTPrintf(".");
-
     I2C_control(I2C_EEPROM1_WRITE); // Send Write Control Byte for upper
                                     // Off-Board EEPROM area
     I2C_byte_address(address_index);
@@ -1296,17 +1337,11 @@ void copy_code_uploader_to_EEPROM1(void)
     for (i=0; i<128; i++) {
       if (i == 127) I2C_last_flag = 1;
       temp_byte = I2C_read_byte(I2C_last_flag);
-
-// if (temp_byte != *flash) {
-// UARTPrintf("\r\nCode Uploader copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
-// }
       flash_ptr++;
     }
     address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
-
-// UARTPrintf("\r\nCode Uploader copy complete\r\n");
 }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
@@ -1333,17 +1368,10 @@ void copy_flash_to_EEPROM0(void)
 
   flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
   address_index = I2C_EEPROM0_BASE;
-
-// UARTPrintf("\r\nCopying Flash to off-board EEPROM0\r\n");
-
   I2C_reset();
   wait_timer(1000); // Wait 1 ms
   
-//  while (address_index < (FLASH_START_USER_RESERVE - 0x8000)) {
   while (address_index < OFFSET_TO_FLASH_START_USER_RESERVE) {
-
-// UARTPrintf(".");
-
     I2C_control(I2C_EEPROM0_WRITE);
     I2C_byte_address(address_index);
     for (i=0; i<128; i++) {
@@ -1360,17 +1388,11 @@ void copy_flash_to_EEPROM0(void)
     for (i=0; i<128; i++) {
       if (i == 127) I2C_last_flag = 1;
       temp_byte = I2C_read_byte(I2C_last_flag);
-
-// if (temp_byte != *flash) {
-// UARTPrintf("\r\nFlash copy mis-compare XXXXXXXXXXXXXXXXXXXXXXXXX\r\n");
-// }
-    flash_ptr++;
+      flash_ptr++;
     }
     address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
-
-// UARTPrintf("\r\nFlash copy complete\r\n");
 }
 
 #endif // OB_EEPROM_SUPPORT == 1
@@ -1578,7 +1600,7 @@ void mqtt_startup(void)
     // that the mqtt.c code can tell the main.c code that the CONNECT CONNACK
     // was received.
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // On reboot I frequently see that we get to this point, a Connack is
+    // On reboot I sometimes see that we get to this point, a Connack is
     // sent to us, but we don't get a connack_received from the mqtt code.
     // I suspect the problem is that I'm not shutting down the mqtt code
     // properly, and the process steps here are seen as an error of some
@@ -1603,6 +1625,7 @@ void mqtt_startup(void)
     }
     break;
 
+#if QOS_SUPPORT == 0
   case MQTT_START_QUEUE_SUBSCRIBE1:
     if (mqtt_start_ctr1 > 4) {
       // Subscribe to the output control messages
@@ -1611,27 +1634,54 @@ void mqtt_startup(void)
       // Wait 200ms before queueing first Subscribe msg.
       //
       // The mqtt_subscribe function will create the message and put it in the
-      // transmit queue. uip_periodic() will start the process that will call
-      // mqtt_sync to put the message in the uip_buf.
-      
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // I find that I can't queue multiple subscribe messages without them
-      // taking 10's of seconds to complete. Had this same problem with
-      // publish messages. I think something is wrong with the LiamBindle
-      // transmit queueing, or my interface to it. The quickest solution for
-      // now is to queue a message, return to the main loop so it can
-      // transmit, then queue another message.
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // mqtt_sendbuf queue. uip_periodic() will start the process that will
+      // call mqtt_sync to put the message in the uip_buf.
+      //
+      // In the mqtt_subscribe call the maximum QOS level supported is specified
+      // as 0.
+      //
+      // Note: Timing is managed here to prevent placing multiple SUBSCRIBE
+      // messages in the mqtt_sendbuf as that buffer is very small.
 	
       suback_received = 0;
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/output/+/set");
-      mqtt_subscribe(&mqttclient, topic_base);
+      mqtt_subscribe(&mqttclient, topic_base, 0);
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
     }
     break;
+#endif // QOS_SUPPORT == 0
+    
+#if QOS_SUPPORT == 1
+  case MQTT_START_QUEUE_SUBSCRIBE1:
+    if (mqtt_start_ctr1 > 4) {
+      // Subscribe to the output control messages
+      //
+      // Queue the mqtt_subscribe messages for transmission to the MQTT Broker.
+      // Wait 200ms before queueing first Subscribe msg.
+      //
+      // The mqtt_subscribe function will create the message and put it in the
+      // mqtt_sendbuf queue. uip_periodic() will start the process that will
+      // call mqtt_sync to put the message in the uip_buf.
+      //
+      // In the mqtt_subscribe call the maximum QOS level supported is specified
+      // as 1 for HA compatibility.
+      //
+      // Note: Timing is managed here to prevent placing multiple SUBSCRIBE
+      // messages in the mqtt_sendbuf as that buffer is very small.
+	
+      suback_received = 0;
+      strcpy(topic_base, devicetype);
+      strcat(topic_base, stored_devicename);
+      strcat(topic_base, "/output/+/set");
+      mqtt_subscribe(&mqttclient, topic_base, 1);
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
+      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
+    }
+    break;
+#endif // QOS_SUPPORT == 1
     
   case MQTT_START_VERIFY_SUBSCRIBE1:
     // Verify that the SUBSCRIBE SUBACK was received.
@@ -1656,6 +1706,8 @@ void mqtt_startup(void)
     }
     break;
 
+
+#if QOS_SUPPORT == 0
   case MQTT_START_QUEUE_SUBSCRIBE2:
     if (mqtt_start_ctr1 > 4) {
       // Subscribe to the state-req message
@@ -1665,11 +1717,30 @@ void mqtt_startup(void)
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/state-req");
-      mqtt_subscribe(&mqttclient, topic_base);
+      mqtt_subscribe(&mqttclient, topic_base, 0);
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_VERIFY_SUBSCRIBE2;
     }
     break;
+#endif // QOS_SUPPORT == 0
+
+#if QOS_SUPPORT == 1
+  case MQTT_START_QUEUE_SUBSCRIBE2:
+    if (mqtt_start_ctr1 > 4) {
+      // Subscribe to the state-req message
+      // This Subscribe is at QOS 0
+      //
+      // Wait 200ms before queuing the Subscribe message 
+      suback_received = 0;
+      strcpy(topic_base, devicetype);
+      strcat(topic_base, stored_devicename);
+      strcat(topic_base, "/state-req");
+      mqtt_subscribe(&mqttclient, topic_base, 0);
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
+      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE2;
+    }
+    break;
+#endif // QOS_SUPPORT == 1
 
   case MQTT_START_VERIFY_SUBSCRIBE2:
     // Verify that the SUBSCRIBE SUBACK was received.
@@ -1705,10 +1776,11 @@ void mqtt_startup(void)
     }
     break;
 
-/*
   case MQTT_START_QUEUE_PUBLISH_AUTO:
     if (mqtt_start_ctr1 > 2) {
       // Publish Home Assistant Auto Discovery messages
+      // This part of the state machine runs only if Home Assistant Auto
+      // Discovery is enabled.
       // This step of the state machine is entered multiple times until all
       // Home Assistant Auto Discovery Publish messages are sent.
       //
@@ -1720,215 +1792,10 @@ void mqtt_startup(void)
       // placeholder Publish message during the "copy to uip_buf" process
       // and will replace the special markers at that time to create the
       // actual Publish message required by Home Assistant. This complication
-      // is necessary because the MQTT transmit buffer is not large enough to
-      // contain an entire Auto Discovery Publish message, so it is
-      // constructed on-the-fly as the app_message is written to the uip_buf
-      // transmit buffer by the mqtt_pal.c function.
-      //
-      // The following placeholder Publish message will create an Output Auto
-      // Discovery message. "xx" is the output IO number.
-      //    mqtt_publish(&mqttclient,
-      //                 topic_base,
-      //                 "%Oxx",
-      //                 4,
-      //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-      //
-      // The following placeholder Publish message will create an Input Auto
-      // Discovery message. "xx" is the input IO number.
-      //    mqtt_publish(&mqttclient,
-      //                 topic_base,
-      //                 "%Ixx",
-      //                 4,
-      //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-      //
-      // The following placeholder Publish message will create a Temperature
-      // Sensor Auto Discovery message. "xx" is the input IO number.
-      //    mqtt_publish(&mqttclient,
-      //                 topic_base,
-      //                 "%Txx",
-      //                 4,
-      //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-      //---------------------------------------------------------------------//
-
-      // This part of the state machine will walk through the pin_control
-      // bytes and send an Auto Discovery Publish message for every pin as
-      // follows:
-      //
-      //   For every pin that is an Enabled Input:
-      //     - An Output Config message is sent with an empty payload (to make
-      //       sure any prior Output definition is deleted in Home Assistant).
-      //     - An Input Config message is sent with a definition payload.
-      //
-      //   For every pin that is an Enabled Output:
-      //     - An Input Config message is sent with an empty payload (to make
-      //       sure any prior Input definition is deleted in Home Assistant).
-      //     - An Output Config message is sent with a defining payload.
-      //
-      //   For every pin that is Disabled:
-      //     - An Input Config message is sent with an empty payload (to make
-      //       sure any prior Input definition is deleted in Home Assistant).
-      //     - An Output Config message is sent with an empty payload (to make
-      //       sure any prior Output definition is deleted in Home Assistant).
-      //
-      //   If DS18B20 is enabled:
-      //     - A Temperature Sensor Config message is sent with an empty
-      //       payload for all 5 sensors (to make sure any prior Temperature
-      //       Sensor definition is deleted in Home Assistant).
-      //     - A Temperature Sensor Config message is sent for every sensor
-      //       that was discovered.
-
-      if (auto_discovery == DEFINE_INPUTS) {
-        // Pins 1 to 15 each require two Config messages.
-	//   One to delete any prior Output definition.
-	//   One to send the Input definition.
-	// Pin 16 requires seven Config messages.
-	//   One to delete any prior Output definition.
-	//   One to send the Input definition.
-	//   Five to delete any prior Temperature Sensor definition.
-        if (((pin_control[pin_ptr - 1] & 0x01) == 0x01)
-         && ((pin_control[pin_ptr - 1] & 0x02) == 0x00)) {
-	  // Pin is an Enabled Input pin
-	  if (auto_discovery_step == SEND_OUTPUT_DELETE) {
-            // Create Output pin delete msg.
-            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE_IOT, 0);
-	    auto_discovery_step = SEND_INPUT_DEFINE;
-	  }
-	  
-	  else if (auto_discovery_step == SEND_INPUT_DEFINE) {
-            // Create Input pin define msg.
-            send_IOT_msg(pin_ptr, INPUTMSG, DEFINE_IOT, 0);
-	    
-	    if (pin_ptr == 16) {
-	      pin_ptr = 1;
-              auto_discovery = DEFINE_OUTPUTS;
-              auto_discovery_step = SEND_INPUT_DELETE;
-	    }
-	    else {
-	      pin_ptr++;
-	      auto_discovery_step = SEND_OUTPUT_DELETE;
-	    }
-	  }
-	}
-        else {
-	  if (pin_ptr == 16) {
-	    pin_ptr = 1;
-            auto_discovery = DEFINE_OUTPUTS;
-            auto_discovery_step = SEND_INPUT_DELETE;
-	  }
-	  else pin_ptr++;
-	}
-      }
-	
-      else if (auto_discovery == DEFINE_OUTPUTS) {
-        // Pins 1 to 15 each require two Config messages.
-	//   One to delete any prior Input definition.
-	//   One to send the Output definition.
-	// Pin 16 requires seven Config messages.
-	//   One to delete any prior Input definition.
-	//   One to send the Output definition.
-	//   Five to delete any prior Temperature Sensor definition.
-        if (((pin_control[pin_ptr - 1] & 0x01) == 0x01)
-         && ((pin_control[pin_ptr - 1] & 0x02) == 0x02)) {
-	  // Pin is an Enabled Output pin
-	  if (auto_discovery_step == SEND_INPUT_DELETE) {
-            // Create Input pin delete msg.
-            send_IOT_msg(pin_ptr, INPUTMSG, DELETE_IOT, 0);
-	    auto_discovery_step = SEND_OUTPUT_DEFINE;
-	  }
-	  
-	  else if (auto_discovery_step == SEND_OUTPUT_DEFINE) {
-            // Create Output pin define msg.
-            send_IOT_msg(pin_ptr, OUTPUTMSG, DEFINE_IOT, 0);
-	    
-	    if (pin_ptr == 16) {
-	      pin_ptr = 1;
-              auto_discovery = DEFINE_DISABLED;
-              auto_discovery_step = SEND_INPUT_DELETE;
-	    }
-	    else pin_ptr++;
-            auto_discovery_step = SEND_INPUT_DELETE;
-	  }
-	}
-        else {
-	  if (pin_ptr == 16) {
-	    pin_ptr = 1;
-            auto_discovery = DEFINE_DISABLED;
-            auto_discovery_step = SEND_INPUT_DELETE;
-	  }
-	  else pin_ptr++;
-	}
-      }
- 
-      else if (auto_discovery == DEFINE_DISABLED) {
-        // Pins 1 to 15 each require two Config messages.
-	//   One to delete any prior Input definition.
-	//   One to delete any prior Output definition.
-	// Pin 16 requires seven Config messages.
-	//   One to delete any prior Input definition.
-	//   One to delete any prior Output definition.
-	//   Five to delete any prior Temperature Sensor definition.
-        if ((pin_control[pin_ptr - 1] & 0x01) == 0x00) {
-	  // Pin is Disabled
-	  if (auto_discovery_step == SEND_INPUT_DELETE) {
-            // Create Input pin delete msg.
-            send_IOT_msg(pin_ptr, INPUTMSG, DELETE_IOT, 0);
-	    auto_discovery_step = SEND_OUTPUT_DELETE;
-	  }
-	  
-	  else if (auto_discovery_step == SEND_OUTPUT_DELETE) {
-            // Create Output pin delete msg.
-            send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE_IOT, 0);
-	    
-	    if (pin_ptr == 16) {
-              auto_discovery = DEFINE_TEMP_SENSORS;
-	      auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
-	    }
-	    else {
-	      pin_ptr++;
-	      auto_discovery_step = SEND_INPUT_DELETE;
-	    }
-	  }
-	}
-        else {
-	  if (pin_ptr == 16) {
-	    auto_discovery = DEFINE_TEMP_SENSORS;
-	    auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
-	  }
-	  else pin_ptr++;
-	}
-      }
- 
-      else if (auto_discovery == DEFINE_TEMP_SENSORS) {
-        define_temp_sensors();
-      }
-
-      mqtt_start_ctr1 = 0; // Clear the 50ms counter
-      if (auto_discovery == AUTO_COMPLETE) {
-        auto_discovery_step = STEP_NULL;
-        mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
-      }
-    }
-    break;
-*/
-
-  case MQTT_START_QUEUE_PUBLISH_AUTO:
-    if (mqtt_start_ctr1 > 2) {
-      // Publish Home Assistant Auto Discovery messages
-      // This step of the state machine is entered multiple times until all
-      // Home Assistant Auto Discovery Publish messages are sent.
-      //
-      //---------------------------------------------------------------------//
-      // This function will create a "placeholder" Publish message. The
-      // placeholder message contains special markers that need to be
-      // replaced later with more extensive text fields required in the
-      // actual Publish message. The mqtt_pal.c function will detect the
-      // placeholder Publish message during the "copy to uip_buf" process
-      // and will replace the special markers at that time to create the
-      // actual Publish message required by Home Assistant. This complication
-      // is necessary because the MQTT transmit buffer is not large enough to
-      // contain an entire Auto Discovery Publish message, so it is
-      // constructed on-the-fly as the app_message is written to the uip_buf
-      // transmit buffer by the mqtt_pal.c function.
+      // is necessary because the MQTT transmit buffer (mqtt_sendbuf) is not
+      // large enough to contain an entire Auto Discovery Publish message, so
+      // it is constructed on-the-fly as the app_message is written to the
+      // uip_buf transmit buffer by the mqtt_pal.c function.
       //
       // The following placeholder Publish message will create an Output Auto
       // Discovery message. "xx" is the output IO number.
@@ -2078,7 +1945,6 @@ void mqtt_startup(void)
       }
  
       else if (auto_discovery == DEFINE_TEMP_SENSORS) {
-// UARTPrintf("auto_discovery == DEFINE_TEMP_SENSORS\r\n");
         define_temp_sensors();
       }
 
@@ -2094,6 +1960,7 @@ void mqtt_startup(void)
     if (mqtt_start_ctr1 > 4) {
       // Wait 200ms before queuing Publish message 
       // Publish the availability "online" message
+      // This message is always published with QOS 0
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/availability");
@@ -2124,24 +1991,6 @@ void mqtt_startup(void)
 }
 
 
-/*
-void mqtt_redefine_temp_sensors(void)
-{
-  if (mqtt_start_ctr1 > 2) {
-    auto_discovery = DEFINE_TEMP_SENSORS;
-    if (auto_discovery_step == STEP_NULL) {
-      auto_discovery_step = SEND_TEMP_SENSOR_DELETE;
-    }
-    define_temp_sensors();
-    mqtt_start_ctr1 = 0; // Clear the 50ms counter
-    if (auto_discovery == AUTO_COMPLETE) {
-      auto_discovery_step = STEP_NULL;
-      redefine_temp_sensors = 0;
-    }
-  }
-}
-*/
-
 void mqtt_redefine_temp_sensors(void)
 {
   // This routine can be called during runtime (ie, AFTER initialization) to
@@ -2163,89 +2012,6 @@ void mqtt_redefine_temp_sensors(void)
   }
 }
 
-
-/*
-void define_temp_sensors(void)
-{
-  // This function is called from two places:
-  //   The mqtt_startup function
-  //   The main loop when redefine_temp_sensors == 1
-  //
-  // This function is called from the mqtt_startup function when
-  //   auto_discovery == DEFINE_TEMP_SENSORS
-  // This function is part of the state machine contained within the
-  // mqtt_startup and will manipulate the following state machine controls:
-  //   auto_discovery_step == SEND_TEMP_SENSOR_DELETE
-  //   auto_discovery_step = SEND_TEMP_SENSOR_DELETE2
-  //   auto_discovery_step = SEND_TEMP_SENSOR_DEFINE  
-  // When complete this function will set
-  //   auto_discovery = AUTO_COMPLETE
-  //
-  // This function also is called from the main loop when
-  //   redefine_temp_sensors == 1
-  //
-  // It should not be possible for the mqtt_startup function and the main
-  // loop to be calling this function at the same time.
-  
-  // Pin 16 will be disabled already if it is being used for temperature
-  // sensors.
-  // This part of the state machine will always send a delete temperature
-  // sensor message for every entry in the temp_FoundROM and FoundROM tables
-  // to make sure all sensors are deleted.
-  // Then, if temp sensors are enabled, it will send a define msg for every
-  // sensor appearing in the FoundROM table. Note that this may cause
-  // duplicate "delete" messages to be generated, and/or messages to delete
-  // sensor "000000000000" which is the "empty" value in the tables.
-  
-  if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE) {
-    // Create temperature sensor delete msg for every entry in the
-    // FoundROM table
-    send_IOT_msg(sensor_number, TMPRMSG, DELETE_IOT, 0);
-    if (sensor_number == 4) {
-      sensor_number = 0;
-      auto_discovery_step = SEND_TEMP_SENSOR_DELETE2;
-    }
-    else sensor_number++;
-  }
-    
-  else if (auto_discovery_step == SEND_TEMP_SENSOR_DELETE2) {
-    // Create temperature sensor delete msg for every entry in the
-    // temp_FoundROM table
-    send_IOT_msg(sensor_number, TMPRMSG, DELETE_IOT, 1);
-      
-    if (sensor_number == 4) {
-      sensor_number = 0;
-      auto_discovery_step = SEND_TEMP_SENSOR_DEFINE;
-    }
-    else sensor_number++;
-  }
-    
-  else if (auto_discovery_step == SEND_TEMP_SENSOR_DEFINE) {
-    // Create temperature sensor define msg.
-    // If temp sensors are not enabled we will not create a Config
-    // message.
-    // If no sensors were detected numROMs will be -1 and we will not
-    // create a Config message).
-    // If there is at least one sensor detetected numROMs will be zero or
-    // greater. In that case send the sensor definition as a Config message.
-      
-    if ((stored_config_settings & 0x08) && (sensor_number <= (numROMs))) {
-      // If the test is true Temperature Sensors are enabled and a
-      // sensor is defined.
-      // Send Temp Sensor define messages.
-      send_IOT_msg(sensor_number, TMPRMSG, DEFINE_IOT, 0);
-    }
-      
-    if (sensor_number == 4) {
-      auto_discovery = AUTO_COMPLETE;
-    }
-    else sensor_number++;
-  }
-  else {
-    auto_discovery = AUTO_COMPLETE;
-  }
-}
-*/
 
 void define_temp_sensors(void)
 {
@@ -2280,24 +2046,10 @@ void define_temp_sensors(void)
   // If there is at least one sensor detetected numROMs will be zero or
   // greater. In that case send the sensor definition as a Config message.
 
-
-// UARTPrintf("Checking if sensor number ");
-// emb_itoa(sensor_number, OctetArray, 10, 1);
-// UARTPrintf(OctetArray);
-// UARTPrintf(" needs IOT_msg");
-// UARTPrintf("\r\n");
-
-
   if ((stored_config_settings & 0x08) && (sensor_number <= (numROMs))) {
     // If the test is true Temperature Sensors are enabled and a sensor is
     // defined.
     // Send Temp Sensor define messages.
-
-// UARTPrintf("Sending IOT_msg for sensor number ");
-// emb_itoa(sensor_number, OctetArray, 10, 1);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
     send_IOT_msg(sensor_number, TMPRMSG, DEFINE_IOT);
   }
       
@@ -2308,106 +2060,14 @@ void define_temp_sensors(void)
 }
 
 
-/*
-void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel, uint8_t delete_flag)
-{
-  // Format and send IO delete/define messages and sensor delete/define
-  // messages.
-      //---------------------------------------------------------------------//
-  // For IOT == INPUTMSG or OUTPUTMSG the IOT_ptr indicates the pin number
-  //   (1 to 16) that is being messaged.
-  // For IOT == TMPRMSG the IOT_PTR indicates the sensor number (0 to 4) that
-  //   is being messaged.
-      //---------------------------------------------------------------------//
-  unsigned char app_message[16]; // Stores the application message (the
-                                 // payload) that will be sent in an MQTT
-				 // message.
-				 // For Input or Output IO messages
-				 //   app_message[2] to [5] contains the pin
-				 //   number allowing app_message to be used
-				 //   in creating the topic part of the
-				 //   message
-				 // For Temperature Sensor messages
-				 //   app_message[2] to [14] contains the
-				 //   sensor number allowing app_message to be
-				 //   used in creating the topic part of the
-				 //   message.
-  
-  // Create the % marker in the payload template
-  app_message[0] = '%';
-
-  // Create first part of topic and identification part of app_message
-  strcpy(topic_base, "homeassistant/");
-  if (IOT == INPUTMSG) {
-    strcat(topic_base, "binary_sensor/");
-    app_message[1] = 'I';
-  }
-  if (IOT == OUTPUTMSG) {
-    strcat(topic_base, "switch/");
-    app_message[1] = 'O';
-  }
-  if (IOT == TMPRMSG) {
-    strcat(topic_base, "sensor/");
-    app_message[1] = 'T';
-  }
-
-  if ((IOT == INPUTMSG) || (IOT == OUTPUTMSG)) {
-    // Create the pin number for the app_message and topic.
-    emb_itoa(IOT_ptr, OctetArray, 10, 2);
-    // Add pin number to payload template
-    app_message[2] = OctetArray[0];
-    app_message[3] = OctetArray[1];
-    app_message[4] = '\0';
-  }
-
-  if (IOT == TMPRMSG) {
-    // Create the sensor number for the app_message and topic.
-    // Add first part of sensor ID to payload template.
-    {
-      int i;
-      int j;
-      j = 2;
-      for (i=6; i>0; i--) {
-        if (flag == 0) int2hex(FoundROM[IOT_ptr][i]);
-        if (flag == 1) int2hex(temp_FoundROM[IOT_ptr][i]);
-        app_message[j++] = OctetArray[0];
-        app_message[j++] = OctetArray[1];
-      }
-      app_message[14] = '\0';
-    }
-  }
-
-  // Create the rest of the topic
-  strcat(topic_base, mac_string);
-  strcat(topic_base, "/");
-  strcat(topic_base, &app_message[2]);
-  strcat(topic_base, "/config");
-      
-  // If deleting the pin or sensor replace the app_message with NULL
-  if (DefOrDel == DELETE_IOT) app_message[0] = '\0';
-
-  // Send the message
-  // Note: This message will be intercepted in the mqtt_pal.c 
-  //  mqtt_pal_sendall() routine and additional payload content will
-  //  be added.
-  mqtt_publish(&mqttclient,
-               topic_base,
-               app_message,
-               strlen(app_message),
-               MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
-}
-*/
-
 void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 {
   // Format and send IO delete/define messages and sensor delete/define
   // messages.
-      //---------------------------------------------------------------------//
   // For IOT == INPUTMSG or OUTPUTMSG the IOT_ptr indicates the pin number
   //   (1 to 16) that is being messaged.
   // For IOT == TMPRMSG the IOT_PTR indicates the sensor number (0 to 4) that
   //   is being messaged.
-      //---------------------------------------------------------------------//
   unsigned char app_message[16]; // Stores the application message (the
                                  // payload) that will be sent in an MQTT
 				 // message.
@@ -2452,9 +2112,6 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
   if (IOT == TMPRMSG) {
     // Create the sensor number for the app_message and topic.
     // Add first part of sensor ID to payload template.
-
-// UARTPrintf("Called IOT == TMPRMSG\r\n");
-
     {
       int i;
       int j;
@@ -2466,11 +2123,6 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
       }
       app_message[14] = '\0';
     }
-
-// UARTPrintf("Created Temp Sensor Config msg for ");
-// UARTPrintf(app_message);
-// UARTPrintf("\r\n");
-
   }
 
   // Create the rest of the topic
@@ -2487,6 +2139,7 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
   // Note: This message will be intercepted in the mqtt_pal.c 
   //  mqtt_pal_sendall() routine and additional payload content will
   //  be added.
+  // This message is always published with QOS 0
   mqtt_publish(&mqttclient,
                topic_base,
                app_message,
@@ -2495,7 +2148,8 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 }
 
 
-void mqtt_sanity_check(void)
+// void mqtt_sanity_check(void)
+void mqtt_sanity_check(struct mqtt_client *client)
 {
   // This is similar to a firmware restart except it is focused on restarting
   // only the MQTT components.  The process is triggered every XX seconds IF
@@ -2517,10 +2171,15 @@ void mqtt_sanity_check(void)
     // Note that the Broker ping timeout may be shorter than this response
     // timeout. If the Broker times out first it will disconnect from this
     // device. That should not cause a problem.
-    if (mqttclient.number_of_timeouts > 1) {
+    if (client->number_of_timeouts > 1) {
       // Reset the timeout counter
-      mqttclient.number_of_timeouts = 0;
+      client->number_of_timeouts = 0;
       MQTT_resp_tout_counter++;
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("mqtt_sanity_check Response Timeout\r\n");
+#endif // DEBUG_SUPPORT != 11
+
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
 
@@ -2532,6 +2191,11 @@ void mqtt_sanity_check(void)
     if (mqtt_start == MQTT_START_COMPLETE
      && mqtt_conn->tcpstateflags == UIP_CLOSED) {
       MQTT_broker_dis_counter++;
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("mqtt_sanity_check Broker Disconnect\r\n");
+#endif // DEBUG_SUPPORT != 11
+
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
   
@@ -2539,8 +2203,16 @@ void mqtt_sanity_check(void)
     // != MQTT_OK needs to be qualified with MQTT_START_COMPLETE because a
     // not OK condition can be present prior to mqtt_connect() running.
     if (mqtt_start == MQTT_START_COMPLETE
-     && mqttclient.error != MQTT_OK) {
+     && client->error != MQTT_OK) {
       MQTT_not_OK_counter++;
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("mqtt_sanity_check MQTT_not_OK - Error code:");
+emb_itoa(client->error, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
+
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
     break;
@@ -2708,6 +2380,7 @@ void mqtt_sanity_check(void)
 //---------------------------------------------------------------------------//
 
 
+#if QOS_SUPPORT == 0
 void publish_callback(void** unused, struct mqtt_response_publish *published)
 {
   char* pBuffer;
@@ -2718,14 +2391,14 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   pin_value = 0;
   ParseNum = 0;
   
-  // This function will be called if a "publish" is received from the Broker.
-  // The publish message will contain a payload that, in this application,
+  // This function will be called if a PUBLISH is received from the Broker.
+  // The PUBLISH message will contain a payload that, in this application,
   // will be the output control bits.
   //
   // This function is called from within the mqtt_recv() function. The data
   // left in the uip_buf will remain there until this function completes.
   //
-  // Dissecting the Publish message:
+  // Dissecting the PUBLISH message:
   // - We know that the MQTT Headers + Payload starts at pointer uip_appdata
   // - We know that the Fixed Header is 2 bytes
   // - Next comes the Variable Header
@@ -2852,6 +2525,202 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   // Note: if none of the above matched the parsing we just exit without
   // executing any functionality (the message is effectively ignored).
 }
+#endif // QOS_SUPPORT == 0
+
+
+#if QOS_SUPPORT == 1
+void publish_callback(void** unused, struct mqtt_response_publish *published)
+{
+  char* pBuffer;
+  uint8_t pin_value;
+  uint8_t ParseNum;
+  int i;
+  uint16_t j;
+  uint8_t qos;
+  
+  pin_value = 0;
+  ParseNum = 0;
+  qos = 0;
+  
+  // This function will be called if a "Publish" is received from the Broker.
+  // The publish message will contain a payload that, in this application,
+  // will be the output control bits.
+  //
+  // Since the Subscribe messages were all QOS1 then all Publish messages from
+  // the Broker should be QOS1.
+  //
+  // This function is called from within the mqtt_recv() function. The data
+  // left in the uip_buf will remain there until this function completes.
+  //
+  // Dissecting the Publish message:
+  // - We know that the MQTT Headers + Payload starts at pointer uip_appdata
+  // - We know that the Fixed Header is 2 bytes
+  // - Next comes the Variable Header topic name. It is one of the following:
+  //   - First bytes contain the Topic Name. So we should expect:
+  //     - "NetworkModule/"
+  //     - "Devicename/"
+  //     - "output/"
+  //     - "xx/" (output number or 'all')
+  //     - "set"
+  //   OR
+  //     - "NetworkModule/"
+  //     - "Devicename/"
+  //     - "state-req"
+  // - Next comes the Variable Header Packet ID (since we are QOS1)
+  //     - This is 2 bytes
+  // - Next comes the Payload
+  //   - If "Output/xx/set" we expect a payload of "ON" or "OFF"
+  //   - if "Output/all/set" we expect a payload of "ON" or "OFF"
+  //   - If "state-req" we expect no payload
+  //
+  // Once we collect the above information:
+  // - Set or clear an individual pin
+  //   OR
+  // - Loop to set or clear "all" pins
+  //   OR
+  // - Set the state_request variable
+  
+  // Set the pBuffer pointer to the start of the MQTT packet
+  pBuffer = uip_appdata;
+  // Extract the QOS value from the Fixed Header Control Byte
+  qos = (uint8_t)(*pBuffer & 0x02);
+  // Skip the Fixed Header Control Byte (1 byte)
+  // Skip the Fixed Header Remaining Length Byte (1 byte)
+  // Skip the Topic name length bytes (2 bytes)
+  // Skip the NetworkModule/ text (14 bytes)
+  pBuffer += 18;
+  // Skip the Devicename/ text
+  pBuffer += strlen(stored_devicename) + 1;
+  
+  // Determine if the sub-topic is "output" or "state-req"
+  if (*pBuffer == 'o') {
+    // "output" detected
+    // Format can be any of these:
+    //   output/01/setIDON
+    //   output/01/setIDOFF
+    //   output/all/setIDON
+    //   output/all/setIDOFF
+    // In the above "ID" are the two bytes of the Packet ID which precedes the
+    // payload
+    // In the above "ON" or "OFF" are in the payload.
+
+    // Skip past the "output/" characters
+    pBuffer+= 7;
+    
+    // Check if output field is "all". If so, update all output 
+    // pin_control bytes to ON or OFF 
+    if (*pBuffer == 'a') {
+      // Skip past the "all/setIDO" part of the message.
+      // Note that an "all" message is always sent with QOS == 0.
+      pBuffer+=8;
+      // Determine if payload is ON or OFF
+      if (*pBuffer == 'N') {
+        // Turn all outputs ON
+	for (i=0; i<16; i++) {
+	  if (pin_control[i] & 0x02) { // Output pin?
+	    Pending_pin_control[i] = (uint8_t)(pin_control[i] | 0x80);
+	  }
+	}
+      }
+      else {
+        // Turn all outputs OFF
+	for (i=0; i<16; i++) {
+	  if (pin_control[i] & 0x02) { // Output pin?
+	    Pending_pin_control[i] = (uint8_t)(pin_control[i] & ~0x80);
+	  }
+	}
+      }
+    }
+    
+    else if (*pBuffer == '0' || *pBuffer == '1') {
+      // Output field is a digit
+      // Note that Output messages can be received with QOS == 0 or QOS == 1.
+      // Collect the IO number
+      // Parse ten's digit
+      ParseNum = (uint8_t)((*pBuffer - '0') * 10);
+      pBuffer++;
+      // Parse one's digit
+      ParseNum += (uint8_t)(*pBuffer - '0');
+      // Verify ParseNum is in the correct range
+      if (ParseNum > 0 && ParseNum < 17) {
+        // Adjust Parsenum to match 0 to 15 numbering (instead of 1 to 16)
+        ParseNum--;
+        // Skip past the "1/setIDO" part of the message. If QOS == 0 there is
+        // no Packet Identifier. Else there IS a 2 byte Packet Identifier that
+        // also needs to be skipped.
+        if (qos == 0) pBuffer+=6;
+        else {
+	  pBuffer+=8;
+	}
+	// Determine if payload is ON or OFF
+	if (*pBuffer == 'N') {
+	  // Turn output ON (and make sure it is an output)
+	  if (pin_control[ParseNum] & 0x02 == 0x02) // Output pin?
+	    Pending_pin_control[ParseNum] |= (uint8_t)0x80;
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("publish_callback - Output ");
+i = ParseNum + 1;
+emb_itoa(i, OctetArray, 10, 2);
+UARTPrintf(OctetArray);
+UARTPrintf(" ON\r\n");
+#endif // DEBUG_SUPPORT != 11
+
+	}
+	if (*pBuffer == 'F') {
+	  // Turn output OFF (and make sure it is an output)
+	  if (pin_control[ParseNum] & 0x02 == 0x02) // Output pin?
+	    Pending_pin_control[ParseNum] &= (uint8_t)~0x80;
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("publish_callback - Output ");
+i = ParseNum + 1;
+emb_itoa(i, OctetArray, 10, 2);
+UARTPrintf(OctetArray);
+UARTPrintf(" OFF\r\n");
+#endif // DEBUG_SUPPORT != 11
+
+	}
+	// Set the appropriate bit in MQTT_transmit to force a 
+	// publish_pinstate for this pin.
+	j = 1;
+	j = (j << ParseNum);
+	MQTT_transmit = (MQTT_transmit | j);
+      }
+    }
+    // The above code effectively did for MQTT what the POST parsing does for
+    // HTML (changed the pin_control byte). So we need to set the 
+    // mqtt_parse_complete value so that the check_runtime_changes() function
+    // will perform the necessary IO actions.
+    mqtt_parse_complete = 1;
+  }
+  
+  // Determine if the sub-topic is "state-req".
+  // This Topic should always be received at QOS 0.
+  else if (*pBuffer == 's') {
+    // "state-req" detected
+    // Format is:
+    //   state-req
+    pBuffer += 8;
+    if (*pBuffer == 'q') {
+      *pBuffer = '0'; // Destroy 'q' in buffer so subsequent "state"
+                      // messages won't be misinterpreted
+		      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+		      // WARNING: To save flash space I don't check every
+		      // sub-topic character. But I also don't clear the
+		      // uip_buf. So, I could pick up on stuff left by a
+		      // prevous message if not careful. In this limited
+		      // application I can get away with it, but this can
+		      // trip me up in the future if more messages are
+		      // added.
+		      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      state_request = STATE_REQUEST_RCVD;
+    }
+  }
+  // Note: if none of the above matched the parsing we just exit without
+  // executing any functionality (the message is effectively ignored).
+}
+#endif // QOS_SUPPORT == 1
 
 
 void publish_outbound(void)
@@ -2882,13 +2751,31 @@ void publish_outbound(void)
   // Note that if the high order bits were to keep changing very quickly the
   // code might not get to the low order bits as often. This is a flaw but
   // may not matter much in this application. The code only checks and sends
-  // a message at the periodic_timer_expired(), thus it takes 16 expirations
-  // to get all bits sent, and frequent changes in higher order bits will
-  // supersede the processing of lower order bits.
+  // a message at the periodic_timer_expired(), thus it takes at least 16
+  // expirations to get all bits sent, and frequent changes in higher order
+  // bits will supersede the processing of lower order bits.
   
   uint16_t xor_tmp;
   int i;
   uint16_t j;
+  int signal_break;
+
+  signal_break = 0;
+
+  // Check the mqtt_sendbuf to make sure it is emptied before PUBLISHing a
+  // pin_state message. This is to prevent overflow of the mqtt_sendbuf when
+  // Home Assistant pushes a large number of PUBLISH request messages, each
+  // of which requires a PUBACK to be processed through the mqtt_sendbuf. Due
+  // to timing that PUBACK Response might occupy the MQTT_sendbug along with
+  // another PUBACK as well as a Ping Response.
+  // This check effectively acts aa a throttle on the publish_outbound
+  // process.
+  {
+//    uint16_t mqtt_sendbuf_remaining;
+//    mqtt_sendbuf_remaining = mqtt_check_sendbuf(&mqttclient);
+//    if (!(mqtt_sendbuf_remaining > (MQTT_SENDBUF_SIZE - 15))) return;
+    if (!(mqtt_check_sendbuf(&mqttclient) > (MQTT_SENDBUF_SIZE - 15))) return;
+  }
 
   if (state_request == STATE_REQUEST_IDLE) {
     // XOR the current ON_OFF_word with the ON_OFF_word_sent (_sent being the
@@ -2900,7 +2787,7 @@ void publish_outbound(void)
     j = 0x8000;
     while ( 1 ) {
 
-      // Check if DS18B20 is enabled, and if yes check if a temperature
+      // Check if DS18B20 is enabled, and if yes check if a Temperature
       // Publish needs to occur.
       if (stored_config_settings & 0x08) { // DS18B20 enabled?
         if (j == 0x8000) { // Servicing IO 16?
@@ -2912,45 +2799,51 @@ void publish_outbound(void)
 	}
       }
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-      // If UART is enabled we need to skip IO 11 to prevent UART signal
-      // switching from generating MQTT ON/OFF messages.
-      if (j == 0x0400) { // Servicing IO 11?
-        j = j >> 1;
-        i--;
-      }
-#endif // DEBUG_SUPPORT
-
-      // Scan xor_temp for IOs that have changed.
-      if (xor_tmp & j) {
-        // Note that any pin reassigned to a DS18B20 can be scanned
-	// without harm - its pin_control ON/OFF will never change.
-	//
-	// If a pin is Enabled (either Input or Output) and its ON/OFF
-	// state changed a Publish needs to occur.
+      // Perform a publish_pinstate for each pin that has changed OR if an
+      // MQTT PUBLISH attempts to change a pin state.
+      // xor_temp is used to detect pin changes generated by the IOControl
+      // GUI.
+      // MQTT_transmit is used to detect pin changes requested via a received
+      // MQTT PUBLISH command.
+      // Further explanation: Originally I was simply using the xor_temp
+      // method for changes pushed by the IOControl GUI >and< for changes
+      // pushed by receipt of a MQTT PUBLISH State Change. However, it's been
+      // found that sometimes a Client (like Home Assistant) can get out of
+      // sync with the actual state of a pin, so it is safer to always
+      // generate a pin state PUBLISH Response even if the MQTT Client
+      // requests that a pin be changed to a state that it is already in, for
+      // instance if the Client PUBLISH State Change says to turn a pin OFF
+      // when it is already OFF. That is a case where the Client is out of
+      // sync, so the Network Module will generate a PUBLISH Response to get
+      // the Client back into sync.
+      if ((xor_tmp & j) || (MQTT_transmit & j)) {
+	// A publish_pinstate needs to occur if:
+	//   A pin is Enabled (either Input or Output) and its ON/OFF state
+	//   changed as indicated by xor_temp
+	//   OR
+        //   A MQTT PUBLISH was received for a pin as indicated by the
+	//   MQTT_transmit word.
 	
 	if (pin_control[i] & 0x01) { // enabled
+	  // Send a PUBLISH Response continaing the pin state
           if (pin_control[i] & 0x02) publish_pinstate('O', (uint8_t)(i+1), ON_OFF_word, j);
           else                       publish_pinstate('I', (uint8_t)(i+1), ON_OFF_word, j);
-          // Update the "sent" pin state information so that the bit
-          // in ON_OFF_word_sent matches the bit in ON_OFF_word for the
-          // pin just transmitted. This will indicate it was already sent.
-          if (ON_OFF_word & j) ON_OFF_word_sent |= j;
-          else ON_OFF_word_sent &= (uint16_t)~j;
 	  // Break out of the while loop, as we can only send one Publish
 	  // message per pass.
-	  break;
+	  signal_break = 1;
 	}
+	// else Pin is not enabled so no Publish was required.
 	
-	else {
-	  // Pin is not enabled so no Publish was required.
-          // Update the "sent" pin state information so that the bit in
-          // ON_OFF_word_sent matches the bit in ON_OFF_word for the pin
-          // just examined. This will inidcate it was already processed
-	  // and will prevent hitting on the pin again.
-          if (ON_OFF_word & j) ON_OFF_word_sent |= j;
-          else ON_OFF_word_sent &= (uint16_t)~j;
-	}
+        // Update the "sent" pin state information so that the bit in
+        // ON_OFF_word_sent matches the bit in ON_OFF_word for the pin
+        // just examined. This will inidcate it was processed.
+        if (ON_OFF_word & j) ON_OFF_word_sent |= j;
+        else ON_OFF_word_sent &= (uint16_t)~j;
+	// Clear the bit in the MQTT_transmit word to indicate that the
+	// transmit was satisfied.
+	MQTT_transmit &= ~j;
+	// Break out of the while() loop only if a PUBLISH Response was sent.
+	if (signal_break == 1) break;
       }
       
       // If no Publish was sent check the next one. Note: If any Publish
@@ -3016,13 +2909,24 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
     strcpy(app_message, "OFF");
     size = 3;
   }
-    
+
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("publish pinstate ");
+UARTPrintf(topic_base);
+UARTPrintf(" ");
+UARTPrintf(app_message);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
+
+
   // Queue publish message
+  // This message is always published with QOS 0
   mqtt_publish(&mqttclient,
                topic_base,
 	       app_message,
 	       size,
-	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);  
+	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
 
 
@@ -3084,6 +2988,7 @@ void publish_pinstate_all(void)
   strcat(topic_base, "/state");
 
   // Queue publish message
+  // This message is always published with QOS 0
   mqtt_publish(&mqttclient,
                topic_base,
 	       app_message,
@@ -3129,8 +3034,9 @@ void publish_temperature(uint8_t sensor)
     
     // Build the application message
     convert_temperature(sensor, 0); // Convert to degress C in OctetArray
-    
+
     // Queue publish message
+    // This message is always published with QOS 0
     mqtt_publish(&mqttclient,
                  topic_base,
                  OctetArray,   // app_message
@@ -3722,7 +3628,6 @@ void check_eeprom_settings(void)
   lock_flash();
   
   // Initialize the Pending IO_TIMER variables
-//  for (i=0; i<16; i++) Pending_IO_TIMER[i] = IO_TIMER[i];
   memcpy(&Pending_IO_TIMER[0], &IO_TIMER[0], 32);
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
@@ -3733,7 +3638,6 @@ void check_eeprom_settings(void)
   
   // Read the pin_control bytes from EEEPROM
   for (i=0; i<16; i++) pin_control[i] = stored_pin_control[i];
-//  memcpy(&pin_control[0], &stored_pin_control[0], 16);
 
   // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
   // accordingly. Do this on Outputs only.
@@ -3798,7 +3702,6 @@ void check_eeprom_settings(void)
   // bit so that the MQTT feature is enabled. This is needed even if no pins
   // are enabled so that the temperature sensor reporting will work.
   if (stored_config_settings & 0x04) mqtt_enabled = 1;
-
 #endif // BUILD_SUPPORT == MQTT_BUILD
 }
 
@@ -3830,53 +3733,42 @@ void check_runtime_changes(void)
   // Read the input registers and update the pin_control values as needed.
   // 
   // Step 2:
-  // Check if the UART is enabled via a DEBUG_SUPPORT setting. If yes,
-  // supersede any settings on IO 11 and force it to an Output for use by the
-  // UART.
-  //
-  // Step 3: 
-  // Check if the DS18B20 feature is enabled. If enabled over-ride the
+  // Check if the DS18B20 feature is enabled. If yes over-ride the
   // pin_control byte settings for IO 16 to force them to all zero. This
   // forces the disabled state so the DS18B20 code can utilize the pin for
   // temperature sensor communication.
   //
+  // Step 3:
+  // Check if I2C functionality is enabled. If yes over-ride the pin_control
+  // byte settings for pins 14 and 15 to force them to all zero. This forces
+  // the disabled state so that the I2C code can utilize the pin for I2C
+  // communication.
+  //
   // Step 4:
+  // Check if the UART is enabled. If yes over-ride the pin_control byte
+  // settings for IO 11 to force them to all zero. This forces the disabled
+  // state so the UART code can utilize the pin for UART communication.
+  //
+  // Step 5:
   // Manage Output pin Timers. Change Output pin states and Timers as
   // appropriate.
   //
-  // Step 5:
+  // Step 6:
   // Check if the user requested changes to Device Name, Output States, IP
   // Address, Gateway Address, Netmask, Port, or MAC. If a change occurred
   // update the appropriate variables and output controls, and store the new
   // values in EEPROM.
 
   uint8_t update_EEPROM;
-//  uint32_t temp_pin_timer;
 
   unlock_eeprom();
 
   read_input_pins();
 
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-  // If UART debug support is enabled the following code forces IO 11 to an
-  // output state and keeps it that way. The UART code will operate the pin
-  // for IO 11 as needed for UART transmit to a terminal.
-  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // force to output/enabled
-  // Update the stored_pin_control[] variables
-  if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
-  // For UART mode Port D Bit 5 needs to be set to Output / Push-Pull /
-  // 10MHz slope
-  PD_DDR |= 0x20; // Set Output mode
-  PD_CR1 |= 0x20; // Set Push-Pull
-  PD_CR2 |= 0x20; // Set 10MHz
-#endif // DEBUG_SUPPORT
-
-
   // Check the DS18B20 Enable bit. If enabled over-ride the pin_control byte
   // bits for IO 16 to force them to all zero. This forces the disabled
   // state for IO 16 and makes sure all other bits are in a neutral condition
-  // should the DS18B20 be Disabled at some future time.
+  // should the DS18B20 function be Disabled at some future time.
   if (Pending_config_settings & 0x08) {
     pin_control[15] = Pending_pin_control[15] = (uint8_t)0x00;
     // Update the stored_pin_control[] variables
@@ -3884,17 +3776,28 @@ void check_runtime_changes(void)
   }
 
 
-
 #if I2C_SUPPORT == 1
-  // Disable pins 14 and 15 so that they can be used by the I2C function
-    pin_control[13] = Pending_pin_control[13] = (uint8_t)0x00;
-    pin_control[14] = Pending_pin_control[14] = (uint8_t)0x00;
-    // Update the stored_pin_control[] variables
-    if (stored_pin_control[13] != pin_control[13]) stored_pin_control[13] = pin_control[13];
-    if (stored_pin_control[14] != pin_control[14]) stored_pin_control[14] = pin_control[14];    
+  // If I2C functionality is enabled disable pins 14 and 15 so that they can
+  // be used by the I2C function.
+  // This check is run here in case the user tried to change the pin state
+  // from Disabled in the GUI. This will force the state back to Disabled.
+  pin_control[13] = Pending_pin_control[13] = (uint8_t)0x00;
+  pin_control[14] = Pending_pin_control[14] = (uint8_t)0x00;
+  // Update the stored_pin_control[] variables
+  if (stored_pin_control[13] != pin_control[13]) stored_pin_control[13] = pin_control[13];
+  if (stored_pin_control[14] != pin_control[14]) stored_pin_control[14] = pin_control[14];    
 #endif // I2C_SUPPORT == 1
 
 
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+  // If UART functionality is enabled disable pin 11 so that it can be used
+  // for the UART transmit pin.
+  // This check is run here in case the user tried to change the pin state
+  // from Disabled in the GUI. This will force the state back to Disabled.
+  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x00;
+  // Update the stored_pin_control[] variables
+  if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
+#endif // DEBUG_SUPPORT
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
@@ -3953,7 +3856,6 @@ void check_runtime_changes(void)
     {
       int i;
       for (i=0; i<16; i++) {
-//        if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x08) == 0)) {
         if ((pin_control[i] & 0x0b) == 0x03) {
           // The above: If an Enabled Output AND Retain is not set
           if (IO_TIMER[i] != Pending_IO_TIMER[i]) {
@@ -3982,20 +3884,17 @@ void check_runtime_changes(void)
   {
     int i;
     for (i=0; i<16; i++) {
-//      if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x08) == 0x00)) {
         if ((pin_control[i] & 0x0b) == 0x03) {
         // The above: If an Enabled Output AND Retain is not set
         if (((IO_TIMER[i] & 0x3fff) != 0) && (pin_timer[i] == 0)) {
           // The above: If pin has a non-zero TIMER value AND the timer
 	  // countdown is zero
-//        if (((pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
 	  if ((pin_control[i] & 0x90) == 0x80) {
 	    // The above: If the pin is ON and the idle state is OFF
 	    // Turn the pin OFF
 	    Pending_pin_control[i] &= 0x7f;
 	    pin_control[i] &= 0x7f;
 	  }
-//	  if (((pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
 	  if ((pin_control[i] & 0x90) == 0x10) {
 	    // The above: If the pin is OFF and the idle state is ON
 	    // Turn the pin ON
@@ -4041,7 +3940,6 @@ void check_runtime_changes(void)
     {
       int i;
       for (i=0; i<16; i++) {
-//        if (((pin_control[i] & 0x03) == 0x03) && ((pin_control[i] & 0x08) == 0x00)) {
         if ((pin_control[i] & 0x0b) == 0x03) {
           // The above: If an Enabled Output AND Retain is not set
           if ((IO_TIMER[i] & 0x3fff) != 0) {
@@ -4068,15 +3966,6 @@ void check_runtime_changes(void)
 #endif BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
   if (parse_complete || mqtt_parse_complete) {
-
-// UARTPrintf("parse_complete = ");
-// emb_itoa(parse_complete, OctetArray, 10, 1);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   mqtt_parse_complete = ");
-// emb_itoa(mqtt_parse_complete, OctetArray, 10, 1);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
     // Check for changes from the user via the GUI, MQTT, or REST commands.
     // If parse_complete == 1 all TCP Fragments have been received during
     // HTML POST processing, OR a REST command was processed.
@@ -4117,18 +4006,6 @@ void check_runtime_changes(void)
     {
       int i;
       for (i=0; i<16; i++) {
-
-// UARTPrintf("pin_control");
-// emb_itoa(i, OctetArray, 10, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf(" ");
-// emb_itoa(pin_control[i], OctetArray, 2, 8);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   Pending_pin_control ");
-// emb_itoa(Pending_pin_control[i], OctetArray, 2, 8);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
         if (pin_control[i] != Pending_pin_control[i]) {
           // Something changed - sort it out
 	
@@ -4196,12 +4073,7 @@ void check_runtime_changes(void)
             pin_control[i] &= 0x80;
 	    pin_control[i] |= (uint8_t)(Pending_pin_control[i] & 0x7f);
 	  }
-
-// UARTPrintf("Updated pin_control ");
-// emb_itoa(pin_control[i], OctetArray, 2, 8);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-	
+	  
           if (update_EEPROM) {
             // Update the stored_pin_control[] variables
             if (stored_pin_control[i] != pin_control[i]) stored_pin_control[i] = pin_control[i];
@@ -4365,17 +4237,6 @@ void check_runtime_changes(void)
       user_reboot_request = 0;
       reboot_request = 1;
     }
-
-// UARTPrintf("Restart Request ");
-// emb_itoa(restart_request, OctetArray, 10, 1);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
-// UARTPrintf("Reboot Request ");
-// emb_itoa(reboot_request, OctetArray, 10, 1);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
   }
   
   
@@ -4465,6 +4326,7 @@ void check_restart_reboot(void)
       if (t100ms_ctr1 > 1) {
        // We can only get here if mqtt_enabled == 1
        // Wait at least 100 ms before publishing availability message
+       // This message is always published with QOS 0
        if (mqtt_start == MQTT_START_COMPLETE) {
           // Publish the availability "offline" message
           strcpy(topic_base, devicetype);
@@ -4906,10 +4768,7 @@ void oneflash(void)
 void restore_eeprom_debug_bytes(void)
 {
   // Restore debug bytes from EEPROM to RAM
-//  int i;
-
 #if DEBUG_SUPPORT != 0
-//  for (i = 0; i < 10; i++) debug[i] = stored_debug[i];
   memcpy(&debug[0], &stored_debug[0], 10);
 #endif // DEBUG_SUPPORT
 }

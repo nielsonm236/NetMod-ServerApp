@@ -286,7 +286,7 @@
 //      USAGE: Provides the most run time error data and UART display.
 // * Specific debug data: Reset Status Register counters, TXERIF counter,
 //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
-#define DEBUG_SUPPORT 15
+#define DEBUG_SUPPORT 11
 
 
 // IWDG_ENABLE
@@ -314,8 +314,8 @@
 //   Code Uploader requires additional hardware in the form of an off-board I2C
 //   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
 // Un-comment ONLY ONE of the following:
-#define BUILD_SUPPORT     MQTT_BUILD
-// #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
+// #define BUILD_SUPPORT     MQTT_BUILD
+#define BUILD_SUPPORT     BROWSER_ONLY_BUILD
 // #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 
 
@@ -360,6 +360,25 @@
 // 0 = Not Supported
 // 1 = Supported
 #define DEBUG_SENSOR_SERIAL 0
+
+
+// QOS_SUPPORT
+// Determines the QOS level supported in MQTT when receiving PUBLISH messages
+// from the Broker/Server.
+// QOS 0 works for most applications because the PUBLISH messaging rate to the
+// Network Module can be limited by the host based application and the usage
+// model for the Network Module is to be on a local network only. However,
+// Home Assistant has a "Toggle" function that can result in very rapid
+// message delivery to the Network Module so QOS 1 was implemented to assist
+// in assuring that all HA PUBLISH messages are properly received by the
+// Network Module.
+// Even when QOS 1 is enabled the setting should have no effect on host
+// applications that deliver messages with QOS 0.
+// THIS IS A TEMPORARY BUILD MODE TO ALLOW TRANSITION TO QOS 1 MODE.
+// EVENTUALLY THE "QOS 0 ONLY" CODE WILL BE REMOVED.
+// 0 = "Fire and Forget" Mode
+// 1 = Acknowlege Receipt Mode
+#define QOS_SUPPORT 1
 
 
 

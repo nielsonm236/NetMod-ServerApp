@@ -36,11 +36,8 @@
 #include "uart.h"
 #include "uipopt.h"
 
-// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-// extern uint8_t DS18B20_scratch_byte[2]; // Array to store scratchpad bytes
 uint8_t DS18B20_scratch_byte[2];        // Array to store scratchpad bytes
                                         // read from DS18B20
-// extern uint8_t DS18B20_scratch[5][2];   // Stores the temperature measurement
 uint8_t DS18B20_scratch[5][2];          // Stores the temperature measurement
                                         // for the DS18B20s
 
@@ -82,7 +79,6 @@ uint8_t ROM[8];                     // ROM bytes
                                     // [7] = CRC
 uint8_t lastDiscrep = 0;            // last discrepancy
 uint8_t doneFlag = 0;               // Done flag
-// extern uint8_t FoundROM[5][8];      // Table of ROM codes
 uint8_t FoundROM[5][8];             // Table of ROM codes
                                     // [x][0] = Family Code
                                     // [x][1] = LSByte serial number
@@ -94,15 +90,6 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
                                     // [x][7] = CRC
 extern int numROMs;                 // Count of DS18B20 devices found
 
-// extern uint8_t temp_FoundROM[5][8]; // Temporary table of old ROM codes
-//                                     // [x][0] = Family Code
-//                                     // [x][1] = LSByte serial number
-//                                     // [x][2] = byte 2 serial number
-//                                     // [x][3] = byte 3 serial number
-//                                     // [x][4] = byte 4 serial number
-//                                     // [x][5] = byte 5 serial number
-//                                     // [x][6] = MSByte serial number
-//                                     // [x][7] = CRC
 uint8_t new_FoundROM_crc;           // Used in calculation of the CRC for
                                     // the FoundROM table. Used to determine
                                     // if a table change has occurred.
@@ -174,7 +161,6 @@ void get_temperature()
   int i;
   uint8_t j;
   uint8_t device_num;
-//   extern uint8_t DS18B20_scratch[5][2];
 
   // Read current temperature from up to 5 devices
   for (device_num = 0; device_num < 5; device_num++) {
@@ -257,7 +243,6 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
   // 
   int16_t whole_temp;
   uint8_t decimal_temp;
-//  extern uint8_t DS18B20_scratch[5][2];
   uint8_t sign_char;
   
   // Convert temperature reading to string.
@@ -398,10 +383,6 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
         whole_temp++;
         sign_char = '-';
       }
-//      else {
-//        // Positive number
-//        sign_char = ' ';
-//      }
       
       // Extract whole temp and decimal temp parts of the DS18B20
       // values
@@ -452,7 +433,6 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
         whole_temp = (int16_t)(F_temp2 / 16);
         // Now calculate the "decimal" part of the display in degrees F
         decimal_temp = (uint8_t)(F_temp2 & 0xf);
-//        sign_char = ' ';
         if (F_temp2 < 0) {
 	  // Must use twos complement if the degrees F result is negative
           whole_temp = whole_temp * -1;
@@ -635,9 +615,6 @@ void FindDevices(void)
   
   numROMs = -1; // -1 indicates no devices
   if (!reset_pulse()) {  //Begins when a presence is detected
-
-// UARTPrintf("\r\nPresence detected\r\n");
-
     if (First()) {       //Begins when at least one part is found
       do {
         numROMs++; // On first pass this increments numROMs to index 0
@@ -660,30 +637,12 @@ void FindDevices(void)
   // table
   new_FoundROM_crc = (uint8_t)(FoundROM[0][7] + FoundROM[1][7] + FoundROM[2][7] + FoundROM[3][7] + FoundROM[4][7]);
 
-// UARTPrintf("\r\nDS18B20 FindDevices numROMs = ");
-// if (numROMs >= 0) {
-//   emb_itoa(numROMs, OctetArray, 10, 2);
-//   UARTPrintf(OctetArray);
-// }
-// else if (numROMs == -1) UARTPrintf("-1");
-// else UARTPrintf("unitialized");
-// UARTPrintf("\r\n");
-
   if (new_FoundROM_crc != old_FoundROM_crc) {
     // Signal the main loop that the temp sensors need to be updated in the
     // Browser display and over MQTT
     redefine_temp_sensors = 1;
     old_FoundROM_crc = new_FoundROM_crc;
   }
-
-// UARTPrintf("new_FoundROM_crc = ");
-// emb_itoa(new_FoundROM_crc, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   redefine_temp_sensors = ");
-// emb_itoa(redefine_temp_sensors, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
 }
 
 
@@ -761,25 +720,8 @@ uint8_t Next(void)
     }
   } while(n < 8); //loop until through all ROM bytes 0-7
 
-// {
-// uint8_t i;
-// UARTPrintf("\r\nROM bytes: ");
-// for (i=0; i<8; i++) {
-//   emb_itoa(ROM[i], OctetArray, 16, 2);
-//   UARTPrintf(OctetArray);
-//   UARTPrintf(" ");
-// }
-// UARTPrintf("\r\n");
-// }
-
   // Calculate CRC for first 7 ROM bytes
   crc = dallas_crc8(ROM, 7);
-
-// UARTPrintf("\r\nDS18B20 CRC:");
-// if (crc != ROM[7]) UARTPrintf("Fail");
-// else UARTPrintf("Pass");
-// UARTPrintf("\r\n");
-
   
   if (m < 65 || (crc != ROM[7])) lastDiscrep = 0;
     // if search was unsuccessful then reset the last discrepancy to 0
@@ -817,5 +759,3 @@ uint8_t dallas_crc8(uint8_t *data, uint8_t size)
     }
     return crc;
 }
-
-// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD

@@ -37,7 +37,7 @@
 uint8_t periodic_timer;       // Peroidic_timer counter
 uint8_t mqtt_timer;           // MQTT_timer counter
 uint16_t arp_timer;           // arp_timer counter
-uint8_t mqtt_outbound_timer;  // mqtt_outbound_timer counter
+// uint8_t mqtt_outbound_timer;  // mqtt_outbound_timer counter
 uint8_t t100ms_timer;         // MQTT_timer counter
 
 uint16_t second_toggle;       // MQTT timing: Used in developing a 1 second counter
@@ -247,7 +247,7 @@ void timer_update(void)
     // function calls will determine their timeout points.
     periodic_timer++;
     mqtt_timer++;
-    mqtt_outbound_timer++;
+//    mqtt_outbound_timer++;
     arp_timer++;
     t100ms_timer++;
     

@@ -3223,6 +3223,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
         else if ((nParsedMode == 'e') && (nParsedNum >= 30) && (nParsedNum < 40)) {
+	  // This displays the Link Error Statistics
           if (nParsedNum == 31) {
 	    emb_itoa(second_counter, OctetArray, 10, 10);
             pBuffer = stpcpy(pBuffer, OctetArray);
@@ -4290,22 +4291,22 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  }
           else {
             // Didn't find '/' - send default page
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-// UARTPrintf("Get slash search1\r\n");
-
-	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
-            pSocket->pData = g_HtmlPageIOControl;
-            pSocket->nDataLeft = HtmlPageIOControl_size;
-            init_off_board_string_pointers(pSocket);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-	    pSocket->current_webpage = WEBPAGE_UPLOADER;
-            pSocket->pData = g_HtmlPageUploader;
-            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
-#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-            pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
-	                             // SENDHEADER
+	    // While this is not a PARSE_FAIL, going through the PARSE_FAIL
+	    // logic will accomplish what we want (paint the default page).
+            pSocket->ParseState = PARSE_FAIL;
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+// 	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
+//             pSocket->pData = g_HtmlPageIOControl;
+//             pSocket->nDataLeft = HtmlPageIOControl_size;
+//             init_off_board_string_pointers(pSocket);
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+// #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+// 	    pSocket->current_webpage = WEBPAGE_UPLOADER;
+//             pSocket->pData = g_HtmlPageUploader;
+//             pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
+// #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+//             pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
+// 	                             // SENDHEADER
 	  }
         }
 
@@ -4315,22 +4316,22 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // there will be a space here instead of a digit, and we should just
 	  // exit the while() loop and send the default page.
 	  if (*pBuffer == ' ') {
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-// UARTPrintf("Get slash search2\r\n");
-
-	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
-            pSocket->pData = g_HtmlPageIOControl;
-            pSocket->nDataLeft = HtmlPageIOControl_size;
-            init_off_board_string_pointers(pSocket);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-	    pSocket->current_webpage = WEBPAGE_UPLOADER;
-            pSocket->pData = g_HtmlPageUploader;
-            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
-#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-            pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
-	                             // SENDHEADER
+	    // While this is not a PARSE_FAIL, going through the PARSE_FAIL
+	    // logic will accomplish what we want (paint the default page).
+            pSocket->ParseState = PARSE_FAIL;
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+// 	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
+//             pSocket->pData = g_HtmlPageIOControl;
+//             pSocket->nDataLeft = HtmlPageIOControl_size;
+//             init_off_board_string_pointers(pSocket);
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+// #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+// 	    pSocket->current_webpage = WEBPAGE_UPLOADER;
+//             pSocket->pData = g_HtmlPageUploader;
+//             pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
+// #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+//             pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
+// 	                             // SENDHEADER
 	  }
 	  // Parse first ParseNum digit. Looks like the user did input a
 	  // filename digit, so collect it here.
@@ -4338,7 +4339,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // Still good - parse number
             pSocket->ParseNum = (uint8_t)((*pBuffer - '0') * 10);
 	    pSocket->ParseState = PARSE_NUM1;
-            pSocket->nParseLeft = 1; // Set to 1 so PARSE_NUM1 will be called
+            pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
+	                             // while() loop yet. PARSE_NUM1 will be
+				     // called.
             pBuffer++;
 	  }
 	  else {
@@ -4356,14 +4359,17 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // Still good - parse number
             pSocket->ParseNum += (uint8_t)(*pBuffer - '0');
             pSocket->ParseState = PARSE_VAL;
-            pSocket->nParseLeft = 1; // Set to 1 so PARSE_VAL will be called
+            pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
+	                             // while() loop yet. PARSE_VA: will be
+				     // called.
             pBuffer++;
 	  }
 	  else {
-	    // Something out of sync or invalid filename - exit while() loop
-	    // but do not change the current_webpage
-            pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
-	                             // SENDHEADER
+	    // Something out of sync or invalid filename - exit while() via
+	    // the PARSE_FAIL logic.
+//            pSocket->nParseLeft = 0; // Set to 0 so we will exit the parsing
+//				     // while() loop and will go on to STATE_
+//	                             // SENDHEADER
             pSocket->ParseState = PARSE_FAIL;
 	  }
 	}
@@ -4436,6 +4442,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  //               build)
           // http://IP/75  Show Code Uploader Timer (works only in the Code
 	  //               Uploader build)
+          // http://IP/80  Mask and Output Pin settings
 	  // http://IP/91  Reboot
 	  // http://IP/98  Show Very Short Form IO States page
 	  // http://IP/99  Show Short Form IO States page
@@ -4619,6 +4626,111 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 #endif // OB_EEPROM_SUPPORT == 1
 
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+            case 80: // Mask and Output Pin settings
+              // This is similar to case 55 and case 56, except a 4 hex char
+	      // Mask and a 4 hex char Pin State value hould also be in the
+	      // buffer. Capture the characters, check validity, parse into
+	      // binary values, and set the pending control bytes.
+              //
+              // Example URL command
+              //   192.168.1.182/80ff00c300
+              // The above example will affect only the upper 8 output pins
+              // and will set output pins as follows:
+              // Output 16 >> 11000011 << Output 9
+              // Output 8 to 1 are not affected
+              //
+              {
+                uint16_t word;
+                uint16_t mmmm;
+                uint16_t pppp;
+                uint16_t nibble;
+                uint16_t bit_ptr;
+                int i;
+                int k;
+
+                word = 0;
+		mmmm = 0;
+                pppp = 0;
+                k = 0;
+		
+                while (k < 2) {
+                  i = 4;
+                  while (i > 0) {
+                    if (hex2int(*pBuffer) != -1) {
+                      nibble = (uint16_t)hex2int(*pBuffer);
+                      word |= (nibble << ((i-1)*4));
+                      pBuffer++;
+                      i--;
+                    }
+                    else {
+                      // Something out of sync or invalid filename. Indicate
+                      // parse failure and break out of inner while(i) loop.
+                      pSocket->ParseState = PARSE_FAIL;
+                      break;
+                    }
+                  } // end of inner while(i) loop
+                  if (k == 0) mmmm = word;
+                  else pppp = word;
+                  k++;
+		  word = 0;
+                  if (pSocket->ParseState == PARSE_FAIL) {
+                    // If fail detected break out of outer while(k) loop.
+                    break;
+                  }
+                } // end of outer while(k) loop
+                if (pSocket->ParseState == PARSE_FAIL) {
+		  // break out of switch
+		  break;
+		}
+
+                // Now check that the URL termination is valid
+                if (*pBuffer != ' ') {
+		  pSocket->ParseState = PARSE_FAIL;
+		}
+                pBuffer++;
+                if (*pBuffer != 'H') {
+		  pSocket->ParseState = PARSE_FAIL;
+                }
+		
+                if (pSocket->ParseState == PARSE_FAIL) {
+                  // If fail detected break out of the switch, but do not
+                  // change the current_webpage. This will cause the URL
+                  // command to be ignored and the current webpage to be
+                  // refreshed.
+                  break;
+                }
+
+
+                // If we didn't break out of the switch yet we should have
+                // valid Mask (mmmm) and Pin State (pppp) values. Now we
+		// modify the Pending_pin_control bytes accordingly.
+              
+                bit_ptr = 1;
+                for (i=0; i<16; i++) {
+                  if ((mmmm & bit_ptr) != 0) {
+                    // If the Mask for this pin is non-zero check if the pin
+		    // is an enabled output. If yes, uptate the pin state.
+                    Pending_pin_control[i] = pin_control[i];
+                    if ((pin_control[i] & 0x03) == 0x03) { // Enabled output
+                      if ((pppp & bit_ptr) == 0) {
+                        Pending_pin_control[i] &= 0x7f; // Output OFF
+		      }
+                      else {
+                        Pending_pin_control[i] |= 0x80; // Output ON
+		      }
+                    }
+                  }
+		  // Shift the bit pointer and check the next pin
+ 		  bit_ptr = bit_ptr << 1;
+                }
+              }
+              parse_complete = 1;
+              GET_response_type = 204; // No return webpage
+              break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
 	    case 91: // Reboot
 	      user_reboot_request = 1;
 	      break;
@@ -4649,17 +4761,20 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               }
               else {
 	        // Show default page
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-	        pSocket->current_webpage = WEBPAGE_IOCONTROL;
-                pSocket->pData = g_HtmlPageIOControl;
-                pSocket->nDataLeft = HtmlPageIOControl_size;
-                init_off_board_string_pointers(pSocket);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-	        pSocket->current_webpage = WEBPAGE_UPLOADER;
-                pSocket->pData = g_HtmlPageUploader;
-                pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
-#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+		// While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
+		// will accomplish what we want.
+		pSocket->ParseState = PARSE_FAIL;
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+// 	        pSocket->current_webpage = WEBPAGE_IOCONTROL;
+//                 pSocket->pData = g_HtmlPageIOControl;
+//                 pSocket->nDataLeft = HtmlPageIOControl_size;
+//                 init_off_board_string_pointers(pSocket);
+// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+// #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+// 	        pSocket->current_webpage = WEBPAGE_UPLOADER;
+//                 pSocket->pData = g_HtmlPageUploader;
+//                 pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
+// #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
               }
               break;
 
@@ -4668,14 +4783,21 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         }
 
         if (pSocket->ParseState == PARSE_FAIL) {
-          // Parsing failed above. By going to STATE_SENDHEADER200 
-	  // javascript should repaint the page already sent. While
-	  // inefficient this will satisfy the browser's need for a
-	  // reply when it requests favicon.ico or whatever else it
-	  // requests that we don't have.
-          pSocket->nPrevBytes = 0xFFFF;
-          pSocket->nState = STATE_SENDHEADER200;
-	  break;
+          // Parsing failed above OR there was a decision to display the
+	  // default webpage.
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
+            pSocket->pData = g_HtmlPageIOControl;
+            pSocket->nDataLeft = HtmlPageIOControl_size;
+            init_off_board_string_pointers(pSocket);
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+	    pSocket->current_webpage = WEBPAGE_UPLOADER;
+            pSocket->pData = g_HtmlPageUploader;
+            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+            pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
+	                             // SENDHEADER
 	}
 
         if (pSocket->nParseLeft == 0) {
@@ -4690,7 +4812,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // No return webpage - send header with Content-Length: 0
             pSocket->nState = STATE_SENDHEADER204;
 	  }
-          break;
+          break; // Break out of while loop
         }
       } // end of while loop
     }

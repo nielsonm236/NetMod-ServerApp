@@ -201,14 +201,16 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //
 
   //---------------------------------------------------------------------------//
-  // Two types of MQTT transmissions are handled here. One is the normal
-  // MQTT packet. The other is a Home Assistant Auto Discovery packet. Because
-  // the MQTT packet buffer is very small in this application it cannot hold
-  // an entire Auto Discovery packet. So this function checks if the
+  // Two types of MQTT transmissions are handled here. One is the normal MQTT
+  // packet. The other is a Home Assistant Auto Discovery packet. The variable
+  // "auto_found" determines which path is used (auto_found == 0 if a normal
+  // MQTT packet).
+  // Because the MQTT packet buffer is very small in this application it cannot
+  // hold an entire Auto Discovery packet. So this function checks if the
   // application is trying to send an Auto Discovery packet. If yes, the
   // function will generate the Auto Discovery packet here. If no, it is
   // assummed that the packet was generated external to this function and
-  // is already present in the MQTT transmit buffer.
+  // is already present in the MQTT transmit buffer (a normal MQTT packet).
   //
   // For Auto Discovery Publish messages main.c needs to create a publish
   // message like the following. It includes a message placeholder and the
@@ -260,8 +262,10 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   //   template_buf[3] = LSByte of variable header length
   mBuffer = buf;
   *((uint32_t*)&template_buf[0]) = *((uint32_t*)mBuffer); // copy 4 bytes
-
-  // Check if Publish message with a payload
+  
+  // Check if Publish message with a payload.
+  // See https://bytesofgigabytes.com/mqtt/mqtt-protocol-packet-structure/
+  // for description of the packet structure examined here.
   if ((template_buf[0] & 0xf0) == 0x30) {
     // This is a Publish message
     // Examine remaining length
@@ -348,27 +352,11 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	                      // devicename
         }
 	
-	
-	
-	// 20220924 TEMPERATURE SENSOR PAYLOAD EXPERIMENTS MADE NECESSARY
-	// BY CHANGES IN HA THAT NOW REQUIRE "device_class" AND "state_class"
-	// STATEMENTS IN THE CONFIG STATEMENT. NOT SURE IF "unit_of_meas" IS
-	// NEEDED ANYMORE.
-
         if (payload_buf[1] == 'T') {
           // This is a Temperature Sensor auto discovery message
-//          payload_size = 283; // Manually calculated payload size without
-//	                      // devicename
           payload_size = 332; // Manually calculated payload size without
 	                      // devicename
-//          payload_size = 311; // Manually calculated payload size without
-//	                      // devicename
         }
-	
-	
-	
-	
-	
 	
 	// Add device name size to payload size
         payload_size += (3 * (uint8_t)strlen(stored_devicename));
@@ -412,11 +400,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// variable.
         payload_size = payload_size + template_buf[1] - 4;
 	if (payload_buf[1] == 'T') payload_size -= 10;
-	
-//	// Calculate uip_slen (it will be used later). It is the new remaining 
-//	// length plus 3 (for the control byte and the two remaining length
-//	// bytes).
-//	uip_slen = payload_size + 3;
 	
 	// Note: The value "len" remains unchanged. It is the length of the
 	// "app_message" provided to this function, even if we are creating a
@@ -511,30 +494,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// temperature sensor payload
 	// {                                                // 1
 	// "uniq_id":"aabbccddeeff_temp_xxxxxxxxxxxx",      // 43
-	// "name":"devicename123456789 temp xxxxxxxxxxxx",  // 28 (without devicename)
-	// "~":"NetworkModule/devicename123456789",         // 21 (without devicename)
-	// "avty_t":"~/availability",                       // 26
-	// "stat_t":"~/temp/xxxxxxxxxxxx",                  // 31
-        // "unit_of_meas":"\xc2\xb0\x43",                   // 21
-	// "dev":{                                          // 7
-	// "ids":["NetworkModule_aabbccddeeff"],            // 37
-	// "mdl":"HW-584",                                  // 15
-	// "mf":"NetworkModule",                            // 21
-	// "name":"devicename123456789",                    // 10 (without devicename)
-	// "sw":"20210204 0311"                             // 20
-	// }                                                // 1
-	// }                                                // 1
-        //                                                  // Total: 283 plus 3 x devicename
-
-
-
-
-	// 20220924 TEMPERATURE SENSOR PAYLOAD EXPERIMENTS MADE NECESSARY
-	// BY CHANGES IN HA THAT NOW REQUIRE "device_class" AND "state_class"
-	// STATEMENTS IN THE CONFIG STATEMENT.
-	// temperature sensor payload
-	// {                                                // 1
-	// "uniq_id":"aabbccddeeff_temp_xxxxxxxxxxxx",      // 43
 	// 00000000011111111112222222222333333333344444444445
 	// 12345678901234567890123456789012345678901234567890
 	// "name":"devicename123456789 temp xxxxxxxxxxxx",  // 28 (without devicename)
@@ -553,11 +512,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// }                                                // 1
 	// }                                                // 1
         //                                                  // Total: 332 plus 3 x devicename
-
-
-
-
-
 
 
 
@@ -618,10 +572,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         }
 
         // Special case for temperature pin
-	// 20220924 TEMPERATURE SENSOR PAYLOAD EXPERIMENTS MADE NECESSARY
-	// BY CHANGES IN HA THAT NOW REQUIRE "device_class" AND "state_class"
-	// STATEMENTS IN THE CONFIG STATEMENT. NOT SURE IF "unit_of_meas" IS
-	// NEEDED ANYMORE.
         if (payload_buf[1] == 'T') {
           pBuffer = stpcpy(pBuffer, "\"unit_of_meas\":\"\xc2\xb0\x43\",");
 	  pBuffer = stpcpy(pBuffer, "\"dev_cla\":\"temperature\",");

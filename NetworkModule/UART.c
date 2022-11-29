@@ -130,11 +130,10 @@ extern uint8_t Pending_pin_control[16];
 void InitializeUART(void)
 {
   unsigned char tmp;
-  
-  // If UART debug support is enabled the following code forces IO 11 to
-  // an output state and keeps it that way. The UART code will operate
-  // the pin for IO 11 as needed for UART transmit to a terminal.
-  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x03; // Set pin 11 to output/enabled
+
+  // The following code forces IO 11 to a Disabled state so that the UART
+  // code can operate the IO 11 pin for UART transmit to a terminal.
+  pin_control[10] = Pending_pin_control[10] = (uint8_t)0x00; // Disable
   // Update the stored_pin_control[] variables
   unlock_eeprom();
   if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
@@ -145,7 +144,6 @@ void InitializeUART(void)
   PD_DDR |= 0x20; // Set Output mode
   PD_CR1 |= 0x20; // Set Push-Pull
   PD_CR2 |= 0x20; // Set 10MHz
-
 
   // Clear the Idle Line Detected bit in the status register by a read to the
   // UART2_SR register followed by a Read to the UART2_DR register.

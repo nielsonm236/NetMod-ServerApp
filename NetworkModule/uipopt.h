@@ -144,12 +144,42 @@
 // The TCP Maximum Segment size. This should be set to no more than
 // UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN. This ends up being the maximum
 // size of the part of the datagram that can be transmitted to the Browser or
-// to the MQTT server in each packet. NOTE: Experimentation has shown that the
-// UIP_TCP_MSS should actually be slightly smaller to avoid errors (not sure
-// why and could use more investigation). So an additional 6 bytes are
-// subtracted.
+// to the MQTT server in each packet.
+//
+// NOTE1: Experimentation has shown that the UIP_TCP_MSS should actually be
+// slightly smaller than the original code defined. "Slightly" appears to be
+// at least 4 bytes. This is to avoid errors (not sure why and could use more
+// investigation). To be safe an additional 6 bytes are subtracted.
+// if NAGLE_SUPPORT == 1
+//
+// NOTE2: When MQTT support was added two problems occurred:
+// 1) It was found that during MQTT startup, if Home Assistant Auto Discovery
+//    was used, a larger uip_buf was needed to trasnmit some of the Auto
+//    Discovery messages in a single packet. This consumed nearly all the
+//    available RAM.
+// 2) Later it was found that Home Assistant used Nagle's Algorithm to pack
+//    multiple MQTT messages into single datagrams, AND that those datagrams
+//    could span multiple packets when transmitted to the Network Module. So,
+//    memory was needed to deconstruct the datagram into individual MQTT
+//    messages and to reconstruct the MQTT messages that spanned a packet
+//    boundary.
+// To handle the above the upper part of the uip_buf is made available for use
+// as an "MQTT partial buffer" (a receive reconstruction buffer) after MQTT
+// startup has completed. This is done by making the UIP_TCP_MSS value smaller
+// by another 60 bytes, then using pointers based on a "MQTT_PBUF" define to
+// access the memory area.
+// endif NAGLE_SUPPORT == 1
+//
 // In this application the headers occupy a total of 54 bytes as defined in uip.h.
-#define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN - 6)
+#define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN - 6 - 60)
+
+
+// if NAGLE_SUPPORT == 1
+// The starting point of the MQTT Partial Buffer within the uip_buf
+// See explantion in #define UIP_TCP_MSS
+#define MQTT_PBUF_SIZE	60
+#define MQTT_PBUF	(UIP_BUFSIZE - MQTT_PBUF_SIZE)
+// endif NAGLE_SUPPORT == 1
 
 
 // The size of the advertised receiver's window. Should be set low (i.e., to
@@ -286,7 +316,7 @@
 //      USAGE: Provides the most run time error data and UART display.
 // * Specific debug data: Reset Status Register counters, TXERIF counter,
 //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
-#define DEBUG_SUPPORT 15
+#define DEBUG_SUPPORT 11
 
 
 // IWDG_ENABLE
@@ -360,6 +390,15 @@
 // 0 = Not Supported
 // 1 = Supported
 #define DEBUG_SENSOR_SERIAL 0
+
+
+// NAGLE_SUPPORT
+// Temporary build setting to enable support of Nagle's Algorithm in the MQTT
+// code.
+// THIS IS A TEMPORARY BUILD MODE. DELETE WHEN TESTING IS COMPLETE.
+// 0 = No Nagle's Algorithm support
+// 1 = Supported
+#define NAGLE_SUPPORT 1
 
 
 

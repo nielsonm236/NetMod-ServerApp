@@ -85,6 +85,15 @@ SOFTWARE.
  */
 
 
+// Size of the mqtt_sendbuf
+#define MQTT_SENDBUF_SIZE 160
+
+
+// Function reports the remaining size of the mqtt_sendbuf (the free space
+// remaining in the buffer).
+uint16_t mqtt_check_sendbuf(struct mqtt_client *client);
+
+
 // An enumeration of the MQTT control packet types. 
 // see <a href="http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718021">
 // MQTT v3.1.1: MQTT Control Packet Types
@@ -92,8 +101,14 @@ SOFTWARE.
     MQTT_CONTROL_CONNECT=1u,
     MQTT_CONTROL_CONNACK=2u,
     MQTT_CONTROL_PUBLISH=3u,
+    MQTT_CONTROL_PUBACK=4u,
+    MQTT_CONTROL_PUBREC=5u,
+    MQTT_CONTROL_PUBREL=6u,
+    MQTT_CONTROL_PUBCOMP=7u,
     MQTT_CONTROL_SUBSCRIBE=8u,
     MQTT_CONTROL_SUBACK=9u,
+//    MQTT_CONTROL_UNSUBSCRIBE=10u,
+//    MQTT_CONTROL_UNSUBACK=11u,
     MQTT_CONTROL_PINGREQ=12u,
     MQTT_CONTROL_PINGRESP=13u,
     MQTT_CONTROL_DISCONNECT=14u
@@ -254,6 +269,16 @@ struct mqtt_response_publish {
 };
 
 
+/*
+// The response to a PUBREC packet.
+// See http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718053
+// MQTT v3.1.1: PUBREL - Publish Release.
+struct mqtt_response_pubrel {
+    // The published messages packet ID.
+    uint16_t packet_id;
+};
+*/
+
 // An enumeration of subscription acknowledgement return codes.
 // see <a href="http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Figure_3.26_-">
 // MQTT v3.1.1: SUBACK Return Codes.
@@ -301,6 +326,7 @@ struct mqtt_response {
     union {
         struct mqtt_response_connack  connack;
         struct mqtt_response_publish  publish;
+//        struct mqtt_response_pubrel   pubrel;
         struct mqtt_response_suback   suback;
         struct mqtt_response_pingresp pingresp;
     } decoded;
@@ -487,11 +513,38 @@ int16_t mqtt_pack_publish_request(uint8_t *buf, uint16_t bufsz,
                                   uint8_t publish_flags);
 
 
+// Serialize a PUBACK, PUBREC, PUBREL, or PUBCOMP packet and put it in buf.
+// buf - the buffer to put the PUBXXX packet in.
+// bufsz - the maximum number of bytes that can be put into buf.
+// control_type - the type of packet. Must be one of:
+//     MQTT_CONTROL_PUBACK
+//     MQTT_CONTROL_PUBREC
+//     MQTT_CONTROL_PUBREL
+//     MQTT_CONTROL_PUBCOMP
+// packet_id - the packet ID of the packet being acknowledged.
+// returns - the number of bytes put into buf, 0 if buf is too small to fit the
+//     PUBXXX packet, a negative value if there was a protocol violation.
+//
+// see <a href="http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718043">
+// MQTT v3.1.1: PUBACK - Publish Acknowledgement.
+// see <a href="http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718048">
+// MQTT v3.1.1: PUBREC - Publish Received.
+// see <a href="http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718053">
+// MQTT v3.1.1: PUBREL - Publish Released.
+// see <a href="http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718058">
+// MQTT v3.1.1: PUBCOMP - Publish Complete.
+int16_t mqtt_pack_pubxxx_request(uint8_t *buf, uint16_t bufsz, 
+                                 enum MQTTControlPacketType control_type,
+                                 uint16_t packet_id);
+
+
 // Serialize a SUBSCRIBE packet and put it in buf.
 // buf - the buffer to put the SUBSCRIBE packet in.
 // bufsz - the maximum number of bytes that can be put into buf.
 // packet_id - the packet ID to be used.
 // topic_name - the topic name to subscribe to
+// max_qos_level - The maximum QOS level with which the broker can send
+//     application messages for this topic.
 // returns - The number of bytes put into buf, 0 if buf is too small to fit
 //     the SUBSCRIBE packet, a negative value if there was a protocol
 //     violation.
@@ -499,7 +552,8 @@ int16_t mqtt_pack_publish_request(uint8_t *buf, uint16_t bufsz,
 // see <a href="http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718063">
 // MQTT v3.1.1: SUBSCRIBE - Subscribe to Topics.
 int16_t mqtt_pack_subscribe_request(uint8_t *buf, uint16_t bufsz, 
-                                    uint16_t packet_id, char *topic);
+                                    uint16_t packet_id, char *topic,
+				    int max_qos_level);
 
 
 // Serialize a PINGREQ and put it into buf.
@@ -637,7 +691,9 @@ struct mqtt_queued_message* mqtt_mq_find(struct mqtt_message_queue *mq, enum MQT
 #define mqtt_mq_get(mq_ptr, index) (((struct mqtt_queued_message*) ((mq_ptr)->mem_end)) - 1 - index)
 
 
-// Returns the number of messages in the message queue, mq_ptr.
+// Returns the number of messages in the message queue, mq_ptr. This will
+// include messages that have already been sent if this call is not
+// immediately preceded by a mqtt_mq_clean().
 #define mqtt_mq_length(mq_ptr) (((struct mqtt_queued_message*) ((mq_ptr)->mem_end)) - (mq_ptr)->queue_tail)
 
 
@@ -783,7 +839,7 @@ int16_t mqtt_sync(struct mqtt_client *client);
 //  
 // If sendbuf fills up completely during runtime a 
 // MQTT_ERROR_SEND_BUFFER_IS_FULL error will be set. Similarly if recvbuf is
-// ever too small to receive a message from the broker an
+// ever too small to receive a message from the broker a
 // MQTT_ERROR_RECV_BUFFER_TOO_SMALL error will be set.
 //
 // A pointer to mqtt_client.publish_response_callback_state is always passed
@@ -852,6 +908,16 @@ int16_t mqtt_publish(struct mqtt_client *client,
                              uint8_t publish_flags);
 
 
+// Acknowledge an incoming publish with QOS==1.
+//
+// client - The MQTT client.
+// packet_id - The packet ID of the ingress publish being acknowledged.
+// returns - MQTT_OK upon success, an MQTTErrors otherwise. 
+int16_t __mqtt_puback(struct mqtt_client *client, uint16_t packet_id);
+
+
+
+
 // Subscribe to a topic.
 //
 // prerequisite: mqtt_connect must have been called.
@@ -862,7 +928,8 @@ int16_t mqtt_publish(struct mqtt_client *client,
 //     application messages for this topic.
 // returns - MQTT_OK upon success, an MQTTErrors otherwise. 
 int16_t mqtt_subscribe(struct mqtt_client *client,
-                               const char* topic_name);
+                               const char* topic_name,
+			       int max_qos_level);
 
 
 // Ping the broker. 

@@ -486,8 +486,6 @@ void uip_process(uint8_t flag)
   // Check if we were invoked because of a poll request for a particular
   // connection. A UIP_POLL_REQUEST will occur without any receive data
   // present, so uip_len should be zero when it occurs.
-  // UIP_POLL_REQUEST IS NOT USED IN THIS APPLICATION, SO THIS CODE COULD BE
-  // REMOVED. THAT WOULD ONLY SAVE 21 BYTES, BUT REMOVAL IS AN OPTION.
   if (flag == UIP_POLL_REQUEST) {
     if ((uip_connr->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED && !uip_outstanding(uip_connr)) {
 // UARTPrintf("  uip.c: APPCALL due to POLL REQUEST\r\n");
@@ -519,9 +517,9 @@ void uip_process(uint8_t flag)
     // connection to time out. If so, we increase the connection's timer and
     // remove the connection if it times out.
     if (uip_connr->tcpstateflags == UIP_TIME_WAIT || uip_connr->tcpstateflags == UIP_FIN_WAIT_2) {
-#if DEBUG_SUPPORT != 11
-UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
-#endif // DEBUG_SUPPORT != 11
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
+// #endif // DEBUG_SUPPORT != 11
       ++(uip_connr->timer);
       if (uip_connr->timer == UIP_TIME_WAIT_TIMEOUT) {
         uip_connr->tcpstateflags = UIP_CLOSED;
@@ -710,7 +708,8 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
 
 
   // ----------------------------------------------------------------------- //
-  // TCP input processing.
+  // TCP input processing. At this point we've determined that incoming data
+  // is for us.
   tcp_input:
 
   UIP_STAT(++uip_stat.tcp.recv);
@@ -860,7 +859,8 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
   uip_connr->rcv_nxt[0] = BUF->seqno[0];
   uip_add_rcv_nxt(1);
   
-  // Parse the TCP MSS option, if present.
+  // Parse the TCP MSS option, if present. This is a received SYN, so we are
+  // capturing the MSS of the host.
   if ((BUF->tcpoffset & 0xf0) > 0x50) {
     for (c = 0; c < ((BUF->tcpoffset >> 4) - 5) << 2;) {
       opt = uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + c];
@@ -877,7 +877,28 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
         // An MSS option with the right option length.
         tmp16 = ((uint16_t)uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 2 + c] << 8)
 	        | (uint16_t)uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN + 3 + c];
-        uip_connr->initialmss = uip_connr->mss = tmp16 > UIP_TCP_MSS ? UIP_TCP_MSS : tmp16;
+		
+// The host should never send a SYN by itself ... as the host doesn't set up
+// connections with the application. Still, if it does send one display the
+// value.
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("found_listen: Incoming MSS = ");
+// emb_itoa(tmp16, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+// #endif // DEBUG_SUPPORT != 11
+
+	// MODIFICATION FOR THIS APPLICATION: The original uip.c code would
+	// set the receive MSS and transmit MSS to be the same. So the smaller
+	// of the advertised MSS from the host or the UIP_TCP_MSS would get
+	// used for BOTH transmit and receive. This does not have to be the
+	// case. The host MSS can (and, for this application, always will) be
+	// larger than the application MSS because this application uses such
+	// a small transmit buffer, and hosts always have large buffers. Here
+	// the original code is commented out and replaced with code that
+	// maintains the UIP_TCP_MSS as the receive MSS.
+//        uip_connr->initialmss = uip_connr->mss = tmp16 > UIP_TCP_MSS ? UIP_TCP_MSS : tmp16;
+        uip_connr->initialmss = uip_connr->mss = UIP_TCP_MSS;
 
         // And we are done processing options.
         break;
@@ -939,7 +960,147 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
     UIP_APPCALL(); // ????
     goto drop;
   }
+
+
+/*
+#if DEBUG_SUPPORT != 11
+{
+  // Display the first 20 bytes of the app_data
+  int q;
+  char *qBuffer;
+  char temp;
+  uint16_t port;
+  uint8_t IP;
+
+  // Extract the source IP address from the headers
+  qBuffer = &uip_buf[0];
+  qBuffer += 26;
+  UARTPrintf("uip_process - Source IP = ");
+  IP = *qBuffer;
+  emb_itoa(IP, OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  qBuffer++;
+  UARTPrintf(" ");
+  IP = *qBuffer;
+  emb_itoa(IP, OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  qBuffer++;
+  UARTPrintf(" ");
+  IP = *qBuffer;
+  emb_itoa(IP, OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  qBuffer++;
+  UARTPrintf(" ");
+  IP = *qBuffer;
+  emb_itoa(IP, OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  qBuffer++;
+
+  // Extract the destination port from the headers
+  qBuffer = &uip_buf[0];
+  qBuffer += 36;
+  UARTPrintf("    Port = ");
+  port = (*qBuffer << 8);
+  qBuffer++;
+  port += *qBuffer;
+  emb_itoa(port, OctetArray, 10, 5);
+  UARTPrintf(OctetArray);
   
+  // Extract the total length from the headers
+  qBuffer = &uip_buf[0];
+  qBuffer += 16;
+  UARTPrintf("    Total Length = ");
+  port = (*qBuffer << 8);
+  qBuffer++;
+  port += *qBuffer;
+  emb_itoa(port, OctetArray, 10, 4);
+  UARTPrintf(OctetArray);
+  UARTPrintf("\r\n");
+
+/*
+  // Display the content of the uip_buf
+  qBuffer = uip_appdata;
+  UARTPrintf("uip_process - uip_appdata hex row1  = ");
+  for (q = 0; q<20; q++) {
+    emb_itoa(*qBuffer, OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+    qBuffer++;
+  }
+  UARTPrintf("\r\n");
+  UARTPrintf("uip_process - uip_appdata hex row2  = ");
+  for (q = 0; q<20; q++) {
+    emb_itoa(*qBuffer, OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+    qBuffer++;
+  }
+  UARTPrintf("\r\n");
+  UARTPrintf("uip_process - uip_appdata hex row3  = ");
+  for (q = 0; q<20; q++) {
+    emb_itoa(*qBuffer, OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+    qBuffer++;
+  }
+  UARTPrintf("\r\n");
+
+  // Display the content of the uip_buf in text format
+  qBuffer = uip_appdata;
+  UARTPrintf("uip_process - uip_appdata txt row1  = ");
+  for (q = 0; q<20; q++) {
+    if (*qBuffer > 31 && *qBuffer < 127) {
+      UARTPrintf(" ");
+      OctetArray[0] = *qBuffer;
+      OctetArray[1] = 0;
+      UARTPrintf(OctetArray);
+    }
+    else {
+      emb_itoa(*qBuffer, OctetArray, 16, 2);
+      UARTPrintf(OctetArray);
+    }
+    UARTPrintf(" ");
+    qBuffer++;
+  }
+  UARTPrintf("\r\n");
+  UARTPrintf("uip_process - uip_appdata txt row2  = ");
+  for (q = 0; q<20; q++) {
+    if (*qBuffer > 31 && *qBuffer < 127) {
+      UARTPrintf(" ");
+      OctetArray[0] = *qBuffer;
+      OctetArray[1] = 0;
+      UARTPrintf(OctetArray);
+    }
+    else {
+      emb_itoa(*qBuffer, OctetArray, 16, 2);
+      UARTPrintf(OctetArray);
+    }
+    UARTPrintf(" ");
+    qBuffer++;
+  }
+  UARTPrintf("\r\n");
+  UARTPrintf("uip_process - uip_appdata txt row3  = ");
+  for (q = 0; q<20; q++) {
+    if (*qBuffer > 31 && *qBuffer < 127) {
+      UARTPrintf(" ");
+      OctetArray[0] = *qBuffer;
+      OctetArray[1] = 0;
+      UARTPrintf(OctetArray);
+    }
+    else {
+      emb_itoa(*qBuffer, OctetArray, 16, 2);
+      UARTPrintf(OctetArray);
+    }
+    UARTPrintf(" ");
+    qBuffer++;
+  }
+  UARTPrintf("\r\n");
+}
+#endif // DEBUG_SUPPORT != 11
+*/
+
+
+
   // Calculate the length of the data, if the application has sent any data
   // to us.
   //
@@ -967,6 +1128,9 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
       || BUF->seqno[1] != uip_connr->rcv_nxt[1]
       || BUF->seqno[2] != uip_connr->rcv_nxt[2]
       || BUF->seqno[3] != uip_connr->rcv_nxt[3])) {
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("uip_process - Unexpected sequence number - sending ACK\r\n");
+// #endif // DEBUG_SUPPORT != 11
       goto tcp_send_ack;
     }
   }
@@ -1040,7 +1204,8 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
       // and we send an ACK. We move into the ESTABLISHED state.
       if((uip_flags & UIP_ACKDATA) &&
         (BUF->flags & TCP_CTL) == (TCP_SYN | TCP_ACK)) {
-        // Parse the TCP MSS option, if present
+        // Parse the TCP MSS option, if present. This is a received SYN, so we
+	// are capturing the MSS of the host.
         if((BUF->tcpoffset & 0xf0) > 0x50) {
 	  for(c = 0; c < ((BUF->tcpoffset >> 4) - 5) << 2 ;) {
 	    opt = uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN + c];
@@ -1057,8 +1222,27 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
 	      // An MSS option with the right option length
 	      tmp16 = (uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 2 + c] << 8) |
 	        uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 3 + c];
-	      uip_connr->initialmss =
-	        uip_connr->mss = tmp16 > UIP_TCP_MSS? UIP_TCP_MSS: tmp16;
+
+// This is the host response to our SYN. Display the value.
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("case UIP_SYN_SENT - Incoming SYNACK: Incoming MSS = ");
+// emb_itoa(tmp16, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+// #endif // DEBUG_SUPPORT != 11
+
+	      // MODIFICATION FOR THIS APPLICATION: The original uip.c code
+	      // would set the receive MSS and transmit MSS to be the same. So
+	      // the smaller of the advertised MSS from the host or the
+	      // UIP_TCP_MSS would get used for BOTH transmit and receive. This
+	      // does not have to be the case. The host MSS can (and, for this
+	      // application, always will) be larger than the application MSS
+	      // because this application uses such a small transmit buffer,
+	      // and hosts always have large buffers. Here the original code is
+	      // commented out and replaced with code that maintains the
+	      // UIP_TCP_MSS as the receive MSS.
+	      // uip_connr->initialmss = uip_connr->mss = tmp16 > UIP_TCP_MSS? UIP_TCP_MSS: tmp16;
+	      uip_connr->initialmss = uip_connr->mss = UIP_TCP_MSS;
 
 	      // And we are done processing options
 	      break;
@@ -1166,11 +1350,17 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
       // This data will not be acknowledged by the receiver, and the
       // application will retransmit it. This is called the "persistent timer"
       // and uses the retransmission mechanim.
-      tmp16 = ((uint16_t)BUF->wnd[0] << 8) + (uint16_t)BUF->wnd[1];
-      if (tmp16 > uip_connr->initialmss || tmp16 == 0) {
-        tmp16 = uip_connr->initialmss;
-      }
-      uip_connr->mss = tmp16;
+      //
+      // MODIFICATION FOR THIS APPLICATION: We don't want to change the
+      // uip_connr->mss value based on anything the host sends us. If for
+      // some reason the host sends a window size that is small it implies
+      // an error somewhere. I believe this code should be disabled and
+      // looked at again later.
+//      tmp16 = ((uint16_t)BUF->wnd[0] << 8) + (uint16_t)BUF->wnd[1];
+//      if (tmp16 > uip_connr->initialmss || tmp16 == 0) {
+//        tmp16 = uip_connr->initialmss;
+//      }
+//      uip_connr->mss = tmp16;
       
       // If this packet constitutes an ACK for outstanding data (flagged by
       // the UIP_ACKDATA flag), we should call the application since it might
@@ -1218,6 +1408,9 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
 
         // If uip_slen > 0, the application has data to be sent.
         if (uip_slen > 0) {
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("uip.c uip_slen > 0\r\n");
+// #endif // DEBUG_SUPPORT != 11
           // If the connection has acknowledged data, the contents of the
 	  // ->len variable should be discarded.
 	  if ((uip_flags & UIP_ACKDATA) != 0) {
@@ -1229,9 +1422,20 @@ UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
 	  if (uip_connr->len == 0) {
 	    // The application cannot send more than what is allowed by the
 	    // mss (the minumum of the MSS and the available window).
-	    if (uip_slen > uip_connr->mss) {
-	      uip_slen = uip_connr->mss;
-	    }
+	    //
+	    // MODIFICATION FOR THIS APPLICATION: The original uip.c code
+	    // would set the receive MSS and transmit MSS to be the same. So
+	    // the smaller of the advertised MSS from the host or the
+	    // UIP_TCP_MSS would get used for BOTH transmit and receive. This
+	    // does not have to be the case. The host MSS can (and, for this
+	    // application, always will) be larger than the application MSS
+	    // because this application uses such a small transmit buffer,
+	    // and hosts always have large buffers. Here the original code is
+	    // commented out and an assumption made that the host can receive
+	    // the small transmit we are making.
+//	    if (uip_slen > uip_connr->mss) {
+//	      uip_slen = uip_connr->mss;
+//	    }
 
             // Remember how much data we send out now so that we know when
 	    // everything has been acknowledged.

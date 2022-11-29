@@ -691,7 +691,9 @@ struct mqtt_queued_message* mqtt_mq_find(struct mqtt_message_queue *mq, enum MQT
 #define mqtt_mq_get(mq_ptr, index) (((struct mqtt_queued_message*) ((mq_ptr)->mem_end)) - 1 - index)
 
 
-// Returns the number of messages in the message queue, mq_ptr.
+// Returns the number of messages in the message queue, mq_ptr. This will
+// include messages that have already been sent if this call is not
+// immediately preceded by a mqtt_mq_clean().
 #define mqtt_mq_length(mq_ptr) (((struct mqtt_queued_message*) ((mq_ptr)->mem_end)) - (mq_ptr)->queue_tail)
 
 

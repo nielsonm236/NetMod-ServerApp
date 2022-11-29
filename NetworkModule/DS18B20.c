@@ -90,11 +90,11 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
                                     // [x][7] = CRC
 extern int numROMs;                 // Count of DS18B20 devices found
 
-uint8_t new_FoundROM_crc;           // Used in calculation of the CRC for
+// uint8_t new_FoundROM_crc;           // Used in calculation of the CRC for
                                     // the FoundROM table. Used to determine
                                     // if a table change has occurred.
-uint8_t old_FoundROM_crc;           // Stores the prior FoundROM table CRC.
-extern uint8_t redefine_temp_sensors; // Flag used to signal the need
+// uint8_t old_FoundROM_crc;           // Stores the prior FoundROM table CRC.
+// extern uint8_t redefine_temp_sensors; // Flag used to signal the need
                                     // to redefine the HA temp sensors
                                     // via Auto Discovery messages
 
@@ -579,9 +579,9 @@ void one_wire_low(int wait)
 void init_DS18B20(void)
 {
   // Initialize variables used in DS18B20 operation
-  new_FoundROM_crc = 0;
-  old_FoundROM_crc = 0;
-  redefine_temp_sensors = 0;
+//  new_FoundROM_crc = 0;
+//  old_FoundROM_crc = 0;
+//  redefine_temp_sensors = 0;
   // Initialize temperature sensor arrays
   memset(&DS18B20_scratch[0][0], 0, 10);
   memset(&FoundROM[0][0], 0, 40);
@@ -635,14 +635,14 @@ void FindDevices(void)
   }
   // Add up the crc values for each entry to act as a CRC for the FoundROM
   // table
-  new_FoundROM_crc = (uint8_t)(FoundROM[0][7] + FoundROM[1][7] + FoundROM[2][7] + FoundROM[3][7] + FoundROM[4][7]);
+//  new_FoundROM_crc = (uint8_t)(FoundROM[0][7] + FoundROM[1][7] + FoundROM[2][7] + FoundROM[3][7] + FoundROM[4][7]);
 
-  if (new_FoundROM_crc != old_FoundROM_crc) {
+//  if (new_FoundROM_crc != old_FoundROM_crc) {
     // Signal the main loop that the temp sensors need to be updated in the
     // Browser display and over MQTT
-    redefine_temp_sensors = 1;
-    old_FoundROM_crc = new_FoundROM_crc;
-  }
+//    redefine_temp_sensors = 1;
+//    old_FoundROM_crc = new_FoundROM_crc;
+//  }
 }
 
 

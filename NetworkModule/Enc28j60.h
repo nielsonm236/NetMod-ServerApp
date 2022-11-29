@@ -77,6 +77,8 @@
 #define ENC28J60_LEDB		12
 
 // Maximum frame length in bytes to prevent possible buffer overflows
+// The factor pushing the MAXFRAME is the size of the largest Home Assistant
+// Config message plus headers.
 // #define ENC28J60_MAXFRAME	500
 #define ENC28J60_MAXFRAME	550
 

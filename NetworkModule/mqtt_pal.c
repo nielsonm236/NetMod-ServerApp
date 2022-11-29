@@ -217,13 +217,12 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   // length of that placeholder.
   // 
   // This message triggers an Output discovery message. "xx" is the output
-  // number. MQTT_PUBLISH_QOS_x could be MQTT_PUBLISH_QOS_0 or
-  // MQTT_PUBLISH_QOS_1.
+  // number.
   //    mqtt_publish(&mqttclient,
   //                 topic_base,
   //                 "%Oxx",
   //                 4,
-  //                 MQTT_PUBLISH_QOS_x | MQTT_PUBLISH_RETAIN);
+  //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   //
   // This message triggers an Input discovery message. "xx" is the input
   // number.
@@ -344,8 +343,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// of the application message is shown.
         if (payload_buf[1] == 'O') {
           // This is an Output auto discovery message
-//          payload_size = 287; // Manually calculated payload size without
-          payload_size = 274; // Manually calculated payload size without
+          payload_size = 264; // Manually calculated payload size without
 	                      // devicename
         }
         if (payload_buf[1] == 'I') {
@@ -466,8 +464,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // "avty_t":"~/availability",                       // 26
         // "stat_t":"~/output/01",                          // 23
         // "cmd_t":"~/output/01/set",                       // 26
-        // "qos":"1",                                       // 10
-//	// "ret":"true",                                    // 13
         // "dev":{                                          // 7
         // "ids":["NetworkModule_aabbccddeeff"],            // 37
         // "mdl":"HW-584",                                  // 15
@@ -476,8 +472,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // "sw":"20201220 1322"                             // 20
         // }                                                // 1
         // }                                                // 1
-//        //                                                  // Total: 287 plus 3 x devicename
-        //                                                  // Total: 274 plus 3 x devicename
+        //                                                  // Total: 264 plus 3 x devicename
         //
         // input payload
         // {                                                // 1
@@ -574,24 +569,6 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	  pBuffer += 2;
     
           pBuffer = stpcpy(pBuffer, "/set\",");
-
-#if QOS_SUPPORT == 0
-	  // QOS level
-          pBuffer = stpcpy(pBuffer, "\"qos\":\"0\",");
-#if DEBUG_SUPPORT != 11
-UARTPrintf("mqtt_pal_sendall Sent QOS = 0\r\n");
-#endif // DEBUG_SUPPORT != 11
-#endif // QOS_SUPPORT == 0
-
-#if QOS_SUPPORT == 1
-	  // QOS level
-          pBuffer = stpcpy(pBuffer, "\"qos\":\"1\",");
-#if DEBUG_SUPPORT != 11
-UARTPrintf("mqtt_pal_sendall Sent QOS = 1\r\n");
-#endif // DEBUG_SUPPORT != 11
-	  // Retain True
-//          pBuffer = stpcpy(pBuffer, "\"ret\":\"true\",");
-#endif // QOS_SUPPORT == 1
         }
 
         // Special case for temperature pin

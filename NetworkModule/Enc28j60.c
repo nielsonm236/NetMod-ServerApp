@@ -712,6 +712,15 @@ UARTPrintf("Enc28j60Receive MAXFRAME exceeded\r\n");
 
   // And decrement PacketCounter
   Enc28j60SetMaskReg(BANKX_ECON2 , (1<<BANKX_ECON2_PKTDEC));
+  
+#if DEBUG_SUPPORT != 11
+if (nBytes > 500) {
+UARTPrintf("Enc28j60Received nBytes = ");
+emb_itoa(nBytes, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+}
+#endif // DEBUG_SUPPORT != 11
 
   return nBytes;
 }

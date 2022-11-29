@@ -152,6 +152,7 @@
 
 
 int main(void);
+void periodic_service(void);
 void init_IWDG(void);
 void unlock_eeprom(void);
 void lock_eeprom(void);
@@ -186,7 +187,7 @@ uint32_t calculate_timer(uint16_t timer_value);
 void decrement_pin_timers(void);
 
 void mqtt_startup(void);
-void mqtt_redefine_temp_sensors(void);
+// void mqtt_redefine_temp_sensors(void);
 void define_temp_sensors(void);
 // void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel, uint8_t delete_flag);
 void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel);

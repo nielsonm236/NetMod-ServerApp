@@ -47,9 +47,9 @@ extern uint8_t stored_pin_control[16];  // Per pin control settings stored in
 // clever implementation.
 
 // Ccreate a variable with the structure of the port registers and define
-// it's position on the memory location of the port registers
-// this way we can manipulate this data as an array of ports
-volatile struct io_registers io_reg[ NUM_PORTS ]	@0x5000;	// make room for PA .. PG starting at 0x5000
+// its position on the memory location of the port registers. This way we
+// can manipulate this data as an array of ports.
+volatile struct io_registers io_reg[ NUM_PORTS ] @0x5000; // Make room for PA .. PG starting at 0x5000
 
 // Define the pair PORT:BIT for each of the 16 I/Os
 const struct io_mapping io_map[16] = {

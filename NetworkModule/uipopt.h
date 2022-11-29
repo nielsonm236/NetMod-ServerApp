@@ -144,12 +144,42 @@
 // The TCP Maximum Segment size. This should be set to no more than
 // UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN. This ends up being the maximum
 // size of the part of the datagram that can be transmitted to the Browser or
-// to the MQTT server in each packet. NOTE: Experimentation has shown that the
-// UIP_TCP_MSS should actually be slightly smaller to avoid errors (not sure
-// why and could use more investigation). So an additional 6 bytes are
-// subtracted.
+// to the MQTT server in each packet.
+//
+// NOTE1: Experimentation has shown that the UIP_TCP_MSS should actually be
+// slightly smaller than the original code defined. "Slightly" appears to be
+// at least 4 bytes. This is to avoid errors (not sure why and could use more
+// investigation). To be safe an additional 6 bytes are subtracted.
+// if NAGLE_SUPPORT == 1
+//
+// NOTE2: When MQTT support was added two problems occurred:
+// 1) It was found that during MQTT startup, if Home Assistant Auto Discovery
+//    was used, a larger uip_buf was needed to trasnmit some of the Auto
+//    Discovery messages in a single packet. This consumed nearly all the
+//    available RAM.
+// 2) Later it was found that Home Assistant used Nagle's Algorithm to pack
+//    multiple MQTT messages into single datagrams, AND that those datagrams
+//    could span multiple packets when transmitted to the Network Module. So,
+//    memory was needed to deconstruct the datagram into individual MQTT
+//    messages and to reconstruct the MQTT messages that spanned a packet
+//    boundary.
+// To handle the above the upper part of the uip_buf is made available for use
+// as an "MQTT partial buffer" (a receive reconstruction buffer) after MQTT
+// startup has completed. This is done by making the UIP_TCP_MSS value smaller
+// by another 60 bytes, then using pointers based on a "MQTT_PBUF" define to
+// access the memory area.
+// endif NAGLE_SUPPORT == 1
+//
 // In this application the headers occupy a total of 54 bytes as defined in uip.h.
-#define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN - 6)
+#define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN - 6 - 60)
+
+
+// if NAGLE_SUPPORT == 1
+// The starting point of the MQTT Partial Buffer within the uip_buf
+// See explantion in #define UIP_TCP_MSS
+#define MQTT_PBUF_SIZE	60
+#define MQTT_PBUF	(UIP_BUFSIZE - MQTT_PBUF_SIZE)
+// endif NAGLE_SUPPORT == 1
 
 
 // The size of the advertised receiver's window. Should be set low (i.e., to
@@ -314,8 +344,8 @@
 //   Code Uploader requires additional hardware in the form of an off-board I2C
 //   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
 // Un-comment ONLY ONE of the following:
-// #define BUILD_SUPPORT     MQTT_BUILD
-#define BUILD_SUPPORT     BROWSER_ONLY_BUILD
+#define BUILD_SUPPORT     MQTT_BUILD
+// #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
 // #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 
 
@@ -362,23 +392,13 @@
 #define DEBUG_SENSOR_SERIAL 0
 
 
-// QOS_SUPPORT
-// Determines the QOS level supported in MQTT when receiving PUBLISH messages
-// from the Broker/Server.
-// QOS 0 works for most applications because the PUBLISH messaging rate to the
-// Network Module can be limited by the host based application and the usage
-// model for the Network Module is to be on a local network only. However,
-// Home Assistant has a "Toggle" function that can result in very rapid
-// message delivery to the Network Module so QOS 1 was implemented to assist
-// in assuring that all HA PUBLISH messages are properly received by the
-// Network Module.
-// Even when QOS 1 is enabled the setting should have no effect on host
-// applications that deliver messages with QOS 0.
-// THIS IS A TEMPORARY BUILD MODE TO ALLOW TRANSITION TO QOS 1 MODE.
-// EVENTUALLY THE "QOS 0 ONLY" CODE WILL BE REMOVED.
-// 0 = "Fire and Forget" Mode
-// 1 = Acknowlege Receipt Mode
-#define QOS_SUPPORT 1
+// NAGLE_SUPPORT
+// Temporary build setting to enable support of Nagle's Algorithm in the MQTT
+// code.
+// THIS IS A TEMPORARY BUILD MODE. DELETE WHEN TESTING IS COMPLETE.
+// 0 = No Nagle's Algorithm support
+// 1 = Supported
+#define NAGLE_SUPPORT 1
 
 
 

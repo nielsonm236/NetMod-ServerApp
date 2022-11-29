@@ -51,7 +51,8 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-const char code_revision[] = "20221109 0109"; // Normal Release Revision
+// IMPORTANT: The code_revision must be exactly 13 characters
+const char code_revision[] = "20221127 0000"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -194,8 +195,6 @@ uint16_t Invert_word;                   // Invert state of pins in single 16 bit
                                         // word
 uint8_t state_request;			// Indicates that a PUBLISH state
                                         // request was received
-uint8_t Enc28j60Receive_throttle;       // Used to throttle receipt of packets
-                                        // from the Enc28j60 device.
 
 uint8_t stack_error;			// Stack error flag storage
 
@@ -266,8 +265,6 @@ char client_id_text[26];              // Client ID comprised of text
 uint8_t mqtt_start;                   // Tracks the MQTT startup steps
 uint8_t mqtt_start_ctr1;              // Tracks time for the MQTT startup
                                       // steps
-uint8_t publish_outbound_throttle;    // Used to throttle calls to the
-                                      // publish_outbound function.
 uint8_t verify_count;                 // Used to limit the number of ARP and
                                       // TCP verify attempts
 uint8_t mqtt_sanity_ctr;              // Tracks time for the MQTT sanity steps
@@ -343,7 +340,7 @@ uint8_t MQTT_broker_dis_counter; // Counts broker disconnect events in
 // DS18B20 variables
 uint32_t check_DS18B20_ctr;      // Counter used to trigger temperature
                                  // measurements
-uint32_t check_DS18B20_sensor_ctr; // Counter used to trigger temperature
+// uint32_t check_DS18B20_sensor_ctr; // Counter used to trigger temperature
                                  // sensor add/delete checks
 // uint8_t DS18B20_scratch[5][2];   // Stores the temperature measurement for the
 //                                  // DS18B20s
@@ -373,7 +370,7 @@ extern uint8_t FoundROM[5][8];          // Table of found ROM codes
 //                                  // [x][6] = MSByte serial number
 //                                  // [x][7] = CRC
 
-uint8_t redefine_temp_sensors;   // Used to trigger the temperature sensor
+// uint8_t redefine_temp_sensors;   // Used to trigger the temperature sensor
                                  // update process in the Browser display and
 				 // in MQTT
 // #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
@@ -413,6 +410,7 @@ int main(void)
 {
   uip_ipaddr_t IpAddr;
   uint8_t flash_mismatch;
+  extern uint16_t uip_slen;
   
   parse_complete = 0;
   reboot_request = 0;
@@ -421,7 +419,6 @@ int main(void)
   t100ms_ctr1 = 0;
   restart_reboot_step = RESTART_REBOOT_IDLE;
   stack_error = 0;
-  Enc28j60Receive_throttle = 0;
   
 #if IWDG_ENABLE == 1
   init_IWDG(); // Initialize the hardware watchdog
@@ -436,8 +433,6 @@ int main(void)
   mqtt_keep_alive = 60;                  // Ping interval in seconds
   mqtt_start_ctr1 = 0;			 // Tracks time for the MQTT startup
                                          // steps
-  publish_outbound_throttle = 0;         // Used to throttle calls to the
-                                         // publish_outbound function.
   mqtt_sanity_ctr = 0;			 // Tracks time for the MQTT sanity
                                          // steps
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
@@ -559,7 +554,7 @@ int main(void)
     // Iniialize DS18B20 timer
     check_DS18B20_ctr = second_counter;
     // Initialize DS18B20 sensor add/delete check counter
-    check_DS18B20_sensor_ctr = second_counter;
+//    check_DS18B20_sensor_ctr = second_counter;
     // Collect initial temperature
     get_temperature();
     // Iniialize DS18B20 transmit control variable
@@ -743,59 +738,36 @@ int main(void)
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing. If the
                     // processor hangs the IWDG will perform a hardware reset.
 
-    if (Enc28j60Receive_throttle == 25) {
-      // The Enc28j60Receive_throttle was implemented when QOS 1 was
-      // introduced in the MQTT code. This was needed to prevent a burst of
-      // incoming PUBLISH messages from so fully occupying the uip_buf that
-      // no outgoing messages from MQTT could be sent during the burst.
-      // Timing note: The main loop runs in about 1ms, so the throttle value
-      // will delay extracting messages from the ENC28J60 by 100ms for a
-      // throttle value of 100.
-      // The ENC28J60 is set up for a receive buffer of 6KB (see ENC28J60.h).
-      // The ENC28J60 buffer size should be more than enough to hold all
-      // messages that are received in a burst (say from a Home Assistant
-      // "Toggle" operation) until they can be processed, assuming the burst
-      // isn't repeated at a rapid rate. A PUBLISH message in a "Toggle" burst
-      // will be about 88 bytes, consisting of 54 bytes LLH/TCPIP headers and
-      // about 34 bytes MQTT PUBLISH message. A burst of 16 PUBLISH messages
-      // from HA thus requires about 1400 bytes in the ENC28J60 receive
-      // buffer.
-      // IMPORTANT: Analysis of all messages being received by the Network
-      // Module shows that there is a lot of traffic on a typical Ethernet
-      // cable that makes it through the ENC28J60 filters and needs to be
-      // dispositioned by the uip.c code. For example:
-      // - ARP pings
-      // - ICMP traffic
-      // - Messages that match the MAC address, but not the IP address
-      // - Messages that match MAC and IP, but are not a valid Port
-      // - Other miscellaneous traffic that is discarded
-      // I have no idea where most of the above traffic originates, but it all
-      // occupies processing and buffer memory in addition to the genuine
-      // application traffic of interest. SO - throttles need to be large
-      // enough to allow enough message processing time, but small enough to
-      // prevent buffer over-runs.
-      // 
-      // SOME EXPERIMENTATION COULD BE DONE HERE TO SEE HOW SMALL THE THROTTLE
-      // VALUE CAN BE MADE AND STILL HAVE RELIABLE LONG TERM OPERATION.
-      uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
-      Enc28j60Receive_throttle = 0;
-    }
-    else Enc28j60Receive_throttle++;
+    // The ENC28J60 is set up for a receive buffer of 6KB (see ENC28J60.h).
+    // The ENC28J60 buffer size should be more than enough to hold all
+    // messages that are received in a burst (say from a Home Assistant
+    // "Toggle" operation) until they can be processed, assuming the burst
+    // isn't repeated at a rapid rate. A PUBLISH message in a Home Assistant
+    // Header Toggle burst will be about 88 bytes, consisting of 54 bytes
+    // LLH/TCPIP headers and about 34 bytes MQTT PUBLISH message. A burst of
+    // 16 PUBLISH messages from HA thus requires about 1400 bytes in the
+    // ENC28J60 receive buffer.
+    //
+    // IMPORTANT: Analysis of all messages being received by the Network
+    // Module shows that there is a lot of traffic on a typical Ethernet
+    // cable that makes it through the ENC28J60 filters and needs to be
+    // dispositioned by the uip.c code. For example:
+    // - ARP pings
+    // - ICMP traffic
+    // - Messages that match the MAC address, but not the IP address
+    // - Messages that match MAC and IP, but are not a valid Port
+    // - Other miscellaneous traffic that is discarded
+    // I have no idea where most of the above traffic originates, but it all
+    // occupies processing and buffer memory in addition to the genuine
+    // application traffic of interest.
+
+    uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
 
     if (uip_len > 0) {
-      // This code is executed if incoming traffic is HTTP or MQTT (not ARP).
-      // uip_len includes the headers, so it will be > 0 even if no TCP
-      // payload.
       if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
-      
-#if DEBUG_SUPPORT != 11
-// UARTPrintf("Detected uip_len > 0 UIP_ETHTYPE_IP\r\n");
-// UARTPrintf("uip_len = ");
-// emb_itoa(uip_len, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT != 11
-
+        // This code is executed if incoming traffic is HTTP or MQTT (not ARP).
+        // uip_len includes the headers, so it will be > 0 even if no TCP
+        // payload.
         uip_input(); // Calls uip_process(UIP_DATA) to process a received
 	// packet.
         // If the above process resulted in data that should be sent out on
@@ -811,9 +783,7 @@ int main(void)
         }
       }
       else if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_ARP)) {
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("Detected uip_len > 0 UIP_ETHTYPE_ARP\r\n");
-// #endif // DEBUG_SUPPORT != 11
+        // This code is executed if incoming traffic is an ARP request.
         uip_arp_arpin();
         // If the above process resulted in data that should be sent out on
 	// the network the global variable uip_len will have been set to a
@@ -847,7 +817,6 @@ int main(void)
     if (mqtt_enabled
      && mqtt_start == MQTT_START_COMPLETE
      && restart_reboot_step == RESTART_REBOOT_IDLE) {
-//      mqtt_sanity_check();
       mqtt_sanity_check(&mqttclient);
     }
     
@@ -857,76 +826,32 @@ int main(void)
     // b) Not currently performing MQTT startup
     // c) Not currently performing restart_reboot
     // d) Redefine temp sensors is requested
-    if (mqtt_enabled
-     && mqtt_start == MQTT_START_COMPLETE
-     && restart_reboot_step == RESTART_REBOOT_IDLE
-     && redefine_temp_sensors) {
-      mqtt_redefine_temp_sensors();
-    }
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// THIS PROBABLY NEEDS TO BE DISABLED. THE VERY LARGE UIP_BUF IS NOT
+// AVAILABLE AFTER COMPLETION OF MQTT STARTUP, SO TEMPERATURE SENSOR
+// DEFINES CAN ONLY BE SENT TO HA DURING BOOT.
+//    if (mqtt_enabled
+//     && mqtt_start == MQTT_START_COMPLETE
+//     && restart_reboot_step == RESTART_REBOOT_IDLE
+//     && redefine_temp_sensors) {
+//      mqtt_redefine_temp_sensors();
+//    }
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
     // Update the time keeping function
     timer_update();
-
-    if (periodic_timer_expired()) {
-      // The periodic timer expires every 20ms.
-      {
-        int i;
-        for(i = 0; i < UIP_CONNS; i++) {
-	  uip_periodic(i);
-	  // uip_periodic() calls uip_process(UIP_TIMER) for each connection.
-	  // Every connection is checked in this loop one time.
-	  // uip_process(UIP_TIMER) will check the HTTP and MQTT connections
-	  // for any unserviced outbound traffic one packet at a time.
-	  //   HTTP connections (the webbrowser) will generate and place its
-	  //   data in the uip_buf via a call to HttpDCall(). HTTP connections
-	  //   can have pending transmissions which are continuations of a
-	  //   series of packets because the web pages can be broken into
-	  //   several packets.
-	  //   MQTT will always use this function to transmit packets. MQTT
-	  //   will have placed its outbound packets in the mqtt_sendbuf. MQTT
-	  //   connections will consist of a complete message in one packet.
-	  //
-	  // If uip_periodic() resulted in data that should be sent out on
-	  // the network the global variable uip_len will have been set to a
-	  // value > 0 so that Enc28j60Send() will be called.
-	  //
-	  // Note that when the device first powers up and MQTT is enabled the
-	  // MQTT processes will attempt to send a SYN to create a TCP
-	  // connection. The uip_periodic() function discovers the SYN is
-	  // pending to be sent, causing uip_len to be > 0. Below you'll see
-	  // that uip_arp_out() is called first, and on the first pass it will
-	  // find that an ARP request is needed. The SYN will be replaced with
-	  // an ARP request, and on a future cycle through this routine the
-	  // SYN will be sent IF the ARP request was successful.
-	  // 
-	  // Note: From time to time I see a lot of re-xmit attempts with the
-	  // Browser interface. This doesn't seem to hurt anything so far, but
-	  // it does slow down painting of a Browser page. I suspect the
-	  // timeout for uip_periodic() may be too short. On the otherhand,
-	  // shorter is better for servicing MQTT. So, it is a compromise but
-	  // might need examination in the future it it become problematic.
-	  if (uip_len > 0) {
-	    uip_arp_out(); // Verifies arp entry in the ARP table and builds
-	                   // the LLH
-            Enc28j60Send(uip_buf, uip_len);
-	  }
-        }
-      }
-    }
-
-
-    // 100ms timer
-    if (t100ms_timer_expired()) {
-      t100ms_ctr1++;     // Increment the 100ms counter. ctr1 is used in the
-                         // restart/reboot process. Normally the counter is
-			 // not used and will just roll over every 2^32
-			 // counts. Any code that uses crt1 should reset it to
-			 // zero then compare to a value needed for a timeout.
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-      decrement_pin_timers(); // Decrement the pin_timers every 100ms
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-    }
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -943,38 +868,14 @@ int main(void)
     if (mqtt_timer_expired()) {
       if (mqtt_enabled) {
         if (mqtt_start == MQTT_START_COMPLETE) {
-	  if (publish_outbound_throttle == 0) {
-	    // publish_outbound() is called to send pin_control state change
-	    // PUBLISH messages. Due to the small size of the mqtt_sendbuf the
-	    // rate at which theses messages are placed in the mqtt_sendbuf
-	    // needs to be throttled so it can be assured that a message
-	    // has time to be transmitted before another is placed in the
-	    // mqtt_sendbuf, also leaving time for other transmit messages
-	    // (for example "ping" messages and PUBACK messages).
-	    // During implementation of QOS 1 the "publish_outbound_throttle"
-	    // was implemented to allow even more time for these transmit
-	    // processes if necessary.
-	    // A setting of "0" allows 50ms between calls to publish_outbound().
-	    // 50ms is the mqtt_time_expired() interval). This seems to be
-	    // adequate at this writing. Each incremental increase in the
-	    // publish_outbound_throttle test adds another 50ms:
-	    // "== 0" is 50ms interval
-	    // "== 1" is 100ms
-	    // "== 2" is 150ms
-	    // and so on.
-	    // For future reference this throttle was implemented during test
-	    // of the Home Assistant "Toggle" function, wherein a large burst
-	    // of incoming PUBLISH messages would occur. There is the need to
-	    // assure enough processing gaps to accomodate messages that need
-	    // to pass through the very small mqtt_sendbuf, which then gets
-	    // emptied through the uip_buf. The process is problematic because
-	    // the uip_buf is also used for all incoming PUBLISH messages.
-	    // IF IT TURNS OUT THIS THROTTLE NEVER NEED TO BE INCREASED THE
-	    // CODE COULD BE SIMPLIFIED A LITTLE BY ELIMINATING IT.
-	    publish_outbound();
-	    publish_outbound_throttle = 0;
-	  }
-	  else publish_outbound_throttle++;
+	  // publish_outbound() is called to send pin_control state change
+	  // PUBLISH messages.
+	  publish_outbound();
+	  // Call the periodic_service() function to clear out the MQTT
+	  // traffic just now placed in the uip_buf. Even though there is
+	  // a period9ic_service() call in the main loop we don't want to
+	  // wait for its timer to expire for MQTT service.
+	  periodic_service();
 	}
         mqtt_start_ctr1++; // Increment the MQTT start loop timer 1. This is
                            // used to:
@@ -994,6 +895,26 @@ int main(void)
       }
     }
 #endif // BUILD_SUPPORT == MQTT_BUILD
+
+
+    if (periodic_timer_expired()) {
+      // The periodic timer expires every 20ms.
+      // Call the periodic_service() function
+      periodic_service();
+    }
+
+
+    // 100ms timer
+    if (t100ms_timer_expired()) {
+      t100ms_ctr1++;     // Increment the 100ms counter. ctr1 is used in the
+                         // restart/reboot process. Normally the counter is
+			 // not used and will just roll over every 2^32
+			 // counts. Any code that uses crt1 should reset it to
+			 // zero then compare to a value needed for a timeout.
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+      decrement_pin_timers(); // Decrement the pin_timers every 100ms
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    }
 
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -1091,12 +1012,12 @@ int main(void)
     
     // Check for DS18B20 temperature sensor additions/deletions at 10s
     // intervals
-    if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_sensor_ctr + 10))) {
-      check_DS18B20_sensor_ctr = second_counter;
+//    if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_sensor_ctr + 10))) {
+//      check_DS18B20_sensor_ctr = second_counter;
       // Call FindDevices to generate a new FoundROM table and determine if
       // any changes occured in the sensor population.
-      FindDevices();
-    }
+//      FindDevices();
+//    }
     
     
     // Update temperature data
@@ -1127,6 +1048,57 @@ int main(void)
     check_restart_reboot();
   }
   return 0;
+}
+
+
+void periodic_service(void)
+{
+  int i;
+  for(i = 0; i < UIP_CONNS; i++) {
+    uip_periodic(i);
+    // uip_periodic() calls uip_process(UIP_TIMER) for each connection.
+    // Every connection is checked in this loop one time.
+    // uip_process(UIP_TIMER) will check the HTTP and MQTT connections
+    // for any unserviced outbound traffic one packet at a time.
+    //   HTTP connections (the webbrowser) will generate and place its
+    //   data in the uip_buf via a call to HttpDCall(). HTTP connections
+    //   can have pending transmissions which are continuations of a
+    //   series of packets because the web pages can be broken into
+    //   several packets.
+    //   MQTT will always use this function to transmit packets. MQTT
+    //   will have placed its outbound packets in the mqtt_sendbuf. MQTT
+    //   connections will consist of a complete message in one packet.
+    //
+    // If uip_periodic() resulted in data that should be sent out on
+    // the network the global variable uip_len will have been set to a
+    // value > 0 so that Enc28j60Send() will be called.
+    //
+    // Note that when the device first powers up and MQTT is enabled the
+    // MQTT processes will attempt to send a SYN to create a TCP
+    // connection. The uip_periodic() function discovers the SYN is
+    // pending to be sent, causing uip_len to be > 0. Below you'll see
+    // that uip_arp_out() is called first, and on the first pass it will
+    // find that an ARP request is needed. The SYN will be replaced with
+    // an ARP request, and on a future cycle through this routine the
+    // SYN will be sent IF the ARP request was successful.
+    // 
+    // Note: From time to time I see a lot of re-xmit attempts with the
+    // Browser interface. This doesn't seem to hurt anything so far, but
+    // it does slow down painting of a Browser page. I suspect the
+    // timeout for uip_periodic() may be too short. On the otherhand,
+    // shorter is better for servicing MQTT. So, it is a compromise but
+    // might need examination in the future it it become problematic.
+    if (uip_len > 0) {
+
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("periodic_service now transmitting uip_buf\r\n");
+// #endif // DEBUG_SUPPORT != 11
+
+      uip_arp_out(); // Verifies arp entry in the ARP table and builds
+                     // the LLH
+      Enc28j60Send(uip_buf, uip_len);
+    }
+  }
 }
 
 
@@ -1533,8 +1505,14 @@ void mqtt_startup(void)
       mqtt_init(&mqttclient,
                 mqtt_sendbuf,
                 sizeof(mqtt_sendbuf),
+#if NAGLE_SUPPORT == 0
                 &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
                 UIP_APPDATA_SIZE,
+#endif // NAGLE_SUPPORT == 0
+#if NAGLE_SUPPORT == 1
+                &uip_buf[MQTT_PBUF],
+		MQTT_PBUF_SIZE,
+#endif // NAGLE_SUPPORT == 1
                 publish_callback);
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_QUEUE_CONNECT;
@@ -1625,7 +1603,6 @@ void mqtt_startup(void)
     }
     break;
 
-#if QOS_SUPPORT == 0
   case MQTT_START_QUEUE_SUBSCRIBE1:
     if (mqtt_start_ctr1 > 4) {
       // Subscribe to the output control messages
@@ -1637,9 +1614,6 @@ void mqtt_startup(void)
       // mqtt_sendbuf queue. uip_periodic() will start the process that will
       // call mqtt_sync to put the message in the uip_buf.
       //
-      // In the mqtt_subscribe call the maximum QOS level supported is specified
-      // as 0.
-      //
       // Note: Timing is managed here to prevent placing multiple SUBSCRIBE
       // messages in the mqtt_sendbuf as that buffer is very small.
 	
@@ -1647,41 +1621,15 @@ void mqtt_startup(void)
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/output/+/set");
+      // In the mqtt_subscribe call the maximum QOS level spedified (0 in this
+      // case) is the max QOS level supported for the topic messages being
+      // subcribed to. The SUBSCRIBE itself has no QOS level as a special
+      // SUBACK message must be returned to verify the SUBSCRIBE transaction.
       mqtt_subscribe(&mqttclient, topic_base, 0);
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
     }
     break;
-#endif // QOS_SUPPORT == 0
-    
-#if QOS_SUPPORT == 1
-  case MQTT_START_QUEUE_SUBSCRIBE1:
-    if (mqtt_start_ctr1 > 4) {
-      // Subscribe to the output control messages
-      //
-      // Queue the mqtt_subscribe messages for transmission to the MQTT Broker.
-      // Wait 200ms before queueing first Subscribe msg.
-      //
-      // The mqtt_subscribe function will create the message and put it in the
-      // mqtt_sendbuf queue. uip_periodic() will start the process that will
-      // call mqtt_sync to put the message in the uip_buf.
-      //
-      // In the mqtt_subscribe call the maximum QOS level supported is specified
-      // as 1 for HA compatibility.
-      //
-      // Note: Timing is managed here to prevent placing multiple SUBSCRIBE
-      // messages in the mqtt_sendbuf as that buffer is very small.
-	
-      suback_received = 0;
-      strcpy(topic_base, devicetype);
-      strcat(topic_base, stored_devicename);
-      strcat(topic_base, "/output/+/set");
-      mqtt_subscribe(&mqttclient, topic_base, 1);
-      mqtt_start_ctr1 = 0; // Clear 50ms counter
-      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
-    }
-    break;
-#endif // QOS_SUPPORT == 1
     
   case MQTT_START_VERIFY_SUBSCRIBE1:
     // Verify that the SUBSCRIBE SUBACK was received.
@@ -1706,11 +1654,10 @@ void mqtt_startup(void)
     }
     break;
 
-
-#if QOS_SUPPORT == 0
   case MQTT_START_QUEUE_SUBSCRIBE2:
     if (mqtt_start_ctr1 > 4) {
       // Subscribe to the state-req message
+      // The QOS is 0 for this topic subscription
       //
       // Wait 200ms before queuing the Subscribe message 
       suback_received = 0;
@@ -1722,25 +1669,6 @@ void mqtt_startup(void)
       mqtt_start = MQTT_START_VERIFY_SUBSCRIBE2;
     }
     break;
-#endif // QOS_SUPPORT == 0
-
-#if QOS_SUPPORT == 1
-  case MQTT_START_QUEUE_SUBSCRIBE2:
-    if (mqtt_start_ctr1 > 4) {
-      // Subscribe to the state-req message
-      // This Subscribe is at QOS 0
-      //
-      // Wait 200ms before queuing the Subscribe message 
-      suback_received = 0;
-      strcpy(topic_base, devicetype);
-      strcat(topic_base, stored_devicename);
-      strcat(topic_base, "/state-req");
-      mqtt_subscribe(&mqttclient, topic_base, 0);
-      mqtt_start_ctr1 = 0; // Clear 50ms counter
-      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE2;
-    }
-    break;
-#endif // QOS_SUPPORT == 1
 
   case MQTT_START_VERIFY_SUBSCRIBE2:
     // Verify that the SUBSCRIBE SUBACK was received.
@@ -1781,21 +1709,22 @@ void mqtt_startup(void)
       // Publish Home Assistant Auto Discovery messages
       // This part of the state machine runs only if Home Assistant Auto
       // Discovery is enabled.
-      // This step of the state machine is entered multiple times until all
-      // Home Assistant Auto Discovery Publish messages are sent.
+      // This step of the state machine is executed every 150 ms and is
+      // entered multiple times until all Home Assistant Auto Discovery
+      // Config PUBLISH messages are sent.
       //
       //---------------------------------------------------------------------//
-      // This function will create a "placeholder" Publish message. The
-      // placeholder message contains special markers that need to be
-      // replaced later with more extensive text fields required in the
-      // actual Publish message. The mqtt_pal.c function will detect the
-      // placeholder Publish message during the "copy to uip_buf" process
-      // and will replace the special markers at that time to create the
-      // actual Publish message required by Home Assistant. This complication
-      // is necessary because the MQTT transmit buffer (mqtt_sendbuf) is not
-      // large enough to contain an entire Auto Discovery Publish message, so
-      // it is constructed on-the-fly as the app_message is written to the
-      // uip_buf transmit buffer by the mqtt_pal.c function.
+      // This function will create a "placeholder" PUBLISH message. The
+      // required PUBLISH messages are too large to fit in the mqtt_sendbuf
+      // so a placeholder message is created instead. The placeholder message
+      // contains special markers that need to be replaced later with more
+      // extensive text fields that are required in the actual Publish
+      // message. The mqtt_pal.c function will detect the placeholder Publish
+      // message during the "copy to uip_buf" process and will replace the
+      // special markers "on the fly" to create the actual PUBLISH message
+      // required by Home Assistant.
+      //
+      // These messages are always PUBLISHed with QOS 0
       //
       // The following placeholder Publish message will create an Output Auto
       // Discovery message. "xx" is the output IO number.
@@ -1958,9 +1887,8 @@ void mqtt_startup(void)
 
   case MQTT_START_QUEUE_PUBLISH_ON:
     if (mqtt_start_ctr1 > 4) {
-      // Wait 200ms before queuing Publish message 
-      // Publish the availability "online" message
-      // This message is always published with QOS 0
+      // Wait 200ms before queuing the "availability online" PUBLISH message.
+      // This message is always published with QOS 0.
       strcpy(topic_base, devicetype);
       strcat(topic_base, stored_devicename);
       strcat(topic_base, "/availability");
@@ -1990,7 +1918,7 @@ void mqtt_startup(void)
   } // end switch
 }
 
-
+/*
 void mqtt_redefine_temp_sensors(void)
 {
   // This routine can be called during runtime (ie, AFTER initialization) to
@@ -2011,7 +1939,7 @@ void mqtt_redefine_temp_sensors(void)
     }
   }
 }
-
+*/
 
 void define_temp_sensors(void)
 {
@@ -2176,9 +2104,9 @@ void mqtt_sanity_check(struct mqtt_client *client)
       client->number_of_timeouts = 0;
       MQTT_resp_tout_counter++;
 
-#if DEBUG_SUPPORT != 11
-UARTPrintf("mqtt_sanity_check Response Timeout\r\n");
-#endif // DEBUG_SUPPORT != 11
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("mqtt_sanity_check Response Timeout\r\n");
+// #endif // DEBUG_SUPPORT != 11
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -2192,9 +2120,9 @@ UARTPrintf("mqtt_sanity_check Response Timeout\r\n");
      && mqtt_conn->tcpstateflags == UIP_CLOSED) {
       MQTT_broker_dis_counter++;
 
-#if DEBUG_SUPPORT != 11
-UARTPrintf("mqtt_sanity_check Broker Disconnect\r\n");
-#endif // DEBUG_SUPPORT != 11
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("mqtt_sanity_check Broker Disconnect\r\n");
+// #endif // DEBUG_SUPPORT != 11
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -2206,11 +2134,21 @@ UARTPrintf("mqtt_sanity_check Broker Disconnect\r\n");
      && client->error != MQTT_OK) {
       MQTT_not_OK_counter++;
 
+
 #if DEBUG_SUPPORT != 11
-UARTPrintf("mqtt_sanity_check MQTT_not_OK - Error code:");
-emb_itoa(client->error, OctetArray, 16, 4);
+// MQTT not OK values are all negative numbers from 0x8000 to 0x801c.
+// For debug display strip the first 4 bits, convert the remaining bits
+// using emb_itoa (as it can only handle positive numbers), then rebuild
+// the code for display.
+{
+int16_t temp1;
+UARTPrintf("mqtt_sanity_check MQTT_not_OK - Error code: 0x");
+temp1 = client->error & 0x00ff;
+emb_itoa(temp1, OctetArray, 16, 4);
+OctetArray[0] = '8';
 UARTPrintf(OctetArray);
 UARTPrintf("\r\n");
+}
 #endif // DEBUG_SUPPORT != 11
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
@@ -2327,14 +2265,22 @@ UARTPrintf("\r\n");
   // the transmission as part of the uip_periodic function.
   //
   // The only messages that must be retained in the mqtt_sendbuf are the
-  // CONNECT, SUBSCRIBE, and PINGREQ messages. Since the CONNECT and SUBSCRIBE
-  // messages are only sent by the mqtt_startup state machine we can carefully
-  // manage that state machine to make sure the ACK for each of those messages
-  // is received before continuing the state machine. This means that the only
-  // message that will be retained in the mqtt_sendbuf during normal operation
-  // is the PINGREQ message. That message is two bytes long. So, we can
-  // minimize the size of the mqtt_sendbuf to the point that only that 2 byte
-  // message and the longest of any other MQTT transmit message will fit.
+  // CONNECT, SUBSCRIBE, and PINGREQ messages.
+  // Since the CONNECT and SUBSCRIBE messages are only sent by the mqtt_startup
+  // state machine we can carefully manage that state machine to make sure the
+  // ACK for each of those messages is received before continuing the state
+  // machine. This means that the only messages that will be retained in the
+  // mqtt_sendbuf during normal operation are the PINGREQ messages. PINGREQ
+  // messages are only two bytes long. So, we can minimize the size of the
+  // mqtt_sendbuf to the point that only a 2 byte message and the longest of
+  // any other MQTT transmit message will fit.
+  //
+  // The mqtt_sendbuf always starts with a 12 byte Message Queue structure.
+  // 
+  // PINGREQ Msg (in the mqtt_sendbuf)
+  //   Fixed Header 2 bytes
+  //   Queued Message Header 11 bytes
+  //   Total: 13 bytes
   //
   // Output PUBLISH Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
@@ -2342,7 +2288,8 @@ UARTPrintf("\r\n");
   //     Topic NetworkModule/DeviceName012345678/output/xx 43 bytes
   //     Topic Length 2 bytes
   //     Packet ID 2 bytes
-  //   Total: 49 bytes
+  //   Queued Message Header 11 bytes
+  //   Total: 60 bytes
   //
   // Temperature PUBLISH Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
@@ -2350,7 +2297,8 @@ UARTPrintf("\r\n");
   //     Topic NetworkModule/DeviceName012345678/temp/xx-000.0 47 bytes
   //     Topic Length 2 bytes
   //     Packet ID 2 bytes
-  //   Total: 53 bytes
+  //   Queued Message Header 11 bytes
+  //   Total: 64 bytes
   //
   // Status PUBLISH Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
@@ -2358,177 +2306,43 @@ UARTPrintf("\r\n");
   //     Topic NetworkModule/DeviceName123456789/availabilityoffline 53 bytes
   //     Topic Length 2 bytes
   //     Packet ID 2 bytes
-  //   Total: 59 bytes
+  //   Queued Message Header 11 bytes
+  //   Total: 70 bytes
   //   
-  // The implication of the above is that the mqtt_sendbuf needs to be as
-  // large as one PINGREQ message (2 bytes) plus the longest Publish message
-  // (59 bytes), or 61 bytes. I think the structure added to the mqtt_sendbuf
-  // for each message in the queue is 11 bytes (search on
-  //   struct mqtt_queued_message
-  // This would make the requirement for the mqtt_sendbuf = 61 + 22 = 83.
+  // The implication of the above is that in normal operation the mqtt_sendbuf
+  // needs to be as large as the Message Queue (12 bytes) plus one PINGREQ
+  // message (13 bytes) plus the longest Publish message (70 bytes), or 108
+  // bytes.
   //
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // IMPORTANT IMPORTANT IMPORTANT
-  // An analysis of the MQTT Startup process shows the CONNECT message to be
-  // up to 120 bytes in length. Add the queue management structure of 11
-  // bytes and the mqtt_sendbuf needs to be a minimum of 131 bytes. Note that
-  // no PINGREQ can occur during the MQTT Startup process, so the CONNECT
-  // message will occupy the mqtt_sendbuf alone. This sets the required size
-  // of the mqtt_sendbuf at 131 bytes ... will make it 140 to provide a
-  // little flexibility in code for message changes.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // However, during MQTT startup the CONNECT message
+  // CONNECT Msg (in the mqtt_sendbuf)
+  //   Fixed Header 2 bytes
+  //   Variable Header 10 bytes
+  //     Length of protocol name 2 bytes
+  //     Protocol name 4 bytes
+  //     Protocol level 1 byte
+  //     Connect flags 1 byte
+  //     Keep Alive 2 bytes
+  //   Payload
+  //     Client ID Length 2 bytes
+  //     Client ID 25 bytes
+  //     Will Topic Length 2 bytes
+  //     Will Topic 14+19+13 46 bytes
+  //     Will Message Length 2 bytes
+  //     Will Message 7 bytes
+  //     Username Length 2 bytes
+  //     Username 10 bytes
+  //     Passwoard Length 2 bytes
+  //     Password 10 bytes
+  // Total 130 bytes
+  // Thus the CONNECT message can be up to up to 130 bytes in length. Add the
+  // Message Queue (12 bytes) plus the Queued Message Header (11 bytes) and the
+  // mqtt_sendbuf needs to be a minimum of 153 bytes. Note that no PINGREQ can
+  // occur during the MQTT Startup process, so the CONNECT message will occupy
+  // the mqtt_sendbuf alone. This sets the required size of the mqtt_sendbuf at
+  // 153 bytes ... will make it 160 to provide a little buffer.
 //---------------------------------------------------------------------------//
 
-
-#if QOS_SUPPORT == 0
-void publish_callback(void** unused, struct mqtt_response_publish *published)
-{
-  char* pBuffer;
-  uint8_t pin_value;
-  uint8_t ParseNum;
-  int i;
-  
-  pin_value = 0;
-  ParseNum = 0;
-  
-  // This function will be called if a PUBLISH is received from the Broker.
-  // The PUBLISH message will contain a payload that, in this application,
-  // will be the output control bits.
-  //
-  // This function is called from within the mqtt_recv() function. The data
-  // left in the uip_buf will remain there until this function completes.
-  //
-  // Dissecting the PUBLISH message:
-  // - We know that the MQTT Headers + Payload starts at pointer uip_appdata
-  // - We know that the Fixed Header is 2 bytes
-  // - Next comes the Variable Header
-  //   - First bytes contain the Topic Name. So we should expect:
-  //     - "NetworkModule/"
-  //     - "Devicename/"
-  //     - "output/"
-  //     - "xx/" (output number or 'all')
-  //     - "set"
-  //   OR
-  //     - "NetworkModule/"
-  //     - "Devicename/"
-  //     - "state-req"
-  // - Next comes the Payload
-  //   - If "Output/xx/set" we expect a payload of "ON" or "OFF"
-  //   - if "Output/all/set" we expect a payload of "ON" or "OFF"
-  //   - If "state-req" we expect no payload
-  // - We are QOS 0 so no Packet ID
-  //
-  // Once we collect the above information:
-  // - Set or clear an individual pin
-  //   OR
-  // - Loop to set or clear "all" pins
-  //   OR
-  // - Set the state_request variable
-  pBuffer = uip_appdata;
-  // Skip the Fixed Header Control Byte (1 byte)
-  // Skip the Fixed Header Remaining Length Byte (1 byte)
-  // Skip the Topic name length bytes (2 bytes)
-  // Skip the NetworkModule/ text (14 bytes)
-  pBuffer += 18;
-  // Skip the Devicename/ text
-  pBuffer += strlen(stored_devicename) + 1;
-  
-  // Determine if the sub-topic is "output" or "state-req"
-  if (*pBuffer == 'o') {
-    // "output" detected
-    // Format can be any of these:
-    //   output/01/setON
-    //   output/01/setOFF
-    //   output/all/setON
-    //   output/all/setOFF
-    //
-    // Skip past the "output/" characters
-    pBuffer+= 7;
-    
-    // Check if output field is "all". If so, update all output 
-    // pin_control bytes to ON or OFF 
-    if (*pBuffer == 'a') {
-      // Determine if payload is ON or OFF
-      pBuffer+=8;
-      if (*pBuffer == 'N') {
-        // Turn all outputs ON
-	for (i=0; i<16; i++) {
-	  if (pin_control[i] & 0x02) { // Output pin?
-	    Pending_pin_control[i] = (uint8_t)(pin_control[i] | 0x80);
-	  }
-	}
-      }
-      else {
-        // Turn all outputs OFF
-	for (i=0; i<16; i++) {
-	  if (pin_control[i] & 0x02) { // Output pin?
-	    Pending_pin_control[i] = (uint8_t)(pin_control[i] & ~0x80);
-	  }
-	}
-      }
-    }
-    
-    else if (*pBuffer == '0' || *pBuffer == '1') {
-      // Output field is a digit
-      // Collect the IO number
-      // Parse ten's digit
-      ParseNum = (uint8_t)((*pBuffer - '0') * 10);
-      pBuffer++;
-      // Parse one's digit
-      ParseNum += (uint8_t)(*pBuffer - '0');
-      // Verify ParseNum is in the correct range
-      if (ParseNum > 0 && ParseNum < 17) {
-        // Adjust Parsenum to match 0 to 15 numbering (instead of 1 to 16)
-        ParseNum--;
-	// Determine if payload is ON or OFF
-	pBuffer+=6;
-	if (*pBuffer == 'N') {
-	  // Turn output ON (and make sure it is an output)
-	  if (pin_control[ParseNum] & 0x02 == 0x02) // Output pin?
-	    Pending_pin_control[ParseNum] |= (uint8_t)0x80;
-	}
-	if (*pBuffer == 'F') {
-	  // Turn output OFF (and make sure it is an output)
-	  if (pin_control[ParseNum] & 0x02 == 0x02) // Output pin?
-	    Pending_pin_control[ParseNum] &= (uint8_t)~0x80;
-	}
-      }
-    }
-    // The above code effectively did for MQTT what the POST parsing does for
-    // HTML (changed the pin_control byte). So we need to set the 
-    // mqtt_parse_complete value so that the check_runtime_changes() function
-    // will perform the necessary IO actions.
-    mqtt_parse_complete = 1;
-  }
-  
-  // Determine if the sub-topic is "state-req".
-  else if (*pBuffer == 's') {
-    // "state-req" detected
-    // Format is:
-    //   state-req
-    pBuffer += 8;
-    if (*pBuffer == 'q') {
-      *pBuffer = '0'; // Destroy 'q' in buffer so subsequent "state"
-                      // messages won't be misinterpreted
-		      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-		      // WARNING: To save flash space I don't check every
-		      // sub-topic character. But I also don't clear the
-		      // uip_buf. So, I could pick up on stuff left by a
-		      // prevous message if not careful. In this limited
-		      // application I can get away with it, but this can
-		      // trip me up in the future if more messages are
-		      // added.
-		      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      state_request = STATE_REQUEST_RCVD;
-    }
-  }
-  // Note: if none of the above matched the parsing we just exit without
-  // executing any functionality (the message is effectively ignored).
-}
-#endif // QOS_SUPPORT == 0
-
-
-#if QOS_SUPPORT == 1
 void publish_callback(void** unused, struct mqtt_response_publish *published)
 {
   char* pBuffer;
@@ -2536,18 +2350,13 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   uint8_t ParseNum;
   int i;
   uint16_t j;
-  uint8_t qos;
-  
+
   pin_value = 0;
   ParseNum = 0;
-  qos = 0;
   
   // This function will be called if a "Publish" is received from the Broker.
   // The publish message will contain a payload that, in this application,
   // will be the output control bits.
-  //
-  // Since the Subscribe messages were all QOS1 then all Publish messages from
-  // the Broker should be QOS1.
   //
   // This function is called from within the mqtt_recv() function. The data
   // left in the uip_buf will remain there until this function completes.
@@ -2566,8 +2375,7 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   //     - "NetworkModule/"
   //     - "Devicename/"
   //     - "state-req"
-  // - Next comes the Variable Header Packet ID (since we are QOS1)
-  //     - This is 2 bytes
+  // - We are QOS 0 so no Packet ID
   // - Next comes the Payload
   //   - If "Output/xx/set" we expect a payload of "ON" or "OFF"
   //   - if "Output/all/set" we expect a payload of "ON" or "OFF"
@@ -2581,9 +2389,15 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   // - Set the state_request variable
   
   // Set the pBuffer pointer to the start of the MQTT packet
+  
+#if NAGLE_SUPPORT == 0
   pBuffer = uip_appdata;
-  // Extract the QOS value from the Fixed Header Control Byte
-  qos = (uint8_t)(*pBuffer & 0x02);
+#endif // NAGLE_SUPPORT == 0
+
+#if NAGLE_SUPPORT == 1
+  pBuffer = &uip_buf[MQTT_PBUF];
+#endif // NAGLE_SUPPORT == 1
+
   // Skip the Fixed Header Control Byte (1 byte)
   // Skip the Fixed Header Remaining Length Byte (1 byte)
   // Skip the Topic name length bytes (2 bytes)
@@ -2596,21 +2410,20 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   if (*pBuffer == 'o') {
     // "output" detected
     // Format can be any of these:
-    //   output/01/setIDON
-    //   output/01/setIDOFF
-    //   output/all/setIDON
-    //   output/all/setIDOFF
-    // In the above "ID" are the two bytes of the Packet ID which precedes the
-    // payload
+    //  If QOS 0:
+    //   output/01/setON
+    //   output/01/setOFF
+    //   output/all/setON
+    //   output/all/setOFF
     // In the above "ON" or "OFF" are in the payload.
 
     // Skip past the "output/" characters
     pBuffer+= 7;
-    
+
     // Check if output field is "all". If so, update all output 
     // pin_control bytes to ON or OFF 
     if (*pBuffer == 'a') {
-      // Skip past the "all/setIDO" part of the message.
+      // Skip past the "all/setO" part of the message.
       // Note that an "all" message is always sent with QOS == 0.
       pBuffer+=8;
       // Determine if payload is ON or OFF
@@ -2634,37 +2447,34 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
     
     else if (*pBuffer == '0' || *pBuffer == '1') {
       // Output field is a digit
-      // Note that Output messages can be received with QOS == 0 or QOS == 1.
+      // Note that Output messages can are received with QOS == 0.
       // Collect the IO number
       // Parse ten's digit
       ParseNum = (uint8_t)((*pBuffer - '0') * 10);
       pBuffer++;
       // Parse one's digit
       ParseNum += (uint8_t)(*pBuffer - '0');
+
       // Verify ParseNum is in the correct range
       if (ParseNum > 0 && ParseNum < 17) {
         // Adjust Parsenum to match 0 to 15 numbering (instead of 1 to 16)
         ParseNum--;
-        // Skip past the "1/setIDO" part of the message. If QOS == 0 there is
-        // no Packet Identifier. Else there IS a 2 byte Packet Identifier that
-        // also needs to be skipped.
-        if (qos == 0) pBuffer+=6;
-        else {
-	  pBuffer+=8;
-	}
+        // Skip past the "1/setO" part of the message. If QOS == 0 there is
+        // no Packet Identifier.
+        pBuffer+=6;
 	// Determine if payload is ON or OFF
 	if (*pBuffer == 'N') {
 	  // Turn output ON (and make sure it is an output)
 	  if (pin_control[ParseNum] & 0x02 == 0x02) // Output pin?
 	    Pending_pin_control[ParseNum] |= (uint8_t)0x80;
 
-#if DEBUG_SUPPORT != 11
-UARTPrintf("publish_callback - Output ");
-i = ParseNum + 1;
-emb_itoa(i, OctetArray, 10, 2);
-UARTPrintf(OctetArray);
-UARTPrintf(" ON\r\n");
-#endif // DEBUG_SUPPORT != 11
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("publish_callback - Output ");
+// i = ParseNum + 1;
+// emb_itoa(i, OctetArray, 10, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf(" ON\r\n");
+// #endif // DEBUG_SUPPORT != 11
 
 	}
 	if (*pBuffer == 'F') {
@@ -2672,13 +2482,13 @@ UARTPrintf(" ON\r\n");
 	  if (pin_control[ParseNum] & 0x02 == 0x02) // Output pin?
 	    Pending_pin_control[ParseNum] &= (uint8_t)~0x80;
 
-#if DEBUG_SUPPORT != 11
-UARTPrintf("publish_callback - Output ");
-i = ParseNum + 1;
-emb_itoa(i, OctetArray, 10, 2);
-UARTPrintf(OctetArray);
-UARTPrintf(" OFF\r\n");
-#endif // DEBUG_SUPPORT != 11
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("publish_callback - Output ");
+// i = ParseNum + 1;
+// emb_itoa(i, OctetArray, 10, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf(" OFF\r\n");
+// #endif // DEBUG_SUPPORT != 11
 
 	}
 	// Set the appropriate bit in MQTT_transmit to force a 
@@ -2720,7 +2530,6 @@ UARTPrintf(" OFF\r\n");
   // Note: if none of the above matched the parsing we just exit without
   // executing any functionality (the message is effectively ignored).
 }
-#endif // QOS_SUPPORT == 1
 
 
 void publish_outbound(void)
@@ -2764,20 +2573,23 @@ void publish_outbound(void)
 
   // Check the mqtt_sendbuf to make sure it is emptied before PUBLISHing a
   // pin_state message. This is to prevent overflow of the mqtt_sendbuf when
-  // Home Assistant pushes a large number of PUBLISH request messages, each
-  // of which requires a PUBACK to be processed through the mqtt_sendbuf. Due
-  // to timing that PUBACK Response might occupy the MQTT_sendbug along with
-  // another PUBACK as well as a Ping Response.
+  // Home Assistant pushes a large number of PUBLISH request messages.
   // This check effectively acts aa a throttle on the publish_outbound
   // process.
-  {
-//    uint16_t mqtt_sendbuf_remaining;
-//    mqtt_sendbuf_remaining = mqtt_check_sendbuf(&mqttclient);
-//    if (!(mqtt_sendbuf_remaining > (MQTT_SENDBUF_SIZE - 15))) return;
-    if (!(mqtt_check_sendbuf(&mqttclient) > (MQTT_SENDBUF_SIZE - 15))) return;
+  if (!(mqtt_check_sendbuf(&mqttclient) > (MQTT_SENDBUF_SIZE - 15))) {
+    // mqtt_check_sendbuf() returns the amount of space left in the
+    // mqtt_sendbuf. We want to make sure it is empty except for the
+    // 12 byte Message Queue, so we check that only 15 bytes are used.
+    // If mqtt_sendbuf is not empty we exit but wlll come back later and
+    // check again. It should empty quickly as the main loop will be
+    // calling the MQTT routines to transmit whatever is there.
+    return;
   }
 
   if (state_request == STATE_REQUEST_IDLE) {
+    // STATE_REQUEST_IDLE is the normal state indicating that a state-req
+    // message has not been received thus pin states can be transmitted if
+    // needed.
     // XOR the current ON_OFF_word with the ON_OFF_word_sent (_sent being the
     // pin states we already transmitted via MQTT). This gives a result that
     // has a 1 for any pin state that still needs to be transmitted.
@@ -2911,13 +2723,13 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
   }
 
 
-#if DEBUG_SUPPORT != 11
-UARTPrintf("publish pinstate ");
-UARTPrintf(topic_base);
-UARTPrintf(" ");
-UARTPrintf(app_message);
-UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT != 11
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("publish pinstate ");
+// UARTPrintf(topic_base);
+// UARTPrintf(" ");
+// UARTPrintf(app_message);
+// UARTPrintf("\r\n");
+// #endif // DEBUG_SUPPORT != 11
 
 
   // Queue publish message
@@ -4220,10 +4032,10 @@ void check_runtime_changes(void)
   // request will take precedence in the check_restart_reboot() function.
   //
   // Explanation of "user_reboot_request": This variable is used to commun-
-  // icate that the user pressed a button in the GUI that signals the need
-  // to reboot. We can't just set "reboot_request" when the button click is
-  // detected because we need to make sure a restart or reboot isn't already
-  // occurring.
+  // icate that the user pressed a button in the GUI, or briefly pressed the
+  // hardware Reset Button, that signals the need to reboot. We can't just set
+  // "reboot_request" when a button click is detected because we need to make
+  // sure a restart or reboot isn't already occurring.
   // Note: To simplify code user_reboot_request is also set when user changes
   // are detected in the check_runtime_changes() function. This eliminates an
   // additional check below.
@@ -4606,7 +4418,6 @@ void write_output_pins(void)
   uint16_t xor_tmp;
   // it's cheaper in terms of code space using int, instead of uint8_t !
   int i;
-  int j;
 
   // Update the output pins to match the bits in the ON_OFF_word.
   // To simplify code this function writes all pins. Note that if the pin is
@@ -4616,26 +4427,21 @@ void write_output_pins(void)
   // Invert the output if the Invert_word has the corresponding bit set.
   xor_tmp = (uint16_t)(Invert_word ^ ON_OFF_word);
 
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // When DS18B20 mode is enabled do not write Output 16
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-//  if (stored_config_settings & 0x08) j = 15;
-//  else j = 16;
-  j = 16;
-
-//#if I2C_SUPPORT == 1
-// THIS IS A TEMPORARY WORKAROUND TO TEST I2C SUPPORT
-//j = 13;
-//#endif // I2C_SUPPORT
-
   // Loop across all IO and set or clear them according to the mask
-  // Skip IO pins that are being used for I2C or DS18B20  
-  for (i=0; i<j; i++) {
+  // Skip IO pins that are being used for UART, I2C or DS18B20  
+  for (i=0; i<16; i++) {
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+    // If UART support is enabled do not write Output 11
+    if (i == 10) continue; // Output 11
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 #if I2C_SUPPORT == 1
-    if (i == 13) continue;
-    if (i == 14) continue;
-#endif // I2C_SUPPORT
-    if (i == 15 && (stored_config_settings & 0x08)) break;
+    // If I2C support is enabled do not write Output 14 and 15
+    if (i == 13) continue; // Output 14
+    if (i == 14) continue; // Output 15
+#endif // I2C_SUPPORT == 1
+    // If DS18B20 mode is enabled do not write Output 16
+    if (i == 15 && (stored_config_settings & 0x08))
+      break;
     if (xor_tmp & (1 << i))
       io_reg[ io_map[i].port ].odr |= io_map[i].bit;
     else
@@ -4675,23 +4481,38 @@ void decrement_pin_timers(void)
 
 void check_reset_button(void)
 {
-  // Check to see if the button is pressed. Check the button every 50ms
-  // for 5 seconds. If the button remains pressed that entire time then
-  // clear the magic number and reset the code.
-  uint8_t i;
+  // Check to see if the button is pressed.
+  int i;
   
   if ((PA_IDR & 0x02) == 0x00) {
     // Reset Button pressed
     for (i=0; i<100; i++) {
       wait_timer(50000); // wait 50ms
       IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
-      if ((PA_IDR & 0x02) == 0x02) { // check Reset Button again. If released
-                                  // exit.
-        return;
+      if ((PA_IDR & 0x02) == 0x02) {
+        // Reset Button released.
+	//
+	// If the button is released in less than 1 second it is assumed the
+	// button press was unintentional and the function returns with no
+	// effect on operation (other than the module being held here for that
+	// time).
+	//
+	// If pressed for 1 second (but less than 5 seconds) a
+	// user_reboot_request is signaled to cause a reboot() via the main
+	// loop. This will restart the module without losing settings.
+	//
+	// If pressed for 5 seconds or more this for() loop will exit and
+	// the function will go on to restore the default settings.
+	if (i > 20) user_reboot_request = 1;
+	return;
       }
     }
-    // If we got here the button remained pressed for 5 seconds
-    // Turn off the LED, clear the magic number, and reset the device
+    
+    // If we got here the button remained pressed for 5 seconds causing the
+    // for() loop above to time out.
+    // Turn off the LED, clear the magic number, and reset the device.
+    // Clearing the magic number will cause the module to return to default
+    // settings.
     LEDcontrol(0);  // turn LED off
     unlock_eeprom();
     stored_magic4 = 0x00;

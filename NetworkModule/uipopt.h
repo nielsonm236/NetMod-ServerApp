@@ -150,7 +150,8 @@
 // slightly smaller than the original code defined. "Slightly" appears to be
 // at least 4 bytes. This is to avoid errors (not sure why and could use more
 // investigation). To be safe an additional 6 bytes are subtracted.
-// if NAGLE_SUPPORT == 1
+//
+// // if NAGLE_SUPPORT == 1
 //
 // NOTE2: When MQTT support was added two problems occurred:
 // 1) It was found that during MQTT startup, if Home Assistant Auto Discovery
@@ -168,18 +169,18 @@
 // startup has completed. This is done by making the UIP_TCP_MSS value smaller
 // by another 60 bytes, then using pointers based on a "MQTT_PBUF" define to
 // access the memory area.
-// endif NAGLE_SUPPORT == 1
+// // endif NAGLE_SUPPORT == 1
 //
 // In this application the headers occupy a total of 54 bytes as defined in uip.h.
 #define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN - 6 - 60)
 
 
-// if NAGLE_SUPPORT == 1
+// // if NAGLE_SUPPORT == 1
 // The starting point of the MQTT Partial Buffer within the uip_buf
 // See explantion in #define UIP_TCP_MSS
 #define MQTT_PBUF_SIZE	60
 #define MQTT_PBUF	(UIP_BUFSIZE - MQTT_PBUF_SIZE)
-// endif NAGLE_SUPPORT == 1
+// // endif NAGLE_SUPPORT == 1
 
 
 // The size of the advertised receiver's window. Should be set low (i.e., to
@@ -344,9 +345,9 @@
 //   Code Uploader requires additional hardware in the form of an off-board I2C
 //   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
 // Un-comment ONLY ONE of the following:
-#define BUILD_SUPPORT     MQTT_BUILD
+// #define BUILD_SUPPORT     MQTT_BUILD
 // #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
-// #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
+#define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 
 
 // I2C_SUPPORT
@@ -395,10 +396,20 @@
 // NAGLE_SUPPORT
 // Temporary build setting to enable support of Nagle's Algorithm in the MQTT
 // code.
-// THIS IS A TEMPORARY BUILD MODE. DELETE WHEN TESTING IS COMPLETE.
+// THIS IS A TEMPORARY BUILD MODE. WHEN TESTING IS COMPLETE MODIFY THE CODE TO
+// ALWAYS USE NAGLE'S ALGORITHM THEN DELETE THIS OPTION.
 // 0 = No Nagle's Algorithm support
 // 1 = Supported
-#define NAGLE_SUPPORT 1
+// #define NAGLE_SUPPORT 1
+
+
+// LINKED_SUPPORT
+// Temporary build setting to enable support of Linked Input to Output pins.
+// THIS IS A TEMPORARY BUILD MODE. WHEN TESTING IS COMPLETE MODIFY THE CODE TO
+// ALWAYS USE Linked Support THEN DELETE THIS OPTION.
+// 0 = No Linked Support
+// 1 = Supported
+#define LINKED_SUPPORT 1
 
 
 

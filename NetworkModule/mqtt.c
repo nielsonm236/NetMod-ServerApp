@@ -66,7 +66,7 @@ extern uint8_t mqtt_start;        // Tracks the MQTT startup steps
 
 extern uint8_t OctetArray[11];    // Used in UART debug sessions
 
-#if NAGLE_SUPPORT == 1
+// #if NAGLE_SUPPORT == 1
 uint8_t current_msg_length;		// Contains the length of the MQTT
 					// message currently being extracted
 					// from the uip_buf.
@@ -77,7 +77,7 @@ uint8_t mqtt_partial_buffer_length;	// Trackes the length of data in the
 uint8_t pbi;				// Partial Buffer Index - provides an
 					// index for writing and reading the
 					// MQTT partial buffer
-#endif // NAGLE_SUPPORT == 1
+// #endif // NAGLE_SUPPORT == 1
 
 
 
@@ -92,31 +92,31 @@ int16_t mqtt_sync(struct mqtt_client *client)
     // if there is something that needs to be transmitted.
     int16_t err;
     
-#if NAGLE_SUPPORT == 1
+// #if NAGLE_SUPPORT == 1
     uint16_t total_msg_length;		// Contains the total length of the
 					// MQTT message(s) in the uip_buf
     char *msgBuffer;			// A pointer used to read MQTT
 					// messages from the uip_buf
     uint8_t outer_break;		// Used in breaking a double while()
 					// loop.
-#endif // NAGLE_SUPPORT == 1
+// #endif // NAGLE_SUPPORT == 1
 
-#if NAGLE_SUPPORT == 0
-    // Call receive
-    if ((uip_newdata() || uip_acked()) && uip_len > 0) {
-      // We got here because an incoming message was detected by the UIP
-      // code for the MQTT Port. The way to be sure that receive processing
-      // should occur is if uip_newdata() is true OR uip_acked() is true
-      // AND uip_len > 0.
-      err = __mqtt_recv(client);
-      if (err != MQTT_OK) {
-        return err;
-      }
-    }
-#endif // NAGLE_SUPPORT == 0
+// #if NAGLE_SUPPORT == 0
+//     // Call receive
+//     if ((uip_newdata() || uip_acked()) && uip_len > 0) {
+//       // We got here because an incoming message was detected by the UIP
+//       // code for the MQTT Port. The way to be sure that receive processing
+//       // should occur is if uip_newdata() is true OR uip_acked() is true
+//       // AND uip_len > 0.
+//       err = __mqtt_recv(client);
+//       if (err != MQTT_OK) {
+//         return err;
+//       }
+//     }
+// #endif // NAGLE_SUPPORT == 0
 
 
-#if NAGLE_SUPPORT == 1
+// #if NAGLE_SUPPORT == 1
     // Call receive
     if ((uip_newdata() || uip_acked()) && uip_len > 0) {
       // We got here because an incoming message was detected by the UIP
@@ -448,7 +448,7 @@ COMPRESSED INTO A MORE EFFICIENT VERSION BELOW THIS SAVE.
 
       
     }
-#endif // NAGLE_SUPPORT == 1
+// #endif // NAGLE_SUPPORT == 1
 
 
     // Call send
@@ -515,13 +515,13 @@ int16_t mqtt_init(struct mqtt_client *client,
 {
 
 
-#if NAGLE_SUPPORT == 1
+// #if NAGLE_SUPPORT == 1
     // Initialize variables used in extracting MQTT messages from batched /
     // fragmented TCP packets
     current_msg_length = 0;
     mqtt_partial_buffer_length = 0;
     pbi = 0;
-#endif // NAGLE_SUPPORT == 1
+// #endif // NAGLE_SUPPORT == 1
 
 
 

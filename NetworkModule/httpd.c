@@ -609,7 +609,6 @@ const m = (data => {
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
-
 #if BUILD_SUPPORT == MQTT_BUILD
 // Configuration webpage Template
 //
@@ -755,33 +754,33 @@ static const char g_HtmlPageConfiguration[] =
             "</tr>"
          "<script>"
 "const m=(e=>{let t=['b00','b04','b08','b12'],$=['c00','c01'],r={'Full Duplex':1,'HA Aut"
-"o':6,MQTT:4,DS18B20:8,'Disable Cfg Button':16},n={disabled:0,input:1,output:3},o={retai"
-"n:8,on:16,off:0},a=document,l=location,p=a.querySelector.bind(a),c=p('form'),d=Object.e"
-"ntries,i=parseInt,_=e=>a.write(e),s=(e,t)=>i(e).toString(16).padStart(t,'0'),u=e=>e.map"
-"(e=>s(e,2)).join(''),b=e=>e.match(/.{2}/g).map(e=>i(e,16)),f=e=>encodeURIComponent(e),h"
-"=e=>p(`input[name=${e}]`),g=(e,t)=>h(e).value=t,x=(e,t)=>{for(let $ of a.querySelectorA"
-"ll(e))t($)},y=(e,t)=>{for(let[$,r]of d(t))e.setAttribute($,r)},A=(e,t)=>d(e).map(e=>`<o"
-"ption value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),E=(e,t,$,r='')"
-"=>`<input type='checkbox' name='${e}' value=${t} ${($&t)==t?'checked':''}>${r}`,S=()=>{"
-"let r=new FormData(c),n=e=>r.getAll(e).map(e=>i(e)).reduce((e,t)=>e|t,0);return t.forEa"
-"ch(e=>r.set(e,u(r.get(e).split('.')))),$.forEach(e=>r.set(e,s(r.get(e),4))),r.set('d00'"
-",r.get('d00').toLowerCase().replace(/[:-]/g,'')),r.set('h00',u(b(e.h00).map((e,t)=>{let"
-" $='p'+t,o=n($);return r.delete($),o}))),r.set('g00',u([n('g00')])),r},T=(e,t,$)=>{let "
-"r=new XMLHttpRequest;r.open(e,t,!1),r.send($)},j=()=>location.href='/60',v=()=>l.href='"
-"/61',w=()=>{a.body.innerText='Wait 5s...',setTimeout(v,5e3)},D=()=>{T('GET','/91'),w()}"
-",k=e=>{e.preventDefault();let t=Array.from(S().entries(),([e,t])=>`${f(e)}=${f(t)}`).jo"
-"in('&');T('POST','/',t+'&z00=0'),w()},q=b(e.g00)[0],z={required:!0};return x('.ip',e=>{"
-"y(e,{...z,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!"
-"$)|$)){4}'})}),x('.port',e=>{y(e,{...z,type:'number',min:10,max:65535})}),x('.up input'"
-",e=>{y(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',max"
-"length:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>g(t,b(e[t]).join('.'))),$.f"
-"orEach(t=>g(t,i(e[t],16))),g('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),b(e.h00).f"
-"orEach((e,t)=>{let $=1&e?E('p'+t,4,e):'',r=(3&e)==3?`<select name='p${t}'>${A(o,24&e)}<"
-"/select>`:'',a='#d'==l.hash?`<td>${e}</td>`:'';_(`<tr><td>#${t+1}</td><td><select name="
-"'p${t}'>${A(n,3&e)}</select></td><td>${$}</td><td>${r}</td>${a}</tr>`)}),p('.f').innerH"
-"TML=Array.from(d(r),([e,t])=>E('g00',t,q,e)).join('</br>'),{r:D,s:k,l:v,c:j}})({b00:'%b"
-"00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%"
-"g00'});"
+"o':6,MQTT:4,DS18B20:8,'Disable Cfg Button':16},n={disabled:0,input:1,output:3,linked:2}"
+",o={retain:8,on:16,off:0},a=document,l=location,p=a.querySelector.bind(a),d=p('form'),i"
+"=Object.entries,c=parseInt,s=e=>a.write(e),_=(e,t)=>c(e).toString(16).padStart(t,'0'),u"
+"=e=>e.map(e=>_(e,2)).join(''),b=e=>e.match(/.{2}/g).map(e=>c(e,16)),f=e=>encodeURICompo"
+"nent(e),h=e=>p(`input[name=${e}]`),g=(e,t)=>h(e).value=t,x=(e,t)=>{for(let $ of a.query"
+"SelectorAll(e))t($)},y=(e,t)=>{for(let[$,r]of i(t))e.setAttribute($,r)},A=(e,t)=>i(e).m"
+"ap(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),E=(e,"
+"t,$,r='')=>`<input type='checkbox' name='${e}' value=${t} ${($&t)==t?'checked':''}>${r}"
+"`,S=()=>{let r=new FormData(d),n=e=>r.getAll(e).map(e=>c(e)).reduce((e,t)=>e|t,0);retur"
+"n t.forEach(e=>r.set(e,u(r.get(e).split('.')))),$.forEach(e=>r.set(e,_(r.get(e),4))),r."
+"set('d00',r.get('d00').toLowerCase().replace(/[:-]/g,'')),r.set('h00',u(b(e.h00).map((e"
+",t)=>{let $='p'+t,o=n($);return r.delete($),o}))),r.set('g00',u([n('g00')])),r},T=(e,t,"
+"$)=>{let r=new XMLHttpRequest;r.open(e,t,!1),r.send($)},j=()=>location.href='/60',k=()="
+">l.href='/61',v=()=>{a.body.innerText='Wait 5s...',setTimeout(k,5e3)},w=()=>{T('GET','/"
+"91'),v()},D=e=>{e.preventDefault();let t=Array.from(S().entries(),([e,t])=>`${f(e)}=${f"
+"(t)}`).join('&');T('POST','/',t+'&z00=0'),v()},q=b(e.g00)[0],z={required:!0};return x('"
+".ip',e=>{y(e,{...z,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9"
+"])([.](?!$)|$)){4}'})}),x('.port',e=>{y(e,{...z,type:'number',min:10,max:65535})}),x('."
+"up input',e=>{y(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no en"
+"try.',maxlength:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>g(t,b(e[t]).join('"
+".'))),$.forEach(t=>g(t,c(e[t],16))),g('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),b"
+"(e.h00).forEach((e,t)=>{let $=(3&e)!=0?E('p'+t,4,e):'',r=(3&e)==3||(3&e)==2&&t>7?`<sele"
+"ct name='p${t}'>${A(o,24&e)}</select>`:'',a='#d'==l.hash?`<td>${e}</td>`:'';s(`<tr><td>"
+"#${t+1}</td><td><select name='p${t}'>${A(n,3&e)}</select></td><td>${$}</td><td>${r}</td"
+">${a}</tr>`)}),p('.f').innerHTML=Array.from(i(r),([e,t])=>E('g00',t,q,e)).join('</br>')"
+",{r:w,s:D,l:k,c:j}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12'"
+",c01:'%c01',h00:'%h00',g00:'%g00'});"
       "%y01"
       "<p>Code Revision %w00<br/>"
       "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
@@ -837,7 +836,7 @@ const m = (data => {
     const ip_input_names = ['b00', 'b04', 'b08', 'b12'],
         port_input_names = ['c00', 'c01'],
         features = { "Full Duplex": 1, "HA Auto": 6, "MQTT": 4, "DS18B20": 8, "Disable Cfg Button": 16 },
-        pin_types = { "disabled": 0, "input": 1, "output": 3 },
+        pin_types = { "disabled": 0, "input": 1, "output": 3, "linked": 2 },
         boot_state = { "retain": 8, "on": 16, "off": 0 },
         doc=document,
         loc=location,
@@ -908,10 +907,11 @@ const m = (data => {
     set_input_value('d00', data.d00.replace(/[0-9a-z]{2}(?!$)/g, '$&:'));
 
     convert_from_hex(data.h00).forEach((n, i) => {
-        const checkbox = n & 1 ? make_checkbox('p'+i, 4, n) : '',
-            make_select = (n & 3) == 3 ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '',
+        const
+            invert_checkbox = (n & 3) != 0 ? make_checkbox('p'+i, 4, n) : '',
+            make_select = (n & 3) == 3 || ((n & 3) == 2 && i > 7) ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '',
             debug_column = (loc.hash == '#d'?`<td>${n}</td>`:'');
-        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
+        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${invert_checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
     });
     
     selector(".f").innerHTML = Array.from(
@@ -930,13 +930,12 @@ const m = (data => {
     d00: "aabbccddeeff",
     b12: "c0a80005",
     c01: "075b",
-    h00: "00010305070b0f131700000000000000",
+    h00: "00020305070b0f131617000000000000",
     g00: "04",
 });
 
 */
 #endif // BUILD_SUPPORT == MQTT_BUILD
-
 
 
 
@@ -1275,40 +1274,41 @@ static const char g_HtmlPageConfiguration[] =
             "</tr>"
          "<script>"
 "const m=($=>{let e=['b00','b04','b08'],t=['c00'],i={'Full Duplex':1,DS18B20:8,'Disable "
-"Cfg Button':16},_={disabled:0,input:1,output:3},r={retain:8,on:16,off:0},a={'0.1s':0,'1"
-"s':16384,'1m':32768,'1h':49152},n=document,l=location,j=n.querySelector.bind(n),o=j('fo"
-"rm'),d=Object.entries,p=parseInt,s=$=>n.write($),c=($,e)=>p($).toString(16).padStart(e,"
-"'0'),u=$=>$.map($=>c($,2)).join(''),f=$=>$.match(/.{2}/g).map($=>p($,16)),b=$=>encodeUR"
-"IComponent($),h=$=>j(`input[name=${$}]`),g=($,e)=>h($).value=e,x=($,e)=>{for(let t of n"
-".querySelectorAll($))e(t)},S=($,e)=>{for(let[t,i]of d(e))$.setAttribute(t,i)},v=($,e)=>"
-"d($).map($=>`<option value=${$[1]} ${$[1]==e?'selected':''}>${$[0]}</option>`).join('')"
-",y=($,e,t,i='')=>`<input type='checkbox' name='${$}' value=${e} ${(t&e)==e?'checked':''"
-"}>${i}`,E=()=>{let i=new FormData(o),_=$=>i.getAll($).map($=>p($)).reduce(($,e)=>$|e,0)"
-";e.forEach($=>i.set($,u(i.get($).split('.')))),t.forEach($=>i.set($,c(i.get($),4))),i.s"
-"et('d00',i.get('d00').toLowerCase().replace(/[:-]/g,'')),i.set('h00',u(f($.h00).map(($,"
-"e)=>{let t='p'+e,r=_(t);return i.delete(t),r})));for(let r=0;r<16;r++){let a=(''+r).pad"
-"Start(2,'0');i.set('i'+a,c(65535&_('i'+a),4))}return i.set('g00',u([_('g00')])),i},q=($"
-",e,t)=>{let i=new XMLHttpRequest;i.open($,e,!1),i.send(t)},w=()=>location.href='/60',A="
-"()=>l.href='/61',D=()=>{n.body.innerText='Wait 5s...',setTimeout(A,5e3)},T=()=>{q('GET'"
-",'/91'),D()},z=$=>{$.preventDefault();let e=Array.from(E().entries(),([$,e])=>`${b($)}="
-"${b(e)}`).join('&');q('POST','/',e+'&z00=0'),D()},k=f($.g00)[0],B={required:!0};return "
-"x('.ip',$=>{S($,{...B,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)["
-"0-9])([.](?!$)|$)){4}'})}),x('.port',$=>{S($,{...B,type:'number',min:10,max:65535})}),e"
-".forEach(e=>g(e,f($[e]).join('.'))),t.forEach(e=>g(e,p($[e],16))),g('d00',$.d00.replace"
-"(/[0-9a-z]{2}(?!$)/g,'$&:')),f($.h00).forEach((e,t)=>{let i=1&e?y('p'+t,4,e):'',n=($,t)"
-"=>(3&e)==3?$:t,j=(''+t).padStart(2,'0'),o=n(f($['i'+j]).reduce(($,e)=>($<<8)+e),0),d=n("
-"`<select name='p${t}'>${v(r,24&e)}</select>`,''),p='#d'==l.hash?`<td>${e}</td>`:'',c=n("
-"`<input type=number class=t8 name='i${j}' value='${16383&o}' min=0 max=16383><select na"
-"me='i${j}'>${v(a,49152&o)}</select>`,'');s(`<tr><td>#${t+1}</td><td><select name='p${t}"
-"'>${v(_,3&e)}</select></td><td><input name='j${j}' value='${$['j'+j]}' pattern='[0-9a-z"
-"A-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, and -*_. no spaces' maxlength"
-"=15/></td><td>${i}</td><td>${d}</td><td>${c}</td>${p}</tr>`)}),j('.f').innerHTML=Array."
-"from(d(i),([$,e])=>y('g00',e,k,$)).join('</br>'),{r:T,s:z,l:A,c:w}})({b00:'%b00',b04:'%"
-"b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00',g00:'%g00',j00:'%j00',j01:'%j01',j02:'"
-"%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j07',j08:'%j08',j09:'%j09',j10:"
-"'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j15',i00:'%i00',i01:'%i01',i02"
-":'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%i07',i08:'%i08',i09:'%i09',i1"
-"0:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'%i15'});"
+"Cfg Button':16},_={disabled:0,input:1,output:3,linked:2},r={retain:8,on:16,off:0},n={'0"
+".1s':0,'1s':16384,'1m':32768,'1h':49152},a=document,l=location,j=a.querySelector.bind(a"
+"),o=j('form'),d=Object.entries,p=parseInt,s=$=>a.write($),c=($,e)=>p($).toString(16).pa"
+"dStart(e,'0'),u=$=>$.map($=>c($,2)).join(''),f=$=>$.match(/.{2}/g).map($=>p($,16)),b=$="
+">encodeURIComponent($),h=$=>j(`input[name=${$}]`),g=($,e)=>h($).value=e,x=($,e)=>{for(l"
+"et t of a.querySelectorAll($))e(t)},S=($,e)=>{for(let[t,i]of d(e))$.setAttribute(t,i)},"
+"v=($,e)=>d($).map($=>`<option value=${$[1]} ${$[1]==e?'selected':''}>${$[0]}</option>`)"
+".join(''),y=($,e,t,i='')=>`<input type='checkbox' name='${$}' value=${e} ${(t&e)==e?'ch"
+"ecked':''}>${i}`,E=()=>{let i=new FormData(o),_=$=>i.getAll($).map($=>p($)).reduce(($,e"
+")=>$|e,0);e.forEach($=>i.set($,u(i.get($).split('.')))),t.forEach($=>i.set($,c(i.get($)"
+",4))),i.set('d00',i.get('d00').toLowerCase().replace(/[:-]/g,'')),i.set('h00',u(f($.h00"
+").map(($,e)=>{let t='p'+e,r=_(t);return i.delete(t),r})));for(let r=0;r<16;r++){let n=("
+"''+r).padStart(2,'0');i.set('i'+n,c(65535&_('i'+n),4))}return i.set('g00',u([_('g00')])"
+"),i},q=($,e,t)=>{let i=new XMLHttpRequest;i.open($,e,!1),i.send(t)},w=()=>location.href"
+"='/60',A=()=>l.href='/61',D=()=>{a.body.innerText='Wait 5s...',setTimeout(A,5e3)},T=()="
+">{q('GET','/91'),D()},k=$=>{$.preventDefault();let e=Array.from(E().entries(),([$,e])=>"
+"`${b($)}=${b(e)}`).join('&');q('POST','/',e+'&z00=0'),D()},z=f($.g00)[0],B={required:!0"
+"};return x('.ip',$=>{S($,{...B,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]"
+"|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),x('.port',$=>{S($,{...B,type:'number',min:10,max:65"
+"535})}),e.forEach(e=>g(e,f($[e]).join('.'))),t.forEach(e=>g(e,p($[e],16))),g('d00',$.d0"
+"0.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),f($.h00).forEach((e,t)=>{let i=(3&e)!=0?y('p'+t,4"
+",e):'',a=($,i)=>(3&e)==3||(3&e)==2&&t>7?$:i,j=(''+t).padStart(2,'0'),o=a(f($['i'+j]).re"
+"duce(($,e)=>($<<8)+e),0),d=a(`<select name='p${t}'>${v(r,24&e)}</select>`,''),p='#d'==l"
+".hash?`<td>${e}</td>`:'',c=a(`<input type=number class=t8 name='i${j}' value='${16383&o"
+"}' min=0 max=16383><select name='i${j}'>${v(n,49152&o)}</select>`,'');s(`<tr><td>#${t+1"
+"}</td><td><select name='p${t}'>${v(_,3&e)}</select></td><td><input name='j${j}' value='"
+"${$['j'+j]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, "
+"and -*_. no spaces' maxlength=15/></td><td>${i}</td><td>${d}</td><td>${c}</td>${p}</tr>"
+"`)}),j('.f').innerHTML=Array.from(d(i),([$,e])=>y('g00',e,z,$)).join('</br>'),{r:T,s:k,"
+"l:A,c:w}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00',g00:'%g00"
+"',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j0"
+"7',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j"
+"15',i00:'%i00',i01:'%i01',i02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%"
+"i07',i08:'%i08',i09:'%i09',i10:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'"
+"%i15'});"
       "%y01"
       "<p>Code Revision %w00<br/>"
       "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
@@ -1364,7 +1364,7 @@ const m = (data => {
     const ip_input_names = ['b00', 'b04', 'b08'],
         port_input_names = ['c00'],
         features = { "Full Duplex": 1, "DS18B20": 8, "Disable Cfg Button": 16 },
-        pin_types = { "disabled": 0, "input": 1, "output": 3 },
+        pin_types = { "disabled": 0, "input": 1, "output": 3, "linked": 2 },
         boot_state = { "retain": 8, "on": 16, "off": 0 },
         timer_unit = { "0.1s": 0, "1s": 0x4000, "1m": 0x8000, "1h": 0xc000 },
         doc=document,
@@ -1439,8 +1439,9 @@ const m = (data => {
     set_input_value('d00', data.d00.replace(/[0-9a-z]{2}(?!$)/g, '$&:'));
 
     convert_from_hex(data.h00).forEach((n, i) => {
-        const invert_checkbox = n & 1 ? make_checkbox('p'+i, 4, n) : '',
-            if_output = (a,b) => (n & 3) == 3 ? a: b,
+        const
+            invert_checkbox = (n & 3) != 0 ? make_checkbox('p'+i, 4, n) : '',
+            if_output = (a,b) => (n & 3) == 3 || ((n & 3) == 2 && i > 7) ? a: b,
         		input_nr = (''+i).padStart(2, '0'),
             timer_int_value = if_output(convert_from_hex(data['i'+input_nr]).reduce((prev, cur)=>(prev<<8)+cur), 0),
             boot_state_select = if_output(`<select name='p${i}'>${make_options(boot_state, n & 24)}</select>`,''),
@@ -1459,7 +1460,7 @@ const m = (data => {
     b08: "ffffff00",
     c00: "0050",
     d00: "aabbccddeeff",
-    h00: "00010305070b0f131700000000000000",
+    h00: "00020305070b0f131617010000000000",
     g00: "04",
     j00: "LivingRoom12345",
     j01: "LivingRoom67890",
@@ -3286,7 +3287,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // Bits are output for Pin 16 first and Pin 1 last
 	  i = 15;
 	  while( 1 ) {
+#if LINKED_SUPPORT == 0
 	    if (pin_control[i] & 0x02) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+            if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
 	      // This is an output
 	      if (pin_control[i] & 0x80) {
 	        // Output is ON
@@ -3297,7 +3303,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 		*pBuffer++ = '0';
 	      }
             }
+#if LINKED_SUPPORT == 0
             else {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+            if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
+#endif // LINKED_SUPPORT == 1
 	      // This is an input
 	      if (pin_control[i] & 0x80) {
 	        // Input is ON, invert if needed
@@ -3343,13 +3354,14 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	}
 	
 	
+#if LINKED_SUPPORT == 0
         else if (nParsedMode == 'h') {
 	  // This sends the Pin Control String, defined as follows:
 	  // 32 characters
 	  // The 32 characters represent 16 hex bytes of information in text
 	  // format. Each byte is the pin_control character for each IO pin
 	  // starting with pin 01 on the left.
-	  // Note: Input pins needed to have the ON/OFF bit inverted if the
+	  // Note: Input pins need to have the ON/OFF bit inverted if the
 	  //   Invert bit is set.
 	  	  
 	  // Insert pin_control bytes
@@ -3370,6 +3382,60 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
             }
 	  }
 	}
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+        else if (nParsedMode == 'h') {
+	  // This sends the Pin Control String, defined as follows:
+	  // 32 characters
+	  // The 32 characters represent 16 hex bytes of information in text
+	  // format. Each byte is the pin_control character for each IO pin
+	  // starting with pin 01 on the left.
+	  // Note1: Input pins need to have the ON/OFF bit inverted if the
+	  //   Invert bit is set.
+	  // Note2: A special case applies to the IOCONTROL webpages. For pins
+	  //   to display properly when Linked pins are being used the linked
+	  //   pins must be translated into Input or Output pin types for
+	  //   display in the IOControl GUI.
+	  // Note 3: The IOCONTROL page returns the hxx values but the code
+	  //   only looks at the ON/OFF bit of the returned hxx values. So the
+	  //   fact that the Linked pin types have been altered to look like
+	  //   Input or Output pin types for the GUI display will not upset
+	  //   the rest of the code.
+          	  	  
+	  // Insert pin_control bytes
+	  {
+	    int i;
+	    uint8_t j;
+	    for (i = 0; i <16; i++) {
+	      j = pin_control[i];
+	      if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
+	        if (chk_iotype(j, i, 0x03) == 0x03) {
+                  // This is an Output. Make sure the Pin Type bits are set to
+		  // Output (in case they were set to Linked.
+		  j |= 0x03;
+		}
+	        if (chk_iotype(j, i, 0x03) == 0x01) {
+                  // This is an Input. Make sure the Pin Type bits are set to
+		  // Input (in case they were set to Linked.
+		  j = (uint8_t)(j & 0xfc);
+		  j |= 0x01;
+		}
+	      }
+
+//	      if ((j & 0x02) == 0x00) {
+              if (chk_iotype(j, i, 0x03) == 0x01) {
+	        // This is an input pin - check the invert bit
+	        if (j & 0x04) { // Invert is set - flip the ON/OFF bit
+		  if (j & 0x80) j &= 0x7f;
+		  else j |= 0x80;
+		}
+	      }
+	      int2hex(j);
+	      pBuffer = stpcpy(pBuffer, OctetArray);
+            }
+	  }
+	}
+#endif // LINKED_SUPPORT == 1
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
@@ -3461,6 +3527,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	      pBuffer = stpcpy(pBuffer, "EEPROM content miscompare...............");
 	    else if (upgrade_failcode == UPGRADE_FAIL_NOT_SREC)
 	      pBuffer = stpcpy(pBuffer, "SREC file format incorrect..............");
+	    else if (upgrade_failcode == UPGRADE_FAIL_INVALID_FILETYPE)
+	      pBuffer = stpcpy(pBuffer, "Invalid File Type.......................");
+	    else if (upgrade_failcode == UPGRADE_FAIL_TRUNCATED_FILE)
+	      pBuffer = stpcpy(pBuffer, "Truncated File..........................");
 	    else
 	      pBuffer = stpcpy(pBuffer, "Unknown Error...........................");
 	  }
@@ -4096,6 +4166,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                   nBytes--;
 		}
 	      }
+	      // Note: "i" now contains the str_len of OctetArray
+	      
 	      // Convert OctetArray to an integer. This needs to be a 32 bit
 	      // integer as the file content could exceed 65536 characters but
 	      // will not exceed 99999
@@ -4103,15 +4175,21 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // See this URL for an explanation of the use of (uint16_t) and
 	      // "U" in the equations below:
 	      // https://www.microchip.com/forums/m1126560.aspx
-	      // Note: Simple addition and subtraction doesn't see to have this
+	      // Note: Simple addition and subtraction doesn't seem to have this
 	      // problem ... appears to be division and multiplication only.
 	      // Note: Can't use atoi() ... it seems to have the same problem.
-
-	      file_length =  ((uint16_t)(OctetArray[0] - '0') * 10000U);
-	      file_length += ((uint16_t)(OctetArray[1] - '0') * 1000U);
-	      file_length += ((uint16_t)(OctetArray[2] - '0') * 100U);
-	      file_length += ((uint16_t)(OctetArray[3] - '0') * 10U);
-	      file_length += ((uint16_t)(OctetArray[4] - '0') * 1U);
+              
+	      {
+	      uint8_t j;
+	      j = 0;
+	      file_length = 0;
+	      if (i > 4) file_length += ((uint32_t)(OctetArray[j++] - '0') * 10000U);
+	      if (i > 3) file_length += ((uint32_t)(OctetArray[j++] - '0') * 1000U);
+	      if (i > 2) file_length += ((uint32_t)(OctetArray[j++] - '0') * 100U);
+	      if (i > 1) file_length += ((uint32_t)(OctetArray[j++] - '0') * 10U);
+	      file_length +=            ((uint32_t)(OctetArray[j++] - '0') * 1U);
+	      }
+	      
               find_content_info = SEEK_FIRST_RNRN;
 
 // UARTPrintf("\r\n");
@@ -4456,7 +4534,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // and that it is enabled.
 	      for (i=0; i<16; i++) {
  		Pending_pin_control[i] = pin_control[i];
+#if LINKED_SUPPORT == 0
                 if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+                if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
                   // The above: If an Enabled Output, then turn on the pin
                   Pending_pin_control[i] |= 0x80;
 	        }
@@ -4470,7 +4553,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // and that it is enabled.
 	      for (i=0; i<16; i++) {
 		Pending_pin_control[i] = pin_control[i];
+#if LINKED_SUPPORT == 0
                 if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+                if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
                   // The above: If an Enabled Output, then turn off the pin
                   Pending_pin_control[i] &= 0x7f;
 	        }
@@ -4713,7 +4801,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                     // If the Mask for this pin is non-zero check if the pin
 		    // is an enabled output. If yes, uptate the pin state.
                     Pending_pin_control[i] = pin_control[i];
-                    if ((pin_control[i] & 0x03) == 0x03) { // Enabled output
+#if LINKED_SUPPORT == 0
+                    if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+                    if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+                    // Enabled output
                       if ((pppp & bit_ptr) == 0) {
                         Pending_pin_control[i] &= 0x7f; // Output OFF
 		      }
@@ -4917,6 +5011,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	// should find the end of the phrase within 200 characters of starting
 	// the search. If we don't it can be assumed this is not an SREC file.
 
+// UARTPrintf("PARSE_FILE_SEEK_START\r\n");
+
         while (1) {
 	  // Search for the "Type: application/octet-stream" phrase.
 	  // Since we can hit a packet boundary at any time we must check for
@@ -4963,7 +5059,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    break; // Break out of the local while loop
 	  }
 	      
-          if (search_limit >= 200) {
+          if ((search_limit > 200) || (file_length == 0)) {
             // Should have found the phrase by now. Assume this is not a valid
 	    // SREC file. Break out of the loop and go to PARSE_FILE_FAIL
 	    // The next character starts the SREC content
@@ -4980,9 +5076,15 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         } // End of local while loop
       }
 
-      if (pSocket->ParseState != PARSE_FILE_SEEK_START) {
+      if ((pSocket->ParseState != PARSE_FILE_SEEK_START) || (pSocket->ParseState == PARSE_FILE_FAIL)) {
+        // If the PARSE_FILE_SEEK_START was successful this loop will process
+	// the content of the file.
+	// OR
+	// If there was a PARSE_FILE_FAIL while seeking the start of the file
+	// this loop will finish reading the file (without processing content)
+	// and then exit to the user fail notification.
         while (1) {
-          // This while() loop is a state machine with three main
+          // This while() loop is a state machine with four main
 	  // "pSocket->ParseState" states:
 	  // PARSE_FILE_SEEK_SX
 	  //   Parses the leading characters of each SREC looking for the SREC
@@ -5006,21 +5108,41 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  //   Parses "non-sequential" SREC data, ie, any data record that has
 	  //   an address that is not seqeuntial relative to the previous data
 	  //   record.
-	  // Exit at end of packet (file_nBytes == 0). This can occur at any
-	  // point while reading data. The exit allows the uip functions to
-	  // receive the next ethernet packet, then the STATE_PARSEFILE code
-	  // will be re-entered to continue this state machine where we left
-	  // off. Re-entry is made possible because "pSocket->nState" and
-	  // "pSocket->ParseState" are both saved so that we know where we
-	  // were when a packet ended (a TCP Fragmentation).
+	  // PARSE_FILE_FAIL
+	  //   A parsing failure has occurred. The loop will finish reading the
+	  //   file (without processing content) and then exit so the user fail
+	  //   notification can occur.
+	  // Normal exit: The loop will exit at end of each packet (file_nBytes
+	  // == 0). This can occur at any point while reading data. The exit
+	  // allows the uip functions to receive the next ethernet packet, then
+	  // the STATE_PARSEFILE code will be re-entered to continue this state
+	  // machine where we left off. Re-entry is made possible because
+	  // "pSocket->nState" and "pSocket->ParseState" are both saved so that
+	  // we know where we were when a packet ended (a TCP Fragmentation).
           
           if (pSocket->ParseState == PARSE_FILE_SEEK_SX) {
 
 // UARTPrintf(" ParseState = PARSE_FILE_SEEK_SX\r\n");
 
-	    // This parse looks for the start of record and will parse the
-	    // address value for the record.
+	    // This parse looks S0, S3, and S7 SREC records and will parse them
+	    // based on expected content. There are error checks in the loop
+	    // looking for incorrect format or unexpected end-of-file.
 	    while (1) {
+	      // Each time the loop starts we expect to be able to read two
+	      // characters UNLESS we are at the end of a packet (which is OK)
+	      // OR if we find there is only 1 character left in the file
+	      // (which is not OK). Check for the end-of-file problem.
+	      if (file_length < 2) {
+	        // If we got here and find there are not at least 2 characters
+		// left in the overall file then something has gone wrong.
+                  upgrade_failcode = UPGRADE_FAIL_TRUNCATED_FILE;
+	      
+// UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_TRUNCATED_FILE\r\n");
+
+                  pSocket->ParseState = PARSE_FILE_FAIL;
+	          break; // Break out of the local while loop
+	      }
+	      
               // Try to read two characters from the SREC
               pBuffer = read_two_characters(pBuffer);
               if (byte_tail[0] == '\0') {
@@ -5060,7 +5182,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_NOT_SREC\r\n");
 
                   pSocket->ParseState = PARSE_FILE_FAIL;
-		  break;
+	          break; // Break out of the local while loop
 	        }
 	        else SREC_start = 0;
 	      }
@@ -5176,6 +5298,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                           upgrade_failcode = UPGRADE_FAIL_EEPROM_MISCOMPARE;
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_EEPROM_MISCOMPARE\r\n");
                           pSocket->ParseState = PARSE_FILE_FAIL;
+	                  break; // Break out of the local while loop
                         }
                       }
                     }
@@ -5273,12 +5396,19 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 // UARTPrintf("file_type = FILETYPE_PROGRAM\r\n");
 	      
 	        }
-	        else {
+	        else if (two_hex2int(byte_tail[0], byte_tail[1]) == 0x53) {
 	          file_type = FILETYPE_STRING;
 
 // UARTPrintf("file_type = FILETYPE_STRING\r\n");
 	      
                 }
+		else {
+                  upgrade_failcode = UPGRADE_FAIL_INVALID_FILETYPE;
+// UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_INVALID_FILETYPE\r\n");
+                  pSocket->ParseState = PARSE_FILE_FAIL;
+                  break; // Break out of the local while loop
+		}
+		
 	        // Reset byte_index and byte_tail
 	        byte_index = 0;
                 byte_tail[0] = '\0';
@@ -5417,6 +5547,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                              upgrade_failcode = UPGRADE_FAIL_EEPROM_MISCOMPARE;
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_EEPROM_MISCOMPARE\r\n");
                              pSocket->ParseState = PARSE_FILE_FAIL;
+                             break; // Break out of the local while loop
                           }
                         }
                       }
@@ -5509,7 +5640,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_FILE_READ_CHECKSUM\r\n");
                   pSocket->ParseState = PARSE_FILE_FAIL;
-		  break;
+                  break; // Break out of the local while loop
 	        }
 	      }
 	    
@@ -5553,6 +5684,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                       upgrade_failcode = UPGRADE_FAIL_EEPROM_MISCOMPARE;
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_EEPROM_MISCOMPARE\r\n");
                       pSocket->ParseState = PARSE_FILE_FAIL;
+                      break; // Break out of the local while loop
                     }
                   }
                   eeprom_address_index += 64;
@@ -5598,6 +5730,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                       upgrade_failcode = STRING_EEPROM_MISCOMPARE;
 // UARTPrintf("UPGRADE_FAILCODE = STRING_EEPROM_MISCOMPARE\r\n");
                       pSocket->ParseState = PARSE_FILE_FAIL;
+                      break; // Break out of the local while loop
                     }
                   }
                   eeprom_address_index += 64;
@@ -5772,7 +5905,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_FILE_READ_CHECKSUM\r\n");
                   pSocket->ParseState = PARSE_FILE_FAIL;
-		  break;
+                  break; // Break out of the local while loop
 	        }
 	        else {
 // UARTPrintf("\r\nnon_sequential_detect checksum completed");
@@ -5832,6 +5965,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                       upgrade_failcode = UPGRADE_FAIL_EEPROM_MISCOMPARE;
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_EEPROM_MISCOMPARE\r\n");
                       pSocket->ParseState = PARSE_FILE_FAIL;
+                      break; // Break out of the local while loop
                     }
                   }
                 }
@@ -5889,6 +6023,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // Abort parsing.
 	    // Enter a loop that will allow the Browser to finish sending
 	    // whatever it was sending.
+// UARTPrintf("Entered PARSE_FILE_FAIL file_length = ");
+// emb_itoa(file_length, OctetArray, 10, 6);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 	    while (file_length > 0) {
 	      // Use the read_two_characters() function to deplete the incoming
 	      // packets. Once file_length reaches zero we've received all
@@ -5903,24 +6041,27 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pBuffer = read_two_characters(pBuffer);
               IWDG_KR = 0xaa; // Prevent the IWDG from firing.
 	      if (file_length == 0) {
-	        // All packets read. Go on to the PARSE_FILE_FAIL_EXIT routine.
-	        pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
-// UARTPrintf("\r\nSet ParseState to PARSE_FILE_FAIL_EXIT, break local loop\r\n");
-		break;
+	        // All packets read.
+                break; // Break out of the local while loop
               }
               if (file_nBytes == 0) {
                 // The read_two_characters() function will set file_nBytes to
 	        // zero if an end of packet occurred. If so break out of the
 	        // local while loop so the next packet will be read.
-	        break;
+                break; // Break out of the local while loop
 	      }
 	    } // End of local while loop
+	    if (file_length == 0) {
+	      // All packets read. Go on to the PARSE_FILE_FAIL_EXIT routine.
+	      pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
+// UARTPrintf("\r\nSet ParseState to PARSE_FILE_FAIL_EXIT, break local loop\r\n");
+            }
 	  }
 
 	  if (file_length == 0) {
 	    // All packets read.
 // UARTPrintf("\r\nAll packets read, break main loop\r\n");
-	    break; // Break out of mail while loop
+	    break; // Break out of main while loop
           }
 	  
           if (file_nBytes == 0) {
@@ -5987,6 +6128,22 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         // Send the response
         pSocket->nPrevBytes = 0xFFFF;
         pSocket->nState = STATE_SENDHEADER200;
+      }
+
+
+      if ((file_length < 2)
+       && (pSocket->ParseState != PARSE_FILE_COMPLETE)
+       && (pSocket->ParseState != PARSE_FILE_FAIL_EXIT)) {
+        // If we are at the end of the file
+	// AND we have not hit PARSE_FILE_COMPLETE (which occurs when an S7
+	//   record is processed)
+	// AND we have not already encountered a PARSE_FILE_FAIL_EXIT
+	// then something else has gone wrong.
+        upgrade_failcode = UPGRADE_FAIL_TRUNCATED_FILE;
+	      
+// UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_TRUNCATED_FILE\r\n");
+
+        pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
       }
 
 
@@ -6949,28 +7106,15 @@ void update_ON_OFF(uint8_t i, uint8_t j)
 {
   // Verify that pin is an output and it is enabled. If so
   // update the ON/OFF state. Otherwise the command is ignored.
+#if LINKED_SUPPORT == 0
   if ((pin_control[i] & 0x01) && (pin_control[i] & 0x02)) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+  if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
     Pending_pin_control[i] = pin_control[i];
     if (j==0) Pending_pin_control[i] &= (uint8_t)(~0x80);
     else Pending_pin_control[i] |= (uint8_t)0x80;
     parse_complete = 1;
-  }
-}
-
-
-void encode_16bit_registers()
-{
-  // Function to sort the pin control bytes into the 16 bit registers.
-  int i;
-  uint16_t j;
-  i = 0;
-  j = 0x0001;
-  while( i<16 ) {
-    if (pin_control[i] & 0x04) Invert_word = Invert_word |  j;
-    else                       Invert_word = Invert_word & ~j;
-    if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
-    else                       ON_OFF_word = ON_OFF_word & ~j;
-    i++;
-    j = j << 1;
   }
 }

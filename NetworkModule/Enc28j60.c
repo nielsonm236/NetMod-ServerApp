@@ -622,7 +622,7 @@ void Enc28j60Init(void)
   // of the byte which must not be over-written here, so the existing bit is
   // read and duplicated here.
   debug[2] = (uint8_t)(debug[2] & 0xf0);
-  debug[2] = (uint8_t)(debug[2] & ((Enc28j60ReadReg(BANK3_EREVID)) & 0x07));
+  debug[2] = (uint8_t)(debug[2] | ((Enc28j60ReadReg(BANK3_EREVID)) & 0x07));
   update_debug_storage1(); // Only write the EEPROM if the byte changed.
 #endif // DEBUG_SUPPORT
 
@@ -714,7 +714,7 @@ UARTPrintf("Enc28j60Receive MAXFRAME exceeded\r\n");
   Enc28j60SetMaskReg(BANKX_ECON2 , (1<<BANKX_ECON2_PKTDEC));
   
 #if DEBUG_SUPPORT != 11
-if (nBytes > 500) {
+if (nBytes > (ENC28J60_MAXFRAME - 20)) {
 UARTPrintf("Enc28j60Received nBytes = ");
 emb_itoa(nBytes, OctetArray, 10, 3);
 UARTPrintf(OctetArray);

@@ -41,7 +41,7 @@ extern uint8_t stored_pin_control[16];  // Per pin control settings stored in
 
 // The following enum PORTS, struct io_registers, struct io_mapping, and
 // struct io_mapping io_map are used to direct the read_input_pins() and
-// write_output_pins functions to the correct registers and bits for each
+// write_output_pins() functions to the correct registers and bits for each
 // physical pin that is being read or written. This significantly reduces
 // the code size for these functions. Credit to Carlos Ladeira for this
 // clever implementation.
@@ -107,7 +107,7 @@ void gpio_init(void)
       (stored_magic1 == 0xf0)) {
 
     // Create 16bit versions of the pin control information
-    encode_16bit_registers();
+    encode_16bit_registers(1);
     
     // Update the output pins
     write_output_pins(); // Initializes the ODR bits
@@ -227,7 +227,12 @@ void gpio_init(void)
   // need to be configured as output
   for (i=0; i<16; i++) {
     // Determine setting from stored_pin_control byte
+#if LINKED_SUPPORT == 0
     if (stored_pin_control[i] & 0x02) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+    if (chk_iotype(stored_pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
       // set i/o port ddr register
       // seting to 1 only the corresponding bit of
       // the port associated to the current i/o
@@ -542,28 +547,9 @@ void gpio_init(void)
 
 void LEDcontrol(uint8_t state)
 {
-
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// temp code until initialization is figured out
-//  // Bit 2 - LED - Set as output
- PA_DDR |= 0x04;
- PA_CR1 = (uint8_t)0xff;
- PA_CR2 = (uint8_t)0x00;
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
+  // Function to turn the LED on or off
   // state = 1 turns LED on (output high)
-  if (state == 1) PA_ODR |= (uint8_t)0x04;
-  // state = 0 turns LED off (output low)
+  if (state) PA_ODR |= (uint8_t)0x04;
   else PA_ODR &= (uint8_t)(~0x04);
 }
 

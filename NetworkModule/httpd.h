@@ -59,6 +59,8 @@
 #define UPGRADE_FAIL_EEPROM_MISCOMPARE		2
 #define STRING_EEPROM_MISCOMPARE		3
 #define UPGRADE_FAIL_NOT_SREC			5
+#define UPGRADE_FAIL_INVALID_FILETYPE		6
+#define UPGRADE_FAIL_TRUNCATED_FILE		7
 
 #define FILETYPE_SEARCH		0
 #define FILETYPE_PROGRAM	1
@@ -139,8 +141,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);
 char *read_two_characters(char *pBuffer);
 uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes);
 void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max);
-void encode_16bit_registers(void);
-void update_pin_control_bytes(void);
 void update_ON_OFF(uint8_t i, uint8_t j);
 
 #endif /*HTTPD_H_*/

@@ -52,7 +52,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20221127 0000"; // Normal Release Revision
+const char code_revision[] = "20221213 0000"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -243,6 +243,12 @@ extern uint8_t OctetArray[11];  // Used in emb_itoa conversions but also
 extern uint8_t parse_tail[66];  // >>> Used mostly in POST packet processing
                                 // but also repurposed for buffering data
 				// received in a program update file.
+
+#if LINKED_SUPPORT == 1
+uint8_t linked_edge;		// Used for indicating Input pin edge
+				// detection when using Linked pins
+#endif // LINKED_SUPPORT == 1
+
 
 
 
@@ -827,12 +833,7 @@ int main(void)
     // c) Not currently performing restart_reboot
     // d) Redefine temp sensors is requested
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// THIS PROBABLY NEEDS TO BE DISABLED. THE VERY LARGE UIP_BUF IS NOT
+// THIS CODE HAS BEEN DISABLED BECAUSE THE VERY LARGE UIP_BUF IS NOT
 // AVAILABLE AFTER COMPLETION OF MQTT STARTUP, SO TEMPERATURE SENSOR
 // DEFINES CAN ONLY BE SENT TO HA DURING BOOT.
 //    if (mqtt_enabled
@@ -841,12 +842,6 @@ int main(void)
 //     && redefine_temp_sensors) {
 //      mqtt_redefine_temp_sensors();
 //    }
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
@@ -1366,7 +1361,6 @@ void copy_flash_to_EEPROM0(void)
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
 }
-
 #endif // OB_EEPROM_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
@@ -1391,12 +1385,15 @@ void copy_flash_to_EEPROM0(void)
 // the software uses the addresses from the EEPROM at power on so that user
 // inputs are retained through power cycles.
 //
-// The user can press the Reset Button for 10 seconds to restore "factory
+// The user can press the Reset Button for 5 seconds to restore "factory
 // defaults".
+
 
 #if BUILD_SUPPORT == MQTT_BUILD
 void mqtt_startup(void)
 {
+  uint8_t i;
+  i = 0;
   // This function walks through the steps needed to get MQTT initialized and
   // a connection made to the MQTT Server and Broker
   // - These steps are run only once at code start, or when restarting the
@@ -1505,14 +1502,14 @@ void mqtt_startup(void)
       mqtt_init(&mqttclient,
                 mqtt_sendbuf,
                 sizeof(mqtt_sendbuf),
-#if NAGLE_SUPPORT == 0
-                &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
-                UIP_APPDATA_SIZE,
-#endif // NAGLE_SUPPORT == 0
-#if NAGLE_SUPPORT == 1
+// #if NAGLE_SUPPORT == 0
+//                 &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
+//                 UIP_APPDATA_SIZE,
+// #endif // NAGLE_SUPPORT == 0
+// #if NAGLE_SUPPORT == 1
                 &uip_buf[MQTT_PBUF],
 		MQTT_PBUF_SIZE,
-#endif // NAGLE_SUPPORT == 1
+// #endif // NAGLE_SUPPORT == 1
                 publish_callback);
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_QUEUE_CONNECT;
@@ -1776,8 +1773,13 @@ void mqtt_startup(void)
       //       that is discovered.
 
       if (auto_discovery == DEFINE_INPUTS) {
-        if (((pin_control[pin_ptr - 1] & 0x01) == 0x01)
-         && ((pin_control[pin_ptr - 1] & 0x02) == 0x00)) {
+        i = (uint8_t)(pin_ptr - 1);
+#if LINKED_SUPPORT == 0
+        if ((pin_control[i] & 0x03) == 0x01) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+        if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
+#endif // LINKED_SUPPORT == 1
 	  // Pin is an Enabled Input pin
 	  if (auto_discovery_step == SEND_OUTPUT_DELETE) {
             // Create Output pin delete msg.
@@ -1811,8 +1813,13 @@ void mqtt_startup(void)
       }
 	
       else if (auto_discovery == DEFINE_OUTPUTS) {
-        if (((pin_control[pin_ptr - 1] & 0x01) == 0x01)
-         && ((pin_control[pin_ptr - 1] & 0x02) == 0x02)) {
+        i = (uint8_t)(pin_ptr - 1);
+#if LINKED_SUPPORT == 0
+        if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+        if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
 	  // Pin is an Enabled Output pin
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
@@ -1844,7 +1851,8 @@ void mqtt_startup(void)
       }
  
       else if (auto_discovery == DEFINE_DISABLED) {
-        if ((pin_control[pin_ptr - 1] & 0x01) == 0x00) {
+//        if ((pin_control[pin_ptr - 1] & 0x01) == 0x00) {
+        if ((pin_control[pin_ptr - 1] & 0x03) == 0x00) {
 	  // Pin is Disabled
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
@@ -1917,7 +1925,10 @@ void mqtt_startup(void)
     break;
   } // end switch
 }
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
+
+#if BUILD_SUPPORT == MQTT_BUILD
 /*
 void mqtt_redefine_temp_sensors(void)
 {
@@ -1940,7 +1951,10 @@ void mqtt_redefine_temp_sensors(void)
   }
 }
 */
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
+
+#if BUILD_SUPPORT == MQTT_BUILD
 void define_temp_sensors(void)
 {
   // This function is called from two places:
@@ -1986,8 +2000,10 @@ void define_temp_sensors(void)
   }
   else sensor_number++;
 }
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
+#if BUILD_SUPPORT == MQTT_BUILD
 void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 {
   // Format and send IO delete/define messages and sensor delete/define
@@ -2074,8 +2090,10 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
                strlen(app_message),
                MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
+#if BUILD_SUPPORT == MQTT_BUILD
 // void mqtt_sanity_check(void)
 void mqtt_sanity_check(struct mqtt_client *client)
 {
@@ -2226,6 +2244,7 @@ UARTPrintf("\r\n");
     
   } // end switch
 }
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
 //---------------------------------------------------------------------------//
@@ -2314,7 +2333,8 @@ UARTPrintf("\r\n");
   // message (13 bytes) plus the longest Publish message (70 bytes), or 108
   // bytes.
   //
-  // However, during MQTT startup the CONNECT message
+  // However, during MQTT startup the CONNECT message is even larger as
+  // follows:
   // CONNECT Msg (in the mqtt_sendbuf)
   //   Fixed Header 2 bytes
   //   Variable Header 10 bytes
@@ -2334,15 +2354,18 @@ UARTPrintf("\r\n");
   //     Username 10 bytes
   //     Passwoard Length 2 bytes
   //     Password 10 bytes
-  // Total 130 bytes
-  // Thus the CONNECT message can be up to up to 130 bytes in length. Add the
-  // Message Queue (12 bytes) plus the Queued Message Header (11 bytes) and the
-  // mqtt_sendbuf needs to be a minimum of 153 bytes. Note that no PINGREQ can
-  // occur during the MQTT Startup process, so the CONNECT message will occupy
-  // the mqtt_sendbuf alone. This sets the required size of the mqtt_sendbuf at
-  // 153 bytes ... will make it 160 to provide a little buffer.
+  //   Queued Message Header 11 bytes
+  // Total 131 bytes
+  // Thus the CONNECT message can be up to up to 131 bytes in length. Add the
+  // Message Queue (12 bytes) and the mqtt_sendbuf needs to be a minimum of 
+  // 143 bytes. Note that no PINGREQ can occur during the MQTT Startup
+  // process, so the CONNECT message will occupy the mqtt_sendbuf alone. This
+  // sets the required size of the mqtt_sendbuf at 143 bytes ... will make it
+  // 150 to provide a little buffer.
 //---------------------------------------------------------------------------//
 
+
+#if BUILD_SUPPORT == MQTT_BUILD
 void publish_callback(void** unused, struct mqtt_response_publish *published)
 {
   char* pBuffer;
@@ -2353,6 +2376,7 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
 
   pin_value = 0;
   ParseNum = 0;
+  i = 0;
   
   // This function will be called if a "Publish" is received from the Broker.
   // The publish message will contain a payload that, in this application,
@@ -2390,13 +2414,13 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   
   // Set the pBuffer pointer to the start of the MQTT packet
   
-#if NAGLE_SUPPORT == 0
-  pBuffer = uip_appdata;
-#endif // NAGLE_SUPPORT == 0
+// #if NAGLE_SUPPORT == 0
+//   pBuffer = uip_appdata;
+// #endif // NAGLE_SUPPORT == 0
 
-#if NAGLE_SUPPORT == 1
+// #if NAGLE_SUPPORT == 1
   pBuffer = &uip_buf[MQTT_PBUF];
-#endif // NAGLE_SUPPORT == 1
+// #endif // NAGLE_SUPPORT == 1
 
   // Skip the Fixed Header Control Byte (1 byte)
   // Skip the Fixed Header Remaining Length Byte (1 byte)
@@ -2430,7 +2454,13 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       if (*pBuffer == 'N') {
         // Turn all outputs ON
 	for (i=0; i<16; i++) {
-	  if (pin_control[i] & 0x02) { // Output pin?
+#if LINKED_SUPPORT == 0
+	  if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+          if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+            // This is an Output
 	    Pending_pin_control[i] = (uint8_t)(pin_control[i] | 0x80);
 	  }
 	}
@@ -2438,7 +2468,13 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       else {
         // Turn all outputs OFF
 	for (i=0; i<16; i++) {
-	  if (pin_control[i] & 0x02) { // Output pin?
+#if LINKED_SUPPORT == 0
+	  if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+          if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+            // This is an Output
 	    Pending_pin_control[i] = (uint8_t)(pin_control[i] & ~0x80);
 	  }
 	}
@@ -2465,8 +2501,15 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
 	// Determine if payload is ON or OFF
 	if (*pBuffer == 'N') {
 	  // Turn output ON (and make sure it is an output)
-	  if (pin_control[ParseNum] & 0x02 == 0x02) // Output pin?
+#if LINKED_SUPPORT == 0
+	  if ((pin_control[ParseNum] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+          if (chk_iotype(pin_control[ParseNum], ParseNum, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+            // This is an Output
 	    Pending_pin_control[ParseNum] |= (uint8_t)0x80;
+          }
 
 // #if DEBUG_SUPPORT != 11
 // UARTPrintf("publish_callback - Output ");
@@ -2479,8 +2522,15 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
 	}
 	if (*pBuffer == 'F') {
 	  // Turn output OFF (and make sure it is an output)
-	  if (pin_control[ParseNum] & 0x02 == 0x02) // Output pin?
+#if LINKED_SUPPORT == 0
+	  if ((pin_control[ParseNum] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+          if (chk_iotype(pin_control[ParseNum], ParseNum, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+            // This is an Output
 	    Pending_pin_control[ParseNum] &= (uint8_t)~0x80;
+          }
 
 // #if DEBUG_SUPPORT != 11
 // UARTPrintf("publish_callback - Output ");
@@ -2530,8 +2580,10 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   // Note: if none of the above matched the parsing we just exit without
   // executing any functionality (the message is effectively ignored).
 }
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
+#if BUILD_SUPPORT == MQTT_BUILD
 void publish_outbound(void)
 {
   // This function checks for a change on any pin (Output or Sense
@@ -2629,6 +2681,23 @@ void publish_outbound(void)
       // sync, so the Network Module will generate a PUBLISH Response to get
       // the Client back into sync.
       if ((xor_tmp & j) || (MQTT_transmit & j)) {
+
+// #if DEBUG_SUPPORT != 11
+// UARTPrintf("publish_outbound   ON_OFF_word=");
+// emb_itoa(ON_OFF_word, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   ON_OFF_word_sent=");
+// emb_itoa(ON_OFF_word_sent, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   xor_tmp=");
+// emb_itoa(xor_tmp, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   MQTT_transmit=");
+// emb_itoa(MQTT_transmit, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+// #endif // DEBUG_SUPPORT != 11
+
 	// A publish_pinstate needs to occur if:
 	//   A pin is Enabled (either Input or Output) and its ON/OFF state
 	//   changed as indicated by xor_temp
@@ -2636,13 +2705,37 @@ void publish_outbound(void)
         //   A MQTT PUBLISH was received for a pin as indicated by the
 	//   MQTT_transmit word.
 	
-	if (pin_control[i] & 0x01) { // enabled
-	  // Send a PUBLISH Response continaing the pin state
-          if (pin_control[i] & 0x02) publish_pinstate('O', (uint8_t)(i+1), ON_OFF_word, j);
-          else                       publish_pinstate('I', (uint8_t)(i+1), ON_OFF_word, j);
-	  // Break out of the while loop, as we can only send one Publish
-	  // message per pass.
-	  signal_break = 1;
+//	if (pin_control[i] & 0x01) { // enabled
+//	  // Send a PUBLISH Response continaing the pin state
+//          if (pin_control[i] & 0x02) publish_pinstate('O', (uint8_t)(i+1), ON_OFF_word, j);
+//          else                       publish_pinstate('I', (uint8_t)(i+1), ON_OFF_word, j);
+//	  // Break out of the while loop, as we can only send one Publish
+//	  // message per pass.
+//	  signal_break = 1;
+//	}
+//	// else Pin is not enabled so no Publish was required.
+	// Send a PUBLISH Response containing the pin state
+#if LINKED_SUPPORT == 0
+        if ((pin_control[i] & 0x03) == 0x03) { // Enabled Output
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+        if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+	  // Enabled Output or Linked Output
+#endif // LINKED_SUPPORT == 1
+	  publish_pinstate('O', (uint8_t)(i+1), ON_OFF_word, j);
+	  signal_break = 1; // Break out of the while loop, as we can only
+	                    // send one Publish message per pass.
+	}
+#if LINKED_SUPPORT == 0
+        if ((pin_control[i] & 0x03) == 0x01) { // Enabled Input
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+        if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
+	  // Enabled input or Linked Input
+#endif // LINKED_SUPPORT == 1
+          publish_pinstate('I', (uint8_t)(i+1), ON_OFF_word, j);
+	  signal_break = 1; // Break out of the while loop, as we can only
+	                    // send one Publish message per pass.
 	}
 	// else Pin is not enabled so no Publish was required.
 	
@@ -2673,8 +2766,10 @@ void publish_outbound(void)
     publish_pinstate_all();
   }
 }
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
+#if BUILD_SUPPORT == MQTT_BUILD
 void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t mask)
 {
   // This function transmits a change in pin state and updates the "sent"
@@ -2740,8 +2835,10 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
 	       size,
 	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
+#if BUILD_SUPPORT == MQTT_BUILD
 void publish_pinstate_all(void)
 {
   // This function transmits the state of all pins (outputs and sense inputs)
@@ -2766,11 +2863,21 @@ void publish_pinstate_all(void)
   
   for(i=0; i<16; i++) {
     // Check for input/output
-    if ((pin_control[i] & 0x02) == 0x02) {
+#if LINKED_SUPPORT == 0
+    if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+    if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
       // Pin is an output, transmit as-is
       if (pin_control[i] & 0x80) k |= j;
     }
-    else {
+#if LINKED_SUPPORT == 0
+    else if ((pin_control[i] & 0x03) == 0x01) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+    if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
+#endif // LINKED_SUPPORT == 1
       // Pin is an input, invert if needed
       if (pin_control[i] & 0x04) {
         // Invert required
@@ -2807,8 +2914,10 @@ void publish_pinstate_all(void)
 	       2,
 	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
+#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
+#if BUILD_SUPPORT == MQTT_BUILD
 void publish_temperature(uint8_t sensor)
 {
   // This function is called to Publish a temperature value collected from
@@ -3150,8 +3259,8 @@ void check_eeprom_settings(void)
     //   0 On/Off after power cycle set to Off
     //   0 Retain set to Off
     //   0 Invert set to Off
-    //   0 Input/Output set to Input
-    //   0 Enable/Disable set to Disable
+    //   0 | The two least significant bits define the pin type:
+    //   0 | 00: Disabled  01: Input  10: Linked  11: Output
     // THEN 16 bit registers should be written
     //   encode_16bit_registers()
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -3272,9 +3381,9 @@ void check_eeprom_settings(void)
     //   0 On/Off after power cycle set to Off
     //   0 Retain set to Off
     //   0 Invert set to Off
-    //   0 Input/Output set to Input
-    //   0 Enable/Disable set to Disable
-    // THEN 16 bit registers are written
+    //   0 | The two least significant bits define the pin type:
+    //   0 | 00: Disabled  01: Input  10: Linked  11: Output
+    // THEN 16 bit registers are initialized
     //   encode_16bit_registers()
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     //
@@ -3444,17 +3553,18 @@ void check_eeprom_settings(void)
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
-
   // Since this code is run one time at boot, initialize the variables that
   // are dependent on EEPROM content.
-  
+
   // Read the pin_control bytes from EEEPROM
   for (i=0; i<16; i++) pin_control[i] = stored_pin_control[i];
 
+#if LINKED_SUPPORT == 0
   // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
   // accordingly. Do this on Outputs only.
   for (i=0; i<16; i++) {
-    if (((pin_control[i] & 0x08) == 0x00) && (pin_control[i] & 0x02)) {
+//    if (((pin_control[i] & 0x08) == 0x00) && (pin_control[i] & 0x02)) {
+    if (((pin_control[i] & 0x08) == 0x00) && ((pin_control[i] & 0x03) == 0x03)) {
       // Retain is not set and this is an output
       if ((pin_control[i] & 0x10) == 0x00) {
         // Force ON/OFF to zero
@@ -3467,6 +3577,26 @@ void check_eeprom_settings(void)
       // else Retain the ON/OFF bit
     }
   }
+#endif // LINKED_SUPPORT == 0
+
+#if LINKED_SUPPORT == 1
+  // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
+  // accordingly. Do this on Outputs only.
+  for (i=0; i<16; i++) {
+    if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+      // Pin is an Output and Retain is not set
+      if ((pin_control[i] & 0x10) == 0x00) {
+        // Retain is not set, and Force Zero is indicated
+        pin_control[i] &= 0x7f;
+      }
+      else if ((pin_control[i] & 0x10) == 0x10) {
+        // Retain is not set, and Force One is indicated
+        pin_control[i] |= 0x80;
+      }
+    }
+    // else do nothing so that the ON/OFF bit is retained
+  }
+#endif // LINKED_SUPPORT == 1
 
   // Update stored_pin_control bytes and Pending_pin_control bytes
   unlock_eeprom();
@@ -3476,8 +3606,9 @@ void check_eeprom_settings(void)
   }
   lock_eeprom();
 
-  // Create 16bit versions of the ON/OFF and Invert pin control information
-  encode_16bit_registers();
+  // Initialize 16bit versions of the ON/OFF and Invert pin control
+  // information
+  encode_16bit_registers(1);
     
   // Initialize IO ON/OFF state tracking
   ON_OFF_word_new1 = ON_OFF_word_new2 = ON_OFF_word_sent = ON_OFF_word;
@@ -3611,6 +3742,164 @@ void check_runtime_changes(void)
   if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
 #endif // DEBUG_SUPPORT
 
+#if LINKED_SUPPORT == 1
+  {
+    // Linked pin check:
+    // 1) Verify that there is no corruption in the EEPROM in the form of
+    //    Linked pins that do not have a partner (for example, pin 1 is
+    //    defined as Linked, but the partner pin 9 is not defined as Linked.
+    //    In such a case the EEPROM should have both pins set to Disabled.
+    //    Note: I think this could only happen if a user made manual edits to
+    //    the EEPROM, or if the GUI update process was interrupted by a power
+    //    fail.
+    // 2) Look for Linked pins in the Pending_pin_control values and make
+    //    their partner also has a Pending_pin_control value of Linked. If
+    //    not revert both pins to their value in the EEPROM. Note: This can
+    //    only happen if parse_complete is also set by the GUI process that
+    //    changed the pin Type.
+    int i;
+    for (i=0; i<8; i++) {
+      if (((stored_pin_control[i] & 0x03) == 0x02) || ((stored_pin_control[i+8] & 0x03) == 0x02)) {
+        // At least one pin is defined as Linked
+        if ((stored_pin_control[i] & 0x03) != (stored_pin_control[i+8] & 0x03)) {
+	  // One of the pins is not defined as Linked. Set both pins to Disabled.
+	  unlock_eeprom();
+	  stored_pin_control[i] = 0x00;
+	  stored_pin_control[i+8] = 0x00;
+	  lock_eeprom();
+	}
+        // else do nothing - the settings are OK.
+      }
+      // else do nothing - the settings are OK.
+    }
+    // Now that we know the EEPROM is valid with regard to Linked pin types
+    // check the Pending_pin_controls
+    for (i=0; i<8; i++) {
+      if (((Pending_pin_control[i] & 0x03) == 0x02) || ((Pending_pin_control[i+8] & 0x03) == 0x02)) {
+        // At least one pin is in the process of being defined as Linked
+        if ((Pending_pin_control[i] & 0x03) != (Pending_pin_control[i+8] & 0x03)) {
+	  // One of the pins is not defined as Linked. Set both pins to the
+	  // pin type value stored in EEPROM. This should just have the effect
+	  // of invalidating the Pending request.
+	  Pending_pin_control[i] = stored_pin_control[i];
+	  Pending_pin_control[i+8] = stored_pin_control[i+8];
+	}
+        // else do nothing - the settings are OK.
+      }
+      // else do nothing - the settings are OK.
+    }
+  }
+/*
+    for (i=0; i<16; i++) {
+      if ((Pending_pin_control[i] & 0x03) == 0x02) {
+        // Pin is defined as a Linked pin
+	if (i < 8) {
+	  if ((Pending_pin_control[i+8] & 0x03) != 0x02) {
+	    // Corresponding pin is not Linked. Restore the current pin to
+	    // the EEPROM content.
+	    Pending_pin_control[i] = stored_pin_control[i];
+	  }
+	}
+	else {
+	  if ((Pending_pin_control[i-8] & 0x03) != 0x02) {
+	    // Corresponding pin is not Linked. Restore the current pin to
+	    // the EEPROM content.
+	    Pending_pin_control[i] = stored_pin_control[i];
+	  }
+	}
+      }
+      if ((Pending_pin_control[i] & 0x03) != 0x02) {
+        // Pin is not defined as a Linked pin
+	if (i < 8) {
+	  if ((Pending_pin_control[i+8] & 0x03) == 0x02) {
+	    // Corresponding pin is set to Linked. Restore the current pin to
+	    // the EEPROM content.
+	    Pending_pin_control[i] = stored_pin_control[i];
+	  }
+	}
+	else {
+	  if ((Pending_pin_control[i-8] & 0x03) == 0x02) {
+	    // Corresponding pin is set to Linked. Restore the current pin to
+	    // the EEPROM content.
+	    Pending_pin_control[i] = stored_pin_control[i];
+	  }
+	}
+      }
+    }
+  }
+*/
+#endif // LINKED_SUPPORT == 1
+
+
+#if LINKED_SUPPORT == 1
+  {
+    int i;
+    uint8_t mask;
+    // Perform the edge detect response here? If read_input_pins sets bits
+    // in a word to indicate an edge detection that word could be checked.
+    // If a bit in the word is set but does not match a Linked pin the bit
+    // should be cleared. If a bit in the word is set and it matches a
+    // linked pin from pin number less than pin 9 then the associated
+    // Output pin should be toggled.
+    
+    // Check the linked_edge byte for any indication of an Input pin edge on
+    // a Linked input pin. It doesn't matter if the edge is positive or
+    // negative, only that an edge occurred.
+    //
+    // The Linked pin function only allows Inputs on pins 1 to 8, and
+    // corresponding Outputs on pin 9 to 16. If an Input edge is detected then
+    // the corresponding Output state is to be toggled.
+    //
+    // This check must be performed before the Pending_pin_control check in
+    // this function. This is to allow all the other processes of this
+    // function to act on a change in the Output pin that occurs as a result
+    // of the Linked pin functionality.
+    //
+    // The way the Linked pin functionality will toggle the Output pin is to
+    // toggle the state of the Pending_pin_control for the Output pin. The
+    // thinking here:
+    //  - Normally this function will be entered with pin_control equal
+    //    to Pending_pin_control for the Output, assuming no GUI, REST,
+    //    or MQTT action is changing the Output pin at this same
+    //    instant.
+    //  - If some other function is attempting to change the Output pin
+    //    at the same instant as an incoming edge it is not clear which
+    //    one will win. And it probably doesn't matter. So I won't put
+    //    any effort into resolving such a case.
+    
+    if (linked_edge) {
+      // There is an edge on at least one pin
+      for (i=0, mask=1; i<8; i++, mask<<=1) {
+        // Sweep through the first 8 pins
+        if (mask & linked_edge) {
+	  // Found an edge
+	  linked_edge &= (uint8_t)(~mask); // Clear the linked_edge bit
+          if ((Pending_pin_control[i] & 0x03) == 0x02) {
+	    // Verify that the pin is a Linked pin. The Pending_pin_control
+	    // is used because: a) If the pin was previously set to Linked
+	    // the Pending_pin_control will equal the pin_control value, and
+	    // b) If the user just changed the pin to Linked we can go ahead
+	    // and act on that change.
+	    // Note that the Linked pins have already been validated as
+	    // Linked.
+	    if (Pending_pin_control[i+8] & 0x80) {
+	      Pending_pin_control[i+8] &= 0x7f; // Toggle to zero
+	    }
+	    else {
+	      Pending_pin_control[i+8] |= 0x80; // Toggle to one
+	    }
+	    parse_complete = 1; // Set parse_complete so that the
+	                        // Pending_pin_control changes will be
+				// processed, just as if a GUI, REST,
+				// or MQTT action had changed the
+				// Output pin.
+	  }
+	}
+      }
+    }
+  }
+#endif // LINKED_SUPPORT == 1
+
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
   // Manage Output pin Timers. Change Output pin states and Timers as
@@ -3648,9 +3937,7 @@ void check_runtime_changes(void)
   //      the pin_timer, replacing whatever countdown value was present.
   //-------------------------------------------------------------------------//
 
-
   if (parse_complete) {
-
     // Check if the user changed the IO_TIMER value and update the pin_timer
     // to the Pending_IO_TIMER value. Typically the user is just changing the
     // IO_TIMER value to zero, but they may also be correcting a user entry
@@ -3665,6 +3952,9 @@ void check_runtime_changes(void)
     //
     // If an Output pin IO_TIMER value is changed by the user
     //   then set the pin_timer for that pin to the Pending_IO_TIMER value
+    // Note this also applies to Linked pins that are pins 9 to 16 (as those
+    //   are also Outputs).
+#if LINKED_SUPPORT == 0
     {
       int i;
       for (i=0; i<16; i++) {
@@ -3676,6 +3966,21 @@ void check_runtime_changes(void)
         }
       }
     }
+#endif // LINKED_SUPPORT == 0
+
+#if LINKED_SUPPORT == 1
+    {
+      int i;
+      for (i=0; i<16; i++) {
+        if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+	  // Pin is an Output and Retain is not set
+          if (IO_TIMER[i] != Pending_IO_TIMER[i]) {
+            pin_timer[i] = calculate_timer(Pending_IO_TIMER[i]);
+	  }
+        }
+      }
+    }
+#endif // LINKED_SUPPORT == 1
   }
   
   // Check for Timer expiration:
@@ -3691,13 +3996,16 @@ void check_runtime_changes(void)
   // b4         Boot control   0 = OFF, 1 = ON
   // b3         Boot control   1 = Retain (ignore b4), 0 = use b4
   // b2         Invert control 0 = No Invert, 1 = Invert
-  // b1         Enable control 0 = Disabled 1 = Enabled
-  // b0         In/Out control 0 = Input 1 = Output
+  // b1         | b1 and b0 define the pin Type as follows:
+  // b0         | 00: Disabled  01: Input  10: Linked  11: Output
+  // Note this also applies to Linked pins that are pins 9 to 16 (as those
+  //   are also Outputs).
+#if LINKED_SUPPORT == 0
   {
     int i;
     for (i=0; i<16; i++) {
-        if ((pin_control[i] & 0x0b) == 0x03) {
-        // The above: If an Enabled Output AND Retain is not set
+      if ((pin_control[i] & 0x0b) == 0x03) {
+      // The above: If an Enabled Output AND Retain is not set
         if (((IO_TIMER[i] & 0x3fff) != 0) && (pin_timer[i] == 0)) {
           // The above: If pin has a non-zero TIMER value AND the timer
 	  // countdown is zero
@@ -3713,14 +4021,46 @@ void check_runtime_changes(void)
 	    Pending_pin_control[i] |= 0x80;
 	    pin_control[i] |= 0x80;
 	  }
-          // Update the 16 bit registers with the changed pin states
-          encode_16bit_registers();
+          // Update the 16 bit registers with the changed Output pin states
+          encode_16bit_registers(0);
           // Update the Output pins
           write_output_pins();
         }
       }
     }
   }
+#endif // LINKED_SUPPORT == 0
+
+#if LINKED_SUPPORT == 1
+  {
+    int i;
+    for (i=0; i<16; i++) {
+      if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+        // Pin is an Output and Retain is not set
+        if (((IO_TIMER[i] & 0x3fff) != 0) && (pin_timer[i] == 0)) {
+          // The above: If pin has a non-zero TIMER value AND the timer
+	  // countdown is zero
+	  if ((pin_control[i] & 0x90) == 0x80) {
+	    // The above: If the pin is ON and the idle state is OFF
+	    // Turn the pin OFF
+	    Pending_pin_control[i] &= 0x7f;
+	    pin_control[i] &= 0x7f;
+	  }
+	  if ((pin_control[i] & 0x90) == 0x10) {
+	    // The above: If the pin is OFF and the idle state is ON
+	    // Turn the pin ON
+	    Pending_pin_control[i] |= 0x80;
+	    pin_control[i] |= 0x80;
+	  }
+          // Update the 16 bit registers with the changed Output pin states
+          encode_16bit_registers(0);
+          // Update the Output pins
+          write_output_pins();
+	}
+      }
+    }
+  }
+#endif // LINKED_SUPPORT == 1
   
   if (parse_complete) {
   
@@ -3731,8 +4071,8 @@ void check_runtime_changes(void)
     {
       int i;
       for (i=0; i<16; i+=2) {
-        // Check for compare 4 bytes at a time. If any miscompare write to
-        // Flash 4 bytes at a time.
+        // Check for differences updates to the TIMER values. Compare 4 bytes
+	// at a time. If any miscompare write to Flash 4 bytes at a time.
         if (IO_TIMER[i] != Pending_IO_TIMER[i] || IO_TIMER[i+1] != Pending_IO_TIMER[i+1]) {
           // Enable Word Write Once
           FLASH_CR2 |= FLASH_CR2_WPRG;
@@ -3748,7 +4088,10 @@ void check_runtime_changes(void)
     //   and pin has a non-zero IO_TIMER
     //   and the user changed the pin from its idle state to its active state
     //     then set the pin_timer for that pin to the IO_TIMER value
+    // Note this also applies to Linked pins that are pins 9 to 16 (as those
+    //   are also Outputs).
     //
+#if LINKED_SUPPORT == 0
     {
       int i;
       for (i=0; i<16; i++) {
@@ -3774,10 +4117,64 @@ void check_runtime_changes(void)
         }
       }
     }
+#endif // LINKED_SUPPORT == 0
+
+#if LINKED_SUPPORT == 1
+    {
+      int i;
+      for (i=0; i<16; i++) {
+        if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+	  // Pin is an Output and Retain is not set
+          if ((IO_TIMER[i] & 0x3fff) != 0) {
+            if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
+              // The above: If the user changed the pin ON/OFF state
+              if (((Pending_pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
+                // The above: If the user turned the pin ON and the idle state
+	        //   is OFF
+                // then set the pin timer
+                pin_timer[i] = calculate_timer(IO_TIMER[i]);
+              }
+              if (((Pending_pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
+                // The above: If the user turned the pin OFF and the idle state
+	        //   is ON
+                // then set the pin timer
+                pin_timer[i] = calculate_timer(IO_TIMER[i]);
+	      }
+            }
+          }
+        }
+      }
+    }
+#endif // LINKED_SUPPORT == 1
   }
 #endif BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
   if (parse_complete || mqtt_parse_complete) {
+  
+// UARTPrintf("parse_complete1: Pend_pin_ctrl[0] = ");
+// emb_itoa(Pending_pin_control[0], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   pin_ctrl[0] = ");
+// emb_itoa(pin_control[0], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+//  
+// UARTPrintf("parse_complete1: Pend_pin_ctrl[1] = ");
+// emb_itoa(Pending_pin_control[1], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   pin_ctrl[1] = ");
+// emb_itoa(pin_control[1], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+//  
+// UARTPrintf("parse_complete1: Pend_pin_ctrl[2] = ");
+// emb_itoa(Pending_pin_control[2], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   pin_ctrl[2] = ");
+// emb_itoa(pin_control[2], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+ 
     // Check for changes from the user via the GUI, MQTT, or REST commands.
     // If parse_complete == 1 all TCP Fragments have been received during
     // HTML POST processing, OR a REST command was processed.
@@ -3820,19 +4217,37 @@ void check_runtime_changes(void)
       for (i=0; i<16; i++) {
         if (pin_control[i] != Pending_pin_control[i]) {
           // Something changed - sort it out
-	
+
+
+#if LINKED_SUPPORT == 0
           // Check for change in ON/OFF bit. This function will save the ON/OFF
 	  // bit in the EEPROM if the IO is an Output and Retain is enabled (or
 	  // in the process of being enabled).
-	  if (Pending_pin_control[i] & 0x0a) { // Output AND Retain set?
+	  if ((Pending_pin_control[i] & 0x0b) == 0x0b) { // Output AND Retain set?
             if ((pin_control[i] & 0x80) != (Pending_pin_control[i] & 0x80)) {
 	      // ON/OFF changed
               update_EEPROM = 1;
             }
 	  }
+#endif // LINKED_SUPPORT == 0
 
-          // Check for change in Input/Output definition
-          if ((pin_control[i] & 0x02) != (Pending_pin_control[i] & 0x02)) {
+#if LINKED_SUPPORT == 1
+          // Check for change in ON/OFF bit. This function will save the ON/OFF
+	  // bit in the EEPROM if the IO is an Output and Retain is enabled (or
+	  // in the process of being enabled).
+          if (chk_iotype(Pending_pin_control[i], i, 0x0b) == 0x0b) {
+          // If an Enabled Output AND Retain is set OR a Linked pin (with
+	  // Retain set) on pins 9 to 16.
+            if ((pin_control[i] & 0x80) != (Pending_pin_control[i] & 0x80)) {
+	      // ON/OFF changed
+              update_EEPROM = 1;
+            }
+	  }
+#endif // LINKED_SUPPORT == 1
+
+
+          // Check for change in Input/Output and Enabled/Disabled definition
+          if ((pin_control[i] & 0x03) != (Pending_pin_control[i] & 0x03)) {
             // There is a change:
 	    //   Signal an EEPROM update
 	    //   Signal a "reboot needed"
@@ -3843,16 +4258,16 @@ void check_runtime_changes(void)
             user_reboot_request = 1;
 	  }
 	
-          // Check for change in Enabled/Disabled definition
-          if ((pin_control[i] & 0x01) != (Pending_pin_control[i] & 0x01)) {
-            // There is a change:
-	    //   Signal an EEPROM update
-	    //   Signal a "reboot needed". Note that in this case a reboot is
-	    //   really only needed if MQTT is enabled, but it will be done
-	    //   even if MQTT is not enabled to simplify code.
-            update_EEPROM = 1;
-            user_reboot_request = 1;
-          }
+//          // Check for change in Enabled/Disabled definition
+//          if ((pin_control[i] & 0x01) != (Pending_pin_control[i] & 0x01)) {
+//            // There is a change:
+//	    //   Signal an EEPROM update
+//	    //   Signal a "reboot needed". Note that in this case a reboot is
+//	    //   really only needed if MQTT is enabled, but it will be done
+//	    //   even if MQTT is not enabled to simplify code.
+//            update_EEPROM = 1;
+//            user_reboot_request = 1;
+//          }
 
           // Check for change in Invert
           if ((pin_control[i] & 0x04) != (Pending_pin_control[i] & 0x04)) {
@@ -3876,14 +4291,37 @@ void check_runtime_changes(void)
 	  // Always update the pin_control byte even if the EEPROM was not
 	  // updated. Don't let the ON/OFF bit change if this pin_control is
 	  // for an input.
-	  if (Pending_pin_control[i] & 0x02) { // Output?
+#if LINKED_SUPPORT == 0
+	  if ((Pending_pin_control[i] & 0x03) == 0x03) { // Output
 	    // Update all bits
 	    pin_control[i] = Pending_pin_control[i];
 	  }
-	  else { // Input
+#endif // LINKED_SUPPORT == 0
+
+#if LINKED_SUPPORT == 1
+          if (chk_iotype(Pending_pin_control[i], i, 0x03) == 0x03) {
+	    // Update all Output bits including Linked pins 9 to 16.
+	    pin_control[i] = Pending_pin_control[i];
+	  }
+#endif // LINKED_SUPPORT == 1
+
+#if LINKED_SUPPORT == 0
+	  if ((Pending_pin_control[i] & 0x03) == 0x01) { // Input
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+          if (chk_iotype(Pending_pin_control[i], i, 0x03) == 0x01) {
+	    // Input pin
+#endif // LINKED_SUPPORT == 1
 	    // Update all bits except the ON/OFF bit
+	    // The ON/OFF bit setting for inputs is handled in the
+	    // read_input_pins() function.
             pin_control[i] &= 0x80;
 	    pin_control[i] |= (uint8_t)(Pending_pin_control[i] & 0x7f);
+	  }
+	  if ((Pending_pin_control[i] & 0x03) == 0x00) { // Disable
+	    // Disabled pin
+	    // Update all bits
+	    pin_control[i] = Pending_pin_control[i];
 	  }
 	  
           if (update_EEPROM) {
@@ -3895,14 +4333,25 @@ void check_runtime_changes(void)
       }
     }
 
-    // Update the 16 bit registers with the changed pin states
-    encode_16bit_registers();
+    // Update the 16 bit registers with the changed Output pin states
+    encode_16bit_registers(0);
     
     // Update the Output pins
     write_output_pins();
   }
 
   if (parse_complete) {
+
+
+// UARTPrintf("parse_complete2: Pend_pin_ctrl[0] = ");
+// emb_itoa(Pending_pin_control[0], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   pin_ctrl[0] = ");
+// emb_itoa(pin_control[0], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+
+
     // Only perform the next checks if parse_complete indicates that all
     // HTML POST processing is complete.
 
@@ -4079,6 +4528,47 @@ void check_runtime_changes(void)
 
   }
 }
+
+#if LINKED_SUPPORT == 1
+uint8_t chk_iotype(uint8_t pin_byte, int pin_index, uint8_t chk_mask)
+{
+  // Determine if pin_byte (usually a pin_control byte) defines an input
+  // or an output pin. Also apply a mask to check for other conditions.
+  // Mask definition:
+  //   0x03 = Only check the Pin Type (Disaabled, Input, Output, Linked)
+  //   0x0b = Also check the Retain bit
+  // Return values:
+  //   If mask = 0x03:
+  //     0x00 = Disabled
+  //     0x01 = Input pin
+  //     0x03 = Output pin
+  //   If mask = 0x0b:
+  //     0x00 = Disabled pin, Retain Not Applicable
+  //     0x01 = Input pin, Retain Not Applicable
+  //     0x03 = Output pin, Retain Not Set
+  //     0x0b = Output pin, Retain Set
+  //     
+  // This function will also check Linked pins to determine if they are Inputs
+  // (pins 1 to 8) or Outputs (pins 9 to 16).
+  // 
+  // pin_index is 0 to 15 corresponding to pins 1 to 16
+  if (((pin_byte & 0x03) == 0x01)
+  || (((pin_byte & 0x03) == 0x02) && (pin_index<8))) {
+    // This is an Input or a Linked pin 1 to 8.
+    return 0x01;
+  }
+  if (((pin_byte & 0x03) == 0x03)
+  || (((pin_byte & 0x03) == 0x02) && (pin_index>7))) {
+    if (chk_mask == 0x03) return 0x03;
+    if (chk_mask == 0x0b) {
+      if (pin_byte & 0x08) return 0x0b;
+      else return 0x03;
+    }
+  }
+  // Else pin is Disabled so return 0
+  return 0;
+}
+#endif // LINKED_SUPPORT == 1
 
 
 void check_restart_reboot(void)
@@ -4351,41 +4841,44 @@ void init_IWDG(void)
 }
 
 
+
+#if LINKED_SUPPORT == 0
 void read_input_pins(void)
 {
-  // This function reads and debounces the IO pins. The purpose is to
-  // debounce the Input pins, but both the Input and Output registers are
-  // debounced as a matter of code simplicity.
+  // This function reads and debounces the Input pins. It is called from the
+  // check_runtime_changes() function, which is in turn called from the main
+  // loop. Thus this function runs about once per millisecond.
+  //
   // The function works as follows:
   // - Pins are read and stored in the ON_OFF_word_new1 word.
   // - ON_OFF_word_new1 is compared to the prior value stored in
-  //   ON_OFF_word_new2 using xor
+  //   ON_OFF_word_new2
   // - If a bit in ON_OFF_word_new1 is the same as in ON_OFF_word_new2 then
   //   ON_OFF_word is updated.
   // - ON_OFF_word_new1 is transferred to ON_OFF_word_new2 for the next round.
-  // Note that any of the 16 IO pins could be an input or output. This
-  // function will execute on all pins regardless of direction.
   uint16_t mask;
   int i;
-
-  // loop across all i/o's and read input port register:bit state
+  
+  // Loop across all i/o's and read input port register:bit state
   // and 
-  // The following compares the _new1 and _new2 samples and only updates the
-  // bits in the ON_OFF_word where the corresponding bits match in _new1 and
-  // _new2 (ie, a debounced change occurred).
-  // if ((ON_OFF_word_new1 & mask) == (ON_OFF_word_new2 & mask)) { // match?
+  // Compare the _new1 and _new2 samples then, for Input pins only, update
+  // the bits in the ON_OFF_word where the corresponding bits match in _new1
+  // and _new2 (ie, a debounced change occurred).
   
   for (i=0, mask=1; i<16; i++, mask<<=1) {
-    // is it the corresponding bit of the input port register set?
+    // Is the corresponding bit of the input port register set?
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit)
       ON_OFF_word_new1 |= (uint16_t)mask;
     else
       ON_OFF_word_new1 &= (uint16_t)(~mask);
-    // If the old and new bits match, and the bit is for an Input
-    // pin, set or clear the corresponding bit in ON_OFF_word.
-    if ((pin_control[i] & 0x02) == 0x00) { // input?
-      if (ON_OFF_word_new2 & mask) ON_OFF_word |= mask; // set
-      else                         ON_OFF_word &= ~mask; // clear
+    
+    if ((ON_OFF_word_new1 & mask) == (ON_OFF_word_new2 & mask)) {
+      // If the old and new bits match, and the bit is for an Input
+      // pin, set or clear the corresponding bit in ON_OFF_word.
+      if ((pin_control[i] & 0x03) == 0x01) { // input?
+        if (ON_OFF_word_new2 & mask) ON_OFF_word |= mask; // set
+        else                         ON_OFF_word &= ~mask; // clear
+      }
     }
   }
 
@@ -4395,11 +4888,128 @@ void read_input_pins(void)
   // Update the pin_control bytes to match the debounced ON_OFF_word.
   // Only input pin_control bytes are updated.
   for (i=0, mask=1; i<16; i++, mask<<=1) {
-    //uint16_t mask = 1 << i;
-    if ((pin_control[i] & 0x02) == 0x00) { // input?
+    if ((pin_control[i] & 0x03) == 0x01) { // input?
       if (ON_OFF_word & mask) pin_control[i] |= 0x80;
       else                    pin_control[i] &= 0x7f;
     }
+  }
+}
+#endif // LINKED_SUPPORT == 0
+
+
+#if LINKED_SUPPORT == 1
+void read_input_pins(void)
+{
+  // This function reads and debounces the Input pins. It is called from the
+  // check_runtime_changes() function, which is in turn called from the main
+  // loop. Thus this function runs about once per millisecond.
+  //
+  // The function works as follows:
+  // - Pins are read and stored in the ON_OFF_word_new1 word.
+  // - ON_OFF_word_new1 is compared to the prior value stored in
+  //   ON_OFF_word_new2
+  // - If a bit in ON_OFF_word_new1 is the same as in ON_OFF_word_new2 then
+  //   ON_OFF_word is updated.
+  // - ON_OFF_word_new1 is transferred to ON_OFF_word_new2 for the next round.
+  uint16_t mask;
+  int i;
+  
+  // Loop across all i/o's and read input port register:bit state
+  // and 
+  // Compare the _new1 and _new2 samples then, for Input pins only, update
+  // the bits in the ON_OFF_word where the corresponding bits match in _new1
+  // and _new2 (ie, a debounced change occurred).
+  for (i=0, mask=1; i<16; i++, mask<<=1) {
+    // Is the corresponding bit of the input port register set?
+    if ( io_reg[ io_map[i].port ].idr & io_map[i].bit) {
+      ON_OFF_word_new1 |= (uint16_t)mask;
+    }
+    else {
+      ON_OFF_word_new1 &= (uint16_t)(~mask);
+    }
+    
+    if ((ON_OFF_word_new1 & mask) == (ON_OFF_word_new2 & mask)) {
+      // Check for a debounced edge on pins 1 to 8
+      if ((ON_OFF_word & mask) != (ON_OFF_word_new2 & mask)) {
+        // If true this indicates that the _new1 and _new2 are equal but are
+	// different than the existing ON_OFF_word. This means a debounced
+	// edge just occured on the pin indicated by the mask. This is only
+	// important for the Linked function, so record the event in the
+	// linked_edge detection byte. This is stored in a byte because we
+	// only keep the bits associated with pins 1 to 8.
+	if (((pin_control[i] & 0x03) == 0x02) && (i<8)) {
+          linked_edge |= (uint8_t)(mask);
+	}
+      }
+      
+      // If the old and new bits match, and the bit is for an Input pin, set
+      // or clear the corresponding bit in the ON_OFF_word.
+      // Note this also applies to Linked pins 1 to 8 (which are also inputs).
+      if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
+        if (ON_OFF_word_new2 & mask) ON_OFF_word |= mask; // set
+        else                         ON_OFF_word &= ~mask; // clear
+      }
+    }
+  }
+
+  // Copy _new1 to _new2 for the next round
+  ON_OFF_word_new2 = ON_OFF_word_new1;
+  
+  // Update the pin_control bytes to match the debounced ON_OFF_word.
+  // Only input pin_control bytes are updated.
+  for (i=0, mask=1; i<16; i++, mask<<=1) {
+    if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
+      if (ON_OFF_word & mask) pin_control[i] |= 0x80;
+      else                    pin_control[i] &= 0x7f;
+    }
+  }
+}
+#endif // LINKED_SUPPORT == 1
+
+
+void encode_16bit_registers(uint8_t sort_init)
+{
+  // Function to sort the pin control bytes into the 16 bit registers.
+  int i;
+  uint16_t j;
+  i = 0;
+  j = 0x0001;
+  while( i<16 ) {
+    // Update the Invert_word
+    if (pin_control[i] & 0x04) Invert_word = Invert_word |  j;
+    else                       Invert_word = Invert_word & ~j;
+    
+    // Update the ON_OFF_word. This function can be called during boot
+    // initialization at which time both Input pins and Output pins should
+    // be sorted into the ON_OFF word. All other calls to this function
+    // should only sort the Output pins into the ON_OFF word, as the
+    // read_input_pins() function will handle this for Input pins.
+    if (sort_init == 1) {
+      // sort_init indicates the function was called during initialization.
+      // All pin states are sorted into the ON_OFF_word.
+      if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
+      else                       ON_OFF_word = ON_OFF_word & ~j;
+    }
+    else {
+      // sort_init indicates the function was called during runtime. During
+      // runtime only the Output pins and Linked pins 9 to 16 are sorted
+      // into the ON_OFF_word. Input pins are handled by the read_input_pins()
+      // function.
+#if LINKED_SUPPORT == 0
+      if ((pin_control[i] & 0x03) == 0x03) {
+        // Only the Output pins are sorted into the ON_OFF_word.
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+      if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+        // Pin is an Output. Only the Output pins are sorted into the
+	// ON_OFF_word.
+#endif // LINKED_SUPPORT == 1
+        if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
+        else                       ON_OFF_word = ON_OFF_word & ~j;
+      }
+    }
+    i++;
+    j = j << 1;
   }
 }
 

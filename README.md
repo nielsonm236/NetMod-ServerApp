@@ -31,6 +31,7 @@ Feature Comparison of the MQTT and Browser builds:
 * "Upgradeable over Ethernet" requires additonal hardware - see Manual
 
 Short summary of recent history:
+
 December 17, 2022 - Addressed Issues #113 and #118 both related to Home Assistant Header Toggle, deprecated DS18B20 "hot add", addressed Issue #116 “Link Input pin to an Output pin”, addressed Issue #112 “Request to change output pins in “batch mode””, addressed Issue #126 “Malformed REST commands produce garbage Browser page”, addressed Issue #123 “Allow short press of Reset button to reboot the module", fixed several minor bugs.
 
 October 9, 2022 - Fixed Issue #94: “ENC28J60 Revision not always reported in Link Error Statistics”. Added Enhancement Issue #100 “Remove Configuration Button”. This is an option to disable the Configuration button on the IOControl page. Fixed Issue #108 "Temperature sensors loose custom names in HA on NetModule boot". Fixed #110 “Can’t enter full 19 character Device name” – a bug made apparent in the 20220921 release. Fixed #109 “Home Assistant Not Showing Sensors in Fahrenheit” -  a bug made apparent in the 20220921 release

@@ -66,7 +66,6 @@ extern uint8_t mqtt_start;        // Tracks the MQTT startup steps
 
 extern uint8_t OctetArray[11];    // Used in UART debug sessions
 
-// #if NAGLE_SUPPORT == 1
 uint8_t current_msg_length;		// Contains the length of the MQTT
 					// message currently being extracted
 					// from the uip_buf.
@@ -77,7 +76,6 @@ uint8_t mqtt_partial_buffer_length;	// Trackes the length of data in the
 uint8_t pbi;				// Partial Buffer Index - provides an
 					// index for writing and reading the
 					// MQTT partial buffer
-// #endif // NAGLE_SUPPORT == 1
 
 
 
@@ -92,31 +90,13 @@ int16_t mqtt_sync(struct mqtt_client *client)
     // if there is something that needs to be transmitted.
     int16_t err;
     
-// #if NAGLE_SUPPORT == 1
     uint16_t total_msg_length;		// Contains the total length of the
 					// MQTT message(s) in the uip_buf
     char *msgBuffer;			// A pointer used to read MQTT
 					// messages from the uip_buf
     uint8_t outer_break;		// Used in breaking a double while()
 					// loop.
-// #endif // NAGLE_SUPPORT == 1
 
-// #if NAGLE_SUPPORT == 0
-//     // Call receive
-//     if ((uip_newdata() || uip_acked()) && uip_len > 0) {
-//       // We got here because an incoming message was detected by the UIP
-//       // code for the MQTT Port. The way to be sure that receive processing
-//       // should occur is if uip_newdata() is true OR uip_acked() is true
-//       // AND uip_len > 0.
-//       err = __mqtt_recv(client);
-//       if (err != MQTT_OK) {
-//         return err;
-//       }
-//     }
-// #endif // NAGLE_SUPPORT == 0
-
-
-// #if NAGLE_SUPPORT == 1
     // Call receive
     if ((uip_newdata() || uip_acked()) && uip_len > 0) {
       // We got here because an incoming message was detected by the UIP
@@ -179,193 +159,6 @@ int16_t mqtt_sync(struct mqtt_client *client)
       msgBuffer = uip_appdata;
       total_msg_length = uip_len;
       outer_break = 0;
-
-
-
-/*
-KEEP THIS CODE FOR A SHORT TIME JUST IN CASE. THIS WAS THE FIRST WORKING
-CODE FOR THE HA-HEADER-TOGGLE-BATCHED-MQTT-MESSAGES FIX. WORKED FINE.
-COMPRESSED INTO A MORE EFFICIENT VERSION BELOW THIS SAVE.
-      while (total_msg_length > 0) {
-        // If total_msg_length is greater than zero then there is data in
-	// the uip_buf that needs to be read.
-	// This loop will move MQTT messages to the MQTT Partial Buffer one
-	// message at a time. When a complete message is constructed in the
-	// MQTT Partial Buffer the __mqtt_recv() function will be called to
-	// interpret the message.
-	// We start by collecting the Control byte and Remaining Lenght byte
-	// that always start an MQTT message. We might be continuing the
-	// capture of a message that started in a previous TCP packet so here
-	// we sort that out.
-        if (mqtt_partial_buffer_length == 0) {
-	  // If mqtt_partial_buffer_length is zero we should be starting the
-	  // capture of a new MQTT message.
-          // Try to capture the Control Byte and Remaining Length. The data
-	  // might end while doing this.
-	  
-          pbi = 0;
-          uip_buf[MQTT_PBUF + pbi++] = *msgBuffer; // Control Byte
-          mqtt_partial_buffer_length++;
-          msgBuffer++;
-          total_msg_length--;
-          if (total_msg_length == 0) {
-	    // Check if we just read the last byte of data in the uip_buf.
-	    // If yes we just hit the end of a TCP packet and we need to exit
-	    // __mqtt_sync to wait for the next packet.
-	    // pbi and mqtt_partial_buffer_length are retained globally so
-	    // they can be used to continue the extraction of MQTT messages
-	    // on the next call to mqtt_sync().
-	    return MQTT_OK;
-	  }
-	  
-          uip_buf[MQTT_PBUF + pbi++] = *msgBuffer; // Remaining Length Byte
-          current_msg_length = uip_buf[MQTT_PBUF + 1];
-          mqtt_partial_buffer_length++;
-          msgBuffer++;
-          total_msg_length--;
-        }
-	
-        else if (mqtt_partial_buffer_length == 1) {
-          // If mqtt_partial_buffer_length is one then the MQTT Partial Buffer
-	  // contains the Control byte of a MQTT message that started at the
-	  // very end of a previous TCP packet. We assume new packets have
-	  // at least 2 bytes of data in them, so we read the next byte which
-	  // will be the Remaining Length.
-          uip_buf[MQTT_PBUF + pbi++] = *msgBuffer;
-          mqtt_partial_buffer_length++;
-          current_msg_length = uip_buf[MQTT_PBUF + 1];
-          msgBuffer++;
-          total_msg_length--;
-        }
-	
-        else if (mqtt_partial_buffer_length > 1) {
-          // If mqtt_partial_buffer_length is greater than one then the MQTT
-	  // Partial Buffer contains the Control byte AND the Remaining Length
-	  // of a MQTT message that started at the very end of a previous TCP
-	  // packet.
-	  // Nothing needs to happen here as the current_msg_length was
-	  // captured when readng the previous packet.
-        }
-
-        if (current_msg_length == 0) {
-	  // The above code captured the Control byte and Remaining Length. If
-	  // the Remaining Length is zero this must be a PINGRESP. Call
-	  // __mqtt_recv() then clear the MQTT Partial Buffer handling
-	  // variables in case there are more MQTT messages in the uip_buf 
-	  // after this message.
-          err = __mqtt_recv(client);
-	  mqtt_partial_buffer_length = 0;
-	  pbi = 0;
-          if (err != MQTT_OK) {
-            return err;
-	  }
-          // Call send
-	  // If we run __mqtt_recv() we need to follow that with a call to
-	  // __mqtt_send() so that each processed MQTT message finishes its
-	  // recv/send process (mostly making sure the message state is
-	  // updated correctly).
-          // mqtt_send() shouldn't actually transmit anything via the uip_buf
-	  // at this point. It should only update the msg->state of messages
-	  // as needed.
-          err = __mqtt_send(client);
-          // Set global MQTT error flag so GUI can show status
-          if (err == MQTT_OK) MQTT_error_status = 1;
-          else MQTT_error_status = 0;
-          if (err != MQTT_OK) {
-            return err;
-          }
-
-          if (total_msg_length == 0) {
-	    // If total_msg_length is zero then the MQTT message just
-	    // processed was the end of the TCP packet. We need to break
-	    // out of the while() loop so that another TCP packet can be
-	    // collected.
-	    break;
-          }
-	  else {
-	    // If total_msg_length is greater than zero then there is another
-	    // MQTT message in the uip_buf. Start the while() loop over again
-	    // to read the data.
-	    continue;
-	  }
-        }
-
-        // Getting this far means we collected the Control byte and the
-	// Remaining Length and there is more to the MQTT message in the
-	// uip_buf. Continue reading the MQTT message from the uip_buf. We
-	// could hit an end of packet at any byte.
-        while(1) {
-          uip_buf[MQTT_PBUF + pbi++] = *msgBuffer;
-          mqtt_partial_buffer_length++;
-          msgBuffer++;
-          total_msg_length--;
-          current_msg_length--;
-          if (current_msg_length == 0) {
-	    // If current_msg_length is zero we just copied the entire MQTT
-	    // message into the MQTT Partial Buffer. Call __mqtt_recv() then
-	    // clear the MQTT Partial Buffer handling variables in case there
-	    // are more MQTT messages in the uip_buf after this message.
-            err = __mqtt_recv(client);
-	    mqtt_partial_buffer_length = 0;
-	    pbi = 0;
-            if (err != MQTT_OK) {
-              return err;
-	    }
-	  
-            // Call send
-	    // If we run __mqtt_recv() we need to follow that with a call to
-	    // __mqtt_send() so that each processed MQTT message finishes its
-	    // recv/send process (mostly making sure the message state is
-	    // updated correctly).
-            // mqtt_send() shouldn't actually transmit anything via the uip_buf
-	    // at this point. It should only update the msg->state of messages
-	    // as needed.
-            err = __mqtt_send(client);
-            // Set global MQTT error flag so GUI can show status
-            if (err == MQTT_OK) MQTT_error_status = 1;
-            else MQTT_error_status = 0;
-            if (err != MQTT_OK) {
-              return err;
-	    }
-	  
-            if (total_msg_length == 0) {
-	      // If total_msg_length is zero then the MQTT message just
-	      // extracted (or part thereof) was the end of the TCP packet.
-	      // We need to break out of the inner and outer while() loops so
-	      // that another TCP packet can be collected.
-	      // Note: the current_msg_length, mqtt_partial_buffer_length, and
-	      // pbi are all retained in global memory so that the next packet
-	      // starts where this one left off.
-	      outer_break = 1;
-	      break;
-            }
-	    else {
-	      // If total_msg_length is greater than zero then there is
-	      // another MQTT message in the uip_buf that needs to be read.
-	      // Break out of the inner while() loop to read the next MQTT
-	      // message.
-	      break;
-	    }
-          }
-          if (total_msg_length == 0) {
-	    // If total_msg_length is zero then the MQTT message just
-	    // extracted (or part thereof) was the end of the TCP packet.
-	    // We need to break out of the inner and outer while() loops so
-	    // that another TCP packet can be collected.
-	    // Note: the current_msg_length, mqtt_partial_buffer_length, and
-	    // pbi are all retained in global memory so that the next packet
-	    // starts where this one left off.
-	    outer_break = 1;
-	    break;
-          }
-        }
-	if (outer_break == 1) break;
-      } // end of outer while() loop
-*/
-
-
-
-
 
       while (total_msg_length > 0) {
         // If total_msg_length is greater than zero then there is data in
@@ -440,15 +233,7 @@ COMPRESSED INTO A MORE EFFICIENT VERSION BELOW THIS SAVE.
 	// are all retained in global memory so that the next packet starts
 	// where this one left off.
       }
-
-
-
-
-
-
-      
     }
-// #endif // NAGLE_SUPPORT == 1
 
 
     // Call send
@@ -513,17 +298,11 @@ int16_t mqtt_init(struct mqtt_client *client,
                uint8_t *recvbuf, uint16_t recvbufsz,
                void (*publish_response_callback)(void** state,struct mqtt_response_publish *publish))
 {
-
-
-// #if NAGLE_SUPPORT == 1
     // Initialize variables used in extracting MQTT messages from batched /
     // fragmented TCP packets
     current_msg_length = 0;
     mqtt_partial_buffer_length = 0;
     pbi = 0;
-// #endif // NAGLE_SUPPORT == 1
-
-
 
     if (client == NULL || sendbuf == NULL || recvbuf == NULL) {
       return MQTT_ERROR_NULLPTR;

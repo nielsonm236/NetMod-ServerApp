@@ -151,8 +151,6 @@
 // at least 4 bytes. This is to avoid errors (not sure why and could use more
 // investigation). To be safe an additional 6 bytes are subtracted.
 //
-// // if NAGLE_SUPPORT == 1
-//
 // NOTE2: When MQTT support was added two problems occurred:
 // 1) It was found that during MQTT startup, if Home Assistant Auto Discovery
 //    was used, a larger uip_buf was needed to trasnmit some of the Auto
@@ -169,18 +167,15 @@
 // startup has completed. This is done by making the UIP_TCP_MSS value smaller
 // by another 60 bytes, then using pointers based on a "MQTT_PBUF" define to
 // access the memory area.
-// // endif NAGLE_SUPPORT == 1
 //
 // In this application the headers occupy a total of 54 bytes as defined in uip.h.
-#define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN - 6 - 60)
+#define UIP_TCP_MSS     (UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN - 6 - MQTT_PBUF_SIZE)
 
 
-// // if NAGLE_SUPPORT == 1
 // The starting point of the MQTT Partial Buffer within the uip_buf
 // See explantion in #define UIP_TCP_MSS
 #define MQTT_PBUF_SIZE	60
 #define MQTT_PBUF	(UIP_BUFSIZE - MQTT_PBUF_SIZE)
-// // endif NAGLE_SUPPORT == 1
 
 
 // The size of the advertised receiver's window. Should be set low (i.e., to
@@ -356,7 +351,7 @@
 // and clock pins.
 // 0 = Not supported
 // 1 = Supported
-#define I2C_SUPPORT 0
+#define I2C_SUPPORT 1
 
 
 // OB_EEPROM_SUPPORT
@@ -379,7 +374,7 @@
 //    b) Load the Runtime code
 // 0 = Not supported
 // 1 = Supported
-#define OB_EEPROM_SUPPORT 0
+#define OB_EEPROM_SUPPORT 1
 
 
 // DEBUG_SENSOR_SERIAL
@@ -391,16 +386,6 @@
 // 0 = Not Supported
 // 1 = Supported
 #define DEBUG_SENSOR_SERIAL 0
-
-
-// NAGLE_SUPPORT
-// Temporary build setting to enable support of Nagle's Algorithm in the MQTT
-// code.
-// THIS IS A TEMPORARY BUILD MODE. WHEN TESTING IS COMPLETE MODIFY THE CODE TO
-// ALWAYS USE NAGLE'S ALGORITHM THEN DELETE THIS OPTION.
-// 0 = No Nagle's Algorithm support
-// 1 = Supported
-// #define NAGLE_SUPPORT 1
 
 
 // LINKED_SUPPORT

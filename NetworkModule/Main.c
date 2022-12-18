@@ -106,12 +106,10 @@ uint8_t stack_limit2;
 // 
 // EEPROM Variables:
 
-#if DEBUG_SUPPORT != 0
 @eeprom uint8_t stored_debug[10];
                                         // 10 debug bytes
 					// Byte 108 stored_debug[9]
                                         // Byte 99 stored_debug[0]
-#endif // DEBUG_SUPPORT
 
 // 98 bytes used below
 // >>> Add new variables HERE <<<
@@ -158,7 +156,6 @@ uint8_t stack_limit2;
 //---------------------------------------------------------------------------//
 
 
-#if DEBUG_SUPPORT != 0
 //---------------------------------------------------------------------------//
 // The "debug" EEPROM storage is used to retain specific debug information
 // across reboots and to make that information available for user viewing.
@@ -166,7 +163,6 @@ uint8_t stack_limit2;
 // reducing the number of EEPROM writes.
 uint8_t debug[10];
 //---------------------------------------------------------------------------//
-#endif // DEBUG_SUPPORT
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
@@ -501,10 +497,8 @@ int main(void)
 			   // gpio_init() uses settings in the EEPROM and we
 			   // need to make sure it is up to date.
 
-#if DEBUG_SUPPORT != 0
   // Restore the saved debug statistics
   restore_eeprom_debug_bytes();
-#endif // DEBUG_SUPPORT
 
   gpio_init();             // Initialize and enable gpio pins
     
@@ -529,29 +523,6 @@ int main(void)
   
   HttpDStringInit();       // Initialize HttpD string sizes
 
-/*
-  {
-    int i;
-    int j;
-    // Initialize temperature sensor arrays
-    memset(&DS18B20_scratch[0][0], 0, 10);
-    memset(&FoundROM[0][0], 0, 40);
-    memset(&temp_FoundROM[0][0], 0, 40);
-  }
-  // Initialize DS18B20 devices (if enabled) 
-  if (stored_config_settings & 0x08) {
-    // Find all devices
-    FindDevices();
-    // Iniialize DS18B20 timer
-    check_DS18B20_ctr = second_counter;
-    // Initialize DS18B20 sensor add/delete check counter
-    check_DS18B20_sensor_ctr = second_counter;
-    // Collect initial temperature
-    get_temperature();
-    // Iniialize DS18B20 transmit control variable
-    send_mqtt_temperature = 0;
-  }
-*/
   init_DS18B20();          // Initialize DS18B20 sensors
   // Initialize DS18B20 control variables used in main.c 
   if (stored_config_settings & 0x08) {
@@ -560,7 +531,6 @@ int main(void)
     // Iniialize DS18B20 timer
     check_DS18B20_ctr = second_counter;
     // Initialize DS18B20 sensor add/delete check counter
-//    check_DS18B20_sensor_ctr = second_counter;
     // Collect initial temperature
     get_temperature();
     // Iniialize DS18B20 transmit control variable
@@ -825,24 +795,6 @@ int main(void)
      && restart_reboot_step == RESTART_REBOOT_IDLE) {
       mqtt_sanity_check(&mqttclient);
     }
-    
-    // Check for Temperature Sensor changes and send redefine
-    // messages for HA Auto Discovery on periodic basis if
-    // a) MQTT is enabled
-    // b) Not currently performing MQTT startup
-    // c) Not currently performing restart_reboot
-    // d) Redefine temp sensors is requested
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// THIS CODE HAS BEEN DISABLED BECAUSE THE VERY LARGE UIP_BUF IS NOT
-// AVAILABLE AFTER COMPLETION OF MQTT STARTUP, SO TEMPERATURE SENSOR
-// DEFINES CAN ONLY BE SENT TO HA DURING BOOT.
-//    if (mqtt_enabled
-//     && mqtt_start == MQTT_START_COMPLETE
-//     && restart_reboot_step == RESTART_REBOOT_IDLE
-//     && redefine_temp_sensors) {
-//      mqtt_redefine_temp_sensors();
-//    }
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
     // Update the time keeping function
@@ -1005,16 +957,6 @@ int main(void)
     }
     
     
-    // Check for DS18B20 temperature sensor additions/deletions at 10s
-    // intervals
-//    if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_sensor_ctr + 10))) {
-//      check_DS18B20_sensor_ctr = second_counter;
-      // Call FindDevices to generate a new FoundROM table and determine if
-      // any changes occured in the sensor population.
-//      FindDevices();
-//    }
-    
-    
     // Update temperature data
     // Not sure of the best interval. I will set it at 30 seconds for now.
     if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 30))) {
@@ -1084,11 +1026,6 @@ void periodic_service(void)
     // shorter is better for servicing MQTT. So, it is a compromise but
     // might need examination in the future it it become problematic.
     if (uip_len > 0) {
-
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("periodic_service now transmitting uip_buf\r\n");
-// #endif // DEBUG_SUPPORT != 11
-
       uip_arp_out(); // Verifies arp entry in the ARP table and builds
                      // the LLH
       Enc28j60Send(uip_buf, uip_len);
@@ -1313,11 +1250,6 @@ void copy_code_uploader_to_EEPROM1(void)
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 
-
-
-
-
-
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 #if OB_EEPROM_SUPPORT == 1
 void copy_flash_to_EEPROM0(void)
@@ -1502,14 +1434,8 @@ void mqtt_startup(void)
       mqtt_init(&mqttclient,
                 mqtt_sendbuf,
                 sizeof(mqtt_sendbuf),
-// #if NAGLE_SUPPORT == 0
-//                 &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
-//                 UIP_APPDATA_SIZE,
-// #endif // NAGLE_SUPPORT == 0
-// #if NAGLE_SUPPORT == 1
                 &uip_buf[MQTT_PBUF],
 		MQTT_PBUF_SIZE,
-// #endif // NAGLE_SUPPORT == 1
                 publish_callback);
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_QUEUE_CONNECT;
@@ -1851,7 +1777,6 @@ void mqtt_startup(void)
       }
  
       else if (auto_discovery == DEFINE_DISABLED) {
-//        if ((pin_control[pin_ptr - 1] & 0x01) == 0x00) {
         if ((pin_control[pin_ptr - 1] & 0x03) == 0x00) {
 	  // Pin is Disabled
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
@@ -1927,31 +1852,6 @@ void mqtt_startup(void)
 }
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
-
-#if BUILD_SUPPORT == MQTT_BUILD
-/*
-void mqtt_redefine_temp_sensors(void)
-{
-  // This routine can be called during runtime (ie, AFTER initialization) to
-  // resend temperature sensor configs. Some notes:
-  //   - If a sensor was deleted Home Assistant is not informed.
-  //   - If a sensor was added Home Assistant will be provided a Config msg
-  //     for the new sensor.
-  //   - This may cause Home Assistant to still show a sensor that no longer
-  //     exists. The user will have to delete the defunct sensor manually in
-  //     Home Assistant.
-  if (mqtt_start_ctr1 > 2) {
-    auto_discovery = DEFINE_TEMP_SENSORS;
-    define_temp_sensors();
-    mqtt_start_ctr1 = 0; // Clear the 50ms counter
-    if (auto_discovery == AUTO_COMPLETE) {
-      auto_discovery_step = STEP_NULL;
-      redefine_temp_sensors = 0;
-    }
-  }
-}
-*/
-#endif // BUILD_SUPPORT == MQTT_BUILD
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -2094,7 +1994,6 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
-// void mqtt_sanity_check(void)
 void mqtt_sanity_check(struct mqtt_client *client)
 {
   // This is similar to a firmware restart except it is focused on restarting
@@ -2414,13 +2313,7 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   
   // Set the pBuffer pointer to the start of the MQTT packet
   
-// #if NAGLE_SUPPORT == 0
-//   pBuffer = uip_appdata;
-// #endif // NAGLE_SUPPORT == 0
-
-// #if NAGLE_SUPPORT == 1
   pBuffer = &uip_buf[MQTT_PBUF];
-// #endif // NAGLE_SUPPORT == 1
 
   // Skip the Fixed Header Control Byte (1 byte)
   // Skip the Fixed Header Remaining Length Byte (1 byte)
@@ -2510,15 +2403,6 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
             // This is an Output
 	    Pending_pin_control[ParseNum] |= (uint8_t)0x80;
           }
-
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("publish_callback - Output ");
-// i = ParseNum + 1;
-// emb_itoa(i, OctetArray, 10, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf(" ON\r\n");
-// #endif // DEBUG_SUPPORT != 11
-
 	}
 	if (*pBuffer == 'F') {
 	  // Turn output OFF (and make sure it is an output)
@@ -2531,15 +2415,6 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
             // This is an Output
 	    Pending_pin_control[ParseNum] &= (uint8_t)~0x80;
           }
-
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("publish_callback - Output ");
-// i = ParseNum + 1;
-// emb_itoa(i, OctetArray, 10, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf(" OFF\r\n");
-// #endif // DEBUG_SUPPORT != 11
-
 	}
 	// Set the appropriate bit in MQTT_transmit to force a 
 	// publish_pinstate for this pin.
@@ -2681,39 +2556,12 @@ void publish_outbound(void)
       // sync, so the Network Module will generate a PUBLISH Response to get
       // the Client back into sync.
       if ((xor_tmp & j) || (MQTT_transmit & j)) {
-
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("publish_outbound   ON_OFF_word=");
-// emb_itoa(ON_OFF_word, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   ON_OFF_word_sent=");
-// emb_itoa(ON_OFF_word_sent, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   xor_tmp=");
-// emb_itoa(xor_tmp, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   MQTT_transmit=");
-// emb_itoa(MQTT_transmit, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-// #endif // DEBUG_SUPPORT != 11
-
 	// A publish_pinstate needs to occur if:
 	//   A pin is Enabled (either Input or Output) and its ON/OFF state
 	//   changed as indicated by xor_temp
 	//   OR
         //   A MQTT PUBLISH was received for a pin as indicated by the
 	//   MQTT_transmit word.
-	
-//	if (pin_control[i] & 0x01) { // enabled
-//	  // Send a PUBLISH Response continaing the pin state
-//          if (pin_control[i] & 0x02) publish_pinstate('O', (uint8_t)(i+1), ON_OFF_word, j);
-//          else                       publish_pinstate('I', (uint8_t)(i+1), ON_OFF_word, j);
-//	  // Break out of the while loop, as we can only send one Publish
-//	  // message per pass.
-//	  signal_break = 1;
-//	}
-//	// else Pin is not enabled so no Publish was required.
 	// Send a PUBLISH Response containing the pin state
 #if LINKED_SUPPORT == 0
         if ((pin_control[i] & 0x03) == 0x03) { // Enabled Output
@@ -2816,16 +2664,6 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
     strcpy(app_message, "OFF");
     size = 3;
   }
-
-
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("publish pinstate ");
-// UARTPrintf(topic_base);
-// UARTPrintf(" ");
-// UARTPrintf(app_message);
-// UARTPrintf("\r\n");
-// #endif // DEBUG_SUPPORT != 11
-
 
   // Queue publish message
   // This message is always published with QOS 0
@@ -3085,198 +2923,6 @@ void check_eeprom_settings(void)
 {
   int i;
   char temp[10];
-/*
-  // Check magic number in EEPROM.
-  //
-  // If the magic number IS found then it is assumed that the EEPROM contains
-  // valid copies of the Output States, IP Address, Gateway Address, Netmask,
-  // MAC and Port number.
-  //
-  // If no magic number is found it is assumed that the EEPROM has never been
-  // written, in which case the default Output States, IP Address, Gateway
-  // Address, Netmask, MAC and Port number will be used.
-  //
-  // The magic number sequence is MSB 0x55 0xee 0x0f 0xf0 LSB
-  
-  if ((stored_magic4 == 0x55) && 
-      (stored_magic3 == 0xee) && 
-      (stored_magic2 == 0x0f) && 
-      (stored_magic1 == 0xf0)) {
-      
-    // MAGIC NUMBER IS PRESENT. Use the values in the EEPROM for the Output
-    // States, IP, Gateway, Netmask, MAC and Port Number.
-    
-    // Read and use the IP Address from EEPROM
-    uip_ipaddr(IpAddr,
-               stored_hostaddr[3],
-	       stored_hostaddr[2],
-	       stored_hostaddr[1],
-	       stored_hostaddr[0]);
-    uip_sethostaddr(IpAddr);
-    
-    // Read and use the Gateway Address from EEPROM
-    uip_ipaddr(IpAddr,
-               stored_draddr[3],
-	       stored_draddr[2],
-	       stored_draddr[1],
-	       stored_draddr[0]);
-    uip_setdraddr(IpAddr);
-    
-    // Read and use the Netmask from EEPROM
-    uip_ipaddr(IpAddr,
-               stored_netmask[3],
-	       stored_netmask[2],
-	       stored_netmask[1],
-	       stored_netmask[0]);
-    uip_setnetmask(IpAddr);
-
-    // Read and use the MQTT Server IP Address from EEPROM
-    uip_ipaddr(IpAddr,
-               stored_mqttserveraddr[3],
-	       stored_mqttserveraddr[2],
-	       stored_mqttserveraddr[1],
-	       stored_mqttserveraddr[0]);
-    uip_setmqttserveraddr(IpAddr);
-    
-    // Read and use the MQTT Port from EEPROM
-    Port_Mqttd = stored_mqttport;
-
-    // Read and use the Port from EEPROM
-    Port_Httpd = stored_port;
-    
-    // Read and use the MAC from EEPROM
-    // Set the MAC values used by the ARP code. Note the ARP code uses the
-    // values in reverse order from all the other code.
-    uip_ethaddr.addr[0] = stored_uip_ethaddr_oct[5]; // MSB
-    uip_ethaddr.addr[1] = stored_uip_ethaddr_oct[4];
-    uip_ethaddr.addr[2] = stored_uip_ethaddr_oct[3];
-    uip_ethaddr.addr[3] = stored_uip_ethaddr_oct[2];
-    uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
-    uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
-  }
-  
-  else {
-    // MAGIC NUMBER IS NOT PRESENT. Use the default IP, Gateway, Netmask,
-    // Port, and MAC values and store them in the EEPROM. Turn off all
-    // Outputs and store the off state in EEPROM. Write the magic number.
-
-    unlock_eeprom(); // Make EEPROM writeable
-
-    // Default IP Address
-    uip_ipaddr(IpAddr, 192,168,1,4);
-    uip_sethostaddr(IpAddr);
-    // Write the IP Address to EEPROM
-    stored_hostaddr[3] = 192;	// MSB
-    stored_hostaddr[2] = 168;	//
-    stored_hostaddr[1] = 1;	//
-    stored_hostaddr[0] = 4;	// LSB
-    
-    // Default Gateway Address
-    uip_ipaddr(IpAddr, 192,168,1,1);
-    uip_setdraddr(IpAddr);
-    // Write the Gateway Address to EEPROM
-    stored_draddr[3] = 192;	// MSB
-    stored_draddr[2] = 168;	//
-    stored_draddr[1] = 1;	//
-    stored_draddr[0] = 1;	// LSB
-    
-    // Default Netmask
-    uip_ipaddr(IpAddr, 255,255,255,0);
-    uip_setnetmask(IpAddr);
-    // Write the Netmask to EEPROM
-    stored_netmask[3] = 255;	// MSB
-    stored_netmask[2] = 255;	//
-    stored_netmask[1] = 255;	//
-    stored_netmask[0] = 0;	// LSB
-
-    // Initial MQTT Server IP Address
-    uip_ipaddr(IpAddr, 0,0,0,0);
-    uip_setmqttserveraddr(IpAddr);
-    
-    // Write the MQTT Server IP Address to EEPROM
-    stored_mqttserveraddr[3] = 0;	// MSB
-    stored_mqttserveraddr[2] = 0;	//
-    stored_mqttserveraddr[1] = 0;	//
-    stored_mqttserveraddr[0] = 0;	// LSB
-    
-    // Write the default MQTT Port number to EEPROM
-    stored_mqttport = 1883;		// Port
-    // Set the "in use" port number to the default
-    Port_Mqttd = 1883;
-    
-    // Write a NULL Usernams and Password to the EEPROM
-    for(i=0; i<11; i++) { stored_mqtt_username[i] = '\0'; }
-    for(i=0; i<11; i++) { stored_mqtt_password[i] = '\0'; }
-    
-    // Write the default Port number to EEPROM
-    stored_port = 8080;
-    // Set the "in use" port number to the default
-    Port_Httpd = 8080;
-
-    // Write the default MAC address to EEPROM and to the ARP values.
-    // With a bogus Magic Number we have to assume that the Network Module
-    // has never been used before. Therefore we need to program a default
-    // MAC Address. After this the Magic Number should always be present
-    // in which case a user programmed MAC is used.
-    // Note there is nothing special about the default MAC used below. It
-    // must be a "Locally Administered" address and it must be a "Unicast"
-    // address. Both of these conditions are met via the bit settings of
-    // the most significant octet. Otherwise the default MAC is a random
-    // selection. I assume the user will pick MACs that do not conflict
-    // within their networks.
-    //
-    // Note that the MAC values used by the ARP code are in reverse order
-    // from that used by all the other code.
-    stored_uip_ethaddr_oct[5] = 0xc2;	//MAC MSB
-    stored_uip_ethaddr_oct[4] = 0x4d;
-    stored_uip_ethaddr_oct[3] = 0x69;
-    stored_uip_ethaddr_oct[2] = 0x6b;
-    stored_uip_ethaddr_oct[1] = 0x65;
-    stored_uip_ethaddr_oct[0] = 0x00;	//MAC LSB
-    // Set the MAC values used by the ARP code
-    uip_ethaddr.addr[0] = stored_uip_ethaddr_oct[5]; // MSB
-    uip_ethaddr.addr[1] = stored_uip_ethaddr_oct[4];
-    uip_ethaddr.addr[2] = stored_uip_ethaddr_oct[3];
-    uip_ethaddr.addr[3] = stored_uip_ethaddr_oct[2];
-    uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
-    uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
-
-    // Default Device Name
-    strcpy(stored_devicename, "NewDevice000");
-    for (i=12; i<20; i++) stored_devicename[i] = '\0';
-
-    // Clear Config settings
-    stored_config_settings = 0;
-    
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // All pins need to default to "input" and "disable" to prevent
-    // conflicting with external hardware drivers.
-    // pin_control_bytes should be set to defaults
-    //   Each pin should be set to 00001010
-    //   0 ON/OFF
-    //   0 reserved
-    //   0 reserved
-    //   0 On/Off after power cycle set to Off
-    //   0 Retain set to Off
-    //   0 Invert set to Off
-    //   0 | The two least significant bits define the pin type:
-    //   0 | 00: Disabled  01: Input  10: Linked  11: Output
-    // THEN 16 bit registers should be written
-    //   encode_16bit_registers()
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    
-    // Create default pin_control bytes
-    for (i=0; i<16; i++) stored_pin_control[i] = 0x00;
-    
-    // Write the magic number to the EEPROM MSB 0x55 0xee 0x0f 0xf0 LSB
-    stored_magic4 = 0x55; // MSB
-    stored_magic3 = 0xee; //
-    stored_magic2 = 0x0f; //
-    stored_magic1 = 0xf0; // LSB
-    
-    lock_eeprom();
-*/    
-
 
   // Check magic number in EEPROM.
   //
@@ -3563,7 +3209,6 @@ void check_eeprom_settings(void)
   // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
   // accordingly. Do this on Outputs only.
   for (i=0; i<16; i++) {
-//    if (((pin_control[i] & 0x08) == 0x00) && (pin_control[i] & 0x02)) {
     if (((pin_control[i] & 0x08) == 0x00) && ((pin_control[i] & 0x03) == 0x03)) {
       // Retain is not set and this is an output
       if ((pin_control[i] & 0x10) == 0x00) {
@@ -3789,45 +3434,6 @@ void check_runtime_changes(void)
       // else do nothing - the settings are OK.
     }
   }
-/*
-    for (i=0; i<16; i++) {
-      if ((Pending_pin_control[i] & 0x03) == 0x02) {
-        // Pin is defined as a Linked pin
-	if (i < 8) {
-	  if ((Pending_pin_control[i+8] & 0x03) != 0x02) {
-	    // Corresponding pin is not Linked. Restore the current pin to
-	    // the EEPROM content.
-	    Pending_pin_control[i] = stored_pin_control[i];
-	  }
-	}
-	else {
-	  if ((Pending_pin_control[i-8] & 0x03) != 0x02) {
-	    // Corresponding pin is not Linked. Restore the current pin to
-	    // the EEPROM content.
-	    Pending_pin_control[i] = stored_pin_control[i];
-	  }
-	}
-      }
-      if ((Pending_pin_control[i] & 0x03) != 0x02) {
-        // Pin is not defined as a Linked pin
-	if (i < 8) {
-	  if ((Pending_pin_control[i+8] & 0x03) == 0x02) {
-	    // Corresponding pin is set to Linked. Restore the current pin to
-	    // the EEPROM content.
-	    Pending_pin_control[i] = stored_pin_control[i];
-	  }
-	}
-	else {
-	  if ((Pending_pin_control[i-8] & 0x03) == 0x02) {
-	    // Corresponding pin is set to Linked. Restore the current pin to
-	    // the EEPROM content.
-	    Pending_pin_control[i] = stored_pin_control[i];
-	  }
-	}
-      }
-    }
-  }
-*/
 #endif // LINKED_SUPPORT == 1
 
 
@@ -4150,31 +3756,6 @@ void check_runtime_changes(void)
 #endif BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
   if (parse_complete || mqtt_parse_complete) {
-  
-// UARTPrintf("parse_complete1: Pend_pin_ctrl[0] = ");
-// emb_itoa(Pending_pin_control[0], OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   pin_ctrl[0] = ");
-// emb_itoa(pin_control[0], OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-//  
-// UARTPrintf("parse_complete1: Pend_pin_ctrl[1] = ");
-// emb_itoa(Pending_pin_control[1], OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   pin_ctrl[1] = ");
-// emb_itoa(pin_control[1], OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-//  
-// UARTPrintf("parse_complete1: Pend_pin_ctrl[2] = ");
-// emb_itoa(Pending_pin_control[2], OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   pin_ctrl[2] = ");
-// emb_itoa(pin_control[2], OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
- 
     // Check for changes from the user via the GUI, MQTT, or REST commands.
     // If parse_complete == 1 all TCP Fragments have been received during
     // HTML POST processing, OR a REST command was processed.
@@ -4257,17 +3838,6 @@ void check_runtime_changes(void)
 	    // reconfigured.
             user_reboot_request = 1;
 	  }
-	
-//          // Check for change in Enabled/Disabled definition
-//          if ((pin_control[i] & 0x01) != (Pending_pin_control[i] & 0x01)) {
-//            // There is a change:
-//	    //   Signal an EEPROM update
-//	    //   Signal a "reboot needed". Note that in this case a reboot is
-//	    //   really only needed if MQTT is enabled, but it will be done
-//	    //   even if MQTT is not enabled to simplify code.
-//            update_EEPROM = 1;
-//            user_reboot_request = 1;
-//          }
 
           // Check for change in Invert
           if ((pin_control[i] & 0x04) != (Pending_pin_control[i] & 0x04)) {
@@ -4341,17 +3911,6 @@ void check_runtime_changes(void)
   }
 
   if (parse_complete) {
-
-
-// UARTPrintf("parse_complete2: Pend_pin_ctrl[0] = ");
-// emb_itoa(Pending_pin_control[0], OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   pin_ctrl[0] = ");
-// emb_itoa(pin_control[0], OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
-
     // Only perform the next checks if parse_complete indicates that all
     // HTML POST processing is complete.
 
@@ -4516,7 +4075,6 @@ void check_runtime_changes(void)
     fastflash();
     fastflash();
     
-#if DEBUG_SUPPORT != 0
     // Report the stack overflow bit. The stack overflow indicator will remain
     // set (even through reboots) until cleared with the Clear Link Error
     // Statistics button or URL command.
@@ -4524,8 +4082,6 @@ void check_runtime_changes(void)
       debug[2] |= 0x80;
       update_debug_storage1();
     }
-#endif // DEBUG_SUPPORT
-
   }
 }
 
@@ -4742,14 +4298,6 @@ void restart(void)
   // Netmask, Port number, MAC, etc, but we don't run the GPIO initialization
   // that would affect the GPIO pin states. This prevents output "chatter"
   // that a complete hardware reset would cause.
-
-// #if DEBUG_SUPPORT != 0
-//  fastflash(); // A useful signal that a deliberate restart is occurring.
-// oneflash();
-// oneflash();
-// #else
-//  oneflash(); // Quick flash for normal operation
-// #endif DEBUG_SUPPORT
 
   LEDcontrol(0); // Turn LED off
 
@@ -5186,7 +4734,6 @@ void fastflash(void)
 
 void oneflash(void)
 {
-  // DEBUG - BLINK LED ON/OFF XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // Turns LED off for 25ms then back on
 
   LEDcontrol(0);     // turn LED off
@@ -5199,14 +4746,10 @@ void oneflash(void)
 void restore_eeprom_debug_bytes(void)
 {
   // Restore debug bytes from EEPROM to RAM
-#if DEBUG_SUPPORT != 0
   memcpy(&debug[0], &stored_debug[0], 10);
-#endif // DEBUG_SUPPORT
 }
 
 
-#if DEBUG_SUPPORT != 0
-// Note: Make sure there is enough RAM for the debug[] values.
 void update_debug_storage1() {
   int i;
   
@@ -5220,4 +4763,3 @@ void update_debug_storage1() {
   lock_eeprom();
   
 }
-#endif // DEBUG_SUPPORT

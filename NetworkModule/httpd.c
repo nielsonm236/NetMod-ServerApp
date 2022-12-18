@@ -105,11 +105,9 @@
 #define PARSE_NULL		127	// Default init state for the parser
 
 
-#if DEBUG_SUPPORT != 0
 // Variables used to store debug information
 extern uint8_t debug[10];
 extern uint8_t stored_debug[10];
-#endif // DEBUG_SUPPORT
 
 extern uint16_t Port_Httpd;               // Port number in use
 
@@ -2489,15 +2487,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   else if (pSocket->current_webpage == WEBPAGE_SSTATE) {
     size = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
     
-    // Account for header replacement strings %y04 %y05
-//    size = size + ps[4].size_less4
-//                + ps[5].size_less4;
-
-    // Account for Device Name field %a00 in <title>
-    // This can be variable in size during run time so we have to calculate it
-    // each time we display the web page.
-//    size = size + strlen_devicename_adjusted;
-
     // Account for Short Form IO Settings field (%f00)
     // size = size + (value size - marker_field_size)
     // size = size + (16 - 4);
@@ -3730,7 +3719,6 @@ void HttpDInit(void)
   // Initialize the struct tHttpD values
   for (i = 0; i < UIP_CONNS; i++) {
     uip_connr = &uip_conns[i];
-//    init_tHttpD_struct(&uip_connr->appstate.HttpDSocket);
     init_tHttpD_struct(&uip_connr->appstate.HttpDSocket, i);
   }
 
@@ -3790,30 +3778,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   i = 0;
   j = 0;
 
-// UARTPrintf("HttpDCall: current_webpage = ");
-// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("  listening port = ");
-// emb_itoa(uip_conn->lport, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   structID = ");
-// emb_itoa(pSocket->structID, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
-
   if (uip_connected()) {
     //Initialize this connection
-    
-// UARTPrintf("HttpDCall: uip_connected\r\n");
-
-// UARTPrintf("HttpDCall: uip_connected  current_webpage = ");
-// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   structID = ");
-// emb_itoa(pSocket->structID, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
@@ -3907,17 +3873,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   }
 
   else if (uip_acked()) {
-
-// UARTPrintf("HttpDCall: uip_acked\r\n");
-
-// UARTPrintf("HttpDCall: uip_acked  current_webpage = ");
-// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   structID = ");
-// emb_itoa(pSocket->structID, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
     // if uip_acked() is true we will be in the STATE_SENDDATA state and
     // only need to run the "senddata" part of this routine. This typically
     // happens when there are multiple packets to send to the Broswer in
@@ -3927,17 +3882,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   }
   
   else if (uip_newdata()) {
-
-// UARTPrintf("HttpDCall: uip_newdata\r\n");
-
-// UARTPrintf("HttpDCall: uip_newdata  current_webpage = ");
-// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   structID = ");
-// emb_itoa(pSocket->structID, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
     // This is the start of a new Browser session, or it is additional packets
     // sent to complete a transmission from the Browser.
     //
@@ -4029,23 +3973,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       // ready if there is a TCP Fragment.
       parse_tail[0] = '\0';
 
-// UARTPrintf("\r\n");
-// UARTPrintf("pSocket->nState == STATE_CONNECTED, parse_tail set to NULL");
-// UARTPrintf("\r\n");
-
-
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
       // Initialize the find_content_info state. It is used to manage the
       // search for the Content-Type and Content-Length phrases.
       find_content_info = SEEK_CONTENT_INFO;
-
-// UARTPrintf("\r\n");
-// UARTPrintf("find_content_info = SEEK_CONTENT_INFO initialize");
-// UARTPrintf("\r\n");
-
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-
-
     }
     
 
@@ -4060,11 +3992,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       // \r\n\r\n sequence in the html body. Note that we need to search the
       // html pre-amble for the "Content-Length" when running a Code Uploader
       // build.
-
-// UARTPrintf("\r\n");
-// UARTPrintf("pSocket->nState == STATE_GOTPOST Search for rnrn");
-// UARTPrintf("\r\n");
-
       if (nBytes == 0) {
         // If we enter the search at end of fragment we exit and will come
 	// back to this point with the next fragment.
@@ -4191,15 +4118,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      }
 	      
               find_content_info = SEEK_FIRST_RNRN;
-
-// UARTPrintf("\r\n");
-// UARTPrintf("Found Content-Length: ");
-// UARTPrintf(OctetArray);
-// UARTPrintf("  file_length: ");
-// emb_itoa(file_length, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
 	    }
 	  }
         }	
@@ -4231,11 +4149,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // Need to search for next \r\n\r\n
           pSocket->nNewlines = 0;
 	  find_content_info = SEEK_SECOND_RNRN;
-
-// UARTPrintf("\r\n");
-// UARTPrintf("find_content_info = SEEK_SECOND_RNRN");
-// UARTPrintf("\r\n");
-
 	}
         else if ((pSocket->nNewlines == 2) && (find_content_info == SEEK_SECOND_RNRN)) {
 	  // Found second set of \r\n\r\n
@@ -4246,10 +4159,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // The next character in the POST should be the first character of
 	  // the payload (in this case, the new program file).
           find_content_info = FOUND_CONTENT_INFO;
-
-// UARTPrintf("\r\n");
-// UARTPrintf("find_content_info = FOUND_CONTENT_TYPE FINAL");
-// UARTPrintf("\r\n");
 
 	  // Beginning of a data file found.
 	  // Initialize parsing variables.
@@ -4282,10 +4191,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // complete as they do with user POST entries.
 	  pSocket->nParseLeft = 1;
 
-// UARTPrintf("\r\n");
-// UARTPrintf("Starting STATE_PARSEFILE");
-// UARTPrintf("\r\n");
-
 	  if (nBytes == 0) {
 	    // If we are at end of fragment here we exit and will return in
 	    // STATE_PARSEFILE
@@ -4300,11 +4205,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
     if (pSocket->nState == STATE_GOTGET) {
-
-// UARTPrintf("\r\n");
-// UARTPrintf("pSocket->nState == STATE_GOTGET Going to PARSEGET");
-// UARTPrintf("\r\n");
-
       // Don't search for \r\n\r\n ... instead parse what we've got
       // Initialize Parsing variables
       // nParseLeft is used as a flag in GET parsing. nParseLeft == 1 will
@@ -4326,11 +4226,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     
 
     if (pSocket->nState == STATE_PARSEGET) {
-
-// UARTPrintf("\r\n");
-// UARTPrintf("pSocket->nState == STATE_PARSEGET Parsing");
-// UARTPrintf("\r\n");
-
       // This section will parse a GET request sent by the user. Normally in a
       // general purpose web server a GET request would be used to obtain
       // files or other items from the server. In that general case the data
@@ -4372,19 +4267,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // While this is not a PARSE_FAIL, going through the PARSE_FAIL
 	    // logic will accomplish what we want (paint the default page).
             pSocket->ParseState = PARSE_FAIL;
-// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-// 	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
-//             pSocket->pData = g_HtmlPageIOControl;
-//             pSocket->nDataLeft = HtmlPageIOControl_size;
-//             init_off_board_string_pointers(pSocket);
-// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-// #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-// 	    pSocket->current_webpage = WEBPAGE_UPLOADER;
-//             pSocket->pData = g_HtmlPageUploader;
-//             pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
-// #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-//             pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
-// 	                             // SENDHEADER
 	  }
         }
 
@@ -4397,19 +4279,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // While this is not a PARSE_FAIL, going through the PARSE_FAIL
 	    // logic will accomplish what we want (paint the default page).
             pSocket->ParseState = PARSE_FAIL;
-// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-// 	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
-//             pSocket->pData = g_HtmlPageIOControl;
-//             pSocket->nDataLeft = HtmlPageIOControl_size;
-//             init_off_board_string_pointers(pSocket);
-// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-// #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-// 	    pSocket->current_webpage = WEBPAGE_UPLOADER;
-//             pSocket->pData = g_HtmlPageUploader;
-//             pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
-// #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-//             pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
-// 	                             // SENDHEADER
 	  }
 	  // Parse first ParseNum digit. Looks like the user did input a
 	  // filename digit, so collect it here.
@@ -4445,9 +4314,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  else {
 	    // Something out of sync or invalid filename - exit while() via
 	    // the PARSE_FAIL logic.
-//            pSocket->nParseLeft = 0; // Set to 0 so we will exit the parsing
-//				     // while() loop and will go on to STATE_
-//	                             // SENDHEADER
             pSocket->ParseState = PARSE_FAIL;
 	  }
 	}
@@ -4568,9 +4434,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 
 	    case 60: // Show IO Control page
-
-// UARTPrintf("case 60\r\n");
-
 	      pSocket->current_webpage = WEBPAGE_IOCONTROL;
               pSocket->pData = g_HtmlPageIOControl;
               pSocket->nDataLeft = HtmlPageIOControl_size;
@@ -4578,9 +4441,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 	      
 	    case 61: // Show Configuration page
-
-// UARTPrintf("case 61\r\n");
-
 	      pSocket->current_webpage = WEBPAGE_CONFIGURATION;
               pSocket->pData = g_HtmlPageConfiguration;
               pSocket->nDataLeft = HtmlPageConfiguration_size;
@@ -4858,17 +4718,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		// While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
 		// will accomplish what we want.
 		pSocket->ParseState = PARSE_FAIL;
-// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-// 	        pSocket->current_webpage = WEBPAGE_IOCONTROL;
-//                 pSocket->pData = g_HtmlPageIOControl;
-//                 pSocket->nDataLeft = HtmlPageIOControl_size;
-//                 init_off_board_string_pointers(pSocket);
-// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-// #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-// 	        pSocket->current_webpage = WEBPAGE_UPLOADER;
-//                 pSocket->pData = g_HtmlPageUploader;
-//                 pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
-// #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
               }
               break;
 
@@ -4916,11 +4765,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
     if (pSocket->nState == STATE_PARSEFILE) {
-
-// UARTPrintf("\r\n");
-// UARTPrintf("pSocket->nState == STATE_PARSEFILE Parsing");
-// UARTPrintf("\r\n");
-
       // This step is entered if a POST containing a firmware file was
       // detected. The file contents will be copied to the Off-Board EEPROM,
       // then the Off-B0ard EEPROM will be copied to the internal Flash, then
@@ -4949,33 +4793,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       //   with every possible fart. The invalid SREC file will likely be
       //   loaded into Flash and reprogramming via the SWIM interface may be
       //   necessary.
-
-// UARTPrintf("\r\n");
-// UARTPrintf("Parsing data file\r\n");
-
-// UARTPrintf(" byte_index = ");
-// emb_itoa(byte_index, OctetArray, 10, 3);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
-// UARTPrintf(" parse_index = ");
-// emb_itoa(parse_index, OctetArray, 10, 3);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
-// UARTPrintf(" eeprom_address_index = ");
-// emb_itoa(eeprom_address_index, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
-// UARTPrintf(" ParseState = ");
-// emb_itoa(pSocket->ParseState, OctetArray, 10, 3);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
-// UARTPrintf("***NEWPACKET***");
-
-
       // nBytes is tracked in this function using the global file_nBytes to
       // enable shared use of the nBytes value in this function and the
       // read_two_characters function.
@@ -5011,8 +4828,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	// should find the end of the phrase within 200 characters of starting
 	// the search. If we don't it can be assumed this is not an SREC file.
 
-// UARTPrintf("PARSE_FILE_SEEK_START\r\n");
-
         while (1) {
 	  // Search for the "Type: application/octet-stream" phrase.
 	  // Since we can hit a packet boundary at any time we must check for
@@ -5028,9 +4843,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // Shift the register contents left
 	    compare_buf[i] = compare_buf[i+1];
 	  }
-// UARTPrintf("compare_buf: ");
-// UARTPrintf(compare_buf);
-// UARTPrintf("\r\n");
 	  // Add a new character to the end of the register
 	  compare_buf[29] = *pBuffer;
 	  pBuffer++;
@@ -5042,20 +4854,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // Found "Type: application/octet-stream"
 	    // The next character starts the SREC content
             pSocket->ParseState = PARSE_FILE_SEEK_SX;
-// UARTPrintf("Found octet-stream\r\n");
-
-
-// Diagnostic - Print the characters that follow "octet-stream"
-// UARTPrintf("Characters following octet-stream: ");
-// for (i=0; i<30; i++) {
-// compare_buf[0] = *pBuffer;
-// pBuffer++;
-// compare_buf[1] = '\0';
-// UARTPrintf(compare_buf);
-// }
-// UARTPrintf("\r\n");
-
-
 	    break; // Break out of the local while loop
 	  }
 	      
@@ -5063,7 +4861,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // Should have found the phrase by now. Assume this is not a valid
 	    // SREC file. Break out of the loop and go to PARSE_FILE_FAIL
 	    // The next character starts the SREC content
-// UARTPrintf("Exceeded search limit\r\n");
             pSocket->ParseState = PARSE_FILE_FAIL;
 	    break; // Break out of the local while loop
 	  }
@@ -5121,9 +4918,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // we know where we were when a packet ended (a TCP Fragmentation).
           
           if (pSocket->ParseState == PARSE_FILE_SEEK_SX) {
-
-// UARTPrintf(" ParseState = PARSE_FILE_SEEK_SX\r\n");
-
 	    // This parse looks S0, S3, and S7 SREC records and will parse them
 	    // based on expected content. There are error checks in the loop
 	    // looking for incorrect format or unexpected end-of-file.
@@ -5159,14 +4953,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	        // the next packet will be read.
                 break;
               }
-
-// {
-// uint8_t temp[3];
-// temp[0] = byte_tail[0];
-// temp[1] = byte_tail[1];
-// temp[2] = '\0';
-// UARTPrintf(temp);
-// }
             
 	      // If we didn't break out then we successfully read two charac-
 	      // ters.
@@ -5204,7 +4990,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		    uint16_t i;
 		    uint8_t j;
 		    uint16_t temp_eeprom_address_index;
-// UARTPrintf("\r\nEEPROM0 erase at temp_eeprom_address_index ");
 		    for (i=0; i<256; i++) {
 		      // Write 256 blocks of 128 bytes each with zero
                       I2C_control(I2C_EEPROM0_WRITE); // Send Write Control Byte
@@ -5216,16 +5001,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		      }
                       I2C_stop(); // Start the EEPROM internal write cycle
                       IWDG_KR = 0xaa; // Prevent the IWDG from firing.
-// emb_itoa(temp_eeprom_address_index, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf(" ");
                       // Wait for completion of write.
 		      // For simplicity I'm waiting 5ms (the max time required).
 		      // This loop could be sped up by using "acknowledge
 		      // polling" (see the 24AA1025 EEPROM spec).
                       wait_timer(5000); // Wait 5ms
                     }
-// UARTPrintf("\r\n");
 		  }
 		  // Now go on to determining what kind of file was sent
 		  file_type = FILETYPE_SEARCH;
@@ -5267,18 +5048,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		      }
 	              if (file_type == FILETYPE_STRING) {
                         I2C_control(I2C_EEPROM2_WRITE);
-// UARTPrintf("\r\nEEPROM2 write at eeprom_address_index ");
 		      }
                       I2C_byte_address(eeprom_address_index);
-// UARTPrintf("\r\nEEPROM write at eeprom_address_index ");
-// emb_itoa(eeprom_address_index, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf(": \r\n");
                       for (i=0; i<64; i++) {
 		        I2C_write_byte(parse_tail[i]);
-// emb_itoa(parse_tail[i], OctetArray, 16, 2);
-// UARTPrintf(" ");
-// UARTPrintf(OctetArray);
 		      }
                       I2C_stop();
                       wait_timer(5000); // Wait 5ms
@@ -5322,9 +5095,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
 	      if (byte_index == 2) {
 	        // Read the data count value
-
-// UARTPrintf("byte_index == 2  ");
-
                 data_count = two_hex2int(byte_tail[0], byte_tail[1]);
 	        // Start checksum
 	        checksum = data_count;
@@ -5337,9 +5107,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
 	      if (byte_index == 4) {
 	        // Ignore first byte of address value
-
-// UARTPrintf("byte_index == 4  ");
-
 	        data_count--;
 	        // Add to checksum. Value is always 00
 	        checksum += 0;
@@ -5352,9 +5119,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
 	      if (byte_index == 6) {
 	        // Ignore the second byte of address value
-
-// UARTPrintf("byte_index == 6  ");
-
 	        data_count--;
 	        // Add to checksum. Value is always 00
 	        checksum += 0;
@@ -5367,9 +5131,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
 	      if (byte_index == 8 && file_type != FILETYPE_SEARCH) {
 	        // Capture the high order byte of the address value
-
-// UARTPrintf("byte_index == 8  ");
-
                 temp_address = two_hex2int(byte_tail[0], byte_tail[1]);
 	        data_count--;
 	        checksum += (uint8_t)temp_address;
@@ -5383,9 +5144,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
 	      if (byte_index == 8 && file_type == FILETYPE_SEARCH) {
 	        // Determine file_type
-
-// UARTPrintf("byte_index == 8\r\n");
-
 	        data_count--;
 	        // Capture the first byte of the file type
 	        // 'N' (0x4E) is a NetworkModule program file
@@ -5419,20 +5177,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    
 	      if (byte_index == 10) {
 	        // Capture the low order byte of the address value
-
-// UARTPrintf("byte_index == 10\r\n");
-
                 temp_address_low = two_hex2int(byte_tail[0], byte_tail[1]);
 	        data_count--;
 	        checksum += (uint8_t)temp_address_low;
 	        temp_address |= temp_address_low;
 	      
 	        if ((temp_address < 0x8000) || (temp_address > (FLASH_START_USER_RESERVE - 1))) {
-// UARTPrintf("\r\nDiscard ");
-// UARTPrintf("temp_address = ");
-// emb_itoa(temp_address, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
 	          // If the address is not in the range 0x8000 to
 	          // FLASH_START_USER_DATA_RESERVE we ignore the SREC and
 		  // stay in ParseState PARSE_FILE_SEEK_SX to search for the
@@ -5446,10 +5196,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	        else {
 	          // Else we start processing the SREC
                   new_address = temp_address;
-// UARTPrintf("\r\nnew_address = ");
-// emb_itoa(new_address, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
 	        }
 	      
 	        if (new_address == 0x8000) {
@@ -5487,12 +5233,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		    //   If the new_address is in space futher out in the EEPROM
 		    //   the EEPROM writes will begin at that new_address.
 		    // 
-
-
-// UARTPrintf("\r\nFound data line with non-sequential address: parse_index = ");
-// emb_itoa(parse_index, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-
 		    if (parse_index != 0) {
 		      // If we were in the middle of writing a 64 byte block to
 		      // EEPROM we need to finish that. Write the 64 bytes of
@@ -5509,7 +5249,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 			}
 	                if (file_type == FILETYPE_STRING) {
                           I2C_control(I2C_EEPROM2_WRITE);
-// UARTPrintf("\r\nEEPROM2 write at eeprom_address_index ");
 			}
 			
 		        // At this point the eeprom_address_index will be point-
@@ -5517,15 +5256,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		        // being processed when the out-of-sequence address was
 		        // encountereed.
                         I2C_byte_address(eeprom_address_index);
-// UARTPrintf("\r\nEEPROM write at eeprom_address_index ");
-// emb_itoa(eeprom_address_index, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf(": \r\n");
                         for (i=0; i<64; i++) {
 		          I2C_write_byte(parse_tail[i]);
-// emb_itoa(parse_tail[i], OctetArray, 16, 2);
-// UARTPrintf(" ");
-// UARTPrintf(OctetArray);
 		        }
                         I2C_stop();
                         wait_timer(5000); // Wait 5ms
@@ -5582,7 +5314,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
           if (pSocket->ParseState == PARSE_FILE_SEQUENTIAL) {
-// UARTPrintf(" ParseState = PARSE_FILE_SEQUENTIAL\r\n");
 	    // This parse is entered knowing that the next two characters are a
 	    // data byte.
 	    while (1) {
@@ -5602,14 +5333,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	        // the next packet will be read.
                 break;
               }
-
-// {
-// uint8_t temp[3];
-// temp[0] = byte_tail[0];
-// temp[1] = byte_tail[1];
-// temp[2] = '\0';
-// UARTPrintf(temp);
-// }
 	    
 	      // If we didn't break out then we successfully read two characters
               data_value = two_hex2int(byte_tail[0], byte_tail[1]);
@@ -5626,18 +5349,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      }
 	      
 	      if (data_count == 0) {
-// UARTPrintf("data_count 0\r\n");
 	        // We just read the last byte in this SREC. The byte just read
 	        // was the checksum. Check for validity.
 	        if (checksum != 0xff) {
 	          // Handle Checksum Error
                   upgrade_failcode = UPGRADE_FAIL_FILE_READ_CHECKSUM;
-
-// UARTPrintf("checksum = ");
-// emb_itoa(checksum, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-	      
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_FILE_READ_CHECKSUM\r\n");
                   pSocket->ParseState = PARSE_FILE_FAIL;
                   break; // Break out of the local while loop
@@ -5645,7 +5361,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      }
 	    
 	      if (parse_index == 64 && file_type == FILETYPE_PROGRAM) {
-// UARTPrintf("parse_index 64\r\n");
 	        // Copy parse_tail to Off-Board EEPROM0
 	        
                 // Write the 64 bytes of data that are in the parse_tail array
@@ -5657,15 +5372,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                   
                   I2C_control(I2C_EEPROM0_WRITE); // Send Write Control Byte
                   I2C_byte_address(eeprom_address_index);
-// UARTPrintf("\r\nEEPROM0 write at eeprom_address_index ");
-// emb_itoa(eeprom_address_index, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf(": \r\n");
                   for (i=0; i<64; i++) {
                     I2C_write_byte(parse_tail[i]);
-// emb_itoa(parse_tail[i], OctetArray, 16, 2);
-// UARTPrintf(" ");
-// UARTPrintf(OctetArray);
                   }
                   I2C_stop();
                   wait_timer(5000); // Wait 5ms
@@ -5673,13 +5381,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                   // Validate data in Off-Board EEPROM
                   prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index);
 	          I2C_last_flag = 0;
-// UARTPrintf("\r\nEEPROM contents: \r\n");
                   for (i=0; i<64; i++) {
                     if (i == 63) I2C_last_flag = 1;
                     temp_byte = I2C_read_byte(I2C_last_flag);
-// emb_itoa(temp_byte, OctetArray, 16, 2);
-// UARTPrintf(" ");
-// UARTPrintf(OctetArray);
                     if (temp_byte != parse_tail[i]) {
                       upgrade_failcode = UPGRADE_FAIL_EEPROM_MISCOMPARE;
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_EEPROM_MISCOMPARE\r\n");
@@ -5703,15 +5407,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                   
                   I2C_control(I2C_EEPROM2_WRITE); // Send Write Control Byte
                   I2C_byte_address(eeprom_address_index);
-// UARTPrintf("\r\nEEPROM2 write at eeprom_address_index ");
-// emb_itoa(eeprom_address_index, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf(": \r\n");
                   for (i=0; i<64; i++) {
                     I2C_write_byte(parse_tail[i]);
-// emb_itoa(parse_tail[i], OctetArray, 16, 2);
-// UARTPrintf(" ");
-// UARTPrintf(OctetArray);
                   }
                   I2C_stop();
                   wait_timer(5000); // Wait 5ms
@@ -5719,13 +5416,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                   // Validate data in Off-Board EEPROM
                   prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index);
 	          I2C_last_flag = 0;
-// UARTPrintf("\r\nEEPROM contents: \r\n");
                   for (i=0; i<64; i++) {
                     if (i == 63) I2C_last_flag = 1;
                     temp_byte = I2C_read_byte(I2C_last_flag);
-// emb_itoa(temp_byte, OctetArray, 16, 2);
-// UARTPrintf(" ");
-// UARTPrintf(OctetArray);
                     if (temp_byte != parse_tail[i]) {
                       upgrade_failcode = STRING_EEPROM_MISCOMPARE;
 // UARTPrintf("UPGRADE_FAILCODE = STRING_EEPROM_MISCOMPARE\r\n");
@@ -5738,7 +5431,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      }
 
 	      if (parse_index == 64) {
-// UARTPrintf("parse_index64 clear for next data\r\n");
 	        // This is just a cleanup routine to make debug easier. This
 	        // will zero out the parse_tail array so that subsequent writes
 	        // to parse tail that end before filling it will be followed by
@@ -5764,7 +5456,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
           if (pSocket->ParseState == PARSE_FILE_NONSEQ) {
-// UARTPrintf(" ParseState = PARSE_FILE_NONSEQ\r\n");
             // This is a case where the new_address is not sequential with the
 	    // previous adddress.
 	    //
@@ -5821,7 +5512,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // blocks being written to the EEPROM.
 	  
 	    if (non_sequential_detect == 1) {
-// UARTPrintf("\r\nnon_sequential_detect == 1 ");
 	      // Calculate the starting index of the EEPROM block
 	      eeprom_address_index = (new_address - 0x8000) & 0xFFC0;
 	      
@@ -5844,7 +5534,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // Clear initial detect flag so this "if" section will be bypassed
 	      // if the code is re-entered due to handle TCP Fragmentation.
 	      non_sequential_detect = 0;
-// UARTPrintf("\r\nnon_sequential_detect EEPROM read completed");
 	    }
 	    
 	    // This parse is entered knowing that the next two characters are a
@@ -5868,14 +5557,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	        // the next packet will be read.
                 break;
               }
-
-// {
-// uint8_t temp[3];
-// temp[0] = byte_tail[0];
-// temp[1] = byte_tail[1];
-// temp[2] = '\0';
-// UARTPrintf(temp);
-// }
 	    
 	      // If we didn't break out then we successfully read two characters
               data_value = two_hex2int(byte_tail[0], byte_tail[1]);
@@ -5897,18 +5578,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	        if (checksum != 0xff) {
 	          // Handle Checksum Error
                   upgrade_failcode = UPGRADE_FAIL_FILE_READ_CHECKSUM;
-
-// UARTPrintf("checksum = ");
-// emb_itoa(checksum, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-	      
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_FILE_READ_CHECKSUM\r\n");
                   pSocket->ParseState = PARSE_FILE_FAIL;
                   break; // Break out of the local while loop
 	        }
 	        else {
-// UARTPrintf("\r\nnon_sequential_detect checksum completed");
 	        }
 	      }
 	      
@@ -5927,19 +5601,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		  }
 	          if (file_type == FILETYPE_STRING) {
                     I2C_control(I2C_EEPROM2_WRITE); // Send Write Control Byte
-// UARTPrintf("\r\nEEPROM2 write at eeprom_address_index ");
 		  }
 		  
                   I2C_byte_address(eeprom_address_index);
-// UARTPrintf("\r\nEEPROM0 write at eeprom_address_index ");
-// emb_itoa(eeprom_address_index, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf(": \r\n");
                   for (i=0; i<64; i++) {
                     I2C_write_byte(parse_tail[i]);
-// emb_itoa(parse_tail[i], OctetArray, 16, 2);
-// UARTPrintf(" ");
-// UARTPrintf(OctetArray);
                   }
                   I2C_stop();
                   wait_timer(5000); // Wait 5ms
@@ -5954,13 +5620,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		  }
 		  
 	          I2C_last_flag = 0;
-// UARTPrintf("\r\nEEPROM contents: \r\n");
                   for (i=0; i<64; i++) {
                     if (i == 63) I2C_last_flag = 1;
                     temp_byte = I2C_read_byte(I2C_last_flag);
-// emb_itoa(temp_byte, OctetArray, 16, 2);
-// UARTPrintf(" ");
-// UARTPrintf(OctetArray);
                     if (temp_byte != parse_tail[i]) {
                       upgrade_failcode = UPGRADE_FAIL_EEPROM_MISCOMPARE;
 // UARTPrintf("UPGRADE_FAILCODE = UPGRADE_FAIL_EEPROM_MISCOMPARE\r\n");
@@ -6010,7 +5672,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      }
 	      
               if (file_nBytes == 0) {
-// UARTPrintf("\r\nnon_sequential_detect file_nBytes == 0");
                 // We just read the last character in this packet. Break out
                 // of the local while loop so the next packet will be read.
                 break;
@@ -6054,46 +5715,23 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    if (file_length == 0) {
 	      // All packets read. Go on to the PARSE_FILE_FAIL_EXIT routine.
 	      pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
-// UARTPrintf("\r\nSet ParseState to PARSE_FILE_FAIL_EXIT, break local loop\r\n");
             }
 	  }
 
 	  if (file_length == 0) {
 	    // All packets read.
-// UARTPrintf("\r\nAll packets read, break main loop\r\n");
 	    break; // Break out of main while loop
           }
 	  
           if (file_nBytes == 0) {
             // We just read the last character in this packet. Break out
             // of the main while loop so the next packet will be read.
-
-// Diagnostic only
-// UARTPrintf("\r\nfile_length: ");
-// emb_itoa(file_length, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("  file_nBytes: ");
-// emb_itoa(file_nBytes, OctetArray, 10, 3);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
-// UARTPrintf("XXXXXX-EOP-XXXXXX");
             break; // Break out of main while loop
           }
         } // End of main while loop
       }
-
-// UARTPrintf("\r\nExcuting code after main loop\r\n");
-// if (pSocket->ParseState == PARSE_FILE_FAIL_EXIT) {
-// UARTPrintf("\r\nParseState == PARSE_FILE_FAIL_EXIT\r\n");
-// }
     
       if (pSocket->ParseState == PARSE_FILE_COMPLETE && file_type == FILETYPE_PROGRAM) {
-
-// UARTPrintf("\r\n");
-// UARTPrintf("File Upload Complete - entering 500ms pause");
-// UARTPrintf("\r\n");
-
         // All data is now in Off-Board EEPROM0. Signal the main.c loop to
 	// copy the data to Flash and display a Timer window to have the
 	// user wait until Flash programming completes and the module reboots.
@@ -6111,11 +5749,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
       if (pSocket->ParseState == PARSE_FILE_COMPLETE && file_type == FILETYPE_STRING) {
-
-// UARTPrintf("\r\n");
-// UARTPrintf("File Upload Complete - entering 500ms pause");
-// UARTPrintf("\r\n");
-
         // All data is now in Off-Board EEPROM2.
 	// Display the Upload Complete GUI.
         pSocket->nDataLeft = 0;
@@ -6222,12 +5855,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       // series of packets is tracked in the nDataLeft variable.
       // If there is no data to send, or if all data has been sent, we close
       // the connection.
-
-// UARTPrintf("Send Data, off_board_eeprom_index: ");
-// emb_itoa(off_board_eeprom_index, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
       if (pSocket->nDataLeft == 0) {
         // There is no data to send. Close connection
         nBufSize = 0;
@@ -6241,7 +5868,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
       if (nBufSize == 0) {
         //No Data has been copied (or there was none to send). Close connection
-// UARTPrintf("nBufSize == 0, Closing Connection\r\n");
         uip_close();
       }
       else {
@@ -6254,17 +5880,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   }
   
   else if (uip_rexmit()) {
-
-// UARTPrintf("HttpDCall: uip_rexmit\r\n");
-
     if (pSocket->nPrevBytes == 0xFFFF) {
       // Send header again
       uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(pSocket)));
     }
     else {
-
-// UARTPrintf("XXXX RETRANSMIT XXXX\r\n");
-
       // The pData pointer needs to be moved back by the number of bytes
       // consumed from the webpage template.
       pSocket->pData -= pSocket->nPrevBytes;

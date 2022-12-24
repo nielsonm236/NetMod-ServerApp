@@ -46,6 +46,7 @@
 #include "DS18B20.h"
 #include "i2c.h"
 #include "UART.h"
+// #include "bme280.h"
 
 
 //---------------------------------------------------------------------------//
@@ -303,7 +304,6 @@ uint8_t sensor_number;                // Used in the Auto Discovery state machin
 uint16_t MQTT_transmit;               // Used to force a publish_pinstate
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
-// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 // These MQTT variables must always be compiled for both the MQTT_BUILD and
 // the BROWSER_ONLY_BUILD to maintain a common user interface between the MQTT
 // and Browser Only versions.
@@ -318,7 +318,6 @@ char Pending_mqtt_username[11];       // Holds a new user entered MQTT username
 char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
 uint16_t mqttport;             	      // MQTT port number
 uint16_t Port_Mqttd;                  // In use MQTT port number
-// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
 
@@ -338,21 +337,17 @@ uint8_t MQTT_not_OK_counter;     // Counts MQTT != OK events in the
 uint8_t MQTT_broker_dis_counter; // Counts broker disconnect events in
                                  // the mqtt_sanity_check() function
 
-// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if DS18B20_SUPPORT == 1
 // DS18B20 variables
 uint32_t check_DS18B20_ctr;      // Counter used to trigger temperature
                                  // measurements
-// uint32_t check_DS18B20_sensor_ctr; // Counter used to trigger temperature
-                                 // sensor add/delete checks
-// uint8_t DS18B20_scratch[5][2];   // Stores the temperature measurement for the
-//                                  // DS18B20s
 int8_t send_mqtt_temperature;    // Indicates if a new temperature measurement
                                  // is pending transmit on MQTT. In this
 				 // application there are 5 sensors, so setting
 				 // to 4 will cause all 5 to transmit (4,3,2,1,0).
 				 // -1 indicates nothing to transmit.
-int numROMs;                     // Count of DS18B20 devices found.
-extern uint8_t FoundROM[5][8];          // Table of found ROM codes
+int numROMs;              // Count of DS18B20 devices found.
+extern uint8_t FoundROM[5][8];   // Table of found ROM codes
                                  // [x][0] = Family Code
                                  // [x][1] = LSByte serial number
                                  // [x][2] = byte 2 serial number
@@ -361,28 +356,30 @@ extern uint8_t FoundROM[5][8];          // Table of found ROM codes
                                  // [x][5] = byte 5 serial number
                                  // [x][6] = MSByte serial number
                                  // [x][7] = CRC
-// 
-// uint8_t temp_FoundROM[5][8];     // Temporary table of old ROM codes
-//                                  // [x][0] = Family Code
-//                                  // [x][1] = LSByte serial number
-//                                  // [x][2] = byte 2 serial number
-//                                  // [x][3] = byte 3 serial number
-//                                  // [x][4] = byte 4 serial number
-//                                  // [x][5] = byte 5 serial number
-//                                  // [x][6] = MSByte serial number
-//                                  // [x][7] = CRC
+#endif // DS18B20_SUPPORT == 1
 
-// uint8_t redefine_temp_sensors;   // Used to trigger the temperature sensor
-                                 // update process in the Browser display and
-				 // in MQTT
-// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+/*
+#if BME280_SUPPORT == 1
+// BME280 variables
+// struct identifier
+// {
+//   // Structure that contains identifier details used in example
+//   // MOVE THIS TO BME280.H?
+//     uint8_t dev_addr;	// Variable to hold device address
+//     int8_t fd;		// Variable that contains file descriptor
+//     // THERE IS NO FILE DESCRIPTOR IN THIS APPLICATION
+// };
+struct bme280_dev dev;
+// struct identifier id;
+int8_t rslt;		// Variable to report BME280 function results
+#endif // BME280_SUPPORT == 1
+
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-// extern uint8_t find_content_type;    // Signals that a file is contained
-                                     // within a POST
 extern uint8_t upgrade_failcode;     // Failure codes for Flash upgrade
                                      // process
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+*/
 
 #if OB_EEPROM_SUPPORT == 1
 // Off-Board EEPROM variables
@@ -442,7 +439,6 @@ int main(void)
                                          // idle
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
-// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   // The following variables are only used for tracking MQTT startup status,
   // but they must always be compiled for both the MQTT_BUILD and the
   // BROWSER_ONLY_BUILD to maintain a common user interface between the MQTT
@@ -451,7 +447,6 @@ int main(void)
                                          // startup
   MQTT_error_status = 0;                 // For MQTT error status display in
                                          // GUI
-// #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   
   // While the following diagnostic counters are mostly useful for checking for
   // the need for Full Duplex in an MQTT setting, they may still be useful in
@@ -523,6 +518,8 @@ int main(void)
   
   HttpDStringInit();       // Initialize HttpD string sizes
 
+
+#if DS18B20_SUPPORT == 1
   init_DS18B20();          // Initialize DS18B20 sensors
   // Initialize DS18B20 control variables used in main.c 
   if (stored_config_settings & 0x08) {
@@ -536,6 +533,45 @@ int main(void)
     // Iniialize DS18B20 transmit control variable
     send_mqtt_temperature = 0;
   }
+#endif // DS18B20_SUPPORT == 1
+
+/*
+#if BME280_SUPPORT == 1
+    rslt = BME280_OK;	// Variable to define the result
+    
+//    // Select BME280_I2C_ADDR_PRIM
+//    // SHOULD BE ABLE TO ELIMINATE THE NOTION OF SECONDARY
+//    id.dev_addr = BME280_I2C_ADDR_PRIM;
+
+//    dev.intf = BME280_I2C_INTF;
+//    dev.read = &user_i2c_read; // NEED TO POINT TO I2C INTERFACE
+//    dev.write = &user_i2c_write; // NEED TO POINT TO I2C INTERFACE
+//    dev.delay_us = user_delay_us;
+
+    // Update interface pointer with the structure that contains both device
+    // address and file descriptor
+    // THERE IS NO FILE DESCRIPTOR IN THIS APPLICATION
+//    dev.intf_ptr = &id;
+
+    rslt = bme280_init(&dev);	// Initialize the bme280
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+    if (rslt != BME280_OK) {
+      UARTPrintf("\r\nFailed to initialize the BME280\r\n");
+    }
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+    if (rslt == BME280_OK) {
+      rslt = stream_sensor_data_forced_mode(&dev);
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+      if (rslt != BME280_OK) {
+        UARTPrintf("\r\nFailed to stream BME280 sensor data\r\n");
+      }
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+    }
+#endif // BME280_SUPPORT == 1
+*/
+
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -589,7 +625,7 @@ int main(void)
   
   if (debug[2] & 0x80) UARTPrintf("Stack Overflow ERROR!");
   else UARTPrintf("Stack Overflow - none detected");
-  UARTPrintf("\r\n");  
+  UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
 
@@ -957,6 +993,7 @@ int main(void)
     }
     
     
+#if DS18B20_SUPPORT == 1
     // Update temperature data
     // Not sure of the best interval. I will set it at 30 seconds for now.
     if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 30))) {
@@ -967,6 +1004,7 @@ int main(void)
                                  // need to be transmitted via MQTT.
 #endif // BUILD_SUPPORT == MQTT_BUILD
     }
+#endif // DS18B20_SUPPORT == 1
     
     
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
@@ -1083,6 +1121,7 @@ uint8_t off_board_EEPROM_detect(void)
 #endif // OB_EEPROM_SUPPORT == 1
 
 
+
 #if OB_EEPROM_SUPPORT == 1
 void prep_read(uint8_t eeprom_num_write, uint8_t eeprom_num_read, uint16_t byte_address) {
   // Function to set up a sequential read from the Off-Board EEPROMs.
@@ -1104,6 +1143,42 @@ void prep_read(uint8_t eeprom_num_write, uint8_t eeprom_num_read, uint16_t byte_
 }
 #endif // OB_EEPROM_SUPPORT == 1
 
+/*
+#if I2C_SUPPORT == 1
+void prep_read(uint8_t control_write, uint8_t control_read, uint16_t start_address, uint8_t addr_size) {
+  // Function to set up a read from I2C devices.
+  // control_write / control_read are the Control Bytes needed to address the
+  // I2C device.
+  // start_address identifies the address starting point in the I2C device.
+  // address_size indicates if the address is one byte or two bytes. 1 =
+  // single byte, 2 = two bytes.
+  //
+  // Off-Board EEPROM:
+  // When setting up a sequential read from the Off-Board EEPROMs the
+  // following applies:
+  //   control_write / control_read are the Control Bytes needed to address
+  //   the Off-Board EEPROM.
+  //   start_address identifies the address starting point in the Off-Board
+  //   EEPROM and is typically the first (base) address of the region in the
+  //   Off-Board EEPROM, although it can also be a specific address offset
+  //   into the Off-Board EEPROM region. For example:
+  //     EEPROM0 base address: 0x0000 using EEPROM0 Control Bytes
+  //     EEPROM1 base address: 0x8000 using EEPROM1 Control Bytes
+  //     EEPROM2 base address: 0x0000 using EEPROM2 Control Bytes
+  //     EEPROM3 base address: 0x8000 using EEPROM3 Control Bytes
+  //   addr_size for EEPROM access is always 2 bytes.
+  //
+  // BME280:
+  // When setting up a read from the BME280 device the address_size is always
+  // 1 byte.
+
+  // Initial write control byte to establish sequential read address
+  I2C_control(control_write);
+  I2C_byte_address(start_address, addr_size);
+  I2C_control(control_read);
+}
+#endif // I2C_SUPPORT == 1
+*/
 
 #if OB_EEPROM_SUPPORT == 1
 void write_one(uint8_t byte) {
@@ -1789,6 +1864,7 @@ void mqtt_startup(void)
             // Create Output pin delete msg.
             send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE_IOT);
 	    
+#if DS18B20_SUPPORT == 1
 	    if (pin_ptr == 16) {
               auto_discovery = DEFINE_TEMP_SENSORS;
 	    }
@@ -1796,19 +1872,27 @@ void mqtt_startup(void)
 	      pin_ptr++;
 	      auto_discovery_step = SEND_INPUT_DELETE;
 	    }
+#endif // DS18B20_SUPPORT == 1
 	  }
 	}
         else {
+#if DS18B20_SUPPORT == 1
 	  if (pin_ptr == 16) {
 	    auto_discovery = DEFINE_TEMP_SENSORS;
 	  }
 	  else pin_ptr++;
+#endif // DS18B20_SUPPORT == 1
+#if DS18B20_SUPPORT == 0
+          auto_discovery == AUTO_COMPLETE;
+#endif // DS18B20_SUPPORT == 0
 	}
       }
  
+#if DS18B20_SUPPORT == 1
       else if (auto_discovery == DEFINE_TEMP_SENSORS) {
         define_temp_sensors();
       }
+#endif // DS18B20_SUPPORT == 1
 
       mqtt_start_ctr1 = 0; // Clear the 50ms counter
       if (auto_discovery == AUTO_COMPLETE) {
@@ -1855,12 +1939,9 @@ void mqtt_startup(void)
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
+#if DS18B20_SUPPORT == 1
 void define_temp_sensors(void)
 {
-  // This function is called from two places:
-  //   The mqtt_startup function
-  //   The main loop when redefine_temp_sensors == 1
-  //
   // This function is called from the mqtt_startup function when
   //   auto_discovery == DEFINE_TEMP_SENSORS
   // This function is part of the state machine contained within the
@@ -1868,9 +1949,6 @@ void define_temp_sensors(void)
   //   auto_discovery_step = SEND_TEMP_SENSOR_DEFINE  
   // When complete this function will set
   //   auto_discovery = AUTO_COMPLETE
-  //
-  // It should not be possible for the mqtt_startup function and the main
-  // loop to be calling this function at the same time.
   //
   // Pin 16 will be disabled already if it is being used for temperature
   // sensors.
@@ -1900,6 +1978,7 @@ void define_temp_sensors(void)
   }
   else sensor_number++;
 }
+#endif // DS18B20_SUPPORT == 1
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
@@ -1953,6 +2032,7 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
     app_message[4] = '\0';
   }
 
+#if DS18B20_SUPPORT == 1
   if (IOT == TMPRMSG) {
     // Create the sensor number for the app_message and topic.
     // Add first part of sensor ID to payload template.
@@ -1968,6 +2048,7 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
       app_message[14] = '\0';
     }
   }
+#endif // DS18B20_SUPPORT == 1
 
   // Create the rest of the topic
   strcat(topic_base, mac_string);
@@ -2526,6 +2607,7 @@ void publish_outbound(void)
     j = 0x8000;
     while ( 1 ) {
 
+#if DS18B20_SUPPORT == 1
       // Check if DS18B20 is enabled, and if yes check if a Temperature
       // Publish needs to occur.
       if (stored_config_settings & 0x08) { // DS18B20 enabled?
@@ -2537,6 +2619,7 @@ void publish_outbound(void)
 	  }
 	}
       }
+#endif // DS18B20_SUPPORT == 1
 
       // Perform a publish_pinstate for each pin that has changed OR if an
       // MQTT PUBLISH attempts to change a pin state.
@@ -2756,6 +2839,7 @@ void publish_pinstate_all(void)
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
+#if DS18B20_SUPPORT == 1
 void publish_temperature(uint8_t sensor)
 {
   // This function is called to Publish a temperature value collected from
@@ -2803,6 +2887,7 @@ void publish_temperature(uint8_t sensor)
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
   }
 }
+#endif // DS18B20_SUPPORT == 1
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
@@ -3353,6 +3438,8 @@ void check_runtime_changes(void)
 
   read_input_pins();
 
+
+#if DS18B20_SUPPORT == 1
   // Check the DS18B20 Enable bit. If enabled over-ride the pin_control byte
   // bits for IO 16 to force them to all zero. This forces the disabled
   // state for IO 16 and makes sure all other bits are in a neutral condition
@@ -3362,6 +3449,7 @@ void check_runtime_changes(void)
     // Update the stored_pin_control[] variables
     if (stored_pin_control[15] != pin_control[15]) stored_pin_control[15] = pin_control[15];
   }
+#endif // DS18B20_SUPPORT == 1
 
 
 #if I2C_SUPPORT == 1
@@ -4597,6 +4685,7 @@ void write_output_pins(void)
     if (i == 13) continue; // Output 14
     if (i == 14) continue; // Output 15
 #endif // I2C_SUPPORT == 1
+#if DS18B20_SUPPORT == 1
     // If DS18B20 mode is enabled do not write Output 16
     if (i == 15 && (stored_config_settings & 0x08))
       break;
@@ -4604,6 +4693,7 @@ void write_output_pins(void)
       io_reg[ io_map[i].port ].odr |= io_map[i].bit;
     else
       io_reg[ io_map[i].port ].odr &= (uint8_t)(~io_map[i].bit);
+#endif // DS18B20_SUPPORT == 1
   }
 }
 

@@ -17,7 +17,7 @@ Feature Comparison of the MQTT and Browser builds:
 |                             | MQTT  | Browser |    MQTT     | Browser Only |   MQTT w/   |
 |                             | Build |  Only   | Upgradeable |  Upgradeable |   BME280    |
 |                             |       | Build   |    Build    |     Build    | Upgradeable |
-|           Feature           |       |         |             |              |    Build    |
+| --------- Feature --------- |       |         |             |              |    Build    |
 |MQTT Support                 |   x   |         |      x      |              |      x      |
 |Home Assistant Support       |   x   |         |      x      |              |      x      |
 |Browser IO Control           |   x   |    x    |      x      |       x      |      x      |

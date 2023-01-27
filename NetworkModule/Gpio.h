@@ -1,4 +1,4 @@
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -15,7 +15,7 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
@@ -44,8 +44,16 @@ struct io_mapping {
 	uint8_t bit;		// port bit
 };
 
-extern volatile struct io_registers io_reg[ NUM_PORTS ];	// make room for PA .. PG starting at 0x5000
+extern volatile struct io_registers io_reg[ NUM_PORTS ];
+
+#if PINOUT_OPTION_SUPPORT == 0
 extern const struct io_mapping io_map[16];
+#endif // PINOUT_OPTION_SUPPORT == 0
+
+#if PINOUT_OPTION_SUPPORT == 1
+extern int8_t io_map_offset;
+extern const struct io_mapping io_map[48];
+#endif PINOUT_OPTION_SUPPORT == 1
 
 void gpio_init(void);
 void LEDcontrol(uint8_t state);

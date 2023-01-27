@@ -1,4 +1,4 @@
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -15,8 +15,9 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
+
 
 
 // Application must "manually" check if its timers have expired; this

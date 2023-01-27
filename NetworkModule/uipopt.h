@@ -32,7 +32,7 @@
  *
  */
 
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -53,7 +53,7 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
@@ -249,156 +249,301 @@
 
 
 // Guide for Production Builds
-//                         MQTT   Browser   MQTT      Browser    Code
-//                                Only      Upgrade   Only       Uploader
-//                                                    Upgrade    Build
+//                          MQTT  Browser  MQTT     Browser  MQTT     Code
+//                                Only     Upgrade  Only     Upgrade  Uploader
+//                                                  Upgrade  BME280
 //
-// UIP_STATISTICS          1      1         1         1          1
-// DEBUG_SUPPORT           11     11        11        11         11
-// IWDG_ENABLE             1      1         1         1          1
-// BUILD_SUPPORT           *      **        *         **         ***
-// I2C_SUPPORT             0      0         1         1          1
-// OB_EEPROM_SUPPORT       0      0         1         1          1
-// DEBUG_SENSOR_SERIAL     0      0         0         0          0
+// BUILD_SUPPORT            *     **       *        **       *        ***
+// UIP_STATISTICS           1     1        1        1        1        1
+// DEBUG_SUPPORT            11    11       11       11       11       11
+// IWDG_ENABLE              1     1        1        1        1        1
+// I2C_SUPPORT              0     0        1        1        1        1
+// OB_EEPROM_SUPPORT        0     0        1        1        1        1
+//
+// DEBUG_SENSOR_SERIAL      0     0        0        0        0        0
+// LINKED_SUPPORT           1     1        1        1        0        0
+// DS18B20_SUPPORT          1     1        1        1        0        0
+// BME280_SUPPORT           0     0        0        0        1        0
+// TEMP_DEBUG_EXCLUDE       0     0        0        0        1        0
+// HTTPD_DIAGNOSTIC_SUPPORT 1     1        1        1        0        1
 //
 // *   = #define BUILD_SUPPORT     MQTT_BUILD
 // **  = #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
 // *** = #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 // Be sure to put the appropriate revision (date/time) in the main.c file
 
+// Uncomment ONLY ONE of the following to select the build type
+// #define BUILD_TYPE_MQTT_STANDARD			1
+// #define BUILD_TYPE_BROWSER_STANDARD			1
+#define BUILD_TYPE_MQTT_UPGRADEABLE			1
+// #define BUILD_TYPE_BROWSER_UPGRADEABLE		1
+// #define BUILD_TYPE_MQTT_UPGRADEABLE_BME280		1
+// #define BUILD_TYPE_CODE_UPLOADER			1
 
-// UIP_STATISTICS
-// Determines if Network Statistics support should be compiled in. Network
-// Statistics are useful for debugging Network related problems. If you are
-// modifying the project and need more program space eliminating the Network
-// Statistics pages and processes will free up considerable space.
-// Note that Network Statistics will not fit in the memory when an MQTT build
-// is created. It will only fit if a Browser Only build is created. So,
-//    UIP_STATISTICS == 1 will be ignored
-//    unless BUILD_SUPPORT == BROWSER_ONLY_BUILD
-// Generally UIP_STATISTICS is alway set to 1 and the build controls will
-// manage it.
-// 0 = disabled
-// 1 = included
-#define UIP_STATISTICS 1
+// The following #defines specify the code parts that need to be included in
+// the various BUILE_TYPEs. You shouldn't need to change any of these except
+// DEBUG_SUPPORT. Normally DEBUG_SUPPORT should be "11" for a production
+// build, but a developer may choose 7 or 15 to provide debug help during
+// code test and debug. See the definition of each #define in the comments
+// that follow this set of #define groupings.
 
+// MQTT (standard)
+#ifdef BUILD_TYPE_MQTT_STANDARD
+  #define BUILD_SUPPORT			MQTT_BUILD
+  #define DEBUG_SUPPORT			11
+  #define UIP_STATISTICS		1
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			0
+  #define OB_EEPROM_SUPPORT		0
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		1
+  #define DS18B20_SUPPORT		1
+  #define BME280_SUPPORT		0
+  #define TEMP_DEBUG_EXCLUDE		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	1
+  #define PINOUT_OPTION_SUPPORT		0
+#endif
 
-// DEBUG_SUPPORT
-// Determines if DEBUG code is compiled in
-//
-// DEBUG support allocates EEPROM and RAM space to collect debug data and
-// store it in the EEPROM for viewing with the STVP programmer, the UART, or
-// with the Link Error Stats web page.
-// Most of these functions are only useful during code development, however
-// the Link Error Stats web page is very useful to the end user to determine
-// if Full Duplex works better with their specific switch vs the default Half
-// Duplex. For this reason DEBUG_SUPPORT 11 should be the default setting for
-// production code.
-//
-// 7 =  10 bytes of debug[] allocated to specific debug data*
-//      UART TX enabled on IO pin 11
-//      No Link Error Stats browser page
-//      USAGE: Useful mode for displaying most in-development debug without
-//      the overhead of the Link Error Stats web page.
-// 11 = USE FOR PRODUCTION BUILDS.
-//      10 bytes of debug allocated to specific debug data*
-//      No UART
-//      Link Error Stats browser page enabled
-//      USAGE: provides the user with the Link Error Stats in a web page
-//      without the overhead of the UART functionality.
-// 15 = 10 bytes of debug allocated to specific debug data*
-//      UART TX enabled on IO pin 11
-//      Link Error Stats browser page enabled
-//      USAGE: Provides the most run time error data and UART display.
-// * Specific debug data: Reset Status Register counters, TXERIF counter,
-//   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
-#define DEBUG_SUPPORT 11
+// Browser (standard)
+#ifdef BUILD_TYPE_BROWSER_STANDARD
+  #define BUILD_SUPPORT			BROWSER_ONLY_BUILD
+  #define DEBUG_SUPPORT			11
+  #define UIP_STATISTICS		1
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			0
+  #define OB_EEPROM_SUPPORT		0
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		1
+  #define DS18B20_SUPPORT		1
+  #define BME280_SUPPORT		0
+  #define TEMP_DEBUG_EXCLUDE		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	1
+  #define PINOUT_OPTION_SUPPORT		0
+#endif
 
+// MQTT Upgradeable
+#ifdef BUILD_TYPE_MQTT_UPGRADEABLE
+  #define BUILD_SUPPORT			MQTT_BUILD
+  #define DEBUG_SUPPORT			11
+  #define UIP_STATISTICS		1
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			1
+  #define OB_EEPROM_SUPPORT		1
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		1
+  #define DS18B20_SUPPORT		1
+  #define BME280_SUPPORT		0
+  #define TEMP_DEBUG_EXCLUDE		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	1
+  #define PINOUT_OPTION_SUPPORT		0
+#endif
 
-// IWDG_ENABLE
-// Determines if the Independent Watchdog is to be enabled
-// For production code this should me enabled. It turns on the IWDG to cause a
-// hardware reset after 1 second of the code failing to reset the watchdog,
-// which implies some kind of fatal error occurred. The reset will re-enable
-// access to the Network Module.
-// For development it may be necessary to prevent the IDWG from operating as it
-// may interfere with debug code.
-// 0 = disable
-// 1 = enable
-#define IWDG_ENABLE 1
+// Browser Upgradeable
+#ifdef BUILD_TYPE_BROWSER_UPGRADEABLE
+  #define BUILD_SUPPORT			BROWSER_ONLY_BUILD
+  #define DEBUG_SUPPORT			11
+  #define UIP_STATISTICS		1
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			1
+  #define OB_EEPROM_SUPPORT		1
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		1
+  #define DS18B20_SUPPORT		1
+  #define BME280_SUPPORT		0
+  #define TEMP_DEBUG_EXCLUDE		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	1
+  #define PINOUT_OPTION_SUPPORT		0
+#endif
 
+// MQTT Upgradeable w/ BME280
+#ifdef BUILD_TYPE_MQTT_UPGRADEABLE_BME280
+  #define BUILD_SUPPORT			MQTT_BUILD
+  #define DEBUG_SUPPORT			11
+  #define UIP_STATISTICS		1
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			1
+  #define OB_EEPROM_SUPPORT		1
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		0
+  #define DS18B20_SUPPORT		0
+  #define BME280_SUPPORT		1
+  #define TEMP_DEBUG_EXCLUDE		1
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
+  #define PINOUT_OPTION_SUPPORT		0
+#endif
 
-// BUILD_SUPPORT
-// Determines the type of code build to create.
-// MQTT_BUILD includes MQTT support and Home Assistant support, but excludes
-//   the Browser Only IO Names and IO Timers. This build selection will
-//   over-ride the UIP_STATISTICS setting forcing it to be disabled.
-// BROWSER_ONLY_BUILD excludes MQTT support but includes the extra Browser
-//   only features like IO Names and IO Timers.
-// CODE_UPLOADER_BUILD excludes all Browser Only and MQTT features. It produces
-//   a build that can only be used to upload and update the runtime code. The
-//   Code Uploader requires additional hardware in the form of an off-board I2C
-//   EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be enabled.
-// Un-comment ONLY ONE of the following:
-#define BUILD_SUPPORT     MQTT_BUILD
-// #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
-// #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
+// Code Uploader
+#ifdef BUILD_TYPE_CODE_UPLOADER
+  #define BUILD_SUPPORT			CODE_UPLOADER_BUILD
+  #define DEBUG_SUPPORT			11
+  #define UIP_STATISTICS		1
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			1
+  #define OB_EEPROM_SUPPORT		1
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		0
+  #define DS18B20_SUPPORT		0
+  #define BME280_SUPPORT		0
+  #define TEMP_DEBUG_EXCLUDE		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	1
+  #define PINOUT_OPTION_SUPPORT		0
+#endif
 
+// DEVELOPERS: Rather than change anything in the above BUILD_TYPE defines you
+// may find it more convenient and less error-prone to add statements like the
+// following during development to change specific #defines. Comment out these
+// additional #undef / #define statements when doing actual production builds.
+// #undef DEBUG_SUPPORT
+// #define DEBUG_SUPPORT 15
 
-// I2C_SUPPORT
-// Determines if I2C Support is to be compiled into the build. I2C_SUPPORT
-// enables use of various I2C devices using IO pins 14 and 15 as the I2C data
-// and clock pins.
-// 0 = Not supported
-// 1 = Supported
-#define I2C_SUPPORT 1
+  // The following describes the various #defines used in the above.
 
+  // BUILD_SUPPORT
+  // Determines the type of code build to create:
+  // MQTT_BUILD includes MQTT support and Home Assistant support, but excludes
+  //   the Browser Only IO Names and IO Timers. This build selection will
+  //   over-ride the UIP_STATISTICS setting forcing it to be disabled.
+  // BROWSER_ONLY_BUILD excludes MQTT support but includes the extra Browser
+  //   only features like IO Names and IO Timers.
+  // CODE_UPLOADER_BUILD excludes all Browser Only and MQTT features. It
+  //   produces a build that can only be used to upload and update the runtime
+  //   code. The Code Uploader requires additional hardware in the form of an
+  //   off-board I2C EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be
+  //   enabled.
 
-// OB_EEPROM_SUPPORT
-// Determines if Off-Board EEPROM support is to be compiled into the build.
-// Off-Board EEPROM support adds the ability to upload new firmware to the
-// device via the Ethernet connection. Off-Board EEPROM support also enables
-// off-board storage of some webpage templates in a "Strings File" to make
-// more STM8 Flash space available for use as code space. The requirements to
-// use this function are:
-// 1) An Off-Board I2C EEPROM must be added that provides 256KB of off-board
-//    EEPROM space (see the manual). This requires use of IO pins 14 and 15
-//    for the I2C bus.
-// 2) I2C Support MUST be enabled.
-// 3) The Code Uploader version of the code must be loaded via the SWIM
-//    interface at least one time. After that the Code Uploader will have
-//    copied itself into the Off-Board EEPROM and, in the future, the Code
-//    Uploader code will be obtained from that location.
-// 4) When code updates are perfromed the Code Uploader must be used to
-//    a) Load the Strings File
-//    b) Load the Runtime code
-// 0 = Not supported
-// 1 = Supported
-#define OB_EEPROM_SUPPORT 1
+  // DEBUG_SUPPORT
+  // Determines if DEBUG code is compiled in
+  //
+  // DEBUG support allocates EEPROM and RAM space to collect debug data and
+  // store it in the EEPROM for viewing with the STVP programmer, the UART, or
+  // with the Link Error Stats web page.
+  // Most of these functions are only useful during code development, however
+  // the Link Error Stats web page is very useful to the end user to determine
+  // if Full Duplex works better with their specific switch vs the default
+  // Half Duplex. For this reason DEBUG_SUPPORT 11 should be the default
+  // setting for production code.
+  //
+  // 7 =  10 bytes of debug[] allocated to specific debug data*
+  //      UART TX enabled on IO pin 11
+  //      No Link Error Stats browser page
+  //      USAGE: Useful mode for displaying most in-development debug without
+  //      the overhead of the Link Error Stats web page.
+  // 11 = USE FOR PRODUCTION BUILDS.
+  //      10 bytes of debug allocated to specific debug data*
+  //      No UART
+  //      Link Error Stats browser page enabled
+  //      USAGE: provides the user with the Link Error Stats in a web page
+  //      without the overhead of the UART functionality.
+  // 15 = 10 bytes of debug allocated to specific debug data*
+  //      UART TX enabled on IO pin 11
+  //      Link Error Stats browser page enabled
+  //      USAGE: Provides the most run time error data and UART display.
+  // * Specific debug data: Reset Status Register counters, TXERIF counter,
+  //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
 
+  // UIP_STATISTICS
+  // Determines if Network Statistics support should be compiled in. Network
+  // Statistics are useful for debugging Network related problems. If you are
+  // modifying the project and need more program space eliminating the Network
+  // Statistics pages and processes will free up considerable space.
+  // Note that Network Statistics will not fit in the memory when an MQTT
+  // build is created. It will only fit if a Browser Only build is created.
+  // So,
+  //    UIP_STATISTICS == 1 will be ignored
+  //    unless BUILD_SUPPORT == BROWSER_ONLY_BUILD
+  // Generally UIP_STATISTICS is alway set to 1 and the build controls will
+  // manage it.
+  // 0 = disabled
+  // 1 = included
 
-// DEBUG_SENSOR_SERIAL
-// Determines if the Display Temperature Sensor Serial Numbers support is
-// to be compiled into the build. This is for DIAGNOSTIC support during
-// development and is not expected to be part of normal releases. When
-// enabled URL command /71 will display all serial number as read from the
-// sensors.
-// 0 = Not Supported
-// 1 = Supported
-#define DEBUG_SENSOR_SERIAL 0
+  // IWDG_ENABLE
+  // Determines if the Independent Watchdog is to be enabled
+  // For production code this should be enabled. It turns on the IWDG to
+  // cause a hardware reset after 1 second of the code failing to reset the
+  // watchdog, which implies some kind of fatal error occurred. The reset
+  // should re-enable access to the Network Module.
+  // For development it may be necessary to prevent the IDWG from operating
+  // as it may interfere with debug code.
+  // 0 = disable
+  // 1 = enable
 
+  // I2C_SUPPORT
+  // Determines if I2C Support is to be compiled into the build. I2C_SUPPORT
+  // enables use of various I2C devices using IO pins 14 and 15 as the I2C
+  // data and clock pins.
+  // 0 = Not supported
+  // 1 = Supported
 
-// LINKED_SUPPORT
-// Temporary build setting to enable support of Linked Input to Output pins.
-// THIS IS A TEMPORARY BUILD MODE. WHEN TESTING IS COMPLETE MODIFY THE CODE TO
-// ALWAYS USE Linked Support THEN DELETE THIS OPTION.
-// 0 = No Linked Support
-// 1 = Supported
-#define LINKED_SUPPORT 1
+  // OB_EEPROM_SUPPORT
+  // Determines if I2C  EEPROM support is to be compiled into the build.
+  // I2C  EEPROM support adds the ability to upload new firmware to the device
+  // via the Ethernet connection. I2C EEPROM support also enables off-board
+  // storage of some webpage templates in a "Strings File" to make more STM8
+  // Flash space available for use as code space. The requirements to use this
+  // function are:
+  // 1) An Off-Board I2C EEPROM must be added that provides 256KB of off-board
+  //    EEPROM space (see the manual). This requires use of IO pins 14 and 15
+  //    for the I2C bus.
+  // 2) I2C Support MUST be enabled.
+  // 3) The Code Uploader version of the code must be loaded via the SWIM
+  //    interface at least one time. After that the Code Uploader will have
+  //    copied itself into the I2C EEPROM and, in the future, the Code
+  //    Uploader code will be obtained from that location.
+  // 4) When code updates are perfromed the Code Uploader must be used to
+  //    a) Load the Strings File
+  //    b) Load the Runtime code
+  // 0 = Not supported
+  // 1 = Supported
 
+  // DEBUG_SENSOR_SERIAL
+  // Determines if the Display Temperature Sensor Serial Numbers support is
+  // to be compiled into the build. This is for DIAGNOSTIC support during
+  // development and is not expected to be part of normal releases. When
+  // enabled URL command /71 will display all serial number as read from the
+  // sensors.
+  // 0 = Not Supported
+  // 1 = Supported
 
-#define DS18B20_SUPPORT 1
+  // LINKED_SUPPORT
+  // Determines if there is support for Linked Input to Output pins.
+  // If LINKED_SUPPORT is Supported:
+  //   Must Disable BME280_SUPPORT
+  // 0 = No Linked Support
+  // 1 = Supported
 
+  // DS18B20_SUPPORT
+  // Determines if there is support for DS18B20 temperature sensors.
+  // If DS18B20_SUPPORT is Supported:
+  //   Must Disable BME280_SUPPORT
+  // 0 = No support
+  // 1 = Supported
+
+  // BME280_SUPPORT
+  // Determines if there is support for the BME280 temperature, pressure,
+  // humidity sensor.
+  // If BME280_SUPPORT is Supported:
+  //   Must Disable DSB18B20 support
+  //   Must Disable LINKED_SUPPORT
+  // 0 = No support
+  // 1 = Supported
+
+  // TEMP_DEBUG_EXCLUDE
+  // Determines if some aspects of debug code must be excluded to provide
+  // additional Flash space during development of new features. Primarilly
+  // used to disable some debug functionality and UART print statements that
+  // would normally be enabled in a build with debug turned on. So far I've
+  // only needed to use this during development of the BME280 driver.
+
+  // HTTPD_DIAGNOSTIC_SUPPORT
+  // Determines if the httpd_diagnostic() function should be included in
+  // the compile. This is a seldom used development diagnostic that helps
+  // determine if the data stored in the I2C EEPROM was properly sized and
+  // located. This define allows the function to be mapped out of the build,
+  // saving space for runtime code. Of course, if it is needed in the future
+  // and Flash space is tight ... well, good luck. The httpd_diagnostic()
+  // function produces output on the UART. So a UART enabled build is required
+  // to use the function. The call to the function appears in main.c, and is
+  // commented out.
 
 
 //---------------------------------------------------------------------------//

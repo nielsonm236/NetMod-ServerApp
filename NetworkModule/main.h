@@ -1,4 +1,4 @@
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -15,7 +15,7 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
@@ -23,6 +23,37 @@
 #define __MAIN_H__
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <ctype.h>
+
+#include <iostm8s005.h>	// Address definitions for all registers
+			// See C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8 directory
+#include <stm8s-005.h>	// Bit location definitions in registers
+			// See C:\Users\Mike\Desktop\STM8S Peripheral Library\en.stsw-stm8069\STM8S_StdPeriph_Lib\Libraries\STM8S_StdPeriph_Driver\inc directory
+
+#include "uipopt.h"
+
+#include "bme280.h"
+#include "DS18B20.h"
+#include "Enc28j60.h"
+#include "gpio.h"
+#include "httpd.h"
+#include "i2c.h"
+#include "mqtt.h"
+#include "mqtt_pal.h"
+#include "Spi.h"
+#include "timer.h"
+#include "UART.h"
+#include "uip.h"
+#include "uip_arch.h"
+#include "uip_arp.h"
+#include "uip_TcpAppHub.h"
+
+
+
+
 
 
 //---------------------------------------------------------------------------//
@@ -135,6 +166,8 @@
 #define INPUTMSG			0
 #define OUTPUTMSG			1
 #define TMPRMSG				2
+#define PRESMSG				3
+#define HUMMSG				4
 
 // MQTT State message control
 #define STATE_REQUEST_IDLE		0
@@ -164,7 +197,7 @@ void check_eeprom_IOpin_settings(void);
 void update_mac_string(void);
 void check_runtime_changes(void);
 uint8_t chk_iotype(uint8_t pin_byte, int pin_index, uint8_t chk_mask);
-void read_input_pins(void);
+void read_input_pins(uint8_t init_flag);
 void encode_16bit_registers(uint8_t sort_init);
 void write_output_pins(void);
 void check_reset_button(void);
@@ -178,28 +211,28 @@ void restore_eeprom_debug_bytes(void);
 void update_debug_storage1(void);
 uint8_t off_board_EEPROM_detect(void);
 void write_one(uint8_t byte);
-void prep_read(uint8_t eeprom_num_write, uint8_t eeprom_num_read, uint16_t byte_address);
+void prep_read(uint8_t control_write, uint8_t control_read,
+               uint16_t start_address, uint8_t addr_size);
 uint8_t compare_flash_to_EEPROM0(void);
 void copy_flash_to_EEPROM0(void);
 uint8_t compare_flash_to_EEPROM1(void);
 void copy_code_uploader_to_EEPROM1(void);
 
-// void load_timer(uint8_t timer_num);
 uint32_t calculate_timer(uint16_t timer_value);
 void decrement_pin_timers(void);
 
 void mqtt_startup(void);
-// void mqtt_redefine_temp_sensors(void);
 void define_temp_sensors(void);
-// void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel, uint8_t delete_flag);
+void define_BME280_sensors(void);
 void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel);
-// void mqtt_sanity_check(void);
 void mqtt_sanity_check(struct mqtt_client *client);
 void publish_callback(void** unused, struct mqtt_response_publish *published);
 void publish_outbound(void);
 void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t mask);
 void publish_pinstate_all(void);
 void publish_temperature(uint8_t sensor);
+void publish_BME280(int8_t sensor);
+
 int8_t reverse_bit_order(uint8_t k);
 
 #endif /* __MAIN_H__ */

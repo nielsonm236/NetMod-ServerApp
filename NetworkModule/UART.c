@@ -22,16 +22,17 @@
  Copyright 2021 Michael Nielson
 */
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "iostm8s005.h"
-#include "stm8s-005.h"
-#include "UART.h"
+// All includes are in main.h
 #include "main.h"
-#include "timer.h"
-#include "uipopt.h"
+
+// #include <stdint.h>
+// #include <stdlib.h>
+// #include <string.h>
+// #include "iostm8s005.h"
+// #include "stm8s-005.h"
+// #include "UART.h"
+// #include "timer.h"
+// #include "uipopt.h"
 
 extern uint8_t pin_control[16];
 extern uint8_t stored_pin_control[16];

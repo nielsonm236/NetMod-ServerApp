@@ -1,5 +1,6 @@
 - NetworkModule_vector.o
 - crts0.sm8
+- bme280.o
 - ds18b20.o
 - enc28j60.o
 - gpio.o
@@ -18,6 +19,7 @@
 - libm0.sm8
 - NetworkModule_vector.o
 - crts0.sm8
+- bme280.o
 - ds18b20.o
 - enc28j60.o
 - gpio.o
@@ -36,6 +38,7 @@
 - libm0.sm8
 NetworkModule_vector.o:
 C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\lib\crts0.sm8:
+bme280.o:
 ds18b20.o:
 enc28j60.o:
 gpio.o:

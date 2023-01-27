@@ -3,7 +3,7 @@
  * For STM8S005 2020/04/22 06:55
  */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -20,18 +20,21 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
-
-#include <stdint.h>
-#include <iostm8s005.h>	// Address definitions for all registers
-			// See C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8 directory
-#include <stm8s-005.h>	// Bit location definitions in registers
-			// See C:\Users\Mike\Desktop\STM8S Peripheral Library\en.stsw-stm8069\STM8S_StdPeriph_Lib\Libraries\STM8S_StdPeriph_Driver\inc directory
+// All includes are in main.h
 #include <main.h>
-#include <uipopt.h>
+
+
+
+// #include <stdint.h>
+// #include <iostm8s005.h>	// Address definitions for all registers
+			// See C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8 directory
+// #include <stm8s-005.h>	// Bit location definitions in registers
+			// See C:\Users\Mike\Desktop\STM8S Peripheral Library\en.stsw-stm8069\STM8S_StdPeriph_Lib\Libraries\STM8S_StdPeriph_Driver\inc directory
+// #include <uipopt.h>
 
 
 uint8_t periodic_timer;       // Peroidic_timer counter

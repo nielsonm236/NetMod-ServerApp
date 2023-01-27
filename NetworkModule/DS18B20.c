@@ -22,29 +22,31 @@
  Copyright 2021 Michael Nielson
 */
 
-
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
-#include "iostm8s005.h"
-#include "stm8s-005.h"
-#include "DS18B20.h"
+// all includes are in main.h
 #include "main.h"
-#include "timer.h"
-#include "uart.h"
-#include "uipopt.h"
+
+// #include <stdint.h>
+// #include <stdlib.h>
+// #include <string.h>
+// #include <stdio.h>
+
+// #include "iostm8s005.h"
+// #include "stm8s-005.h"
+// #include "DS18B20.h"
+// #include "timer.h"
+// #include "uart.h"
+// #include "uipopt.h"
+
+
+#if DS18B20_SUPPORT == 1
 
 uint8_t DS18B20_scratch_byte[2];        // Array to store scratchpad bytes
                                         // read from DS18B20
 uint8_t DS18B20_scratch[5][2];          // Stores the temperature measurement
                                         // for the DS18B20s
 
-extern uint8_t OctetArray[11];		// Used in emb_itoa conversions but
-                                        // also repurposed as a temporary
-					// buffer for transferring data
-					// between functions.
+extern uint8_t OctetArray[14];		// Used in emb_itoa conversions and to
+                                        // transfer short strings globally
 
 // Table used for rounding the decimal part of temperatures
 static const uint8_t dec_temp[] = {
@@ -90,13 +92,6 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
                                     // [x][7] = CRC
 extern int numROMs;                 // Count of DS18B20 devices found
 
-// uint8_t new_FoundROM_crc;           // Used in calculation of the CRC for
-                                    // the FoundROM table. Used to determine
-                                    // if a table change has occurred.
-// uint8_t old_FoundROM_crc;           // Stores the prior FoundROM table CRC.
-// extern uint8_t redefine_temp_sensors; // Flag used to signal the need
-                                    // to redefine the HA temp sensors
-                                    // via Auto Discovery messages
 
 
 //---------------------------------------------------------------------------//
@@ -236,7 +231,6 @@ void get_temperature()
 
 void convert_temperature(uint8_t device_num, uint8_t degCorF)
 {
-//---------------------------------------------------------------------------//
   // This function will convert a temperature value stored in the
   // DS18B20_scratch array into a string in degrees C or degrees F. The
   // function leaves the converted result in the global OctetArray string.
@@ -578,10 +572,6 @@ void one_wire_low(int wait)
 
 void init_DS18B20(void)
 {
-  // Initialize variables used in DS18B20 operation
-//  new_FoundROM_crc = 0;
-//  old_FoundROM_crc = 0;
-//  redefine_temp_sensors = 0;
   // Initialize temperature sensor arrays
   memset(&DS18B20_scratch[0][0], 0, 10);
   memset(&FoundROM[0][0], 0, 40);
@@ -633,16 +623,6 @@ void FindDevices(void)
       }
     }
   }
-  // Add up the crc values for each entry to act as a CRC for the FoundROM
-  // table
-//  new_FoundROM_crc = (uint8_t)(FoundROM[0][7] + FoundROM[1][7] + FoundROM[2][7] + FoundROM[3][7] + FoundROM[4][7]);
-
-//  if (new_FoundROM_crc != old_FoundROM_crc) {
-    // Signal the main loop that the temp sensors need to be updated in the
-    // Browser display and over MQTT
-//    redefine_temp_sensors = 1;
-//    old_FoundROM_crc = new_FoundROM_crc;
-//  }
 }
 
 
@@ -655,7 +635,7 @@ uint8_t First(void)
   // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
   //
   lastDiscrep = 0;   // reset the rom search last discrepancy global
-  doneFlag = FALSE;
+  doneFlag = 0;      // False
   return Next();     // call Next and return its return value
 }
 
@@ -759,3 +739,6 @@ uint8_t dallas_crc8(uint8_t *data, uint8_t size)
     }
     return crc;
 }
+
+
+#endif // DS18B20_SUPPORT == 1

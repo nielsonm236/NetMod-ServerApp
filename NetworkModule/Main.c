@@ -7,7 +7,7 @@
  * Homepage: http://klinkerstein.m-faq.de
  * */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -24,28 +24,31 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
-#include <stdlib.h>
 
+// All includes are in main.h
 #include "main.h"
-#include "Enc28j60.h"
-#include "Spi.h"
-#include "uip.h"
-#include "uip_arp.h"
-#include "gpio.h"
-#include "timer.h"
-#include "httpd.h"
-#include "iostm8s005.h"
-#include "stm8s-005.h"
-#include "uip_arch.h"
-#include "uip_TcpAppHub.h"
-#include "uipopt.h"
-#include "mqtt.h"
-#include "DS18B20.h"
-#include "i2c.h"
-#include "UART.h"
+
+
+// #include <stdlib.h>
+// #include "Enc28j60.h"
+// #include "Spi.h"
+// #include "uip.h"
+// #include "uip_arp.h"
+// #include "gpio.h"
+// #include "timer.h"
+// #include "httpd.h"
+// #include "iostm8s005.h"
+// #include "stm8s-005.h"
+// #include "uip_arch.h"
+// #include "uip_TcpAppHub.h"
+// #include "uipopt.h"
+// #include "mqtt.h"
+// #include "DS18B20.h"
+// #include "i2c.h"
+// #include "UART.h"
 // #include "bme280.h"
 
 
@@ -53,7 +56,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20221217 1925"; // Normal Release Revision
+const char code_revision[] = "20230125 2003"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -107,19 +110,24 @@ uint8_t stack_limit2;
 // 
 // EEPROM Variables:
 
-@eeprom uint8_t stored_debug[10];
-                                        // 10 debug bytes
-					// Byte 108 stored_debug[9]
-                                        // Byte 99 stored_debug[0]
+// >>> Add new variables HERE <<<
+// 110 bytes used below
+@eeprom int16_t stored_altitude;           // Byte 109-110
+					   // User entered altitude used for
+					   // BME280 pressure calibration
+// 108 bytes used below
+@eeprom uint8_t stored_debug[10];          // 10 debug bytes
+					   // Byte 108 stored_debug[9]
+                                           // Byte 99 stored_debug[0]
 
 // 98 bytes used below
-// >>> Add new variables HERE <<<
 @eeprom uint8_t stored_pin_control[16];    // Byte 83-98 Config settings for
                                            // each IO pin
 @eeprom uint8_t stored_config_settings;    // Byte 82
                                            // Bit 7: Undefined, 0 only
                                            // Bit 6: Undefined, 0 only
-                                           // Bit 5: Undefined, 0 only
+                                           // Bit 5: BME280
+					   //        1 = Enable, 0 = Disable
                                            // Bit 4: Disable Cfg Button
 					   //        1 = Disable, 0 = Enable
                                            // Bit 3: DS18B20
@@ -152,7 +160,17 @@ uint8_t stack_limit2;
 @eeprom uint8_t stored_uip_ethaddr_oct[6]; // Bytes 24-29 MAC MSB
 @eeprom uint8_t stored_EEPROM_revision2;   // Byte 23 EEPROM revision
 @eeprom uint8_t stored_EEPROM_revision1;   // Byte 22 EEPROM revision
-@eeprom uint8_t stored_unused1;            // Byte 21 unused
+@eeprom uint8_t stored_hardware_options;   // Byte 21 unused
+                                           // Bit 7: Undefined, 0 only
+                                           // Bit 6: Undefined, 0 only
+                                           // Bit 5: Undefined, 0 only
+                                           // Bit 4: Undefined, 0 only
+                                           // Bit 3: Undefined, 0 only
+                                           // Bit 0-2: Pinout
+					   //   See Manaual
+					   //   001 Pinout Option 1
+					   //   010 Pinout Option 2
+					   //   011 Pinout Option 3
 @eeprom uint8_t stored_devicename[20];     // Byte 01 Device name @4000
 //---------------------------------------------------------------------------//
 
@@ -227,15 +245,14 @@ uint8_t mqtt_close_tcp;         // Signals the need to close the MQTT TCP
 uint8_t parse_complete;         // Signals the completion of POST parsing
 uint8_t mqtt_parse_complete;    // Signals the completion of MQTT parsing
 
-uint16_t Port_Httpd;  // HTTP port number
+uint16_t Port_Httpd;            // HTTP port number
 uip_ipaddr_t IpAddr;
 
 uint32_t t100ms_ctr1;           // Timer used in restart/reboot function
 extern uint32_t second_counter; // Time in seconds
 
-extern uint8_t OctetArray[11];  // Used in emb_itoa conversions but also
-                                // repurposed as a temporary buffer for
-				// transferring data between functions.
+extern uint8_t OctetArray[14];  // Used in emb_itoa conversions and to
+                                // transfer short strings globally
 
 extern uint8_t parse_tail[66];  // >>> Used mostly in POST packet processing
                                 // but also repurposed for buffering data
@@ -346,7 +363,7 @@ int8_t send_mqtt_temperature;    // Indicates if a new temperature measurement
 				 // application there are 5 sensors, so setting
 				 // to 4 will cause all 5 to transmit (4,3,2,1,0).
 				 // -1 indicates nothing to transmit.
-int numROMs;              // Count of DS18B20 devices found.
+int numROMs;                     // Count of DS18B20 devices found.
 extern uint8_t FoundROM[5][8];   // Table of found ROM codes
                                  // [x][0] = Family Code
                                  // [x][1] = LSByte serial number
@@ -358,20 +375,23 @@ extern uint8_t FoundROM[5][8];   // Table of found ROM codes
                                  // [x][7] = CRC
 #endif // DS18B20_SUPPORT == 1
 
-/*
+
 #if BME280_SUPPORT == 1
 // BME280 variables
-// struct identifier
-// {
-//   // Structure that contains identifier details used in example
-//   // MOVE THIS TO BME280.H?
-//     uint8_t dev_addr;	// Variable to hold device address
-//     int8_t fd;		// Variable that contains file descriptor
-//     // THERE IS NO FILE DESCRIPTOR IN THIS APPLICATION
-// };
-struct bme280_dev dev;
-// struct identifier id;
-int8_t rslt;		// Variable to report BME280 function results
+struct bme280_dev dev;        // Structure to store the device calibration
+                              // data and device settings.
+int8_t rslt;		      // Variable to report BME280 function results.
+uint32_t check_BME280_ctr;    // Time counter to determine when to collect the
+                              // BME280 measurements.
+struct bme280_data comp_data; // Structure to collect the compensated
+                              // pressure, temperature and humidity data.
+uint8_t BME280_found;         // Used to indicate that that a BME280 device
+                              // was found on the I2C bus.
+int8_t send_mqtt_BME280;      // Indicates if new sensor measurements are
+                              // pending transmit on MQTT. In this application
+			      // there are 3 sensors, so setting to 2 will
+			      // cause all 3 to transmit (2,1,0). -1 indicates
+			      // nothing to transmit.
 #endif // BME280_SUPPORT == 1
 
 
@@ -379,13 +399,13 @@ int8_t rslt;		// Variable to report BME280 function results
 extern uint8_t upgrade_failcode;     // Failure codes for Flash upgrade
                                      // process
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-*/
+
 
 #if OB_EEPROM_SUPPORT == 1
-// Off-Board EEPROM variables
+// I2C EEPROM variables
 extern uint8_t eeprom_copy_to_flash_request; // Flag to cause the main.c loop
                                      // to call the copy to flash function.
-uint32_t check_I2C_EEPROM_ctr;       // Counter to time an Off-Board EEPROM
+uint32_t check_I2C_EEPROM_ctr;       // Counter to time an I2C EEPROM
                                      // to Flash copy request
 extern char * flash_ptr;             // Used in code update routines to copy
                                      // data into Flash
@@ -411,7 +431,9 @@ int main(void)
   uint8_t flash_mismatch;
   extern uint16_t uip_slen;
   
-  parse_complete = 0;
+  parse_complete = 1; // parse_complete is set to 1 so that the first time
+                      // check_runtime_changes is called it will sync the
+		      // runtime variables with the EEPROM.
   reboot_request = 0;
   user_reboot_request = 0;
   restart_request = 0;
@@ -476,9 +498,6 @@ int main(void)
 #endif // OB_EEPROM_SUPPORT == 1
 
 
-
-
-
   clock_init();            // Initialize and enable clocks and timers
 
   upgrade_EEPROM();        // Check for down revision EEPROM and upgrade if
@@ -501,7 +520,7 @@ int main(void)
   // Initialize the UART for debug output
   // Note: gpio_init() must be called prior to this call
   InitializeUART();
-#endif // DEBUG_SUPPORT
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
   spi_init();              // Initialize the SPI bit bang interface to the
                            // ENC28J60 and perform hardware reset on ENC28J60
@@ -517,6 +536,59 @@ int main(void)
   HttpDInit();             // Initialize listening ports
   
   HttpDStringInit();       // Initialize HttpD string sizes
+
+#if PINOUT_OPTION_SUPPORT == 1
+  // Set Pinout Option
+  // (stored_hardware_options & 0x07) = 1 for the first 16 io_map definitions
+  // (stored_hardware_options & 0x07) = 2 for the second 16 io_map definitions
+  // (stored_hardware_options & 0x07) = 3 for the third 16 io_map definitions
+  // io_map_offset defines the user selected IO pinout map.
+  // io_map_offset = 0 for the first 16 io_map definitions
+  // io_map_offset = 16 for the second 16 io_map definitions
+  // io_map_offset = 32 for the third 16 io_map definitions
+  // See the manual for explanation
+  {
+  uint8_t j;
+    io_map_offset = (uint8_t)(((stored_hardware_options & 0x07) - 1) * 16);
+  }
+  
+#endif // PINOUT_OPTION_SUPPORT == 1
+
+#if LINKED_SUPPORT == 1
+  linked_edge = 0;	   // Used for indicating Input pin edge detection
+			   // when using Linked pins. Must be cleared when
+			   // booting.
+  // Read input pins, but signal that the read is during initialization so
+  // that only the ON_OFF_words will be updated and the the linked_edge byte
+  // will not be updated. The read needs to be performed twice so that
+  // ON_OFF_word_new1, ON_OFF_word_new2, and ON_OFF_word will be equalized.
+  read_input_pins(1);
+  read_input_pins(1);
+#endif // LINKED_SUPPORT == 1
+
+
+#if DS18B20_SUPPORT == 0
+  // If DS18B20_SUPPORT is disabled in the build configuration then force the
+  // DS18B20 Enable bit off. This will help reduce confusion on the part of
+  // the user that may think they can enable DS18B20 support on te Config
+  // Page.
+  Pending_config_settings &= (uint8_t)(~0x08);
+  // Note: parse_complete was set to 1 duriing main variable initialization.
+  // This will cause any change to the Pending_config_settings to update the
+  // EEPROM if needed.
+#endif // DS18B20_SUPPORT == 0
+
+
+#if BME280_SUPPORT == 0
+  // If BME280_SUPPORT is disabled in the build configuration then force the
+  // BME280 Enable bit off. This will help reduce confusion on the part of
+  // the user that may think they can enable BME280 support on the Config
+  // Page.
+  Pending_config_settings &= (uint8_t)(~0x20);
+  // Note: parse_complete was set to 1 duriing main variable initialization.
+  // This will cause any change to the Pending_config_settings to update the
+  // EEPROM if needed.
+#endif // BME280_SUPPORT == 0
 
 
 #if DS18B20_SUPPORT == 1
@@ -535,42 +607,34 @@ int main(void)
   }
 #endif // DS18B20_SUPPORT == 1
 
-/*
+
 #if BME280_SUPPORT == 1
-    rslt = BME280_OK;	// Variable to define the result
-    
-//    // Select BME280_I2C_ADDR_PRIM
-//    // SHOULD BE ABLE TO ELIMINATE THE NOTION OF SECONDARY
-//    id.dev_addr = BME280_I2C_ADDR_PRIM;
-
-//    dev.intf = BME280_I2C_INTF;
-//    dev.read = &user_i2c_read; // NEED TO POINT TO I2C INTERFACE
-//    dev.write = &user_i2c_write; // NEED TO POINT TO I2C INTERFACE
-//    dev.delay_us = user_delay_us;
-
-    // Update interface pointer with the structure that contains both device
-    // address and file descriptor
-    // THERE IS NO FILE DESCRIPTOR IN THIS APPLICATION
-//    dev.intf_ptr = &id;
-
-    rslt = bme280_init(&dev);	// Initialize the bme280
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-    if (rslt != BME280_OK) {
-      UARTPrintf("\r\nFailed to initialize the BME280\r\n");
+  // Initialize the BME280
+  BME280_found = 0;
+  send_mqtt_BME280 = 0;
+  check_BME280_ctr = second_counter;
+  rslt = bme280_init(&dev);
+  if (rslt == BME280_OK) {
+    BME280_found = 1;
+    if (stored_config_settings & 0x20) {
+      // If a BME280 sensor was found and the config_settings show the sensor
+      // is enabled then collect the sensor data. This measurement at startup
+      // is needed so that sensor data is available for display when the
+      // IOControl page is shown at boot time.
+      stream_sensor_data_forced_mode(&dev, &comp_data);
     }
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
-    if (rslt == BME280_OK) {
-      rslt = stream_sensor_data_forced_mode(&dev);
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-      if (rslt != BME280_OK) {
-        UARTPrintf("\r\nFailed to stream BME280 sensor data\r\n");
-      }
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-    }
+  }
+  else {
+    // If BME_280 sensor was not found then then force the BME280 Enable bit off.
+    // This will help reduce confusion on the part of the user that may think
+    // they can enable BME280 support on the Config Page but they have not
+    // connected a BME280 sensor.
+    Pending_config_settings &= (uint8_t)(~0x20);
+    // Note: parse_complete was set to 1 duriing main variable initialization.
+    // This will cause any change to the Pending_config_settings to update the
+    // EEPROM if needed.
+  }
 #endif // BME280_SUPPORT == 1
-*/
 
 
   // The following initializes the stack over-run guardband variables. These
@@ -579,6 +643,7 @@ int main(void)
   // content).
   stack_limit1 = 0xaa;
   stack_limit2 = 0x55;
+
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // Check RST_SR (Reset Status Register)
@@ -597,10 +662,14 @@ int main(void)
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
   }
 
+  {
   UARTPrintf("\r\nBooting Rev ");
   UARTPrintf(code_revision);
   UARTPrintf("\r\n");
-  
+  }
+
+
+#if TEMP_DEBUG_EXCLUDE == 0
   UARTPrintf("ENC28J60 Rev Code ");
   emb_itoa((debug[2] & 0x07), OctetArray, 16, 2);
   UARTPrintf(OctetArray);
@@ -626,45 +695,63 @@ int main(void)
   if (debug[2] & 0x80) UARTPrintf("Stack Overflow ERROR!");
   else UARTPrintf("Stack Overflow - none detected");
   UARTPrintf("\r\n");
+#endif // TEMP_DEBUG_EXCLUDE == 0
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
 
 #if OB_EEPROM_SUPPORT == 1
-  // Verify that Off-Board EEPROM(s) exist.
+  // Verify that I2C EEPROM(s) exist.
   eeprom_detect = off_board_EEPROM_detect();
 #endif // OB_EEPROM_SUPPORT == 1
-  
+
+
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
   // If a Code Uploader Build determine if Flash matches the content of
-  // Off-Board EEPROM1.
-  if (eeprom_detect == 1) flash_mismatch = compare_flash_to_EEPROM1();
+  // I2C EEPROM1.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // I am not sure if a compare is needed. Why not just write the Flash
+  // to I2C EEPROM regardless? The I2C EEPROM can absorb MANY writes.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  
+//  if (eeprom_detect == 1) flash_mismatch = compare_flash_to_EEPROM1();
   // If a Code Uploader build and Flash does not match the content of
-  // Off-Board EEPROM1 copy the Flash to Off-Board EEPROM1. This is needed to
-  // allow a user to upload a new Code Uploader with the SWIM interface.
-  if ((eeprom_detect == 1) && (flash_mismatch)) copy_code_uploader_to_EEPROM1();
+  // I2C EEPROM1 copy the Flash to I2C EEPROM1. This is needed to
+  // address the case where a user uploads a new Code Uploader with the SWIM
+  // interface - in that case the program needs to copy itself to I2C EEPROM1.
+//  if ((eeprom_detect == 1) && (flash_mismatch)) copy_code_uploader_to_EEPROM1();
+  copy_code_uploader_to_EEPROM1();
+  // Flicker LED for 1 second to indicate I2C EEPROM write completion
+  fastflash();
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 #if OB_EEPROM_SUPPORT == 1
   // These calls are only needed if we want to protect the user from a
   // scenario where they:
-  // a) Have the Uploader installed in Off-Board EEPROM
+  // a) Have the Uploader installed in I2C EEPROM
   // b) Use SWIM to load a new runtime firmware
   // c) When they start the Uploader they select "reinstall".
   // The above scenario fails because SWIM installed the runtime firmware
   // rather than the Uploader. If the Uploader had been used to install the
-  // runtime firmware a copy of the firmware image would be in Off-Board
+  // runtime firmware a copy of the firmware image would be in I2C 
   // EEPROM. If the below calls are un-commented it will protect against
   // this scenario assuming that the Uploader and the Strings File are still
   // compatible with the code the user loaded via the SWIM interface. This
   // functionality costs about 250 bytes of firmware.
   //
   // If a Browser Only or MQTT build determine if Flash matches the content of
-  // Off-Board EEPROM0.
-  if (eeprom_detect == 1) flash_mismatch = compare_flash_to_EEPROM0();
+  // I2C EEPROM0.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// I am not sure if a compare is needed. Why not just write the Flash
+// to I2C EEPROM regardless? The I2C EEPROM can absorb MANY writes.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  
+//  if (eeprom_detect == 1) flash_mismatch = compare_flash_to_EEPROM0();
   // If a Browser Only or MQTT build and Flash does not match the content of
-  // Off-Board EEPROM0 copy the Flash to Off-Board EEPROM0.
-  if ((eeprom_detect == 1) && (flash_mismatch)) copy_flash_to_EEPROM0();
+  // I2C EEPROM0 copy the Flash to I2C EEPROM0.
+//  if ((eeprom_detect == 1) && (flash_mismatch)) copy_flash_to_EEPROM0();
+  copy_flash_to_EEPROM0();
+  // Flicker LED for 1 second to indicate I2C EEPROM write completion
+  fastflash();
 #endif // OB_EEPROM_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD    
 
@@ -901,12 +988,12 @@ int main(void)
 
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-    // Check for a request to copy the Off-Board EEPROM0 to Flash.
+    // Check for a request to copy the I2C EEPROM0 to Flash.
     // The request is automatically generated by the process that uploads the
-    // user specified file after the file is copied to the Off-Board EEPROM.
+    // user specified file after the file is copied to the I2C EEPROM.
     // The request is also generated if the user presses the Restore button
     // (generating a /73 command) while in the Uploader GUI.
-    // Block the request if no EEPROM was detected or if an error occurred
+    // Block the request if no I2C EEPROM was detected or if an error occurred
     // during SREC download.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_WAIT;
@@ -927,16 +1014,16 @@ int main(void)
       // The _fctcpy function will copy the memcpy_update segment to RAM, then
       // the eeprom_copy_to_flash() function will call the copy_ram_to_flash()
       // function in the memcpy_update segment from RAM.
-      if (_fctcpy ('m') == 0) {
-// UARTPrintf("eeprom0 fctcpy failed\r\n");
-      }
-      else {
-// UARTPrintf("eeprom0 fctcpy success\r\n");
-      }
+      _fctcpy('m');
 
       if (eeprom_detect == 1 && upgrade_failcode == UPGRADE_OK) {
-        // eeprom_copy_to_flash() will reprogram the Flash with the EEPROM
+        // eeprom_copy_to_flash() will reprogram the Flash with the I2C EEPROM
 	// contents. On completion of the copy the module will reboot.
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+UARTPrintf("Copying EEPROM0 to Flash\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
         eeprom_copy_to_flash();
       }
       lock_flash();
@@ -945,10 +1032,10 @@ int main(void)
 
 
 #if OB_EEPROM_SUPPORT == 1
-    // Check for a request to copy the Off-Board EEPROM1 to Flash. The request
+    // Check for a request to copy the I2C EEPROM1 to Flash. The request
     // is generated when the user inputs a /72 command to start the Code
     // Uploader.
-    // Block the request if no EEPROM was detected.
+    // Block the request if no I2C EEPROM was detected.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_WAIT;
       check_I2C_EEPROM_ctr = t100ms_ctr1;
@@ -968,15 +1055,10 @@ int main(void)
       // The _fctcpy function will copy the memcpy_update segment to RAM, then
       // the eeprom_copy_to_flash() function will call the copy_ram_to_flash()
       // function in the memcpy_update segment from RAM.
-      if (_fctcpy ('m') == 0) {
-// UARTPrintf("eeprom1 fctcpy failed\r\n");
-      }
-      else {
-// UARTPrintf("eeprom1 fctcpy success\r\n");
-      }
+      _fctcpy('m');
       
       if (eeprom_detect) {
-        // eeprom_copy_to_flash() will reprogram the Flash with the EEPROM
+        // eeprom_copy_to_flash() will reprogram the Flash with the I2C EEPROM
 	// contents. On completion of the copy the module will reboot.
         eeprom_copy_to_flash();
       }
@@ -995,8 +1077,9 @@ int main(void)
     
 #if DS18B20_SUPPORT == 1
     // Update temperature data
-    // Not sure of the best interval. I will set it at 30 seconds for now.
-    if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 30))) {
+    // Not sure of the best interval. I will set it at 300 seconds (5 min) for
+    // now since the BME280 is best suited to weather monitoring.
+    if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 300))) {
       check_DS18B20_ctr = second_counter;
       get_temperature();
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -1005,6 +1088,26 @@ int main(void)
 #endif // BUILD_SUPPORT == MQTT_BUILD
     }
 #endif // DS18B20_SUPPORT == 1
+
+
+#if BME280_SUPPORT == 1
+    if ((BME280_found == 1) && (stored_config_settings & 0x20)) {
+      // If a BME280 sensor was found and the config_settings show the sensor
+      // is enabled then collect the sensor data every 30 seconds
+      if (second_counter > (check_BME280_ctr + 30)) {
+        check_BME280_ctr = second_counter;
+        stream_sensor_data_forced_mode(&dev, &comp_data);
+#if BUILD_SUPPORT == MQTT_BUILD
+        send_mqtt_BME280 = 2; // Indicates that all 5 temperature sensors
+                              // need to be transmitted via MQTT.
+#endif // BUILD_SUPPORT == MQTT_BUILD
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+        // Print sensor data on UART
+//        print_sensor_data(&comp_data);
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+      }
+    }
+#endif // BME280_SUPPORT == 1
     
     
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
@@ -1075,16 +1178,16 @@ void periodic_service(void)
 #if OB_EEPROM_SUPPORT == 1
 uint8_t off_board_EEPROM_detect(void)
 {
-  // Verify that an Off-Board EEPROM exists. This routine is directed at
-  // detecting a 256KB EEPROM.
+  // Verify that an I2C EEPROM exists. This routine is directed at
+  // detecting a 256KB I2C EEPROM.
   //
   // Presence verification is performed by:
-  //   Reading the first byte of the Off-Board EEPROM, inverting the byte,
-  //   writing the inverted byte to the Off-Board EEPROM, and verifying that
+  //   Reading the first byte of the I2C EEPROM, inverting the byte,
+  //   writing the inverted byte to the I2C EEPROM, and verifying that
   //   the inversion occurred. If the inversion occurred then eeprom_detect is
   //   set to 1 and the original byte is restored.
   //
-  // If detection fails Off-Board EEPROM support is turned off.
+  // If detection fails I2C EEPROM support is turned off.
   
   uint8_t eeprom_detect;
   uint8_t byte;
@@ -1095,17 +1198,17 @@ uint8_t off_board_EEPROM_detect(void)
   I2C_reset();
   wait_timer(1000); // Wait 1 ms
   
-  // Read 1 byte from Off-Board EEPROM.
-  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
+  // Read 1 byte from I2C EEPROM.
+  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE, 2);
   byte = I2C_read_byte(1);
 
 
-  // Write inverted byte to Off-Board EEPROM.
+  // Write inverted byte to I2C EEPROM.
   write_one((uint8_t)~byte);
 
 
-  // Read and validate 1 byte from Off-Board EEPROM.
-  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
+  // Read and validate 1 byte from I2C EEPROM.
+  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE, 2);
    
   if ((uint8_t)~byte == I2C_read_byte(1)) {
     eeprom_detect = 1;
@@ -1113,7 +1216,7 @@ uint8_t off_board_EEPROM_detect(void)
   else {
   }
     
-  // Restore the original 1 byte to Off-Board EEPROM.
+  // Restore the original 1 byte to I2C EEPROM.
   write_one(byte);
 
   return eeprom_detect;
@@ -1121,31 +1224,9 @@ uint8_t off_board_EEPROM_detect(void)
 #endif // OB_EEPROM_SUPPORT == 1
 
 
-
-#if OB_EEPROM_SUPPORT == 1
-void prep_read(uint8_t eeprom_num_write, uint8_t eeprom_num_read, uint16_t byte_address) {
-  // Function to set up a sequential read from the Off-Board EEPROMs.
-  // eeprom_num_write / eeprom_num_read are the Control Bytes needed to
-  // address the Off-Board EEPROM.
-  // byte_address identifies the address starting point in the Off-Board
-  // EEPROM and is typically the first (base) address of the region in the
-  // Off-Board EEPROM, although it can also be a specific address offset into
-  // the Off-Board EEPROM region. For example:
-  //   EEPROM0 base address: 0x0000 using EEPROM0 Control Bytes
-  //   EEPROM1 base address: 0x8000 using EEPROM1 Control Bytes
-  //   EEPROM2 base address: 0x0000 using EEPROM2 Control Bytes
-  //   EEPROM3 base address: 0x8000 using EEPROM3 Control Bytes
-
-  // Initial write control byte to establish sequential read address
-  I2C_control(eeprom_num_write);
-  I2C_byte_address(byte_address);
-  I2C_control(eeprom_num_read);
-}
-#endif // OB_EEPROM_SUPPORT == 1
-
-/*
 #if I2C_SUPPORT == 1
-void prep_read(uint8_t control_write, uint8_t control_read, uint16_t start_address, uint8_t addr_size) {
+void prep_read(uint8_t control_write, uint8_t control_read, uint16_t start_address, uint8_t addr_size)
+{
   // Function to set up a read from I2C devices.
   // control_write / control_read are the Control Bytes needed to address the
   // I2C device.
@@ -1153,20 +1234,20 @@ void prep_read(uint8_t control_write, uint8_t control_read, uint16_t start_addre
   // address_size indicates if the address is one byte or two bytes. 1 =
   // single byte, 2 = two bytes.
   //
-  // Off-Board EEPROM:
-  // When setting up a sequential read from the Off-Board EEPROMs the
+  // I2C EEPROM:
+  // When setting up a sequential read from the I2C EEPROMs the
   // following applies:
   //   control_write / control_read are the Control Bytes needed to address
-  //   the Off-Board EEPROM.
-  //   start_address identifies the address starting point in the Off-Board
+  //   the I2C EEPROM.
+  //   start_address identifies the address starting point in the I2C 
   //   EEPROM and is typically the first (base) address of the region in the
-  //   Off-Board EEPROM, although it can also be a specific address offset
-  //   into the Off-Board EEPROM region. For example:
-  //     EEPROM0 base address: 0x0000 using EEPROM0 Control Bytes
-  //     EEPROM1 base address: 0x8000 using EEPROM1 Control Bytes
-  //     EEPROM2 base address: 0x0000 using EEPROM2 Control Bytes
-  //     EEPROM3 base address: 0x8000 using EEPROM3 Control Bytes
-  //   addr_size for EEPROM access is always 2 bytes.
+  //   I2C EEPROM, although it can also be a specific address offset
+  //   into the I2C EEPROM region. For example:
+  //     I2C EEPROM0 base address: 0x0000 using I2C EEPROM0 Control Bytes
+  //     I2C EEPROM1 base address: 0x8000 using I2C EEPROM1 Control Bytes
+  //     I2C EEPROM2 base address: 0x0000 using I2C EEPROM2 Control Bytes
+  //     I2C EEPROM3 base address: 0x8000 using I2C EEPROM3 Control Bytes
+  //   addr_size for I2C EEPROM access is always 2 bytes.
   //
   // BME280:
   // When setting up a read from the BME280 device the address_size is always
@@ -1178,36 +1259,38 @@ void prep_read(uint8_t control_write, uint8_t control_read, uint16_t start_addre
   I2C_control(control_read);
 }
 #endif // I2C_SUPPORT == 1
-*/
+
 
 #if OB_EEPROM_SUPPORT == 1
-void write_one(uint8_t byte) {
-  // Function to write one byte to the Off-Board EEPROM
-  // This is only used for the Off-Board EEPROM detection routine, thus only
-  // uses Off-Board EEPROM address 0x0000
+void write_one(uint8_t byte)
+{
+  // Function to write one byte to the I2C EEPROM
+  // This is only used for the I2C EEPROM detection routine, thus only
+  // uses I2C EEPROM address 0x0000
   I2C_control(I2C_EEPROM0_WRITE);
-  I2C_byte_address(0x0000);
+  I2C_byte_address(0x0000, 2);
   I2C_write_byte(byte);
   I2C_stop();
   wait_timer(5000); // Wait 5ms
 }
 #endif // OB_EEPROM_SUPPORT == 1
 
-
+/*
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
 uint8_t compare_flash_to_EEPROM1(void)
 {
-  // Compare Flash to Off-Board EEPROM1 up to but not including the
+  // Compare Flash to I2C EEPROM1 up to but not including the
   // IO_TIMERS and IO_NAMES memory.
+  // EEPROM1 is the I2C EEPROM storage of the Code Uploader.
   uint16_t i;
   uint8_t fail;
   uint8_t temp;
   
   flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-  prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, I2C_EEPROM1_BASE);
+  prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, I2C_EEPROM1_BASE, 2);
   fail = 0;
 
-  // Compare Flash to Off-Board EEPROM1 up to but not including the
+  // Compare Flash to I2C EEPROM1 up to but not including the
   // IO_TIMERS and IO_NAMES.
   // Terminate at the first mis-compare
   for (i=0; i<(OFFSET_TO_FLASH_START_USER_RESERVE - 1); i++) {
@@ -1227,19 +1310,20 @@ uint8_t compare_flash_to_EEPROM1(void)
   if (*flash_ptr != temp) {
     fail = 1;
   }
-  // if (fail == 0) EEPROM1 matches Flash
+  // if (fail == 0) I2C EEPROM1 matches Flash
   return fail;
 }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+*/
 
 
-
+/*
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 #if OB_EEPROM_SUPPORT == 1
 uint8_t compare_flash_to_EEPROM0(void)
 {
-  // Compare Flash to Off-Board EEPROM0 up to but not including the IO_TIMERS
-  // memory. This is only needed to cover the case where there is an Off-Board
+  // Compare Flash to I2C EEPROM0 up to but not including the IO_TIMERS
+  // memory. This is only needed to cover the case where there is an I2C 
   // EEPROM but the user has used the SWIM interface to update the Runtime
   // code.
   uint16_t i;
@@ -1247,10 +1331,10 @@ uint8_t compare_flash_to_EEPROM0(void)
   uint8_t temp;
   
   flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE);
+  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE, 2);
   fail = 0;
 
-  // Compare Flash to Off-Board EEPROM0 up to but not including the
+  // Compare Flash to I2C EEPROM0 up to but not including the
   // IO_TIMERS and IO_NAMES.
   // Terminate at the first mis-compare
   for (i=0; i<(OFFSET_TO_FLASH_START_USER_RESERVE - 1); i++) {
@@ -1271,21 +1355,20 @@ uint8_t compare_flash_to_EEPROM0(void)
     fail = 1;
   }
   
-  // if (fail == 0) EEPROM0 matches Flash
+  // if (fail == 0) I2C EEPROM0 matches Flash
   return fail;
 }
 #endif // OB_EEPROM_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-
+*/
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
 void copy_code_uploader_to_EEPROM1(void)
 {
-  // This function copies a Code Uploader build to Off-Board EEPROM1.
+  // This function copies a Code Uploader build to I2C EEPROM1.
   // The entire Flash is copied up to but not including the IO_TIMERS and
   // IO_NAMES area of memory.
-  uint16_t i;
+  uint8_t i;
   uint16_t address_index;
   uint8_t I2C_last_flag;
   uint8_t temp_byte;
@@ -1300,8 +1383,8 @@ void copy_code_uploader_to_EEPROM1(void)
     // Note for "while" statement: address_index will be incremented by 128
     // with each loop.
     I2C_control(I2C_EEPROM1_WRITE); // Send Write Control Byte for upper
-                                    // Off-Board EEPROM area
-    I2C_byte_address(address_index);
+                                    // I2C EEPROM area
+    I2C_byte_address(address_index, 2);
     for (i=0; i<128; i++) {
       I2C_write_byte(*flash_ptr);
       flash_ptr++;
@@ -1309,9 +1392,9 @@ void copy_code_uploader_to_EEPROM1(void)
     I2C_stop();
     wait_timer(5000); // Wait 5ms
     
-    // Validate data in Off-Board EEPROM
+    // Validate data in I2C EEPROM
     flash_ptr -= 128;
-    prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, address_index);
+    prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, address_index, 2);
     I2C_last_flag = 0;
     for (i=0; i<128; i++) {
       if (i == 127) I2C_last_flag = 1;
@@ -1329,11 +1412,11 @@ void copy_code_uploader_to_EEPROM1(void)
 #if OB_EEPROM_SUPPORT == 1
 void copy_flash_to_EEPROM0(void)
 {
-  // This function copies a Browser Only or MQTT build to Off-Board EEPROM0.
+  // This function copies a Browser Only or MQTT build to I2C EEPROM0.
   // The entire Flash is copied up to but not including the IO_TIMERS and
   // IO_NAMES area of memory.
   // The function should only be called to cover the case where the user has
-  // the Off-Board EEPROM installed but has updated the Runtime firmware via
+  // the I2C EEPROM installed but has updated the Runtime firmware via
   // the SWIM interface.
   uint8_t i;
   uint16_t address_index;
@@ -1347,7 +1430,7 @@ void copy_flash_to_EEPROM0(void)
   
   while (address_index < OFFSET_TO_FLASH_START_USER_RESERVE) {
     I2C_control(I2C_EEPROM0_WRITE);
-    I2C_byte_address(address_index);
+    I2C_byte_address(address_index, 2);
     for (i=0; i<128; i++) {
       I2C_write_byte(*flash_ptr);
       flash_ptr++;
@@ -1355,9 +1438,9 @@ void copy_flash_to_EEPROM0(void)
     I2C_stop();
     wait_timer(5000); // Wait 5 ms
     
-    // Validate data in Off-Board EEPROM
+    // Validate data in I2C EEPROM
     flash_ptr -= 128;
-    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, address_index);
+    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, address_index, 2);
     I2C_last_flag = 0;
     for (i=0; i<128; i++) {
       if (i == 127) I2C_last_flag = 1;
@@ -1370,8 +1453,6 @@ void copy_flash_to_EEPROM0(void)
 }
 #endif // OB_EEPROM_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-
 
 
 // IP Address and MAC Address notes:
@@ -1415,6 +1496,8 @@ void mqtt_startup(void)
   //   - Verifies that the ARP request succeeded.
   //   - Verifies that the TCP connection request suceeded.
   //   - Initializes communication with the MQTT Broker.
+  // - Once the above is completed the Home Assistant Auto Discovery messages
+  //   are published (if Auto Discovery is enabled).
  
   switch(mqtt_start)
   {
@@ -1740,11 +1823,36 @@ void mqtt_startup(void)
       //                 4,
       //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
       //
-      // The following placeholder Publish message will create a Temperature
-      // Sensor Auto Discovery message. "xx" is the input IO number.
+      // The following placeholder Publish message will create a DS18B20
+      // Temperature Sensor Auto Discovery message. "xx" is the sensor number
+      // 0 to 4.
       //    mqtt_publish(&mqttclient,
       //                 topic_base,
       //                 "%Txx",
+      //                 4,
+      //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+      //
+      // The following placeholder Publish message will create a BME280
+      // Temperature Sensor Auto Discovery message.
+      //    mqtt_publish(&mqttclient,
+      //                 topic_base,
+      //                 "%T00",
+      //                 4,
+      //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+      //
+      // The following placeholder Publish message will create a BME280
+      // Pressure Sensor Auto Discovery message.
+      //    mqtt_publish(&mqttclient,
+      //                 topic_base,
+      //                 "%T01",
+      //                 4,
+      //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+      //
+      // The following placeholder Publish message will create a BME280
+      // Humidity Sensor Auto Discovery message.
+      //    mqtt_publish(&mqttclient,
+      //                 topic_base,
+      //                 "%T02",
       //                 4,
       //                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
       //---------------------------------------------------------------------//
@@ -1772,6 +1880,14 @@ void mqtt_startup(void)
       //   If DS18B20 is enabled:
       //     - A Temperature Sensor Config message is sent for every sensor
       //       that is discovered.
+      //
+      //   If BME280 is enabled:
+      //     - A Temperature Sensor Config message is sent if the sensor is
+      //       present.
+      //     - A Pressure Sensor Config message is sent if the sensor is
+      //       present.
+      //     - A Humidity Sensor Config message is sent if the sensor is
+      //       present.
 
       if (auto_discovery == DEFINE_INPUTS) {
         i = (uint8_t)(pin_ptr - 1);
@@ -1864,7 +1980,6 @@ void mqtt_startup(void)
             // Create Output pin delete msg.
             send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE_IOT);
 	    
-#if DS18B20_SUPPORT == 1
 	    if (pin_ptr == 16) {
               auto_discovery = DEFINE_TEMP_SENSORS;
 	    }
@@ -1872,27 +1987,24 @@ void mqtt_startup(void)
 	      pin_ptr++;
 	      auto_discovery_step = SEND_INPUT_DELETE;
 	    }
-#endif // DS18B20_SUPPORT == 1
 	  }
 	}
         else {
-#if DS18B20_SUPPORT == 1
 	  if (pin_ptr == 16) {
 	    auto_discovery = DEFINE_TEMP_SENSORS;
 	  }
 	  else pin_ptr++;
-#endif // DS18B20_SUPPORT == 1
-#if DS18B20_SUPPORT == 0
-          auto_discovery == AUTO_COMPLETE;
-#endif // DS18B20_SUPPORT == 0
 	}
       }
  
-#if DS18B20_SUPPORT == 1
       else if (auto_discovery == DEFINE_TEMP_SENSORS) {
+#if DS18B20_SUPPORT == 1
         define_temp_sensors();
-      }
 #endif // DS18B20_SUPPORT == 1
+#if BME280_SUPPORT == 1
+        define_BME280_sensors();
+#endif // BME280_SUPPORT == 1
+      }
 
       mqtt_start_ctr1 = 0; // Clear the 50ms counter
       if (auto_discovery == AUTO_COMPLETE) {
@@ -1937,7 +2049,6 @@ void mqtt_startup(void)
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
-
 #if BUILD_SUPPORT == MQTT_BUILD
 #if DS18B20_SUPPORT == 1
 void define_temp_sensors(void)
@@ -1966,12 +2077,15 @@ void define_temp_sensors(void)
   // If there is at least one sensor detetected numROMs will be zero or
   // greater. In that case send the sensor definition as a Config message.
 
-  if ((stored_config_settings & 0x08) && (sensor_number <= (numROMs))) {
-    // If the test is true Temperature Sensors are enabled and a sensor is
-    // defined.
-    // Send Temp Sensor define messages.
-    send_IOT_msg(sensor_number, TMPRMSG, DEFINE_IOT);
+  if (stored_config_settings & 0x08) {
+    if (sensor_number <= (numROMs)) {
+      // If the test is true Temperature Sensors are enabled and a sensor is
+      // defined.
+      // Send Temp Sensor define messages.
+      send_IOT_msg(sensor_number, TMPRMSG, DEFINE_IOT);
+    }
   }
+  else sensor_number = 4;
       
   if (sensor_number == 4) {
     auto_discovery = AUTO_COMPLETE;
@@ -1979,6 +2093,63 @@ void define_temp_sensors(void)
   else sensor_number++;
 }
 #endif // DS18B20_SUPPORT == 1
+#endif // BUILD_SUPPORT == MQTT_BUILD
+
+
+#if BUILD_SUPPORT == MQTT_BUILD
+#if BME280_SUPPORT == 1
+void define_BME280_sensors(void)
+{
+  // This function is called from the mqtt_startup function when
+  //   auto_discovery == DEFINE_BME280_SENSORS
+  // This function is part of the state machine contained within the
+  // mqtt_startup and will manipulate the following state machine controls:
+  //   auto_discovery_step = SEND_TEMP_SENSOR_DEFINE  
+  // When complete this function will set
+  //   auto_discovery = AUTO_COMPLETE
+  //
+  // Unlike the DS18B20 sensors (which are connected to IO Pin 16), the
+  // BME280 sensors are connected via I2C. The BME280 sensor provides a
+  // temperature, pressure, and humidity value.
+  //
+  // If BME280 sensors are enabled, this routine will send a separate define
+  // msg for the temperature, pressure, and humidity sensor in the BME280.
+  // Note that the
+  // send_IOT_msg() routine which is called from this routine will abort
+  // sending a msg if the Sensor ID is 000000 (which
+  // indicates no sensor is present).
+  
+  // Create temperature sensor define msg.
+  // If temp sensors are not enabled we will not create a Config message.
+  // If no sensors were detected numROMs will be -1 and we will not create
+  // a Config message).
+  // If there is at least one sensor detetected numROMs will be zero or
+  // greater. In that case send the sensor definition as a Config message.
+
+  if ((stored_config_settings & 0x20) == 0x20) {
+    if (BME280_found == 1) {
+      // If the test is true BME280 Sensors are enabled and a sensor is present.
+      if (sensor_number == 0) {
+        // Send BME280 Temp Sensor define message.
+        send_IOT_msg(sensor_number, TMPRMSG, DEFINE_IOT);
+      }
+      if (sensor_number == 1) {
+        // Send BME280 Pressure Sensor define message.
+        send_IOT_msg(sensor_number, PRESMSG, DEFINE_IOT);
+      }
+      if (sensor_number == 2) {
+        // Send BME280 Humidity Sensor define message.
+        send_IOT_msg(sensor_number, HUMMSG, DEFINE_IOT);
+      }
+    }
+    else sensor_number = 2;
+  }
+  if (sensor_number == 2) {
+    auto_discovery = AUTO_COMPLETE;
+  }
+  else sensor_number++;
+}
+#endif // BME280_SUPPORT == 1
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
@@ -2001,7 +2172,7 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 				 //   message
 				 // For Temperature Sensor messages
 				 //   app_message[2] to [14] contains the
-				 //   sensor number allowing app_message to be
+				 //   sensor ID allowing app_message to be
 				 //   used in creating the topic part of the
 				 //   message.
   
@@ -2022,6 +2193,20 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
     strcat(topic_base, "sensor/");
     app_message[1] = 'T';
   }
+  
+#if BME280_SUPPORT == 1
+  if (IOT == PRESMSG) {
+    strcat(topic_base, "sensor/");
+    app_message[1] = 'P';
+  }
+#endif // BME280_SUPPORT == 1
+
+#if BME280_SUPPORT == 1
+  if (IOT == HUMMSG) {
+    strcat(topic_base, "sensor/");
+    app_message[1] = 'H';
+  }
+#endif // BME280_SUPPORT == 1
 
   if ((IOT == INPUTMSG) || (IOT == OUTPUTMSG)) {
     // Create the pin number for the app_message and topic.
@@ -2035,7 +2220,8 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 #if DS18B20_SUPPORT == 1
   if (IOT == TMPRMSG) {
     // Create the sensor number for the app_message and topic.
-    // Add first part of sensor ID to payload template.
+    // Add first part of sensor ID to payload template. For the DS18B20 the ID
+    // is the DS18B20 MAC address.
     {
       int i;
       int j;
@@ -2050,6 +2236,39 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
   }
 #endif // DS18B20_SUPPORT == 1
 
+#if BME280_SUPPORT == 1
+  if (IOT == TMPRMSG || IOT == PRESMSG || IOT == HUMMSG) {
+    // Create the sensor ID for the app_message and topic.
+    // Add first part of sensor ID to payload template. For the BME280 the ID
+    // is "BME280" plus a one digit number:
+    //   0 = Temperature
+    //   1 = Pressure
+    //   2 = Humidity 
+//    app_message[2] = 'B';
+//    app_message[3] = 'M';
+//    app_message[4] = 'E';
+//    app_message[5] = '2';
+//    app_message[6] = '8';
+//    app_message[7] = '0';
+//    app_message[8] = '-';
+//    if (IOT_ptr == 0) app_message[9] = '0';
+//    if (IOT_ptr == 1) app_message[9] = '1';
+//    if (IOT_ptr == 2) app_message[9] = '2';
+//    // Isolate the two least significant octets of the uip_hostaddr (the module
+//    // IP address). Convert these two octets into a 4 character hexidecimal and use
+//    // that to create a unique ID for the BME280 sensor.
+//    int2hex(stored_hostaddr[1]);
+//    app_message[10] = OctetArray[0];
+//    app_message[11] = OctetArray[1];
+//    int2hex(stored_hostaddr[0]);
+//    app_message[12] = OctetArray[0];
+//    app_message[13] = OctetArray[1];
+//    app_message[14] = '\0';
+    create_sensor_ID(IOT_ptr);
+    strcpy(&app_message[2], OctetArray);
+  }
+#endif // BME280_SUPPORT == 1
+
   // Create the rest of the topic
   strcat(topic_base, mac_string);
   strcat(topic_base, "/");
@@ -2057,7 +2276,8 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
   strcat(topic_base, "/config");
       
   // If deleting the pin replace the app_message with NULL (never delete
-  // temperature sensors ... let the user do that in Home Assistant).
+  // temperature, pressure, or humidity sensors ... let the user do that in
+  // Home Assistant).
   if (DefOrDel == DELETE_IOT) app_message[0] = '\0';
 
   // Send the message
@@ -2102,9 +2322,9 @@ void mqtt_sanity_check(struct mqtt_client *client)
       client->number_of_timeouts = 0;
       MQTT_resp_tout_counter++;
 
-// #if DEBUG_SUPPORT != 11
+// #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 // UARTPrintf("mqtt_sanity_check Response Timeout\r\n");
-// #endif // DEBUG_SUPPORT != 11
+// #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -2118,9 +2338,9 @@ void mqtt_sanity_check(struct mqtt_client *client)
      && mqtt_conn->tcpstateflags == UIP_CLOSED) {
       MQTT_broker_dis_counter++;
 
-// #if DEBUG_SUPPORT != 11
+// #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 // UARTPrintf("mqtt_sanity_check Broker Disconnect\r\n");
-// #endif // DEBUG_SUPPORT != 11
+// #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -2133,21 +2353,21 @@ void mqtt_sanity_check(struct mqtt_client *client)
       MQTT_not_OK_counter++;
 
 
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 // MQTT not OK values are all negative numbers from 0x8000 to 0x801c.
 // For debug display strip the first 4 bits, convert the remaining bits
 // using emb_itoa (as it can only handle positive numbers), then rebuild
 // the code for display.
-{
-int16_t temp1;
-UARTPrintf("mqtt_sanity_check MQTT_not_OK - Error code: 0x");
-temp1 = client->error & 0x00ff;
-emb_itoa(temp1, OctetArray, 16, 4);
-OctetArray[0] = '8';
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
-}
-#endif // DEBUG_SUPPORT != 11
+// {
+// int16_t temp1;
+// UARTPrintf("mqtt_sanity_check MQTT_not_OK - Error code: 0x");
+// temp1 = client->error & 0x00ff;
+// emb_itoa(temp1, OctetArray, 16, 4);
+// OctetArray[0] = '8';
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+// }
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -2621,6 +2841,18 @@ void publish_outbound(void)
       }
 #endif // DS18B20_SUPPORT == 1
 
+#if BME280_SUPPORT == 1
+      // Check if BME280 is enabled, and if yes check if a Sensor
+      // Publish needs to occur.
+      if (stored_config_settings & 0x20) { // BME280 enabled?
+	if (send_mqtt_BME280 >= 0) {
+	  publish_BME280(send_mqtt_BME280);
+	  send_mqtt_BME280--;
+	  break;
+	}
+      }
+#endif // BME280_SUPPORT == 1
+
       // Perform a publish_pinstate for each pin that has changed OR if an
       // MQTT PUBLISH attempts to change a pin state.
       // xor_temp is used to detect pin changes generated by the IOControl
@@ -2784,21 +3016,25 @@ void publish_pinstate_all(void)
   
   for(i=0; i<16; i++) {
     // Check for input/output
+
 #if LINKED_SUPPORT == 0
     if ((pin_control[i] & 0x03) == 0x03) {
 #endif // LINKED_SUPPORT == 0
 #if LINKED_SUPPORT == 1
     if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
 #endif // LINKED_SUPPORT == 1
+
       // Pin is an output, transmit as-is
       if (pin_control[i] & 0x80) k |= j;
     }
+    
 #if LINKED_SUPPORT == 0
     else if ((pin_control[i] & 0x03) == 0x01) {
 #endif // LINKED_SUPPORT == 0
 #if LINKED_SUPPORT == 1
     if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
 #endif // LINKED_SUPPORT == 1
+
       // Pin is an input, invert if needed
       if (pin_control[i] & 0x04) {
         // Invert required
@@ -2888,6 +3124,68 @@ void publish_temperature(uint8_t sensor)
   }
 }
 #endif // DS18B20_SUPPORT == 1
+#endif // BUILD_SUPPORT == MQTT_BUILD
+
+
+#if BUILD_SUPPORT == MQTT_BUILD
+#if BME280_SUPPORT == 1
+void publish_BME280(int8_t sensor)
+{
+  // This function is called to Publish the sensor values collected from
+  // a BME280 temperature, pressure, humidity sensor.
+  
+  if (BME280_found == 1) {
+    // Only Publish if the sensor number is one of the sensors found by
+    // FindDevices as indicated by numROMs.
+    //
+    // The "sensor" value delivered to this function identifies the sensor
+    // as a value from 0 to 4 (for the five sensors).
+    //
+    // The "numROMs" value is also a value from 0 to 4 (for the five sensors).
+    //
+    // When the Publish message is sent the sensor value must be in human
+    // readable form, ie, 1 to 5 (for the 5 sensors).
+
+    // Build the topic string
+    strcpy(topic_base, devicetype);
+    strcat(topic_base, stored_devicename);
+    
+    if (sensor == 0) strcat(topic_base, "/temp/BME280-0");
+    if (sensor == 1) strcat(topic_base, "/pres/BME280-1");
+    if (sensor == 2) strcat(topic_base, "/hum/BME280-2");
+    
+    // Isolate the two least significant octets of the uip_hostaddr (the module
+    // IP address). Convert these two octets into a 4 character hexidecimal and use
+    // that to create a unique ID for the BME280 sensor.
+    int2hex(stored_hostaddr[1]);
+    strcat(topic_base, OctetArray);
+    int2hex(stored_hostaddr[0]);
+    strcat(topic_base, OctetArray);
+    
+    // Build the application message
+    if (sensor == 0) {
+      // Convert temperature to degrees C in OctetArry
+      BME280_temperature_string_C();
+    }
+    if (sensor == 1) {
+      // Convert pressure to hPa in OctetArry
+      BME280_pressure_string();
+    }
+    if (sensor == 2) {
+      // Convert humidity to % in OctetArry
+      BME280_humidity_string();
+    }
+
+    // Queue publish message
+    // This message is always published with QOS 0
+    mqtt_publish(&mqttclient,
+                 topic_base,
+                 OctetArray,   // app_message
+                 strlen(OctetArray),
+                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+  }
+}
+#endif // BME280_SUPPORT == 1
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
@@ -3315,11 +3613,11 @@ void check_eeprom_settings(void)
   for (i=0; i<16; i++) {
     if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
       // Pin is an Output and Retain is not set
-      if ((pin_control[i] & 0x10) == 0x00) {
+      if ((pin_control[i] & 0x18) == 0x00) {
         // Retain is not set, and Force Zero is indicated
         pin_control[i] &= 0x7f;
       }
-      else if ((pin_control[i] & 0x10) == 0x10) {
+      else if ((pin_control[i] & 0x18) == 0x10) {
         // Retain is not set, and Force One is indicated
         pin_control[i] |= 0x80;
       }
@@ -3328,13 +3626,14 @@ void check_eeprom_settings(void)
   }
 #endif // LINKED_SUPPORT == 1
 
-  // Update stored_pin_control bytes and Pending_pin_control bytes
-  unlock_eeprom();
+ // Update Pending_pin_control bytes
+ // Do NOT update the stored_pin_control at this point as we've only
+ // manipulated the output state and we don't want to update the output
+ // state in the stored_pin_control if Retain is turned on. That will be
+ // handled later.
   for (i=0; i<16; i++) {
-    if (stored_pin_control[i] != pin_control[i]) stored_pin_control[i] = pin_control[i];
-    Pending_pin_control[i] = stored_pin_control[i];
+    Pending_pin_control[i] = pin_control[i];
   }
-  lock_eeprom();
 
   // Initialize 16bit versions of the ON/OFF and Invert pin control
   // information
@@ -3436,7 +3735,7 @@ void check_runtime_changes(void)
 
   unlock_eeprom();
 
-  read_input_pins();
+  read_input_pins(0);
 
 
 #if DS18B20_SUPPORT == 1
@@ -3450,7 +3749,6 @@ void check_runtime_changes(void)
     if (stored_pin_control[15] != pin_control[15]) stored_pin_control[15] = pin_control[15];
   }
 #endif // DS18B20_SUPPORT == 1
-
 
 #if I2C_SUPPORT == 1
   // If I2C functionality is enabled disable pins 14 and 15 so that they can
@@ -3473,19 +3771,37 @@ void check_runtime_changes(void)
   pin_control[10] = Pending_pin_control[10] = (uint8_t)0x00;
   // Update the stored_pin_control[] variables
   if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
-#endif // DEBUG_SUPPORT
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+#if LINKED_SUPPORT == 0
+  {
+    // If Linked pins are NOT supported we need to set any Linked pins to
+    // disabled. This is done in case a code load that does not support linked
+    // pins is applied to a module that previously had a code load that did
+    // support linked pins.
+    int i;
+    for (i=0; i<16; i++) {
+      if ((stored_pin_control[i] & 0x03) == 0x02) {
+        // Pin is linked. Change it to Disabled.
+        unlock_eeprom();
+        stored_pin_control[i] = 0x00;
+        lock_eeprom();
+      }
+    }
+  }
+#endif // LINKED_SUPPORT == 0
 
 #if LINKED_SUPPORT == 1
   {
     // Linked pin check:
     // 1) Verify that there is no corruption in the EEPROM in the form of
     //    Linked pins that do not have a partner (for example, pin 1 is
-    //    defined as Linked, but the partner pin 9 is not defined as Linked.
+    //    defined as Linked, but the partner pin 9 is not defined as Linked).
     //    In such a case the EEPROM should have both pins set to Disabled.
     //    Note: I think this could only happen if a user made manual edits to
     //    the EEPROM, or if the GUI update process was interrupted by a power
     //    fail.
-    // 2) Look for Linked pins in the Pending_pin_control values and make
+    // 2) Look for Linked pins in the Pending_pin_control values and make sure
     //    their partner also has a Pending_pin_control value of Linked. If
     //    not revert both pins to their value in the EEPROM. Note: This can
     //    only happen if parse_complete is also set by the GUI process that
@@ -3529,13 +3845,6 @@ void check_runtime_changes(void)
   {
     int i;
     uint8_t mask;
-    // Perform the edge detect response here? If read_input_pins sets bits
-    // in a word to indicate an edge detection that word could be checked.
-    // If a bit in the word is set but does not match a Linked pin the bit
-    // should be cleared. If a bit in the word is set and it matches a
-    // linked pin from pin number less than pin 9 then the associated
-    // Output pin should be toggled.
-    
     // Check the linked_edge byte for any indication of an Input pin edge on
     // a Linked input pin. It doesn't matter if the edge is positive or
     // negative, only that an edge occurred.
@@ -3562,6 +3871,9 @@ void check_runtime_changes(void)
     //    any effort into resolving such a case.
     
     if (linked_edge) {
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("linked_edge detected\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       // There is an edge on at least one pin
       for (i=0, mask=1; i<8; i++, mask<<=1) {
         // Sweep through the first 8 pins
@@ -3851,7 +4163,7 @@ void check_runtime_changes(void)
     // received.
 
     // Check all pin_control bytes for changes.
-    // ON/OFF state: If an Output pin’s ON/OFF state changes the EEPROM is
+    // ON/OFF state: If an Output pin's ON/OFF state changes the EEPROM is
     //   updated only if Retain is set, but a restart must not occur.
     //   IMPORTANT: This routine must only change Output pin ON/OFF states.
     //   The read_input_pins() function is the only place where Input pin
@@ -4203,9 +4515,10 @@ uint8_t chk_iotype(uint8_t pin_byte, int pin_index, uint8_t chk_mask)
   }
   if (((pin_byte & 0x03) == 0x03)
   || (((pin_byte & 0x03) == 0x02) && (pin_index>7))) {
+    // This is an output, or an output created by linking
     if (chk_mask == 0x03) return 0x03;
     if (chk_mask == 0x0b) {
-      if (pin_byte & 0x08) return 0x0b;
+      if (pin_byte & 0x08) return 0x0b; // Return with Retain set
       else return 0x03;
     }
   }
@@ -4436,15 +4749,16 @@ void reboot(void)
   // retain their values and get used in code at runtime if not properly set
   // by startup initialization.
   
-  // Flicker LED to indicate deliberate reboot
-  LEDcontrol(0);     // turn LED off
-  wait_timer((uint16_t)50000); // wait 50ms
-  LEDcontrol(1);     // turn LED on
-  wait_timer((uint16_t)50000); // wait 50ms
-  LEDcontrol(0);     // turn LED off
-  wait_timer((uint16_t)50000); // wait 50ms
-  LEDcontrol(1);     // turn LED on
-  wait_timer((uint16_t)50000); // wait 50ms
+  // Flicker LED for 1 second to indicate deliberate reboot
+  fastflash();
+//  LEDcontrol(0);     // turn LED off
+//  wait_timer((uint16_t)50000); // wait 50ms
+//  LEDcontrol(1);     // turn LED on
+//  wait_timer((uint16_t)50000); // wait 50ms
+//  LEDcontrol(0);     // turn LED off
+//  wait_timer((uint16_t)50000); // wait 50ms
+//  LEDcontrol(1);     // turn LED on
+//  wait_timer((uint16_t)50000); // wait 50ms
   LEDcontrol(0);  // turn LED off
   
   WWDG_WR = (uint8_t)0x7f;     // Window register reset
@@ -4479,7 +4793,7 @@ void init_IWDG(void)
 
 
 #if LINKED_SUPPORT == 0
-void read_input_pins(void)
+void read_input_pins(uint8_t init_flag)
 {
   // This function reads and debounces the Input pins. It is called from the
   // check_runtime_changes() function, which is in turn called from the main
@@ -4492,18 +4806,27 @@ void read_input_pins(void)
   // - If a bit in ON_OFF_word_new1 is the same as in ON_OFF_word_new2 then
   //   ON_OFF_word is updated.
   // - ON_OFF_word_new1 is transferred to ON_OFF_word_new2 for the next round.
+  //
+  // Note: init_flag is not used when LINKED_SUPPORT == 0
   uint16_t mask;
   int i;
+  int j;
   
   // Loop across all i/o's and read input port register:bit state
   // and 
   // Compare the _new1 and _new2 samples then, for Input pins only, update
   // the bits in the ON_OFF_word where the corresponding bits match in _new1
   // and _new2 (ie, a debounced change occurred).
-  
+
   for (i=0, mask=1; i<16; i++, mask<<=1) {
     // Is the corresponding bit of the input port register set?
+#if PINOUT_OPTION_SUPPORT == 0
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit)
+#endif // PINOUT_OPTION_SUPPORT == 0
+#if PINOUT_OPTION_SUPPORT == 1
+    j = i + io_map_offset;
+    if ( io_reg[ io_map[j].port ].idr & io_map[j].bit)
+#endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint16_t)mask;
     else
       ON_OFF_word_new1 &= (uint16_t)(~mask);
@@ -4534,7 +4857,7 @@ void read_input_pins(void)
 
 
 #if LINKED_SUPPORT == 1
-void read_input_pins(void)
+void read_input_pins(uint8_t init_flag)
 {
   // This function reads and debounces the Input pins. It is called from the
   // check_runtime_changes() function, which is in turn called from the main
@@ -4549,6 +4872,7 @@ void read_input_pins(void)
   // - ON_OFF_word_new1 is transferred to ON_OFF_word_new2 for the next round.
   uint16_t mask;
   int i;
+  int j;
   
   // Loop across all i/o's and read input port register:bit state
   // and 
@@ -4557,7 +4881,13 @@ void read_input_pins(void)
   // and _new2 (ie, a debounced change occurred).
   for (i=0, mask=1; i<16; i++, mask<<=1) {
     // Is the corresponding bit of the input port register set?
+#if PINOUT_OPTION_SUPPORT == 0
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit) {
+#endif // PINOUT_OPTION_SUPPORT == 0
+#if PINOUT_OPTION_SUPPORT == 1
+    j = i + io_map_offset;
+    if ( io_reg[ io_map[j].port ].idr & io_map[j].bit) {
+#endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint16_t)mask;
     }
     else {
@@ -4573,8 +4903,15 @@ void read_input_pins(void)
 	// important for the Linked function, so record the event in the
 	// linked_edge detection byte. This is stored in a byte because we
 	// only keep the bits associated with pins 1 to 8.
-	if (((pin_control[i] & 0x03) == 0x02) && (i<8)) {
+	// Special Case: If init_flag is set DO NOT set change the linked_edge
+	// byte. This is to allow input pins to be read and the ON_OFF_words
+	// to be updated to the "time of boot" states without triggering
+	// edge detection.
+	if (((pin_control[i] & 0x03) == 0x02) && (i<8) && (init_flag == 0)) {
           linked_edge |= (uint8_t)(mask);
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("edge detected\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 	}
       }
       
@@ -4664,6 +5001,7 @@ void write_output_pins(void)
   uint16_t xor_tmp;
   // it's cheaper in terms of code space using int, instead of uint8_t !
   int i;
+  int j;
 
   // Update the output pins to match the bits in the ON_OFF_word.
   // To simplify code this function writes all pins. Note that if the pin is
@@ -4689,11 +5027,26 @@ void write_output_pins(void)
     // If DS18B20 mode is enabled do not write Output 16
     if (i == 15 && (stored_config_settings & 0x08))
       break;
-    if (xor_tmp & (1 << i))
-      io_reg[ io_map[i].port ].odr |= io_map[i].bit;
-    else
-      io_reg[ io_map[i].port ].odr &= (uint8_t)(~io_map[i].bit);
 #endif // DS18B20_SUPPORT == 1
+
+#if PINOUT_OPTION_SUPPORT == 0
+    if (xor_tmp & (1 << i)) {
+      io_reg[ io_map[i].port ].odr |= io_map[i].bit;
+    }
+    else {
+      io_reg[ io_map[i].port ].odr &= (uint8_t)(~io_map[i].bit);
+    }
+#endif // PINOUT_OPTION_SUPPORT == 0
+
+#if PINOUT_OPTION_SUPPORT == 1
+    j = i + io_map_offset;
+    if (xor_tmp & (1 << i)) {
+      io_reg[ io_map[j].port ].odr |= io_map[j].bit;
+    }
+    else {
+      io_reg[ io_map[j].port ].odr &= (uint8_t)(~io_map[j].bit);
+    }
+#endif // PINOUT_OPTION_SUPPORT == 1
   }
 }
 
@@ -4806,7 +5159,7 @@ void debugflash(void)
 void fastflash(void)
 {
   // DEBUG - BLINK LED ON/OFF
-  // Makes LED flicker for 1 second
+  // Makes LED flicker for 1 second then leaves LED ON
   
   uint8_t i;
 

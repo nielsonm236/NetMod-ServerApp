@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -39,15 +39,16 @@ SOFTWARE.
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
-
-#include <mqtt.h>
-#include <uip.h>
+// All includes are in main.h
 #include "main.h"
-#include "uart.h"
-#include "uipopt.h"
+
+// #include <mqtt.h>
+// #include <uip.h>
+// #include "uart.h"
+// #include "uipopt.h"
 
 #if BUILD_SUPPORT == MQTT_BUILD
 
@@ -64,7 +65,8 @@ uint8_t mqtt_sendbuf[MQTT_SENDBUF_SIZE]; // Buffer to contain MQTT transmit
                                          // queue and data.
 extern uint8_t mqtt_start;        // Tracks the MQTT startup steps
 
-extern uint8_t OctetArray[11];    // Used in UART debug sessions
+extern uint8_t OctetArray[14];    // Used in emb_itoa conversions and to
+                                  // transfer short strings globally
 
 uint8_t current_msg_length;		// Contains the length of the MQTT
 					// message currently being extracted
@@ -327,7 +329,7 @@ int16_t mqtt_init(struct mqtt_client *client,
     return MQTT_OK;
 }
 
-
+/*
 // A macro function that:
 //      1) Checks that the client isn't already in an error state.
 //      2) Attempts to pack to client's message queue.
@@ -335,6 +337,14 @@ int16_t mqtt_init(struct mqtt_client *client,
 //          b) if mq buffer is too small (as indicated by tmp == 0),
 //             cleans it and tries again
 //      3) Upon successful pack, registers the new message.
+// Why is a macro used?
+// I think because the "pack_call" is a pointer to one of 5 functions each
+// of which has its own function call variables, both in terms of what the
+// variables are and how many there are. This compiles okay because macros
+// are not checked for variable types in the macro call.
+// Downside to using a macro?
+// Everywhere the macro is unsed the code below is replicated in-line. This
+// makes the compiled code larger.
 #define MQTT_CLIENT_TRY_PACK(tmp, msg, client, pack_call, release)  \
     if (client->error < 0) {                                        \
         return client->error;                                       \
@@ -356,7 +366,33 @@ int16_t mqtt_init(struct mqtt_client *client,
         }                                                           \
     }                                                               \
     msg = mqtt_mq_register(&client->mq, tmp);                       \
+*/
 
+
+/*
+// A macro function that:
+//      1) Checks that the client isn't already in an error state.
+//      2) Attempts to pack to client's message queue.
+//          a) handles errors
+//          b) if mq buffer is too small (as indicated by tmp == 0),
+//             cleans it and tries again
+//      3) Upon successful pack, registers the new message.
+// Why is a macro used?
+// I think because the "pack_call" is a pointer to one of 5 functions each
+// of which has its own function call variables, both in terms of what the
+// variables are and how many there are. This compiles okay because macros
+// are not checked for variable types in the macro call.
+// Downside to using a macro?
+// Everywhere the macro is unsed the code below is replicated in-line. This
+// makes the compiled code larger.
+#define MQTT_CLIENT_TRY_PACK(tmp, msg, client, pack_call) \
+  tmp = pack_call;                                        \
+  if (tmp < 0) {                                          \
+    client->error = tmp;                                  \
+    return tmp;                                           \
+  }                                                       \
+  msg = mqtt_mq_register(&client->mq, tmp);               \
+*/
 
 int16_t mqtt_connect(struct mqtt_client *client,
                      const char* client_id,
@@ -379,21 +415,45 @@ int16_t mqtt_connect(struct mqtt_client *client,
     }
 
     // try to pack the message
-    MQTT_CLIENT_TRY_PACK(rv, msg, client, 
-        mqtt_pack_connection_request(
+    if (client->error < 0) {
+        return client->error;
+    }
+    mqtt_mq_clean(&client->mq);
+    
+//    MQTT_CLIENT_TRY_PACK(rv, msg, client, 
+//        mqtt_pack_connection_request(
+//          client->mq.curr,
+//	    client->mq.curr_sz,
+//          client_id,
+//	    will_topic,
+//	    will_message, 
+//          will_message_size,
+//	    user_name,
+//	    password, 
+//          connect_flags,
+//	    keep_alive
+//        ), 
+//        1
+//    );
+
+    rv = mqtt_pack_connection_request(
             client->mq.curr,
-	    client->mq.curr_sz,
+            client->mq.curr_sz,
             client_id,
-	    will_topic,
-	    will_message, 
+            will_topic,
+            will_message, 
             will_message_size,
-	    user_name,
-	    password, 
+            user_name,
+            password, 
             connect_flags,
-	    keep_alive
-        ), 
-        1
-    );
+            keep_alive
+            );
+
+    if (rv < 0) {
+      client->error = rv;
+      return rv;
+    }
+    msg = mqtt_mq_register(&client->mq, rv);
     
     // save the control type of the message
     msg->control_type = MQTT_CONTROL_CONNECT;
@@ -413,19 +473,39 @@ int16_t mqtt_publish(struct mqtt_client *client,
     uint16_t packet_id;
     packet_id = __mqtt_next_pid(client);
 
+    if (client->error < 0) {
+        return client->error;
+    }
+    mqtt_mq_clean(&client->mq);
+    
     // try to pack the message
-    MQTT_CLIENT_TRY_PACK(
-        rv, msg, client, 
-        mqtt_pack_publish_request(
+//    MQTT_CLIENT_TRY_PACK(
+//      rv, msg, client, 
+//      mqtt_pack_publish_request(
+//        client->mq.curr, client->mq.curr_sz,
+//        topic_name,
+//        packet_id,
+//        application_message,
+//        application_message_size,
+//        publish_flags
+//        ), 
+//        1
+//      );
+    
+    rv = mqtt_pack_publish_request(
             client->mq.curr, client->mq.curr_sz,
             topic_name,
             packet_id,
             application_message,
             application_message_size,
             publish_flags
-        ), 
-        1
-    );
+            );
+    
+    if (rv < 0) {
+      client->error = rv;
+      return rv;
+    }
+    msg = mqtt_mq_register(&client->mq, rv);
     
     // save the control type and packet id of the message
     msg->control_type = MQTT_CONTROL_PUBLISH;
@@ -444,17 +524,35 @@ int16_t mqtt_subscribe(struct mqtt_client *client,
     struct mqtt_queued_message *msg;
     packet_id = __mqtt_next_pid(client);
 
+    if (client->error < 0) {
+        return client->error;
+    }
+    mqtt_mq_clean(&client->mq);
+    
     // try to pack the message
-    MQTT_CLIENT_TRY_PACK(
-        rv, msg, client, 
-        mqtt_pack_subscribe_request(
+//    MQTT_CLIENT_TRY_PACK(
+//        rv, msg, client, 
+//        mqtt_pack_subscribe_request(
+//            client->mq.curr, client->mq.curr_sz,
+//            packet_id,
+//            topic_name,
+//            max_qos_level
+//        ), 
+//        1
+//    );
+    
+    rv = mqtt_pack_subscribe_request(
             client->mq.curr, client->mq.curr_sz,
             packet_id,
             topic_name,
             max_qos_level
-        ), 
-        1
-    );
+            );
+	    
+    if (rv < 0) {
+      client->error = rv;
+      return rv;
+    }
+    msg = mqtt_mq_register(&client->mq, rv);
     
     // save the control type and packet id of the message
     msg->control_type = MQTT_CONTROL_SUBSCRIBE;
@@ -476,14 +574,29 @@ int16_t __mqtt_ping(struct mqtt_client *client)
     int16_t rv;
     struct mqtt_queued_message *msg;
 
+    if (client->error < 0) {
+        return client->error;
+    }
+    mqtt_mq_clean(&client->mq);
+    
     // try to pack the message
-    MQTT_CLIENT_TRY_PACK(
-        rv, msg, client, 
-        mqtt_pack_ping_request(
+//    MQTT_CLIENT_TRY_PACK(
+//        rv, msg, client, 
+//        mqtt_pack_ping_request(
+//            client->mq.curr, client->mq.curr_sz
+//        ),
+//        0
+//    );
+    
+    rv = mqtt_pack_ping_request(
             client->mq.curr, client->mq.curr_sz
-        ),
-        0
-    );
+            );
+	    
+    if (rv < 0) {
+      client->error = rv;
+      return rv;
+    }
+    msg = mqtt_mq_register(&client->mq, rv);
     
     // save the control type and packet id of the message
     msg->control_type = MQTT_CONTROL_PINGREQ;
@@ -497,14 +610,29 @@ int16_t mqtt_disconnect(struct mqtt_client *client)
     int16_t rv;
     struct mqtt_queued_message *msg;
 
+    if (client->error < 0) {
+        return client->error;
+    }
+    mqtt_mq_clean(&client->mq);
+    
     // try to pack the message
-    MQTT_CLIENT_TRY_PACK(
-        rv, msg, client, 
-        mqtt_pack_disconnect(
+//    MQTT_CLIENT_TRY_PACK(
+//        rv, msg, client, 
+//        mqtt_pack_disconnect(
+//            client->mq.curr, client->mq.curr_sz
+//        ), 
+//        1
+//    );
+    
+    rv = mqtt_pack_disconnect(
             client->mq.curr, client->mq.curr_sz
-        ), 
-        1
-    );
+            );
+
+    if (rv < 0) {
+      client->error = rv;
+      return rv;
+    }
+    msg = mqtt_mq_register(&client->mq, rv);
     
     // save the control type and packet id of the message
     msg->control_type = MQTT_CONTROL_DISCONNECT;

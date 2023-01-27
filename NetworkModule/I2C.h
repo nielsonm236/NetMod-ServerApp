@@ -51,7 +51,8 @@
 #define I2C_COPY_EEPROM_IDLE		5
 
 void I2C_control(uint8_t control_byte);
-void I2C_byte_address(uint16_t byte_address);
+//void I2C_byte_address(uint16_t byte_address);
+void I2C_byte_address(uint16_t byte_address, uint8_t addr_size);
 void I2C_write_byte(uint8_t I2C_write_data);
 uint8_t I2C_read_byte(uint8_t I2C_last_flag);
 void SCL_pulse(void);

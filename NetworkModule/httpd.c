@@ -23,7 +23,7 @@
  *
  */
   
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -40,29 +40,29 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
-
-#include <stdlib.h>
-
-#include "httpd.h"
-#include "uip.h"
-#include "uip_arch.h"
-#include "gpio.h"
+// All includes are in main.h
 #include "main.h"
-#include "timer.h"
-#include "mqtt_pal.h"
-#include "uipopt.h"
-#include "uart.h"
-#include "ds18b20.h"
-#include "i2c.h"
-#include "iostm8s005.h"
-#include "stm8s-005.h"
 
-#include "string.h"
-#include <ctype.h>
+// #include <stdlib.h>
+// #include "httpd.h"
+// #include "uip.h"
+// #include "uip_arch.h"
+// #include "gpio.h"
+// #include "timer.h"
+// #include "mqtt_pal.h"
+// #include "uipopt.h"
+// #include "uart.h"
+// #include "ds18b20.h"
+// #include "bme280.h"
+// #include "i2c.h"
+// #include "iostm8s005.h"
+// #include "stm8s-005.h"
+// #include "string.h"
+// #include <ctype.h>
 
 
 #define STATE_CONNECTED		0	// Client has just connected
@@ -144,6 +144,8 @@ extern uint8_t stored_devicename[20];     // Device name stored in EEPROM
 
 extern uint8_t stored_config_settings;    // Config settings stored in EEPROM
 
+extern uint8_t stored_hardware_options;   // Hardware options stored in EEPROM
+
 extern char mac_string[13];		  // MAC Address in string format
 
 extern uint8_t parse_complete;            // Used to signal that all user
@@ -157,10 +159,8 @@ extern uint8_t restart_reboot_step;       // Indicates whether restart or
 
 extern const char code_revision[];        // Code Revision
        
-uint8_t OctetArray[11];		          // Used in emb_itoa conversions but
-                                          // also repurposed as a temporary
-					  // buffer for transferring data
-				          // between functions.
+uint8_t OctetArray[14];		          // Used in emb_itoa conversions and
+                                          // to transfer short strings globally
 
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -177,7 +177,7 @@ uint8_t byte_index;           // Used as an index to point to the bytes in an
                               // incoming file data line.
 uint8_t parse_index;          // Used as an index for writing file data into
                               // the parse_tail array
-uint16_t eeprom_address_index; // Address index into the Off-Board EEPROM for
+uint16_t eeprom_address_index; // Address index into the I2C EEPROM for
                               // use in writing uploaded files
 uint16_t new_address;         // New data address found while parsing SREC
                               // file
@@ -204,10 +204,10 @@ uint8_t search_limit;         // Used to limit the time spent searching for
 
 #if OB_EEPROM_SUPPORT == 1
 // These defines locate the webpage content and webpage sizes stored in the
-// Srings region of the Off-Board EEPROM. In order to allow a String File to
+// Strings region of the I2C EEPROM. In order to allow a String File to
 // be read using the same code used for reading Program Files the code expects
-// addresses starting at 0x8000, however in the EEPROM itself the base address
-// for Strings is 0x0000.
+// addresses starting at 0x8000, however in the I2C EEPROM itself the base
+// address for Strings is 0x0000.
 #define MQTT_WEBPAGE_IOCONTROL_ADDRESS_LOCATION			0x0040
 #define MQTT_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION		0x0042
 #define BROWSER_ONLY_WEBPAGE_IOCONTROL_ADDRESS_LOCATION		0x0044
@@ -221,7 +221,7 @@ uint8_t search_limit;         // Used to limit the time spent searching for
 uint8_t eeprom_copy_to_flash_request;
                                // Flag to cause the main.c loop to call the
                                // copy to flash function.
-uint16_t off_board_eeprom_index; // Used as an index into the Off-Board EEPROM
+uint16_t off_board_eeprom_index; // Used as an index into the I2C EEPROM
                                // when reading webpage templates
 extern uint8_t eeprom_detect;  // Used in code update routines
 
@@ -298,6 +298,7 @@ extern uint8_t MQTT_broker_dis_counter;   // Counts broker disconnect events
 extern uint32_t second_counter;           // Counts seconds since boot
 
 
+#if DS18B20_SUPPORT == 1
 // DS18B20 variables
 extern uint8_t DS18B20_scratch[5][2];     // Stores the temperature measurement
                                           // for the DS18B20s
@@ -311,7 +312,17 @@ extern uint8_t FoundROM[5][8];            // Table of found ROM codes
                                           // [x][6] = MSByte serial number
                                           // [x][7] = CRC
 extern int numROMs;                       // Count of DS18B20 devices found
+#endif // DS18B20_SUPPORT == 1
 
+
+#if BME280_SUPPORT == 1
+extern int16_t stored_altitude; // User entered altitude used for BME280
+				// pressure calibration stored in EEPROM
+
+extern int32_t comp_data_temperature; // Compensated temperature
+extern int32_t comp_data_pressure;    // Compensated pressure
+extern int32_t comp_data_humidity;    // Compensated humidity
+#endif // BME280_SUPPORT == 1
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
@@ -492,14 +503,14 @@ static const char g_HtmlPageIOControl[] =
       "<p/>"
       "%y02'm.l()'>Refresh</button> "
       "%y02'm.c()'>Configuration</button>"
-      "<pre>%t00%t01%t02%t03%t04</pre>"
+      "<pre>%t00%t01%t02%t03%t04%t05</pre>"
    "</body>"
 "</html>";
 #endif // OB_EEPROM_SUPPORT == 0
 
 #if OB_EEPROM_SUPPORT == 1
 // Declared short static const here so that common code can be used for Flash
-// and Off-Board webpage sources.
+// and I2C EEPROM webpage sources.
 static const char g_HtmlPageIOControl[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -752,33 +763,33 @@ static const char g_HtmlPageConfiguration[] =
             "</tr>"
          "<script>"
 "const m=(e=>{let t=['b00','b04','b08','b12'],$=['c00','c01'],r={'Full Duplex':1,'HA Aut"
-"o':6,MQTT:4,DS18B20:8,'Disable Cfg Button':16},n={disabled:0,input:1,output:3,linked:2}"
-",o={retain:8,on:16,off:0},a=document,l=location,p=a.querySelector.bind(a),d=p('form'),i"
-"=Object.entries,c=parseInt,s=e=>a.write(e),_=(e,t)=>c(e).toString(16).padStart(t,'0'),u"
-"=e=>e.map(e=>_(e,2)).join(''),b=e=>e.match(/.{2}/g).map(e=>c(e,16)),f=e=>encodeURICompo"
-"nent(e),h=e=>p(`input[name=${e}]`),g=(e,t)=>h(e).value=t,x=(e,t)=>{for(let $ of a.query"
-"SelectorAll(e))t($)},y=(e,t)=>{for(let[$,r]of i(t))e.setAttribute($,r)},A=(e,t)=>i(e).m"
-"ap(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join(''),E=(e,"
-"t,$,r='')=>`<input type='checkbox' name='${e}' value=${t} ${($&t)==t?'checked':''}>${r}"
-"`,S=()=>{let r=new FormData(d),n=e=>r.getAll(e).map(e=>c(e)).reduce((e,t)=>e|t,0);retur"
-"n t.forEach(e=>r.set(e,u(r.get(e).split('.')))),$.forEach(e=>r.set(e,_(r.get(e),4))),r."
-"set('d00',r.get('d00').toLowerCase().replace(/[:-]/g,'')),r.set('h00',u(b(e.h00).map((e"
-",t)=>{let $='p'+t,o=n($);return r.delete($),o}))),r.set('g00',u([n('g00')])),r},T=(e,t,"
-"$)=>{let r=new XMLHttpRequest;r.open(e,t,!1),r.send($)},j=()=>location.href='/60',k=()="
-">l.href='/61',v=()=>{a.body.innerText='Wait 5s...',setTimeout(k,5e3)},w=()=>{T('GET','/"
-"91'),v()},D=e=>{e.preventDefault();let t=Array.from(S().entries(),([e,t])=>`${f(e)}=${f"
-"(t)}`).join('&');T('POST','/',t+'&z00=0'),v()},q=b(e.g00)[0],z={required:!0};return x('"
-".ip',e=>{y(e,{...z,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9"
-"])([.](?!$)|$)){4}'})}),x('.port',e=>{y(e,{...z,type:'number',min:10,max:65535})}),x('."
-"up input',e=>{y(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no en"
-"try.',maxlength:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>g(t,b(e[t]).join('"
-".'))),$.forEach(t=>g(t,c(e[t],16))),g('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),b"
-"(e.h00).forEach((e,t)=>{let $=(3&e)!=0?E('p'+t,4,e):'',r=(3&e)==3||(3&e)==2&&t>7?`<sele"
-"ct name='p${t}'>${A(o,24&e)}</select>`:'',a='#d'==l.hash?`<td>${e}</td>`:'';s(`<tr><td>"
-"#${t+1}</td><td><select name='p${t}'>${A(n,3&e)}</select></td><td>${$}</td><td>${r}</td"
-">${a}</tr>`)}),p('.f').innerHTML=Array.from(i(r),([e,t])=>E('g00',t,q,e)).join('</br>')"
-",{r:w,s:D,l:k,c:j}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12'"
-",c01:'%c01',h00:'%h00',g00:'%g00'});"
+"o':6,MQTT:4,DS18B20:8,BME280:32,'Disable Cfg Button':16},n={disabled:0,input:1,output:3"
+",linked:2},o={retain:8,on:16,off:0},a=document,l=location,p=a.querySelector.bind(a),d=p"
+"('form'),i=Object.entries,c=parseInt,s=e=>a.write(e),_=(e,t)=>c(e).toString(16).padStar"
+"t(t,'0'),u=e=>e.map(e=>_(e,2)).join(''),b=e=>e.match(/.{2}/g).map(e=>c(e,16)),f=e=>enco"
+"deURIComponent(e),h=e=>p(`input[name=${e}]`),g=(e,t)=>h(e).value=t,x=(e,t)=>{for(let $ "
+"of a.querySelectorAll(e))t($)},E=(e,t)=>{for(let[$,r]of i(t))e.setAttribute($,r)},y=(e,"
+"t)=>i(e).map(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join"
+"(''),A=(e,t,$,r='')=>`<input type='checkbox' name='${e}' value=${t} ${($&t)==t?'checked"
+"':''}>${r}`,S=()=>{let r=new FormData(d),n=e=>r.getAll(e).map(e=>c(e)).reduce((e,t)=>e|"
+"t,0);return t.forEach(e=>r.set(e,u(r.get(e).split('.')))),$.forEach(e=>r.set(e,_(r.get("
+"e),4))),r.set('d00',r.get('d00').toLowerCase().replace(/[:-]/g,'')),r.set('h00',u(b(e.h"
+"00).map((e,t)=>{let $='p'+t,o=n($);return r.delete($),o}))),r.set('g00',u([n('g00')])),"
+"r},T=(e,t,$)=>{let r=new XMLHttpRequest;r.open(e,t,!1),r.send($)},j=()=>location.href='"
+"/60',k=()=>l.href='/61',v=()=>{a.body.innerText='Wait 5s...',setTimeout(k,5e3)},w=()=>{"
+"T('GET','/91'),v()},B=e=>{e.preventDefault();let t=Array.from(S().entries(),([e,t])=>`$"
+"{f(e)}=${f(t)}`).join('&');T('POST','/',t+'&z00=0'),v()},D=b(e.g00)[0],q={required:!0};"
+"return x('.ip',e=>{E(e,{...q,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|["
+"1-9]|)[0-9])([.](?!$)|$)){4}'})}),x('.port',e=>{E(e,{...q,type:'number',min:10,max:6553"
+"5})}),x('.up input',e=>{E(e,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank"
+" for no entry.',maxlength:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach(t=>g(t,b(e["
+"t]).join('.'))),$.forEach(t=>g(t,c(e[t],16))),g('d00',e.d00.replace(/[0-9a-z]{2}(?!$)/g"
+",'$&:')),b(e.h00).forEach((e,t)=>{let $=(3&e)!=0?A('p'+t,4,e):'',r=(3&e)==3||(3&e)==2&&"
+"t>7?`<select name='p${t}'>${y(o,24&e)}</select>`:'',a='#d'==l.hash?`<td>${e}</td>`:'';s"
+"(`<tr><td>#${t+1}</td><td><select name='p${t}'>${y(n,3&e)}</select></td><td>${$}</td><t"
+"d>${r}</td>${a}</tr>`)}),p('.f').innerHTML=Array.from(i(r),([e,t])=>A('g00',t,D,e)).joi"
+"n('</br>'),{r:w,s:B,l:k,c:j}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',"
+"b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00'});"
       "%y01"
       "<p>Code Revision %w00<br/>"
       "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
@@ -793,7 +804,7 @@ static const char g_HtmlPageConfiguration[] =
 
 #if OB_EEPROM_SUPPORT == 1
 // Declared short static const here so that common code can be used for Flash
-// and Off-Board webpage sources.
+// and I2C EEPROM webpage sources.
 static const char g_HtmlPageConfiguration[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -833,7 +844,7 @@ static const char g_HtmlPageConfiguration[] = " ";
 const m = (data => {
     const ip_input_names = ['b00', 'b04', 'b08', 'b12'],
         port_input_names = ['c00', 'c01'],
-        features = { "Full Duplex": 1, "HA Auto": 6, "MQTT": 4, "DS18B20": 8, "Disable Cfg Button": 16 },
+        features = { "Full Duplex": 1, "HA Auto": 6, "MQTT": 4, "DS18B20": 8, "BME280": 32, "Disable Cfg Button": 16 },
         pin_types = { "disabled": 0, "input": 1, "output": 3, "linked": 2 },
         boot_state = { "retain": 8, "on": 16, "off": 0 },
         doc=document,
@@ -1006,14 +1017,14 @@ static const char g_HtmlPageIOControl[] =
       "<p/>"
       "%y02'm.l()'>Refresh</button> "
       "%y02'm.c()'>Configuration</button>"
-      "<pre>%t00%t01%t02%t03%t04</pre>"
+      "<pre>%t00%t01%t02%t03%t04%t05</pre>"
    "</body>"
 "</html>";
 #endif // OB_EEPROM_SUPPORT == 0
 
 #if OB_EEPROM_SUPPORT == 1
 // Declared short static const here so that common code can be used for Flash
-// and Off-Board webpage sources.
+// and I2C EEPROM webpage sources.
 static const char g_HtmlPageIOControl[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -1271,42 +1282,42 @@ static const char g_HtmlPageConfiguration[] =
               "<th>Timer</th>"
             "</tr>"
          "<script>"
-"const m=($=>{let e=['b00','b04','b08'],t=['c00'],i={'Full Duplex':1,DS18B20:8,'Disable "
-"Cfg Button':16},_={disabled:0,input:1,output:3,linked:2},r={retain:8,on:16,off:0},n={'0"
-".1s':0,'1s':16384,'1m':32768,'1h':49152},a=document,l=location,j=a.querySelector.bind(a"
-"),o=j('form'),d=Object.entries,p=parseInt,s=$=>a.write($),c=($,e)=>p($).toString(16).pa"
-"dStart(e,'0'),u=$=>$.map($=>c($,2)).join(''),f=$=>$.match(/.{2}/g).map($=>p($,16)),b=$="
-">encodeURIComponent($),h=$=>j(`input[name=${$}]`),g=($,e)=>h($).value=e,x=($,e)=>{for(l"
-"et t of a.querySelectorAll($))e(t)},S=($,e)=>{for(let[t,i]of d(e))$.setAttribute(t,i)},"
-"v=($,e)=>d($).map($=>`<option value=${$[1]} ${$[1]==e?'selected':''}>${$[0]}</option>`)"
-".join(''),y=($,e,t,i='')=>`<input type='checkbox' name='${$}' value=${e} ${(t&e)==e?'ch"
-"ecked':''}>${i}`,E=()=>{let i=new FormData(o),_=$=>i.getAll($).map($=>p($)).reduce(($,e"
-")=>$|e,0);e.forEach($=>i.set($,u(i.get($).split('.')))),t.forEach($=>i.set($,c(i.get($)"
-",4))),i.set('d00',i.get('d00').toLowerCase().replace(/[:-]/g,'')),i.set('h00',u(f($.h00"
-").map(($,e)=>{let t='p'+e,r=_(t);return i.delete(t),r})));for(let r=0;r<16;r++){let n=("
-"''+r).padStart(2,'0');i.set('i'+n,c(65535&_('i'+n),4))}return i.set('g00',u([_('g00')])"
-"),i},q=($,e,t)=>{let i=new XMLHttpRequest;i.open($,e,!1),i.send(t)},w=()=>location.href"
-"='/60',A=()=>l.href='/61',D=()=>{a.body.innerText='Wait 5s...',setTimeout(A,5e3)},T=()="
-">{q('GET','/91'),D()},k=$=>{$.preventDefault();let e=Array.from(E().entries(),([$,e])=>"
-"`${b($)}=${b(e)}`).join('&');q('POST','/',e+'&z00=0'),D()},z=f($.g00)[0],B={required:!0"
-"};return x('.ip',$=>{S($,{...B,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]"
-"|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),x('.port',$=>{S($,{...B,type:'number',min:10,max:65"
-"535})}),e.forEach(e=>g(e,f($[e]).join('.'))),t.forEach(e=>g(e,p($[e],16))),g('d00',$.d0"
-"0.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),f($.h00).forEach((e,t)=>{let i=(3&e)!=0?y('p'+t,4"
-",e):'',a=($,i)=>(3&e)==3||(3&e)==2&&t>7?$:i,j=(''+t).padStart(2,'0'),o=a(f($['i'+j]).re"
-"duce(($,e)=>($<<8)+e),0),d=a(`<select name='p${t}'>${v(r,24&e)}</select>`,''),p='#d'==l"
-".hash?`<td>${e}</td>`:'',c=a(`<input type=number class=t8 name='i${j}' value='${16383&o"
-"}' min=0 max=16383><select name='i${j}'>${v(n,49152&o)}</select>`,'');s(`<tr><td>#${t+1"
-"}</td><td><select name='p${t}'>${v(_,3&e)}</select></td><td><input name='j${j}' value='"
-"${$['j'+j]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, "
-"and -*_. no spaces' maxlength=15/></td><td>${i}</td><td>${d}</td><td>${c}</td>${p}</tr>"
-"`)}),j('.f').innerHTML=Array.from(d(i),([$,e])=>y('g00',e,z,$)).join('</br>'),{r:T,s:k,"
-"l:A,c:w}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00',g00:'%g00"
-"',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j0"
-"7',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j"
-"15',i00:'%i00',i01:'%i01',i02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i06',i07:'%"
-"i07',i08:'%i08',i09:'%i09',i10:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%i14',i15:'"
-"%i15'});"
+"const m=($=>{let e=['b00','b04','b08'],t=['c00'],i={'Full Duplex':1,DS18B20:8,BME280:32"
+",'Disable Cfg Button':16},_={disabled:0,input:1,output:3,linked:2},r={retain:8,on:16,of"
+"f:0},n={'0.1s':0,'1s':16384,'1m':32768,'1h':49152},a=document,l=location,j=a.querySelec"
+"tor.bind(a),o=j('form'),d=Object.entries,p=parseInt,s=$=>a.write($),c=($,e)=>p($).toStr"
+"ing(16).padStart(e,'0'),u=$=>$.map($=>c($,2)).join(''),f=$=>$.match(/.{2}/g).map($=>p($"
+",16)),b=$=>encodeURIComponent($),h=$=>j(`input[name=${$}]`),g=($,e)=>h($).value=e,x=($,"
+"e)=>{for(let t of a.querySelectorAll($))e(t)},S=($,e)=>{for(let[t,i]of d(e))$.setAttrib"
+"ute(t,i)},E=($,e)=>d($).map($=>`<option value=${$[1]} ${$[1]==e?'selected':''}>${$[0]}<"
+"/option>`).join(''),v=($,e,t,i='')=>`<input type='checkbox' name='${$}' value=${e} ${(t"
+"&e)==e?'checked':''}>${i}`,y=()=>{let i=new FormData(o),_=$=>i.getAll($).map($=>p($)).r"
+"educe(($,e)=>$|e,0);e.forEach($=>i.set($,u(i.get($).split('.')))),t.forEach($=>i.set($,"
+"c(i.get($),4))),i.set('d00',i.get('d00').toLowerCase().replace(/[:-]/g,'')),i.set('h00'"
+",u(f($.h00).map(($,e)=>{let t='p'+e,r=_(t);return i.delete(t),r})));for(let r=0;r<16;r+"
+"+){let n=(''+r).padStart(2,'0');i.set('i'+n,c(65535&_('i'+n),4))}return i.set('g00',u(["
+"_('g00')])),i},q=($,e,t)=>{let i=new XMLHttpRequest;i.open($,e,!1),i.send(t)},w=()=>loc"
+"ation.href='/60',A=()=>l.href='/61',D=()=>{a.body.innerText='Wait 5s...',setTimeout(A,5"
+"e3)},T=()=>{q('GET','/91'),D()},k=$=>{$.preventDefault();let e=Array.from(y().entries()"
+",([$,e])=>`${b($)}=${b(e)}`).join('&');q('POST','/',e+'&z00=0'),D()},z=f($.g00)[0],B={r"
+"equired:!0};return x('.ip',$=>{S($,{...B,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0"
+"-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),x('.port',$=>{S($,{...B,type:'number',min"
+":10,max:65535})}),e.forEach(e=>g(e,f($[e]).join('.'))),t.forEach(e=>g(e,p($[e],16))),g("
+"'d00',$.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),f($.h00).forEach((e,t)=>{let i=(3&e)!=0"
+"?v('p'+t,4,e):'',a=($,i)=>(3&e)==3||(3&e)==2&&t>7?$:i,j=(''+t).padStart(2,'0'),o=a(f($["
+"'i'+j]).reduce(($,e)=>($<<8)+e),0),d=a(`<select name='p${t}'>${E(r,24&e)}</select>`,'')"
+",p='#d'==l.hash?`<td>${e}</td>`:'',c=a(`<input type=number class=t8 name='i${j}' value="
+"'${16383&o}' min=0 max=16383><select name='i${j}'>${E(n,49152&o)}</select>`,'');s(`<tr>"
+"<td>#${t+1}</td><td><select name='p${t}'>${E(_,3&e)}</select></td><td><input name='j${j"
+"}' value='${$['j'+j]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 letters,"
+" numbers, and -*_. no spaces' maxlength=15/></td><td>${i}</td><td>${d}</td><td>${c}</td"
+">${p}</tr>`)}),j('.f').innerHTML=Array.from(d(i),([$,e])=>v('g00',e,z,$)).join('</br>')"
+",{r:T,s:k,l:A,c:w}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',h00:'%h00'"
+",g00:'%g00',j00:'%j00',j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06"
+"',j07:'%j07',j08:'%j08',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j1"
+"4',j15:'%j15',i00:'%i00',i01:'%i01',i02:'%i02',i03:'%i03',i04:'%i04',i05:'%i05',i06:'%i"
+"06',i07:'%i07',i08:'%i08',i09:'%i09',i10:'%i10',i11:'%i11',i12:'%i12',i13:'%i13',i14:'%"
+"i14',i15:'%i15'});"
       "%y01"
       "<p>Code Revision %w00<br/>"
       "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
@@ -1321,7 +1332,7 @@ static const char g_HtmlPageConfiguration[] =
 
 #if OB_EEPROM_SUPPORT == 1
 // Declared short static const here so that common code can be used for Flash
-// and Off-Board webpage sources.
+// and I2C EEPROM webpage sources.
 static const char g_HtmlPageConfiguration[] = " ";
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -1361,7 +1372,7 @@ static const char g_HtmlPageConfiguration[] = " ";
 const m = (data => {
     const ip_input_names = ['b00', 'b04', 'b08'],
         port_input_names = ['c00'],
-        features = { "Full Duplex": 1, "DS18B20": 8, "Disable Cfg Button": 16 },
+        features = { "Full Duplex": 1, "DS18B20": 8, "BME280": 32, "Disable Cfg Button": 16 },
         pin_types = { "disabled": 0, "input": 1, "output": 3, "linked": 2 },
         boot_state = { "retain": 8, "on": 16, "off": 0 },
         timer_unit = { "0.1s": 0, "1s": 0x4000, "1m": 0x8000, "1h": 0xc000 },
@@ -1614,6 +1625,8 @@ static const char g_HtmlPageUploader[] =
   "</head>"
   "<body>"
   "<h1>Code Uploader</h1>"
+  "Uploader Code Revision %w00<br/>"
+
   "<form action='' method='post' enctype='multipart/form-data'>"
   
   "<script>"
@@ -1642,8 +1655,9 @@ static const char g_HtmlPageUploader[] =
   "<p><button type='submit' onclick='start()'>Submit</button></p>"
 
   "<p>"
-  "Once you click Submit do not access via your browser until Flash programming<br>"
-  "completes.<br>"
+  "Once you click Submit do not access via your browser until the Code Upload AND<br>"
+  "Flash Programming completes.<br>"
+  "Code Upload progress:<br>"
   "</p>"
   
   "<p>"
@@ -1818,10 +1832,10 @@ static const char g_HtmlPageParseFail[] =
   "</html>";
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
-
+/*
 #if OB_EEPROM_SUPPORT == 1
 // EEPROM Missing webpage
-// This web page is shown when the EEPROM has gone missing unexpectedly.
+// This web page is shown when the I2C EEPROM has gone missing unexpectedly.
 // This should never happen, but may occur is there is a faulty connection.
 #define WEBPAGE_EEPROM_MISSING	17
 static const char g_HtmlPageEEPROMMissing[] =
@@ -1837,7 +1851,15 @@ static const char g_HtmlPageEEPROMMissing[] =
   "</body>"
   "</html>";
 #endif // OB_EEPROM_SUPPORT == 1
-
+*/
+#if OB_EEPROM_SUPPORT == 1
+// EEPROM Missing webpage
+// This web page is shown when the I2C EEPROM has gone missing unexpectedly.
+// This should never happen, but may occur is there is a faulty connection.
+#define WEBPAGE_EEPROM_MISSING	17
+static const char g_HtmlPageEEPROMMissing[] =
+  "I2C EEPROM Missing";
+#endif // OB_EEPROM_SUPPORT == 1
 
 
 
@@ -1963,54 +1985,56 @@ void HttpDStringInit() {
 
 #if OB_EEPROM_SUPPORT == 1
 #if BUILD_SUPPORT == MQTT_BUILD
-  // Prepare to read 2 bytes from Off-Board EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_SIZE_LOCATION);
+  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_SIZE_LOCATION, 2);
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  // Prepare to read 2 bytes from Off-Board EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_IOCONTROL_SIZE_LOCATION);
+  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_IOCONTROL_SIZE_LOCATION, 2);
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-  // Read 2 bytes from Off-Board EEPROM and convert to uint16_t.
-  {
-    uint16_t temp;
-    OctetArray[0] = I2C_read_byte(0);
-    OctetArray[1] = I2C_read_byte(1);
-    temp = (uint16_t)(OctetArray[0] << 8);
-    temp |= OctetArray[1];
-    HtmlPageIOControl_size = temp;
-  }
+  // Read 2 bytes from I2C EEPROM and save in the _size word.
+//  {
+//    uint16_t temp;
+//    OctetArray[0] = I2C_read_byte(0);
+//    OctetArray[1] = I2C_read_byte(1);
+//    temp = (uint16_t)(OctetArray[0] << 8);
+//    temp |= OctetArray[1];
+//    HtmlPageIOControl_size = temp;
+    HtmlPageIOControl_size = read_two_bytes();
+//  }
   
 #if BUILD_SUPPORT == MQTT_BUILD
-  // Prepare to read 2 bytes from Off-Board EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_CONFIGURATION_SIZE_LOCATION);
+  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_CONFIGURATION_SIZE_LOCATION, 2);
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  // Prepare to read 2 bytes from Off-Board EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_CONFIGURATION_SIZE_LOCATION);
+  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_CONFIGURATION_SIZE_LOCATION, 2);
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-  // Read 2 bytes from Off-Board EEPROM and convert to uint16_t.
-  {
-    uint16_t temp;
-    OctetArray[0] = I2C_read_byte(0);
-    OctetArray[1] = I2C_read_byte(1);
-    temp = (uint16_t)(OctetArray[0] << 8);
-    temp |= OctetArray[1];
-    HtmlPageConfiguration_size = temp;
-  }
+  // Read 2 bytes from I2C EEPROM and save in the _size word.
+//  {
+//    uint16_t temp;
+//    OctetArray[0] = I2C_read_byte(0);
+//    OctetArray[1] = I2C_read_byte(1);
+//    temp = (uint16_t)(OctetArray[0] << 8);
+//    temp |= OctetArray[1];
+//    HtmlPageConfiguration_size = temp;
+    HtmlPageConfiguration_size = read_two_bytes();
+//    }
 #endif // OB_EEPROM_SUPPORT == 1
 }
 
 
 void init_off_board_string_pointers(struct tHttpD* pSocket) {
-  // Initialize the index into the Off-Board EEPROM Strings region.
+  // Initialize the index into the I2C EEPROM Strings region.
   //
   // In order to allow a String File to be read using the same code used for
   // reading Program Files the code expects the Strings file to have SREC
-  // addresses starting at 0x8000, however in the EEPROM itself the base
+  // addresses starting at 0x8000, however in the I2C EEPROM itself the base
   // address for Strings is 0x0000. This initialization will compensate for
   // that disparity.
 
@@ -2019,103 +2043,127 @@ void init_off_board_string_pointers(struct tHttpD* pSocket) {
   if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
 
 #if BUILD_SUPPORT == MQTT_BUILD
-    // Prepare to read the two byte string address from Off-Board EEPROM and
+    // Prepare to read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
-    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_ADDRESS_LOCATION);
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_ADDRESS_LOCATION, 2);
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-    // Prepare to read the two byte string address from Off-Board EEPROM and
+    // Prepare to read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
-    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_IOCONTROL_ADDRESS_LOCATION);
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_IOCONTROL_ADDRESS_LOCATION, 2);
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
     // Read 2 bytes
-    {
-      uint16_t temp;
-      OctetArray[0] = I2C_read_byte(0);
-      OctetArray[1] = I2C_read_byte(1);
-      temp = (uint16_t)(OctetArray[0] << 8);
-      temp |= OctetArray[1];
-      off_board_eeprom_index = temp - 0x8000;
-    }
+//    {
+//      uint16_t temp;
+//      OctetArray[0] = I2C_read_byte(0);
+//      OctetArray[1] = I2C_read_byte(1);
+//      temp = (uint16_t)(OctetArray[0] << 8);
+//      temp |= OctetArray[1];
+//      off_board_eeprom_index = temp - 0x8000;
+      off_board_eeprom_index = read_two_bytes() - 0x8000;
+//    }
   }
-      
+  
   if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
-
+  
 #if BUILD_SUPPORT == MQTT_BUILD
-    // Prepare to read the two byte string address from Off-Board EEPROM and
+    // Prepare to read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
-    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION);
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION, 2);
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-    // Prepare to read the two byte string address from Off-Board EEPROM and
+    // Prepare to read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
-    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION);
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION, 2);
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
     // Read 2 bytes
-    {
-      uint16_t temp;
-      OctetArray[0] = I2C_read_byte(0);
-      OctetArray[1] = I2C_read_byte(1);
-      temp = (uint16_t)(OctetArray[0] << 8);
-      temp |= OctetArray[1];
-      off_board_eeprom_index = temp - 0x8000;
-    }
+//    {
+//      uint16_t temp;
+//      OctetArray[0] = I2C_read_byte(0);
+//      OctetArray[1] = I2C_read_byte(1);
+//      temp = (uint16_t)(OctetArray[0] << 8);
+//      temp |= OctetArray[1];
+//      off_board_eeprom_index = temp - 0x8000;
+      off_board_eeprom_index = read_two_bytes() - 0x8000;
+//    }
 
   }
 #endif // OB_EEPROM_SUPPORT == 1
 }
 
 
-void httpd_diagnostic(void) {
+#if OB_EEPROM_SUPPORT == 1
+uint16_t read_two_bytes(void)
+{
+  // This function reads two bytes from the I2C EEPROM and returns the result.
+  // It is assumed tha the prep_read() function was called prior to this
+  // function to set up the read.
+  uint16_t temp;
+  OctetArray[0] = I2C_read_byte(0);
+  OctetArray[1] = I2C_read_byte(1);
+  temp = (uint16_t)(OctetArray[0] << 8);
+  temp |= OctetArray[1];
+  
+  return temp;
+}
+#endif // OB_EEPROM_SUPPORT == 1
+
+
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 #if OB_EEPROM_SUPPORT == 1
-  // Read and display the 8 bytes with address info for the web pages
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_ADDRESS_LOCATION);
-  {
-    int i;
-    uint8_t temp[8];
+#if HTTPD_DIAGNOSTIC_SUPPORT == 1
+void httpd_diagnostic(void) {
+  // Read and display the 8 bytes in the I2C EEPROM that contain the address
+  // info for the web pages
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_ADDRESS_LOCATION, 2);
+//  {
+//    int i;
+//    uint8_t temp[8];
     UARTPrintf("Webpage Address Bytes: ");
-    temp[0] = I2C_read_byte(0);
-    temp[1] = I2C_read_byte(0);
-    temp[2] = I2C_read_byte(0);
-    temp[3] = I2C_read_byte(0);
-    temp[4] = I2C_read_byte(0);
-    temp[5] = I2C_read_byte(0);
-    temp[6] = I2C_read_byte(0);
-    temp[7] = I2C_read_byte(1);
-    for (i = 0; i < 8; i++) {
-      emb_itoa(temp[i], OctetArray, 16, 2);
-      UARTPrintf(OctetArray);
-      UARTPrintf(" ");
-    }
-  UARTPrintf("\r\n");
-  }
+//    temp[0] = I2C_read_byte(0);
+//    temp[1] = I2C_read_byte(0);
+//    temp[2] = I2C_read_byte(0);
+//    temp[3] = I2C_read_byte(0);
+//    temp[4] = I2C_read_byte(0);
+//    temp[5] = I2C_read_byte(0);
+//    temp[6] = I2C_read_byte(0);
+//    temp[7] = I2C_read_byte(1);
+//    for (i = 0; i < 8; i++) {
+//      emb_itoa(temp[i], OctetArray, 16, 2);
+//      UARTPrintf(OctetArray);
+//      UARTPrintf(" ");
+//    }
+//  UARTPrintf("\r\n");
+//  }
+  read_eight_bytes();
   
-  // Read and display the 8 bytes with size info for the web pages
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_SIZE_LOCATION);
-  {
-    int i;
-    uint8_t temp[8];
+  // Read and display the 8 bytes in the I2C EEPROM that contain the size
+  // info for the web pages
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_SIZE_LOCATION, 2);
+//  {
+//    int i;
+//    uint8_t temp[8];
     UARTPrintf("Webpage Size Bytes: ");
-    temp[0] = I2C_read_byte(0);
-    temp[1] = I2C_read_byte(0);
-    temp[2] = I2C_read_byte(0);
-    temp[3] = I2C_read_byte(0);
-    temp[4] = I2C_read_byte(0);
-    temp[5] = I2C_read_byte(0);
-    temp[6] = I2C_read_byte(0);
-    temp[7] = I2C_read_byte(1);
-    for (i = 0; i < 8; i++) {
-      emb_itoa(temp[i], OctetArray, 16, 2);
-      UARTPrintf(OctetArray);
-      UARTPrintf(" ");
-    }
-  UARTPrintf("\r\n");
-  }
+//    temp[0] = I2C_read_byte(0);
+//    temp[1] = I2C_read_byte(0);
+//    temp[2] = I2C_read_byte(0);
+//    temp[3] = I2C_read_byte(0);
+//    temp[4] = I2C_read_byte(0);
+//    temp[5] = I2C_read_byte(0);
+//    temp[6] = I2C_read_byte(0);
+//    temp[7] = I2C_read_byte(1);
+//    for (i = 0; i < 8; i++) {
+//      emb_itoa(temp[i], OctetArray, 16, 2);
+//      UARTPrintf(OctetArray);
+//      UARTPrintf(" ");
+//    }
+//  UARTPrintf("\r\n");
+//  }
+  read_eight_bytes();
 
   UARTPrintf("IOControl Page Size: ");
   emb_itoa(HtmlPageIOControl_size, OctetArray, 16, 4);
@@ -2127,9 +2175,41 @@ void httpd_diagnostic(void) {
   emb_itoa(HtmlPageConfiguration_size, OctetArray, 16, 4);
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
+}
+#endif // HTTPD_DIAGNOSTIC_SUPPORT == 1
 #endif // OB_EEPROM_SUPPORT == 1
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if OB_EEPROM_SUPPORT == 1
+#if HTTPD_DIAGNOSTIC_SUPPORT == 1
+void read_eight_bytes(void)
+{
+  // This function reads eight bytes from the I2C EEPROM and displays them
+  // via the UART. This is used only for debug. It is assumed tha the
+  // prep_read() function was called prior to this function to set up the
+  // read.
+  int i;
+  uint8_t temp[8];
+  temp[0] = I2C_read_byte(0);
+  temp[1] = I2C_read_byte(0);
+  temp[2] = I2C_read_byte(0);
+  temp[3] = I2C_read_byte(0);
+  temp[4] = I2C_read_byte(0);
+  temp[5] = I2C_read_byte(0);
+  temp[6] = I2C_read_byte(0);
+  temp[7] = I2C_read_byte(1);
+  for (i = 0; i < 8; i++) {
+    emb_itoa(temp[i], OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+  }
+  UARTPrintf("\r\n");
 }
+#endif // HTTPD_DIAGNOSTIC_SUPPORT == 1
+#endif // OB_EEPROM_SUPPORT == 1
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
 
 uint16_t adjust_template_size(struct tHttpD* pSocket)
@@ -2203,28 +2283,28 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
       //  %t00 "<p>Temperature Sensors<br> xxxxxxxxxxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    40 bytes of text plus 27 bytes of data = 59
+      //    40 bytes of text plus 27 bytes of data = 67
       //    size = size + 67 - 4
       size = size + 63;
       //
       //  %t01 "<br> xxxxxxxxxxxx " 
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    18 bytes of text plus 27 bytes of data = 37
+      //    18 bytes of text plus 27 bytes of data = 45
       //    size = size + 45 - 4
       size = size + 41;
       //
       //  %t02 "<br> xxxxxxxxxxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    18 bytes of text plus 27 bytes of data = 37
+      //    18 bytes of text plus 27 bytes of data = 45
       //    size = size + 45 - 4
       size = size + 41;
       //
       //  %t03 "<br> xxxxxxxxxxxx "
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
       //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
-      //    18 bytes of text plus 27 bytes of data = 37
+      //    18 bytes of text plus 27 bytes of data = 45
       //    size = size + 45 - 4
       size = size + 41;
       //
@@ -2241,6 +2321,29 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
       // Subtract the size of the placeholders as they won't be used
       // size = size - (5 x 4)
       size = size - 20;
+    }
+    
+    // Account for BME280 Sensor insertion %t05
+    // If BME280 is NOT enabled we only need to subtract the size of the
+    // placeholder.
+    //
+    if (stored_config_settings & 0x20) {
+      // Output string looks like:
+      // <p>BME280 Sensor<br>BME280-0xxxx Temp -000.00C -000.00F<br>BME280-1xxxx Pressure 0000 hPa<br>BME280-2xxxx Humidity 000%<br>Altitude -00000 meters -00000 feet<p>
+      // 0        1         2         3         4         5         6         7         8         9         0         1         2         3         4         5         6         7
+      // 12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+      // 160 characters      
+      // plus
+      //   degC character (&#8451;) adds 6 characters over the above
+      //   degF character (&#8457;) adds 6 characters over the above
+      // 160 + 12 = 172
+      // size = size + 172 - 4
+      size = size + 168;
+    }
+    else {
+      // Subtract the size of the placeholder as it won't be used
+      // size = size - (1 x 4)
+      size = size - 4;
     }
     
     // Account for Text Replacement insertion
@@ -2517,10 +2620,16 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   else if (pSocket->current_webpage == WEBPAGE_UPLOADER) {
     size = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
-
+    
     // Account for header replacement strings %y04 %y05
     size = size + ps[4].size_less4
                 + ps[5].size_less4;
+    
+    // Account for Code Revision + Code Type insertion %w00
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (26 - 4));
+    // size = size + (1 x 22);
+    size = size + 22;
   }
 
 
@@ -2570,7 +2679,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     size = size + ps[4].size_less4
                 + ps[5].size_less4;
     
-    // Account for EEPROM status string %s02
+    // Account for I2C EEPROM status string %s02
     // size = size + (value size - marker_field_size)
     // size = size + (40 - 4);
     size = size + 36;
@@ -2579,6 +2688,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 
+/*
 #if OB_EEPROM_SUPPORT == 1
   //-------------------------------------------------------------------------//
   // Adjust the size reported by the WEBPAGE_EEPROM_MISSING template
@@ -2591,6 +2701,16 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
                 + ps[5].size_less4;    
   }
 #endif // OB_EEPROM_SUPPORT == 1
+*/
+#if OB_EEPROM_SUPPORT == 1
+  //-------------------------------------------------------------------------//
+  // Adjust the size reported by the WEBPAGE_EEPROM_MISSING template
+  //-------------------------------------------------------------------------//
+  else if (pSocket->current_webpage == WEBPAGE_EEPROM_MISSING) {
+    size = (uint16_t)(sizeof(g_HtmlPageEEPROMMissing) - 1);
+  }
+#endif // OB_EEPROM_SUPPORT == 1
+
   return size;
 }
 
@@ -2604,8 +2724,15 @@ void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
   // pad  - size of the string result, pre-pad with zeroes if needed
   //
   // The resulting string in str will be NULL terminated on completion.
-  // No checking is done so make sure str has enough room for the
-  // converted value and the terminator.
+  //
+  // The calling routine is responsible for making sure the pad value does not
+  // exceed the length of str - 1 (-1 to account for the terminator that must
+  // also be stored in str).
+  //
+  // The conversion will end once the pad value is reached even if the num
+  // value has not been fully consumed. This is an error of course - but it
+  // should not occur if the calling routine has done adequate checks of the
+  // num value vs the pad value.
   //
   // Positive numbers ONLY,
   //   Up to 10 digits (32 bits),
@@ -2646,6 +2773,11 @@ void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
     if (rem > 9) str[i++] = (uint8_t)(rem - 10 + 'a');
     else str[i++] = (uint8_t)(rem + '0');
     num = num/base;
+    if (i == pad) {
+      // Don't exceed the length identified by "pad" even if there are more
+      // digits. Note this may produce an erroneous output.
+      break;
+    }    
   }
 
   // Reverse the string
@@ -2702,6 +2834,29 @@ void int2hex(uint8_t i)
   OctetArray[1] = int2nibble(j);
   
   OctetArray[2] = '\0';
+}
+
+
+void int16to4hex(uint16_t i)
+{
+  uint8_t j;
+  // Convert a 16-bit integer into four hex characters (four nibbles).
+  // Put the result in global variable OctetArray.
+  j = (uint8_t)(i>>12);
+  OctetArray[0] = int2nibble(j);
+  
+  j = (uint8_t)(i>>8);
+  j &= 0x000f;
+  OctetArray[1] = int2nibble(j);
+  
+  j = (uint8_t)(i>>4);
+  j &= 0x000f;
+  OctetArray[2] = int2nibble(j);
+  
+  j = (uint8_t)(i & 0x000f);
+  OctetArray[3] = int2nibble(j);
+  
+  OctetArray[4] = '\0';
 }
 
 
@@ -2841,11 +2996,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
   //-------------------------------------------------------------------------//
 #if OB_EEPROM_SUPPORT == 1
   if (pSocket->current_webpage == WEBPAGE_IOCONTROL || pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
-    // This code is applicable only when the Off-Board EERPOM is used to store
+    // This code is applicable only when the I2C EERPOM is used to store
     // the IOControl and Configuration webpage templates.
-    // Reading templates from the Off-Board EEPROM is very slow relative to
+    // Reading templates from the I2C EEPROM is very slow relative to
     // reading the templates from STM8 Flash. So the "pre_buf[]" array is used
-    // to bulk read template data from the Off-Board EEPROM to improve code
+    // to bulk read template data from the I2C EEPROM to improve code
     // speed. pre_buf is then used to provide data to the webpage transmission
     // code.
     // Optimization:
@@ -2853,7 +3008,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
     //  - There isn't enough RAM to have a 440 byte buffer so later in the
     //    process the pre_buf gets re-loaded
     //  - Thus the pre_buf only needs to be about 230 bytes (to minimize the
-    //    amount of data read from the EEPROM per packet, thus minimizing
+    //    amount of data read from the I2C EEPROM per packet, thus minimizing
     //    time spent reading the data).
     //  - I say "about 230 bytes" because there is some variability in how
     //    much needs to be read due to the need to compensate for aliasing of
@@ -2865,7 +3020,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
     {
       uint16_t i;
       
-      prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, off_board_eeprom_index);
+      prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, off_board_eeprom_index, 2);
       for (i = 0; i < (PRE_BUF_SIZE - 1); i++) {
         pre_buf[i] = I2C_read_byte(0);
       }
@@ -2939,7 +3094,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
         if (pSocket->current_webpage == WEBPAGE_IOCONTROL || pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
           {
             uint16_t i;
-            // This code is applicable only when the Off-Board EERPOM is used
+            // This code is applicable only when the I2C EERPOM is used
 	    // to store the IOControl and Configuration webpage templates.
             //
             // If we arrive here and find that the pre_buf is almost empty then
@@ -2947,9 +3102,9 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	    // off_board_eeprom_index. Since the pre_buf_ptr can get incre-
 	    // mented up to 4 times before we check it again we need to reload
 	    // the buffer brefore we reach the end of the buffer. Since we are
-	    // reloading from the current point in the EEPROM no data is lost.
+	    // reloading from the current point in the I2C EEPROM no data is lost.
             if (pre_buf_ptr > (PRE_BUF_SIZE - 6)) {
-              prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, off_board_eeprom_index);
+              prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, off_board_eeprom_index, 2);
               for (i = 0; i < (PRE_BUF_SIZE - 1); i++) {
                 pre_buf[i] = I2C_read_byte(0);
               }
@@ -2982,8 +3137,9 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	//      they want to change the MAC address. Input and output.
         // %e - Statistics display information. Output only.
         // %f - IO states displayed in simplified form. Output only.
-        // %g - "Config" string to control MQTT Enable, Full/Half Duplex, and
-	//      Home Assistant Auto Discovery functions. Input and Output.
+        // %g - "Config" string to control BME280 Enable, Disable Cfg Button,
+	//      DS18B20 Enable, MQTT Enable, Full/Half Duplex, and Home
+	//      Assistant Auto Discovery Enable. Input and Output.
 	// %h - Pin Control string - The pin control string is defined as 32
 	//      characters representing 16 hex bytes of information in text
 	//      format. Each byte is the pin_control character for each IO
@@ -2997,8 +3153,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
         // %n - MQTT Status - Displays red or green boxes to indicate startup
 	//      status for MQTT (Connection Available, ARP OK, TCP OK, Connect
 	//      OK, MQTT_OK). Output only.
-	// %s - EEPROM presence status. Output only.
-	// %t - Temperature Sensor data. Output only.
+	// %s - I2C EEPROM presence status. Output only.
+	// %t - Temperature Sensor data or BME280 data. Output only.
 	// %w - Code Revision. Output only.
         // %y - Indicates the need to insert one of several commonly occuring
 	//      HTML strings. This is to aid in compressing the web page
@@ -3229,10 +3385,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	    }
 	  }
           else if (nParsedNum == 35) {
-            *pBuffer++ = '0';
-            *pBuffer++ = '0';
-            *pBuffer++ = '0';
-            *pBuffer++ = '0';
+//            *pBuffer++ = '0';
+//            *pBuffer++ = '0';
+//            *pBuffer++ = '0';
+//            *pBuffer++ = '0';
+            pBuffer = stpcpy(pBuffer, "0000");
             int2hex(MQTT_resp_tout_counter);
             pBuffer = stpcpy(pBuffer, OctetArray);
             int2hex(MQTT_not_OK_counter);
@@ -3324,7 +3481,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // a hex encoded byte. Stored in memory as a single byte.
           // Bit 7: Undefined, 0 only
           // Bit 6: Undefined, 0 only
-          // Bit 5: Undefined, 0 only
+          // Bit 5: BME280
+	  //        1 = Enable, 0 = Disable
           // Bit 4: Disable Cfg Button
           //        1 = Disable, 0 = Enable
           // Bit 3: DS18B20
@@ -3411,7 +3569,6 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 		}
 	      }
 
-//	      if ((j & 0x02) == 0x00) {
               if (chk_iotype(j, i, 0x03) == 0x01) {
 	        // This is an input pin - check the invert bit
 	        if (j & 0x04) { // Invert is set - flip the ON/OFF bit
@@ -3528,9 +3685,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 #endif // OB_EEPROM_SUPPORT == 1
 
 
+#if DS18B20_SUPPORT == 1
         else if ((nParsedMode == 't') && (stored_config_settings & 0x08)) {
 	  // This displays temperature sensor data for 5 sensors and the
-	  // text fields around that data IF DS18B20 mode is enabled.
+	  // text fields around that data IF DS18B20 mode is enabled. The
+	  // possible nParsedNum values for DS18B20 sensors are 0, 1, 2, 3, 4.
 	  
 	  if (nParsedNum == 0) {
 	    #define TEMPTEXT "<p>Temperature Sensors<br>"
@@ -3553,18 +3712,33 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	    }
 	  }
 	  // If the sensor does not exist ...
-	  else {
+	  else if (nParsedNum <= 4) {
 	    pBuffer = stpcpy(pBuffer, " ------------ ");
 	  }
-	  
-	  // Output temperature data
-          pBuffer = show_temperature_string(pBuffer, nParsedNum);
-	  if (nParsedNum == 4) {
-	    #define TEMPTEXT "</p>"
-	    pBuffer = stpcpy(pBuffer, TEMPTEXT);
-	    #undef TEMPTEXT
+	  if (nParsedNum <= 4) {
+	    // Output temperature data
+            pBuffer = show_temperature_string(pBuffer, nParsedNum);
+	    if (nParsedNum == 4) {
+	      #define TEMPTEXT "</p>"
+	      pBuffer = stpcpy(pBuffer, TEMPTEXT);
+	      #undef TEMPTEXT
+	    }
 	  }
 	}
+#endif // DS18B20_SUPPORT == 1
+
+
+#if BME280_SUPPORT == 1
+        else if ((nParsedMode == 't') && (stored_config_settings & 0x20)) {
+	  // This displays temperature, pressure, and humidity data from the
+	  // BME280 sensor and the text fields around that data IF BME280
+	  // mode is enabled. It also shows the user entered altitude.
+	  if (nParsedNum == 5) {
+            // Output Temperature, Pressure, Humidity, and Altitude data
+            pBuffer = show_BME280_PTH_string(pBuffer);
+	  }
+	}
+#endif // BME280_SUPPORT == 1
 
 
         else if (nParsedMode == 'w') {
@@ -3573,20 +3747,29 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // length is always 13)
           pBuffer = stpcpy(pBuffer, code_revision);
 	  
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD	&& I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD && I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
+#if BUILD_TYPE_BROWSER_STANDARD == 1
           pBuffer = stpcpy(pBuffer, " Browser Only");
 #endif
 
-#if BUILD_SUPPORT == MQTT_BUILD	&& I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
+// #if BUILD_SUPPORT == MQTT_BUILD && I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
+#if BUILD_TYPE_MQTT_STANDARD == 1
           pBuffer = stpcpy(pBuffer, " MQTT .......");
 #endif
 
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD	&& I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
+// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD && I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
+#if BUILD_TYPE_BROWSER_UPGRADEABLE == 1
           pBuffer = stpcpy(pBuffer, " Browser UPG ");
 #endif
 
-#if BUILD_SUPPORT == MQTT_BUILD	&& I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
+// #if BUILD_SUPPORT == MQTT_BUILD && I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
+#if BUILD_TYPE_MQTT_UPGRADEABLE == 1
           pBuffer = stpcpy(pBuffer, " MQTT UPG ...");
+#endif
+
+// #if BUILD_SUPPORT == MQTT_BUILD && I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1 && BME280_SUPPORT == 1
+#if BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
+          pBuffer = stpcpy(pBuffer, " MQTT UPG BME");
 #endif
 	}
 
@@ -3688,11 +3871,13 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 }
 
 
+#if DS18B20_SUPPORT == 1
 char *show_temperature_string(char *pBuffer, uint8_t nParsedNum)
 {
   // Display temperature strings in degrees C and degrees F
   // Note: &#8451; inserts a degree symbol followed by C.
   // Note: &#8457; inserts a degree symbol followed by F.
+  
   convert_temperature(nParsedNum, 0);      // Convert to degrees C in OctetArray
   pBuffer = stpcpy(pBuffer, OctetArray);     // Display sensor value
   #define TEMPTEXT "&#8451; "              // Display degress C symbol
@@ -3707,6 +3892,236 @@ char *show_temperature_string(char *pBuffer, uint8_t nParsedNum)
   
   return pBuffer;
 }
+#endif // DS18B20_SUPPORT == 1
+
+
+#if BME280_SUPPORT == 1
+char *show_BME280_PTH_string(char *pBuffer)
+{
+  int32_t temp_whole;
+  int32_t temp_dec;
+  int32_t temp_F;
+  
+  pBuffer = stpcpy(pBuffer, "<p>BME280 Sensor<br>");
+  
+  // Display temperature in degrees C and degrees F
+  // Note: &#8451; inserts a degree symbol followed by C.
+  // Note: &#8457; inserts a degree symbol followed by F.
+  // Temperature range is -40 to +85C
+  // Temperature value in the comp_data is a fixed point signed integer.
+  // Examples:
+  //   A value of 5632 (0x00001600) is DegC 56.32.
+  //   A value of -5632 (0xffffea00) is DegC -56.32.
+  //   Always 2 decimal digits.
+  
+  create_sensor_ID(0);                     // Create Temp sensor ID
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Display ID
+  pBuffer = stpcpy(pBuffer, " Temp ");     // Display "Temp " text
+  
+  // Display temperature in degrees C (native output of sensor)
+  // Convert BME280 temperature to string in OctetArray
+  BME280_temperature_string_C();
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Copy temperature string to Browser
+  #define TEMPTEXT "&#8451; "
+  pBuffer = stpcpy(pBuffer, TEMPTEXT);     // Display degress C symbol plus space
+  #undef TEMPTEXT
+
+  // Convert C to F
+  // Note: Value directly out of the sensor is temperature in Degree C times
+  // 100.
+  temp_F = (int32_t)((comp_data_temperature * 9) / 5) + 3200;
+  // Calculate the whole number part of number
+  temp_whole = (temp_F / 100);
+  // Calculate decimal part of number
+  temp_dec = temp_F - (temp_whole * 100);
+  
+  if (temp_F < 0) {
+    pBuffer = stpcpy(pBuffer, "-");        // Insert minus sign
+  }
+  else {
+    pBuffer = stpcpy(pBuffer, " ");        // Insert space
+  }
+
+  emb_itoa((uint32_t)temp_whole, OctetArray, 10, 3);
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Display sensor value
+  pBuffer = stpcpy(pBuffer, ".");          // Insert decimal dot
+  emb_itoa((uint32_t)temp_dec, OctetArray, 10, 2);
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Display sensor value
+  #define TEMPTEXT "&#8457;<br>"
+  pBuffer = stpcpy(pBuffer, TEMPTEXT);     // Display degress F symbol plus newline
+  #undef TEMPTEXT
+
+
+
+  // Pressure range is 300 to 1100 hPa.
+  create_sensor_ID(1);                     // Create Pressure sensor ID
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Display ID
+  pBuffer = stpcpy(pBuffer, " Pressure "); // Display "Pressure " text
+  BME280_pressure_string();                // Convert pressure to string
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Display sensor value
+  pBuffer = stpcpy(pBuffer, " hPa<br>");   // Insert newline
+
+
+  // Humidity range is 0 to 100 percent.
+  create_sensor_ID(2);                     // Create Humidity sensor ID
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Display ID
+  pBuffer = stpcpy(pBuffer, " Humidity "); // Display "Humidity " text
+  BME280_humidity_string();                // Convert humidity to string
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Display sensor value
+  pBuffer = stpcpy(pBuffer, "%<br>");      // Display % sign plus newline
+
+
+  // Altitude entered by user.
+  pBuffer = stpcpy(pBuffer, "Altitude ");  // Display "Altitude " text
+  // Convert altitude to meters
+  temp_whole = stored_altitude;
+  temp_whole = ((temp_whole * 3048) / 10000);
+  // Handle negative altitudes
+  if (stored_altitude < 0) {
+    temp_whole = (uint32_t)(temp_whole * -1);
+    pBuffer = stpcpy(pBuffer, "-");        // Insert minus sign
+  }
+  else {
+    pBuffer = stpcpy(pBuffer, " ");        // Insert space
+  }
+  
+  emb_itoa((uint32_t)temp_whole, OctetArray, 10, 5);
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Display value in meters
+  pBuffer = stpcpy(pBuffer, " meters ");
+
+  // Show altitude in feet
+  if (stored_altitude < 0) {
+    pBuffer = stpcpy(pBuffer, "-");        // Insert minus sign
+  }
+  else {
+    pBuffer = stpcpy(pBuffer, " ");        // Insert space
+  }
+  
+  emb_itoa((uint16_t)stored_altitude, OctetArray, 10, 5);
+  pBuffer = stpcpy(pBuffer, OctetArray);   // Display value in feet
+  pBuffer = stpcpy(pBuffer, " feet</p>");
+
+  return pBuffer;
+}
+#endif // BME280_SUPPORT == 1
+
+
+#if BME280_SUPPORT == 1
+void create_sensor_ID(int8_t sensor)
+{
+  // Create the sensor ID and store it in OctetArray
+  
+  char temp_string[13];
+
+  // Create the sensor number for the app_message and topic.
+  // Add first part of sensor ID to temp_string. For the BME280 the ID
+  // is "BME280" plus a one digit number contained in sensor:
+  //   0 = Temperature
+  //   1 = Pressure
+  //   2 = Humidity 
+  temp_string[0] = 'B';
+  temp_string[1] = 'M';
+  temp_string[2] = 'E';
+  temp_string[3] = '2';
+  temp_string[4] = '8';
+  temp_string[5] = '0';
+  temp_string[6] = '-';
+  if (sensor == 0) temp_string[7] = '0';
+  if (sensor == 1) temp_string[7] = '1';
+  if (sensor == 2) temp_string[7] = '2';
+  // Isolate the two least significant octets of the uip_hostaddr (the module
+  // IP address). Convert these two octets into a 4 character hexidecimal and use
+  // that to create a unique ID for the BME280 sensor.
+  int2hex(stored_hostaddr[1]);
+  temp_string[8] = OctetArray[0];
+  temp_string[9] = OctetArray[1];
+  int2hex(stored_hostaddr[0]);
+  temp_string[10] = OctetArray[0];
+  temp_string[11] = OctetArray[1];
+  temp_string[12] = '\0';
+
+  strcpy(OctetArray, temp_string);
+}
+#endif // BME280_SUPPORT == 1
+
+
+#if BME280_SUPPORT == 1
+void BME280_temperature_string_C(void)
+{
+  // Convert the BME280 temperature into a string in OctetArray.
+  // Degrees C is the native output of the sensor.
+  
+  int32_t temp_whole;
+  int32_t temp_dec;
+  char temp_string[11];
+  
+  // Calculate the whole number part of number
+  temp_whole = (comp_data_temperature / 100);
+  // Calculate decimal part of number
+  temp_dec = comp_data_temperature - (temp_whole * 100);
+  
+  // Handle negative temperatures
+  if (comp_data_temperature < 0) {
+    temp_whole = (uint32_t)(temp_whole * -1);
+    temp_dec = (uint32_t)(temp_dec * -1);
+    temp_string[0] = '-';
+  }
+  else {
+    temp_string[0] = ' ';
+  }
+
+  emb_itoa((uint32_t)temp_whole, OctetArray, 10, 3);
+  temp_string[1] = OctetArray[0];
+  temp_string[2] = OctetArray[1];
+  temp_string[3] = OctetArray[2];
+  temp_string[4] = '.';
+  
+  emb_itoa((uint32_t)temp_dec, OctetArray, 10, 2);
+  temp_string[5] = OctetArray[0];
+  temp_string[6] = OctetArray[1];
+  temp_string[7] = '\0';
+  
+  strcpy(OctetArray, temp_string);
+}
+#endif // BME280_SUPPORT == 1
+
+
+#if BME280_SUPPORT == 1
+void BME280_pressure_string(void)
+{
+  // Convert the BME280 pressure into a string in OctetArray.
+  
+  int32_t press_whole;
+  
+  // Pressure range is 300 to 1100 hPa.
+  press_whole = altitude_adjustment();
+  emb_itoa((uint32_t)press_whole, OctetArray, 10, 4);
+}
+#endif // BME280_SUPPORT == 1
+
+
+#if BME280_SUPPORT == 1
+void BME280_humidity_string(void)
+{
+  // Convert the BME280 humidity into a string in OctetArray.
+  
+  int32_t hum_whole;
+  
+  // Pressure range is 300 to 1100 hPa.
+  hum_whole = (int32_t)(comp_data_humidity / 1024);
+  emb_itoa((uint32_t)hum_whole, OctetArray, 10, 3);
+}
+#endif // BME280_SUPPORT == 1
+
+
+#if BME280_SUPPORT == 1
+char *show_space_or_minus(int32_t value, char *pBuffer)
+{
+  if (value < 0) pBuffer = stpcpy(pBuffer, "-"); // Insert minus sign
+  else pBuffer = stpcpy(pBuffer, " ");           // Insert space
+  return pBuffer;
+}
+#endif // BME280_SUPPORT == 1
 
 
 void HttpDInit(void)
@@ -3727,7 +4142,6 @@ void HttpDInit(void)
 }
 
 
-// void init_tHttpD_struct(struct tHttpD* pSocket) {
 void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
   // Initialize the contents of the struct tHttpD
   // This function is called UIP_CONNS times by the HttpDinit function. It is
@@ -3737,9 +4151,7 @@ void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
   // that does not call out a specific page.
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-//  pSocket->current_webpage = WEBPAGE_IOCONTROL;
   pSocket->current_webpage = WEBPAGE_NULL;
-//  pSocket->structID = i; // TEMPORARY DEBUG MARKER
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -3940,7 +4352,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     //      message will occur prior to the post-amble and has zero chance of
     //      being fragmented. So the code is not written to handle any
     //      fragmentation of GET requests.
-    //   3c) With the addition of Off-Board EEPROMs and the ability to upload
+    //   3c) With the addition of I2C EEPROMs and the ability to upload
     //      replacement code via Ethernet the POST pre-amble is parsed for the
     //      "Content-Type" phrase. The phrase is used to determine if the POST
     //      data contains a new firmware file, or if the POST data contains
@@ -4372,7 +4784,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/61  Show Configuration page
 	  // http://IP/63  Show Help page (deprecated)
 	  // http://IP/64  Show Help2 page (deprecated)
-	  // http://IP/65  Flash LED 3 times (no screen refresh)
+	  // http://IP/65  Flash LED 3 times
 	  // http://IP/66  Show Link Error Statistics page
 	  // http://IP/67  Clear Link Error Statistics and refresh page
 	  // http://IP/68  Show Network Statistics page
@@ -4382,15 +4794,22 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
           // http://IP/72  Load the Code Uploader (works only in runtime
 	  //               builds)
           // http://IP/73  Restore (works only in the Code Uploader build)
-          // http://IP/74  Erase EEPROM (works only in the Code Uploader
+          // http://IP/74  Erase I2C EEPROM (works only in the Code Uploader
 	  //               build)
-          // http://IP/75  Show Code Uploader Timer (works only in the Code
-	  //               Uploader build)
           // http://IP/80  Mask and Output Pin settings
+	  // http://IP/81  Altitude entry
 	  // http://IP/91  Reboot
 	  // http://IP/98  Show Very Short Form IO States page
 	  // http://IP/99  Show Short Form IO States page
 	  //
+	      
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+//  UARTPrintf("GET ParseNum = ");
+//  emb_itoa(pSocket->ParseNum, OctetArray, 10, 2);
+//  UARTPrintf(OctetArray);
+//  UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+	      
           GET_response_type = 200; // Default response type
           switch(pSocket->ParseNum)
 	  {
@@ -4452,7 +4871,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      debugflash();
 	      debugflash();
 	      debugflash();
-	      GET_response_type = 204; // No return webpage
+	      // Show default page
+	      // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
+	      // will accomplish what we want.
+	      pSocket->ParseState = PARSE_FAIL;
 	      break;
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
@@ -4477,7 +4899,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               pSocket->pData = g_HtmlPageStats2;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
 	      break;
-#endif // DEBUG_SUPPORT
+#endif // DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
 
 #if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
             case 68: // Show Network Statistics page
@@ -4499,6 +4921,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      // These only display via the UART
 	      for (i = 5; i < 10; i++) debug[i] = 0;
 	      update_debug_storage1();
+	      // Show default page
+	      // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
+	      // will accomplish what we want.
+	      pSocket->ParseState = PARSE_FAIL;
 	      break;
 
 #if DEBUG_SENSOR_SERIAL == 1
@@ -4512,11 +4938,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #if OB_EEPROM_SUPPORT == 1
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
             case 72: // Load Code Uploader
-	      // Re-Check that the EEPROM exists, and if it does then load the
-	      // Code Uploader from Off-Board EEPROM1, display the Loading
-	      // Code Uploader webpage, then reboot.
-	      // If the EEPROM does not exist dieplay an error webpage.
-	      // Verify that Off-Board EEPROM(s) exist.
+	      // Re-Check that the I2C EEPROM exists, and if it does then load
+	      // the Code Uploader from I2C EEPROM1, display the Loading Code
+	      // Uploader webpage, then reboot.
+	      // If the I2C EEPROM does not exist dieplay an error webpage.
+	      // Verify that I2C EEPROM(s) exist.
               eeprom_detect = off_board_EEPROM_detect();
 	      if (eeprom_detect == 0) {
 	        pSocket->current_webpage = WEBPAGE_EEPROM_MISSING;
@@ -4534,7 +4960,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
             case 73: // Reload firmware existing image
-	      // Load the existing firmware image from Off-Board EEPROM0,
+	      // Load the existing firmware image from I2C EEPROM0,
 	      // display the Loading Existing Image webpage, then reboot.
 	      pSocket->current_webpage = WEBPAGE_EXISTING_IMAGE;
               pSocket->pData = g_HtmlPageExistingImage;
@@ -4543,9 +4969,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      upgrade_failcode = UPGRADE_OK;
 	      break;
 	      
-            case 74: // Erase entire Off-Board EEPROM
-              // Erase EEPROM regions 0, 1, 2, and 3 to provide a clean slate.
-	      // Useful mostly during development for code debug.
+            case 74: // Erase entire I2C EEPROM
+              // Erase I2C EEPROM regions 0, 1, 2, and 3 to provide a clean
+	      // slate. Useful mostly during development for code debug.
 	      {
 	        uint16_t i;
 	        uint8_t j;
@@ -4559,7 +4985,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		    if (k == 2) I2C_control(I2C_EEPROM2_WRITE);
 		    if (k == 3) I2C_control(I2C_EEPROM3_WRITE);
 	            temp_eeprom_address_index = i * 128;
-                    I2C_byte_address(temp_eeprom_address_index);
+                    I2C_byte_address(temp_eeprom_address_index, 2);
 	            for (j=0; j<128; j++) {
 	              // Write a zero byte
 	              I2C_write_byte(0);
@@ -4685,6 +5111,190 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               break;
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
+
+#if BME280_SUPPORT == 1
+            case 81:
+	      // Altitude setting for the BME280 Temperature / Pressure / 
+	      // Humidity sensor.
+              // This command allows the user to input the altitude of the
+	      // device so that the BME280 pressure sensor can be calibrated
+	      // to provide barometric pressure measurements. The altitude
+	      // can be provided in Feet or Meters in Decimal with no
+	      // fractional part (no decimal point).
+	      // 
+              // Example URL command
+              //   192.168.1.182/815432F
+              //   The above example provides an altitude of 5432 feet.
+              //   192.168.1.182/81280M
+              //   The above example provides an altitude of 280 meters.
+              //   192.168.1.182/81-432F
+              //   The above example provides an altitude of -432 feet.
+	      // Limits for best accuracy:
+	      //   Minimum altitude is -1000 feet / -304 meters
+	      //   Maximum altitude is 15000 feet / 4572 meters
+	      // An entry error will result in an altitude of 0.
+              //
+              {
+                uint32_t altitude_local;
+                uint8_t error;
+                char digit_string[6];
+                uint8_t digit_count;
+                uint8_t altitude_scale;
+                uint32_t multiplier;
+		
+		// There must be at least one digit, and up to 5 digits,
+		// followed by an F (for feet) or M (for meters). Internally
+		// the code uses feet for all calculations, so all "meter"
+		// entries are converted to feet.
+		error = 0;
+		altitude_local = 0;
+		
+		// First character must be a digit or a minus.
+		if ((*pBuffer == '-') || (isdigit(*pBuffer))) {
+		  digit_string[0] = *pBuffer;
+		  pBuffer++;
+		}
+		else error = 1;
+		digit_count = 1;
+		altitude_scale = 0;
+		while (error == 0) {
+		  // Check additional characters (up to 4 more digits, then F or
+		  // M terminator.
+		  // Second character position:
+		  if (isdigit(*pBuffer)) {
+		    // Character is a digit
+		    digit_string[digit_count++] = *pBuffer;
+		    pBuffer++;
+		  }
+		  else if (*pBuffer == 'F' || *pBuffer == 'M') {
+		    // F = 0x46, M = 0x4d
+		    altitude_scale = *pBuffer;
+		    pBuffer++;
+		    digit_string[digit_count] = '\0';
+		    break;
+		  }
+		  else {
+		    error = 1;
+		    break;
+		  }
+		  if (digit_count == 6) {
+		    // Too many digits - error
+		    error = 1;
+		    break;
+		  }
+		} // end of while
+		
+		if (error == 0) {
+		  // No error so far
+		  // If F or M terminator not found yet the next character
+		  // MUST be an F or M
+		  if (altitude_scale == 0) {
+		    if (*pBuffer == 'F' || *pBuffer == 'M') {
+		      altitude_scale = *pBuffer;
+		      pBuffer++;
+		    }
+		    else {
+		      error = 1;
+		    }
+		  }
+		}
+
+                if (error == 0) {
+		  // No error so far
+		  // Convert digit_string to altitude value
+		  multiplier = 1;
+		  for (i = strlen(digit_string); i > 0; i--) {
+		    if (digit_string[i-1] == '-') continue;
+		    altitude_local = altitude_local + ((digit_string[i-1] - '0') * multiplier);
+		    multiplier = (uint32_t)(multiplier * 10);
+		  }
+		  if (altitude_scale == 'M') {
+		    // 1 meter = 3.28084 feet
+		    altitude_local = (altitude_local * 328084) / 100000;
+		  }
+		  if (digit_string[0] == '-') {
+		    altitude_local = altitude_local * -1;
+		  }
+		}
+		    
+		if (error == 1) {
+		  altitude_local = 0;
+                  // Something out of sync or invalid user entry. Indicate
+                  // parse failure.
+		  pSocket->ParseState = PARSE_FAIL;
+		}
+
+
+//                // Now check that the URL termination is valid
+//                if (*pBuffer != ' ') {
+//		  pSocket->ParseState = PARSE_FAIL;
+//		}
+//                pBuffer++;
+//                if (*pBuffer != 'H') {
+//		  pSocket->ParseState = PARSE_FAIL;
+//               }
+
+                if (pSocket->ParseState == PARSE_FAIL) {
+                  // If fail detected break out of the switch, but do not
+                  // change the current_webpage. This will cause the URL
+                  // command to be ignored and the current webpage to be
+                  // refreshed.
+                  break;
+                }
+	        unlock_eeprom();	
+	        stored_altitude = (int16_t)altitude_local;
+		lock_eeprom();
+              }
+	      // Didn't break so far so parse was successful
+              parse_complete = 1;
+              GET_response_type = 204; // No return webpage
+              break;
+#endif // BME280_SUPPORT == 1
+
+
+#if PINOUT_OPTION_SUPPORT == 1
+            case 82:
+	      // User entered Pinout Option.
+	      // Allowed to enter one digit (0 to 9) to select the pinout map
+	      // for the IO pins.
+	      // 
+              // Example URL command
+              //   192.168.1.182/821
+              //   The above example selects Pinout Option 1
+	      // An entry error will result in no change to the Pinout Option.
+	      //
+              {
+                uint8_t pinout_select;
+		
+		// Accept the first digit as the Pinout selection
+		// First character must be a digit or a minus.
+		if (isdigit(*pBuffer)) {
+		  pinout_select = (uint8_t)(*pBuffer & 0x07);
+		  if (pinout_select > 0) {
+		    unlock_eeprom();
+		    stored_hardware_options = pinout_select;
+		    lock_eeprom();
+	            user_reboot_request = 1;
+		  }
+		}
+		else {
+                  // Something out of sync or invalid user entry. Indicate
+                  // parse failure.
+		  pSocket->ParseState = PARSE_FAIL;
+                  // If fail detected break out of the switch, but do not
+                  // change the current_webpage. This will cause the URL
+                  // command to be ignored and the current webpage to be
+                  // refreshed.
+//                  break;
+                }
+              }
+//	      // Didn't break so far so parse was successful
+//              parse_complete = 1;
+//              GET_response_type = 204; // No return webpage
+              break;
+#endif // PINOUT_OPTION_SUPPORT == 1
+
+
 	    case 91: // Reboot
 	      user_reboot_request = 1;
 	      break;
@@ -4766,8 +5376,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
     if (pSocket->nState == STATE_PARSEFILE) {
       // This step is entered if a POST containing a firmware file was
-      // detected. The file contents will be copied to the Off-Board EEPROM,
-      // then the Off-B0ard EEPROM will be copied to the internal Flash, then
+      // detected. The file contents will be copied to the I2C EEPROM,
+      // then the I2C EEPROM will be copied to the internal Flash, then
       // the device will reboot.
       //
       // Some notes:
@@ -4887,7 +5497,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  //   Parses the leading characters of each SREC looking for the SREC
 	  //   type.
 	  //     If the SREC type is S0 we are starting receipt of an SREC file
-	  //     so the 32K EEPROM0 space is erased to make it available to
+	  //     so the 32K I2C EEPROM0 space is erased to make it available to
 	  //     store the parsed SREC content. This SREC must be read to deter-
 	  //     mine the "file_type", ie, is it a PROGRAM file or a STRING
 	  //     file.
@@ -4983,8 +5593,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 // UARTPrintf("Found S0\r\n");
 
-                  // Erase EEPROM0 to provide a clean space to store the incom-
-		  // ing SREC data.
+                  // Erase I2C EEPROM0 to provide a clean space to store the
+		  // incoming SREC data.
 		  
 		  {
 		    uint16_t i;
@@ -4994,7 +5604,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		      // Write 256 blocks of 128 bytes each with zero
                       I2C_control(I2C_EEPROM0_WRITE); // Send Write Control Byte
 		      temp_eeprom_address_index = i * 128;
-                      I2C_byte_address(temp_eeprom_address_index);
+                      I2C_byte_address(temp_eeprom_address_index, 2);
 		      for (j=0; j<128; j++) {
 		        // Write a zero byte
 		        I2C_write_byte(0);
@@ -5036,7 +5646,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		  // data.
 		 
 		  if (parse_index != 0) {
-		    // If any data remains in parse_tail write it to the EEPROM.
+		    // If any data remains in parse_tail write it to the I2C EEPROM.
                     {
                       int i;
                       uint8_t I2C_last_flag;
@@ -5049,19 +5659,19 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	              if (file_type == FILETYPE_STRING) {
                         I2C_control(I2C_EEPROM2_WRITE);
 		      }
-                      I2C_byte_address(eeprom_address_index);
+                      I2C_byte_address(eeprom_address_index, 2);
                       for (i=0; i<64; i++) {
 		        I2C_write_byte(parse_tail[i]);
 		      }
                       I2C_stop();
                       wait_timer(5000); // Wait 5ms
                       IWDG_KR = 0xaa; // Prevent the IWDG from firing.
-                      // Validate data in Off-Board EEPROM
+                      // Validate data in I2C EEPROM
 	              if (file_type == FILETYPE_PROGRAM) {
-                        prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index);
+                        prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index, 2);
                       }
 	              if (file_type == FILETYPE_STRING) {
-                        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index);
+                        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index, 2);
                       }
 	              I2C_last_flag = 0;
                       for (i=0; i<64; i++) {
@@ -5229,15 +5839,15 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		    // lecting, then we need to use the PARSE_FILE_NONSEQ code
 		    // to begin collection of data at the new_address.
 		    //   If the new_address is in space already written to the
-		    //   EEPROM an over-write of the EEPROM content will occur.
-		    //   If the new_address is in space futher out in the EEPROM
-		    //   the EEPROM writes will begin at that new_address.
+		    //   I2C EEPROM an over-write of the I2C EEPROM content will
+		    //   occur.
+		    //   If the new_address is in space futher out in the I2C
+		    //   EEPROM the I2C EEPROM writes will begin at that new_address.
 		    // 
 		    if (parse_index != 0) {
 		      // If we were in the middle of writing a 64 byte block to
-		      // EEPROM we need to finish that. Write the 64 bytes of
-		      // data that are in the parse_tail array into the Off-
-		      // Board EEPROM.
+		      // I2C EEPROM we need to finish that. Write the 64 bytes of
+		      // data that are in the parse_tail array into the I2C EEPROM.
                       {
                         int i;
                         uint8_t I2C_last_flag;
@@ -5252,10 +5862,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 			}
 			
 		        // At this point the eeprom_address_index will be point-
-		        // ing at the start of the 64 byte EEPROM block that was
+		        // ing at the start of the 64 byte I2C EEPROM block that was
 		        // being processed when the out-of-sequence address was
 		        // encountereed.
-                        I2C_byte_address(eeprom_address_index);
+                        I2C_byte_address(eeprom_address_index, 2);
                         for (i=0; i<64; i++) {
 		          I2C_write_byte(parse_tail[i]);
 		        }
@@ -5263,12 +5873,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                         wait_timer(5000); // Wait 5ms
                         IWDG_KR = 0xaa; // Prevent the IWDG from firing.
 			
-                        // Validate data in Off-Board EEPROM
+                        // Validate data in I2C EEPROM
 	                if (file_type == FILETYPE_PROGRAM) {
-                          prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index);
+                          prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index, 2);
 			}
 	                if (file_type == FILETYPE_STRING) {
-                          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index);
+                          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index, 2);
 			}
 			
 	                I2C_last_flag = 0;
@@ -5361,25 +5971,25 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      }
 	    
 	      if (parse_index == 64 && file_type == FILETYPE_PROGRAM) {
-	        // Copy parse_tail to Off-Board EEPROM0
+	        // Copy parse_tail to I2C EEPROM0
 	        
                 // Write the 64 bytes of data that are in the parse_tail array
-                // into the Off-Board EEPROM.
+                // into the I2C EEPROM.
                 {
                   int i;
                   uint8_t I2C_last_flag;
                   uint8_t temp_byte;
                   
                   I2C_control(I2C_EEPROM0_WRITE); // Send Write Control Byte
-                  I2C_byte_address(eeprom_address_index);
+                  I2C_byte_address(eeprom_address_index, 2);
                   for (i=0; i<64; i++) {
                     I2C_write_byte(parse_tail[i]);
                   }
                   I2C_stop();
                   wait_timer(5000); // Wait 5ms
                   IWDG_KR = 0xaa; // Prevent the IWDG from firing.
-                  // Validate data in Off-Board EEPROM
-                  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index);
+                  // Validate data in I2C EEPROM
+                  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index, 2);
 	          I2C_last_flag = 0;
                   for (i=0; i<64; i++) {
                     if (i == 63) I2C_last_flag = 1;
@@ -5396,25 +6006,25 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               }
 	    
 	      if (parse_index == 64 && file_type == FILETYPE_STRING) {
-	        // Copy parse_tail to Off-Board EEPROM2
+	        // Copy parse_tail to I2C EEPROM2
 	        
                 // Write the 64 bytes of data that are in the parse_tail array
-                // into the Off-Board EEPROM.
+                // into the I2C EEPROM.
                 {
                   int i;
                   uint8_t I2C_last_flag;
                   uint8_t temp_byte;
                   
                   I2C_control(I2C_EEPROM2_WRITE); // Send Write Control Byte
-                  I2C_byte_address(eeprom_address_index);
+                  I2C_byte_address(eeprom_address_index, 2);
                   for (i=0; i<64; i++) {
                     I2C_write_byte(parse_tail[i]);
                   }
                   I2C_stop();
                   wait_timer(5000); // Wait 5ms
                   IWDG_KR = 0xaa; // Prevent the IWDG from firing.
-                  // Validate data in Off-Board EEPROM
-                  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index);
+                  // Validate data in I2C EEPROM
+                  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index, 2);
 	          I2C_last_flag = 0;
                   for (i=0; i<64; i++) {
                     if (i == 63) I2C_last_flag = 1;
@@ -5459,9 +6069,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // This is a case where the new_address is not sequential with the
 	    // previous adddress.
 	    //
-	    // If this occurs then only the data in the SREC is copied to the
-	    // EEPROM, but it requires reading the existing data from the EEPROM
-	    // then inserting the new SREC data into the existing EEPROM data.
+	    // If this occurs then only the data in the SREC is copied to the I2C
+	    // EEPROM, but it requires reading the existing data from the I2C EEPROM
+	    // then inserting the new SREC data into the existing I2C EEPROM data.
 	    //
             // The "address" and "eeprom_address_index" values will be updated
 	    // according to the addressing values needed by this special case,
@@ -5475,12 +6085,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // tial this routine will run again.
 	    //
 	    // WHAT IF THE NON-SEQUENTIAL SREC STARTS AT A POINT OTHER THAN 0
-	    // RELATIVE TO THE 64 BYTE WRITES TO EEPROM?
+	    // RELATIVE TO THE 64 BYTE WRITES TO I@C EEPROM?
 	    // This is actually the typical case, so the code needs to read the
-	    // existing data from the EEPROM to preserve previously written
+	    // existing data from the I2C EEPROM to preserve previously written
 	    // data, then an offset is calculated to determine the point that
 	    // new SREC data needs to start within the existing EEPROM data.
-	    // a) The data to read from the EEPROM is the 64 bytes starting at
+	    // a) The data to read from the I2C EEPROM is the 64 bytes starting at
 	    //    ((new_address - 0x8000) & 0xFFC0).
 	    // b) The offset into this data for writing the new data is
 	    //    (new_address & 0x003F).
@@ -5490,13 +6100,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    // tion may cause the process to be re-entered.
 	    // c) Read the incoming SREC and write the contents to parse_tail.
 	    //    If the end of parse_tail is reached or the end of the SREC is
-	    //    reached write the parse_tail to the EEPROM.
+	    //    reached write the parse_tail to the I2C EEPROM.
 	    // d) If the end of the parse_tail is reached but there is still
 	    //    data in the incoming SREC then read the next 64 bytes from the
-	    //    EEPROM into parse_tail, and continue writing the incoming SREC
+	    //    I2C EEPROM into parse_tail, and continue writing the incoming SREC
 	    //    data into the parse_tail starting at byte [0].
 	    //    When the end of the SREC is reached write the parse_tail to
-	    //    the EEPROM.
+	    //    the I2C EEPROM.
 	    // e) Exit comments: "address" and "eeprom_address_index" never get
 	    //    changed in this process so when this parsing completes we will
 	    //    go on to reading the next SREC. If that next SREC has a
@@ -5504,23 +6114,23 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	    //    process repeats. Otherwise the regular read SREC process runs.
 	    
             // Why not use the above technique for every SREC?
-	    // Because it would result in twice as many writes to the EEPROM
+	    // Because it would result in twice as many writes to the I2C EEPROM
 	    // taking a lot longer to do the programming. Twice as many writes
 	    // will occur because it is typical for the incoming data to be
-	    // skewed relative to the 64 byte writes to the EEPROM, and the
+	    // skewed relative to the 64 byte writes to the I2C EEPROM, and the
 	    // incoming SREC data is in 32 byte blocks as opposed to the 64 byte
-	    // blocks being written to the EEPROM.
+	    // blocks being written to the I2C EEPROM.
 	  
 	    if (non_sequential_detect == 1) {
-	      // Calculate the starting index of the EEPROM block
+	      // Calculate the starting index of the I2C EEPROM block
 	      eeprom_address_index = (new_address - 0x8000) & 0xFFC0;
 	      
-	      // Read the existing EEPROM data into parse_tail
+	      // Read the existing I2C EEPROM data into parse_tail
 	      if (file_type == FILETYPE_PROGRAM) {
-                prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index);
+                prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index, 2);
               }
 	      if (file_type == FILETYPE_STRING) {
-                prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index);
+                prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index, 2);
               }
 	      
 	      for (i=0; i<63; i++) {
@@ -5587,9 +6197,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      }
 	      
 	      if (data_count == 0 || parse_index == 64) {
-                // Copy parse_tail to Off-Board EEPROM0
+                // Copy parse_tail to I2C EEPROM0
 	        
-                // Write the data in the parse_tail array into the Off-Board
+                // Write the data in the parse_tail array into the I2C
 	        // EEPROM.
                 {
                   int i;
@@ -5603,7 +6213,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                     I2C_control(I2C_EEPROM2_WRITE); // Send Write Control Byte
 		  }
 		  
-                  I2C_byte_address(eeprom_address_index);
+                  I2C_byte_address(eeprom_address_index, 2);
                   for (i=0; i<64; i++) {
                     I2C_write_byte(parse_tail[i]);
                   }
@@ -5611,12 +6221,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                   wait_timer(5000); // Wait 5ms
                   IWDG_KR = 0xaa; // Prevent the IWDG from firing.
 		  
-                  // Validate data in Off-Board EEPROM
+                  // Validate data in I2C EEPROM
 	          if (file_type == FILETYPE_PROGRAM) {
-                    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index);
+                    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index, 2);
 		  }
 	          if (file_type == FILETYPE_STRING) {
-                    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index);
+                    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index, 2);
 		  }
 		  
 	          I2C_last_flag = 0;
@@ -5635,20 +6245,20 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      
 	      if (parse_index == 64 && data_count != 0) {
 	        // Hit end of parse_tail but still have data to read from this
-	        // SREC. Read the next 64 bytes from the EEPROM into parse_tail,
+	        // SREC. Read the next 64 bytes from the I2C EEPROM into parse_tail,
 	        // and continue writing the incoming SREC data into the
 	        // parse_tail starting at byte [0]. When the end of the SREC
-	        // data is reached write the parse_tail to the EEPROM.
+	        // data is reached write the parse_tail to the I2C EEPROM.
 	        
-	        // Point to next block in EEPROM
+	        // Point to next block in I2C EEPROM
 	        eeprom_address_index += 64;
 		
-                // Read the next existing EEPROM data into parse_tail
+                // Read the next existing I2C EEPROM data into parse_tail
 	        if (file_type == FILETYPE_PROGRAM) {
-                  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index);
+                  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, eeprom_address_index, 2);
 		}
 	        if (file_type == FILETYPE_STRING) {
-                  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index);
+                  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, eeprom_address_index, 2);
 		}
 		
 	        for (i=0; i<63; i++) {
@@ -5684,10 +6294,16 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // Abort parsing.
 	    // Enter a loop that will allow the Browser to finish sending
 	    // whatever it was sending.
+
 // UARTPrintf("Entered PARSE_FILE_FAIL file_length = ");
 // emb_itoa(file_length, OctetArray, 10, 6);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+UARTPrintf("PARSE_FILE_FAIL\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
 	    while (file_length > 0) {
 	      // Use the read_two_characters() function to deplete the incoming
 	      // packets. Once file_length reaches zero we've received all
@@ -5732,9 +6348,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       }
     
       if (pSocket->ParseState == PARSE_FILE_COMPLETE && file_type == FILETYPE_PROGRAM) {
-        // All data is now in Off-Board EEPROM0. Signal the main.c loop to
+        // All data is now in I2C EEPROM0. Signal the main.c loop to
 	// copy the data to Flash and display a Timer window to have the
 	// user wait until Flash programming completes and the module reboots.
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+UARTPrintf("Sending Copy EEPROM to Flash request\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
 	eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_REQUEST;
         pSocket->nParseLeft = 0;
 	
@@ -5749,7 +6370,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
       if (pSocket->ParseState == PARSE_FILE_COMPLETE && file_type == FILETYPE_STRING) {
-        // All data is now in Off-Board EEPROM2.
+        // All data is now in I2C EEPROM2.
 	// Display the Upload Complete GUI.
         pSocket->nDataLeft = 0;
         pSocket->nParseLeft = 0;
@@ -5891,7 +6512,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       
 #if OB_EEPROM_SUPPORT == 1
       // A similar adjustment is required for off_board_eeprom_index when
-      // the webpage is sourced from Off-Board EEPROM.
+      // the webpage is sourced from I2C EEPROM.
       off_board_eeprom_index -= pSocket->nPrevBytes;
 #endif // OB_EEPROM_SUPPORT == 1
       

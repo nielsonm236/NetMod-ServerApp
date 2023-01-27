@@ -2,7 +2,7 @@
  * GPIO source file
  */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -19,17 +19,17 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
- 
-#include <stdint.h>
-#include "iostm8s005.h"
-
-#include "gpio.h"
+// All includes are in main.h
 #include "main.h"
-#include "uipopt.h"
+ 
+// #include <stdint.h>
+// #include "iostm8s005.h"
+// #include "gpio.h"
+// #include "uipopt.h"
 
 extern uint8_t stored_magic4;		// MSB Magic Number stored in EEPROM
 extern uint8_t stored_magic3;		// 
@@ -37,6 +37,13 @@ extern uint8_t stored_magic2;		//
 extern uint8_t stored_magic1;		// LSB Magic Number
 extern uint8_t stored_pin_control[16];  // Per pin control settings stored in
                                         // EEPROM
+
+// io_map_offset defines the user selected IO pinout map.
+// io_map_offset = 0 for the first 16 io_map definitions
+// io_map_offset = 16 for the second 16 io_map definitions
+// io_map_offset = 32 for the third 16 io_map definitions
+// See the manual for explanation
+int8_t io_map_offset;
 
 
 // The following enum PORTS, struct io_registers, struct io_mapping, and
@@ -47,10 +54,11 @@ extern uint8_t stored_pin_control[16];  // Per pin control settings stored in
 // clever implementation.
 
 // Ccreate a variable with the structure of the port registers and define
-// its position on the memory location of the port registers. This way we
-// can manipulate this data as an array of ports.
+// its position on the memory location of the port registers (starting at
+// 0x5000). This way we can manipulate this data as an array of ports.
 volatile struct io_registers io_reg[ NUM_PORTS ] @0x5000; // Make room for PA .. PG starting at 0x5000
 
+#if PINOUT_OPTION_SUPPORT == 0
 // Define the pair PORT:BIT for each of the 16 I/Os
 const struct io_mapping io_map[16] = {
 	{ PA, 0x08 },    // PA bit3, IO1
@@ -70,11 +78,94 @@ const struct io_mapping io_map[16] = {
 	{ PG, 0x01 },    // PG bit0, IO15
 	{ PC, 0x40 }     // PC bit6, IO16
 };
+#endif // PINOUT_OPTION_SUPPORT == 0
+
+
+#if PINOUT_OPTION_SUPPORT == 1
+// Define the pair PORT:BIT for each of the 16 I/Os. Three sets of definition
+// are present placed in the table. Only one set is used at any given time as
+// selected by the user.
+const struct io_mapping io_map[48] = {
+        // The first 16 definitions are for IO locations that match the
+	// silksreen marking on the HW-582 board
+	// HW-584 silkscreen
+	// 5V 16 15 14 13 12 11 10 09 G
+	// 5V 08 07 06 05 04 03 02 01 G
+	// IO Locations
+	// 5V 16 15 14 13 12 11 10 09 G
+	// 5V 08 07 06 05 04 03 02 01 G	
+	{ PA, 0x08 },    // PA bit3, IO1
+	{ PA, 0x20 },    // PA bit5, IO2
+	{ PD, 0x40 },    // PD bit6, IO3
+	{ PD, 0x10 },    // PD bit4, IO4
+	{ PD, 0x04 },    // PD bit2, IO5
+	{ PE, 0x01 },    // PE bit0, IO6
+	{ PG, 0x02 },    // PG bit1, IO7
+	{ PC, 0x80 },    // PC bit7, IO8
+	{ PA, 0x10 },    // PA bit4, IO9
+	{ PD, 0x80 },    // PD bit7, IO10
+	{ PD, 0x20 },    // PD bit5, IO11
+	{ PD, 0x08 },    // PD bit3, IO12
+	{ PD, 0x01 },    // PD bit0, IO13
+	{ PE, 0x08 },    // PE bit3, IO14
+	{ PG, 0x01 },    // PG bit0, IO15
+	{ PC, 0x40 },    // PC bit6, IO16
+        // The second 16 definitions are for IO locations that match this
+	// table
+	// HW-584 silkscreen
+	// 5V 16 15 14 13 12 11 10 09 G
+	// 5V 08 07 06 05 04 03 02 01 G
+	// IO Locations
+	// 5V 02 04 06 08 10 12 14 16 G
+	// 5V 01 03 05 07 09 11 13 15 G
+	{ PC, 0x80 },    // PC bit7, IO01
+	{ PC, 0x40 },    // PC bit6, IO02
+	{ PG, 0x02 },    // PG bit1, IO03
+	{ PG, 0x01 },    // PG bit0, IO04
+	{ PE, 0x01 },    // PE bit0, IO05
+	{ PE, 0x08 },    // PE bit3, IO06
+	{ PD, 0x04 },    // PD bit2, IO07
+	{ PD, 0x01 },    // PD bit0, IO08
+	{ PD, 0x10 },    // PD bit4, IO09
+	{ PD, 0x08 },    // PD bit3, IO10
+	{ PD, 0x40 },    // PD bit6, IO11
+	{ PD, 0x20 },    // PD bit5, IO12
+	{ PA, 0x20 },    // PA bit5, IO13
+	{ PD, 0x80 },    // PD bit7, IO14
+	{ PA, 0x08 },    // PA bit3, IO15
+	{ PA, 0x10 },    // PA bit4, IO16
+        // The third 16 definitions are for IO locations that match this
+	// table
+	// HW-584 silkscreen
+	// 5V 16 15 14 13 12 11 10 09 G
+	// 5V 08 07 06 05 04 03 02 01 G
+	// IO Locations
+	// 5V 08 07 06 05 04 03 02 01 G
+	// 5V 16 15 14 13 12 11 10 09 G
+	{ PA, 0x10 },    // PA bit4, IO01
+	{ PD, 0x80 },    // PD bit7, IO02
+	{ PD, 0x20 },    // PD bit5, IO03
+	{ PD, 0x08 },    // PD bit3, IO04
+	{ PD, 0x01 },    // PD bit0, IO05
+	{ PE, 0x08 },    // PE bit3, IO06
+	{ PG, 0x01 },    // PG bit0, IO07
+	{ PC, 0x40 },    // PC bit6, IO08
+	{ PA, 0x08 },    // PA bit3, IO09
+	{ PA, 0x20 },    // PA bit5, IO10
+	{ PD, 0x40 },    // PD bit6, IO11
+	{ PD, 0x10 },    // PD bit4, IO12
+	{ PD, 0x04 },    // PD bit2, IO13
+	{ PE, 0x01 },    // PE bit0, IO14
+	{ PG, 0x02 },    // PG bit1, IO15
+	{ PC, 0x80 }     // PC bit7, IO16
+};
+#endif // PINOUT_OPTION_SUPPORT == 1
 
 
 void gpio_init(void)
 {
   uint8_t i;
+  uint8_t j;
 
   // GPIO Definitions for 16 outputs
   //
@@ -234,10 +325,16 @@ void gpio_init(void)
     if (chk_iotype(stored_pin_control[i], i, 0x03) == 0x03) {
 #endif // LINKED_SUPPORT == 1
       // set i/o port ddr register
-      // seting to 1 only the corresponding bit of
+      // setting to 1 only the corresponding bit of
       // the port associated to the current i/o
+#if PINOUT_OPTION_SUPPORT == 0
       io_reg[ io_map[i].port ].ddr |= io_map[i].bit;
-    }
+#endif // PINOUT_OPTION_SUPPORT == 0
+#if PINOUT_OPTION_SUPPORT == 1
+      j = (int8_t)(i + io_map_offset);
+      io_reg[ io_map[j].port ].ddr |= io_map[j].bit;
+#endif // PINOUT_OPTION_SUPPORT == 1
+   }
   }
 }
 

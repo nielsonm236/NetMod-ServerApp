@@ -23,7 +23,7 @@
  *
  */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -40,16 +40,17 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
-#include "Enc28j60.h"
-#include "iostm8s005.h"
-#include "stm8s-005.h"
-#include "uipopt.h"
-#include "timer.h"
+// All includes are in main.h
 #include "main.h"
-#include "uart.h"
+// #include "Enc28j60.h"
+// #include "iostm8s005.h"
+// #include "stm8s-005.h"
+// #include "uipopt.h"
+// #include "timer.h"
+// #include "uart.h"
 
 #if DEBUG_SUPPORT != 0
 // Variables used to store debug information
@@ -60,10 +61,8 @@ extern uint8_t RXERIF_counter;         // Counts RXERIF errors
 extern uint8_t TXERIF_counter;         // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;      // Counts any transmit
 extern uint8_t stored_config_settings; // Config settings stored in EEPROM
-extern uint8_t OctetArray[11];         // Used in emb_itoa conversions but
-                                       // also repurposed as a temporary
-				       // buffer for transferring data
-				       // between functions.
+extern uint8_t OctetArray[14];         // Used in emb_itoa conversions and to
+                                       // transfer short strings globally
 
 
 // SPI Opcodes
@@ -641,7 +640,7 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   if (Enc28j60ReadReg(BANKX_EIR) & 0x01) {
   
 #if DEBUG_SUPPORT != 11
-UARTPrintf("Enc28j60Receive OVERFLOW detected\r\n");
+// UARTPrintf("Enc28j60Receive OVERFLOW detected\r\n");
 #endif // DEBUG_SUPPORT != 11
 
     RXERIF_counter++;
@@ -687,7 +686,7 @@ UARTPrintf("Enc28j60Receive OVERFLOW detected\r\n");
   }
   else {
 #if DEBUG_SUPPORT != 11
-UARTPrintf("Enc28j60Receive MAXFRAME exceeded\r\n");
+// UARTPrintf("Enc28j60Receive MAXFRAME exceeded\r\n");
 #endif // DEBUG_SUPPORT != 11
   }
 
@@ -714,12 +713,12 @@ UARTPrintf("Enc28j60Receive MAXFRAME exceeded\r\n");
   Enc28j60SetMaskReg(BANKX_ECON2 , (1<<BANKX_ECON2_PKTDEC));
   
 #if DEBUG_SUPPORT != 11
-if (nBytes > (ENC28J60_MAXFRAME - 20)) {
-UARTPrintf("Enc28j60Received nBytes = ");
-emb_itoa(nBytes, OctetArray, 10, 3);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
-}
+// if (nBytes > (ENC28J60_MAXFRAME - 20)) {
+// UARTPrintf("Enc28j60Received nBytes = ");
+// emb_itoa(nBytes, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+// }
 #endif // DEBUG_SUPPORT != 11
 
   return nBytes;

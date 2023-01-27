@@ -23,7 +23,7 @@
  *
  */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -40,8 +40,9 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
+
 
 
 
@@ -55,6 +56,6 @@ void SpiWriteByte(uint8_t nByte);
 void SpiWriteChunk(const uint8_t* pChunk, uint16_t nBytes);
 uint8_t SpiReadByte(void);
 void SpiReadChunk(uint8_t* pChunk, uint16_t nBytes);
-// uint16_t SpiReadChunk(uint8_t* pChunk, uint16_t nBytes);
+void SPI_clock_pulse(void);
 
 #endif /*SPI_H_*/

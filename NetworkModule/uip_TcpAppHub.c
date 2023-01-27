@@ -23,7 +23,7 @@
  *
  */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -44,17 +44,18 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
-
-#include "uip_TcpAppHub.h"
-#include "uip.h"
+// All includes are in main.h
 #include "main.h"
-#include "mqtt.h"
-#include "uart.h"
-#include "uipopt.h"
+
+// #include "uip_TcpAppHub.h"
+// #include "uip.h"
+// #include "mqtt.h"
+// #include "uart.h"
+// #include "uipopt.h"
 
 extern uint16_t Port_Httpd;
 extern uint16_t Port_Mqttd;

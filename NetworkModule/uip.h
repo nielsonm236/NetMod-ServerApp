@@ -43,7 +43,7 @@
  *
  */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -64,7 +64,7 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
@@ -789,7 +789,7 @@ void uip_send(const char *data, int len);
  uint8_t octet;
 
  uip_ipaddr(&ipaddr, 1,2,3,4);
- octet = uip_ipaddr4(&ipaddr);
+ octet = &uip_ipaddr4(&ipaddr);
  \endcode
  *
  * In the example above, the variable "octet" will contain the value 4.

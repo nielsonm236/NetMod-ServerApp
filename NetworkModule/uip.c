@@ -50,7 +50,7 @@
  *
  */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -71,7 +71,7 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
@@ -101,20 +101,21 @@
  * the packet back to the peer.
  */
  
-
-#include "uip.h"
-#include "uipopt.h"
-#include "uip_arch.h"
+// All includes are in main.h
 #include "main.h"
-#include "uart.h"
 
-#include <string.h>
+// #include "uip.h"
+// #include "uipopt.h"
+// #include "uip_arch.h"
+// #include "uart.h"
+// #include <string.h>
 
 //---------------------------------------------------------------------------//
 /* Variable definitions. */
 
-extern uint8_t OctetArray[11]; // Used only in debug operations
-
+extern uint8_t OctetArray[14]; // Used in emb_itoa conversions and to
+                               // transfer short strings globally
+			       
 /* The IP address of this host */
 uip_ipaddr_t uip_hostaddr;
 /* The IP address of the default router (aka gateway) */

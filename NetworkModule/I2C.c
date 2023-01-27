@@ -22,22 +22,23 @@
  Copyright 2021 Michael Nielson
 */
 
-
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "iostm8s005.h"
-#include "stm8s-005.h"
-#include "I2C.h"
+// All includes are in main.h
 #include "main.h"
-#include "uip.h"
-#include "timer.h"
-#include "uart.h"
-#include "httpd.h"
-#include "uipopt.h"
 
-extern uint8_t OctetArray[11];
+// #include <stdint.h>
+// #include <stdlib.h>
+// #include <string.h>
+// #include "iostm8s005.h"
+// #include "stm8s-005.h"
+// #include "I2C.h"
+// #include "uip.h"
+// #include "timer.h"
+// #include "uart.h"
+// #include "httpd.h"
+// #include "uipopt.h"
+
+extern uint8_t OctetArray[14];  // Used in emb_itoa conversions and to
+                                // transfer short strings globally
 
 uint8_t I2C_failcode;
 char * flash_ptr;
@@ -125,9 +126,10 @@ void I2C_control(uint8_t control_byte)
 }
 
 
+/*
 void I2C_byte_address(uint16_t byte_address)
 {
-  // Send address to the Off-Board EEPROM where a byte read or write is to
+  // Send address to the I2C EEPROM where a byte read or write is to
   // occur, or a sequential read/write stream is to occur.
   
   // Output Byte Address bit 15 to 8
@@ -138,6 +140,36 @@ void I2C_byte_address(uint16_t byte_address)
   
   // Output Byte Address bit 7 to 0
   I2C_transmit_byte((uint8_t)(byte_address & 0x00ff));
+  
+  // Read NACK/ACK from slave
+  if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_BYTE_ADDRESS2;
+}
+*/
+
+void I2C_byte_address(uint16_t byte_address, uint8_t addr_size)
+{
+  // Send address to the I2C device where a byte read or write is to occur.
+  // The address can be 1 or 2 bytes as defined by addr_size.
+  //
+  // I2C EEPROM:
+  // Send address to the I2C EEPROM where a byte read or write is to
+  // occur, or a sequential read/write stream is to occur. For the I2C
+  // EEPROM addr_size is always 2.
+  //
+  // BME280:
+  // addr_size is always 1.
+
+  if (addr_size == 2) {
+    // Output Byte Address bit 15 to 8
+    I2C_transmit_byte((uint8_t)(byte_address >> 8));
+  
+    // Read NACK/ACK from slave
+    if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_BYTE_ADDRESS1;
+  }
+  
+  // Output Byte Address bit 7 to 0
+//  I2C_transmit_byte((uint8_t)(byte_address & 0x00ff));
+  I2C_transmit_byte((uint8_t)(byte_address));
   
   // Read NACK/ACK from slave
   if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_BYTE_ADDRESS2;
@@ -289,7 +321,11 @@ void eeprom_copy_to_flash(void)
   uint16_t eeprom_index;
   uint16_t blocks;
 
-  // This function will copy a Flash image from the Off-Board EEPROM to the
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("eeprom_copy_to_flash\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+  // This function will copy a Flash image from the I2C EEPROM to the
   // STM8 Flash.
   //
   // The following variables must be global and must be set prior to calling
@@ -297,24 +333,24 @@ void eeprom_copy_to_flash(void)
   //   *flash_ptr
   //   eeprom_base
   //
-  // In this application there are four image locations in the Off-Board
+  // In this application there are four image locations in the I2C
   // EEPROM:
-  //   1) EEPROM Region 0 (EEPROM0) of the Off-Board EEPROM contains an image
+  //   1) I2C EEPROM Region 0 (EEPROM0) of the I2C EEPROM contains an image
   //      of new Runtime code.
-  //   2) EEPROM Region 1 (EEPROM1) of the Off-Board EEPROM contans an image
+  //   2) I2C EEPROM Region 1 (EEPROM1) of the I2C EEPROM contans an image
   //      of the Code Uploader. The Code Uploader provides a GUI to allow the
   //      user to specify the file location of a new Runtime image.
-  //   3) EEPROM Region 2 (EEPROM2) of the Off-Board EEPROM contains an image
+  //   3) I2C EEPROM Region 2 (EEPROM2) of the I2C EEPROM contains an image
   //      of the large strings used for html population of the GUI.
-  //   4) EEPROM Region 3 (EEPROM3) - not currently used.
+  //   4) I2C EEPROM Region 3 (EEPROM3) - not currently used.
   //
-  // Copying data from the Off-Board EEPROM to Flash needs to be done using 128
+  // Copying data from the I2C EEPROM to Flash needs to be done using 128
   // byte block programming.
   //
-  // If we were to copy the entire Off-Board EEPROM to Flash the copy would be
+  // If we were to copy the entire I2C EEPROM to Flash the copy would be
   // 32768 bytes. 128 at a time would be 256 cycles. Each cycle takes about
-  // 12ms for the I2C writes to the EEPROM plus a 6ms wait cycle for the
-  // EEPROM internal program cycle. The time to complete the entire copy is
+  // 12ms for the I2C writes to the Flash plus a 6ms wait cycle for the
+  // Flash internal program cycle. The time to complete the entire copy is
   // about 256 x (12ms + 6ms) = 4.6 sec.
   //
   // I have to assume that the Stack is still functional when this code runs,
@@ -333,11 +369,11 @@ void eeprom_copy_to_flash(void)
   // supply. The memcpy_update segment is currently about 40 bytes.
   //
   // In these functions the uip_buf is repurposed as the buffer to enable
-  // copies from Off-Board EEPROM to Flash. Because the I2C IO functions are
-  // needed to perform reads from Off-Board EEPROM the EEPROM content is first
+  // copies from I2C EEPROM to Flash. Because the I2C IO functions are
+  // needed to perform reads from I2C EEPROM the I2C EEPROM content is first
   // copied to RAM then copied to Flash. And because we can't overwrite the
   // I2C functions in Flash until we are done using them, the final copy from
-  // Off-Board EEPROM to RAM to Flash must contain the entire flash_update
+  // I2C EEPROM to RAM to Flash must contain the entire flash_update
   // segment and must fit safely in RAM. Since we must always copy 128 byte
   // blocks the flash_update segment copy requires 4 blocks, or 512 bytes,
   // which is larger than the size of the uip_buf. So, the data will over-run
@@ -383,14 +419,14 @@ void eeprom_copy_to_flash(void)
     // Note: This routine is only run to replace the code in Flash.
     
     ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
-    // Enable sequential read from the Off-Board EEPROM.
+    // Enable sequential read from the I2C  EEPROM.
     // Read addressing sequence: Send Write Control byte, send Byte address,
     // send Read Control Byte
-    I2C_control(eeprom_num_write);  // Write control byte to establish address
-    I2C_byte_address(eeprom_index); // Byte address of first byte
-    I2C_control(eeprom_num_read);   // Read control byte
+    I2C_control(eeprom_num_write);     // Write control byte to establish address
+    I2C_byte_address(eeprom_index, 2); // Byte address of first byte
+    I2C_control(eeprom_num_read);      // Read control byte
     
-    // Copy 128 bytes from Off-Board EEPROM to RAM
+    // Copy 128 bytes from I2C EEPROM to RAM
     {
       uint8_t i;
       for (i=0; i<127; i++) {
@@ -431,12 +467,12 @@ void eeprom_copy_to_flash(void)
   // STM8.
   ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
   
-  // Enable sequential read from the Off-Board EEPROM.
+  // Enable sequential read from the I2C EEPROM.
   // Read addressing sequence: Send Write Control byte, send Byte address,
   // send Read Control Byte
-  I2C_control(eeprom_num_write);  // Write control byte to establish address
-  I2C_byte_address(eeprom_index); // Byte address of first byte
-  I2C_control(eeprom_num_read);   // Read control byte
+  I2C_control(eeprom_num_write);     // Write control byte to establish address
+  I2C_byte_address(eeprom_index, 2); // Byte address of first byte
+  I2C_control(eeprom_num_read);      // Read control byte
   
   {
     uint16_t j;

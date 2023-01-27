@@ -23,7 +23,7 @@
  *
  */
 
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -40,18 +40,19 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
-
-#include "Spi.h"
-#include "timer.h"
-#include "iostm8s005.h"
-#include "stm8s-005.h"
-#include "uip.h"
-#include "uipopt.h"
+// All includes are in main.h
 #include "main.h"
+
+// #include "Spi.h"
+// #include "timer.h"
+// #include "iostm8s005.h"
+// #include "stm8s-005.h"
+// #include "uip.h"
+// #include "uipopt.h"
 
 void spi_init(void)
 {
@@ -111,10 +112,11 @@ void SpiWriteByte(uint8_t nByte)
                                                  // SPI SO (ENC28J60 SI) high
     else PC_ODR &= (uint8_t)(~0x08);             // else SPI SO low
     
-    nop();
-    PC_ODR |= (uint8_t)0x04;                     // SCK high
-    nop();
-    PC_ODR &= (uint8_t)(~0x04);                  // SCK low
+//    nop();
+//    PC_ODR |= (uint8_t)0x04;                     // SCK high
+//    nop();
+//    PC_ODR &= (uint8_t)(~0x04);                  // SCK low
+    SPI_clock_pulse();
 
     bitnum = (uint8_t)(bitnum >> 1);             // Shift bitnum right one place
                                                  // Once bitnum has shifted to equal 0
@@ -138,10 +140,11 @@ void SpiWriteChunk(const uint8_t* pChunk, uint16_t nBytes)
                                                      // SPI SO (ENC28J60 SI) high
       else PC_ODR &= (uint8_t)(~0x08);               // else SPI SO low
     
-      nop();
-      PC_ODR |= (uint8_t)0x04;                       // SCK high
-      nop();
-      PC_ODR &= (uint8_t)(~0x04);                    // SCK low
+//      nop();
+//      PC_ODR |= (uint8_t)0x04;                       // SCK high
+//      nop();
+//      PC_ODR &= (uint8_t)(~0x04);                    // SCK low
+      SPI_clock_pulse();
 
       bitnum = (uint8_t)(bitnum >> 1);               // Shift bitnum right one place
                                                      // Once bitnum has shifted to equal 0
@@ -166,9 +169,10 @@ uint8_t SpiReadByte(void)
     if (PC_IDR & (uint8_t)0x10) InByte |= bitnum; // SPI incoming bit = 1
     else InByte &= (uint8_t)(~bitnum);            // SPI incoming bit = 0
     
-    PC_ODR |= (uint8_t)0x04;                      // SCK high
-    nop();
-    PC_ODR &= (uint8_t)(~0x04);                   // SCK low
+//    PC_ODR |= (uint8_t)0x04;                      // SCK high
+//    nop();
+//    PC_ODR &= (uint8_t)(~0x04);                   // SCK low
+    SPI_clock_pulse();
 
     bitnum = (uint8_t)(bitnum >> 1);              // Shift bitnum right one place
                                                   // Once bitnum has shifted to equal 0
@@ -199,10 +203,11 @@ void SpiReadChunk(uint8_t* pChunk, uint16_t nBytes)
       if (PC_IDR & (uint8_t)0x10) InByte |= bitnum;  // SPI incoming bit = 1
       else InByte &= (uint8_t)(~bitnum);             // SPI incoming bit = 0
     
-      PC_ODR |= (uint8_t)0x04;                       // SCK high
-      nop();
-      PC_ODR &= (uint8_t)(~0x04);                    // SCK low
-
+//      PC_ODR |= (uint8_t)0x04;                       // SCK high
+//      nop();
+//      PC_ODR &= (uint8_t)(~0x04);                    // SCK low
+      SPI_clock_pulse();
+      
       bitnum = (uint8_t)(bitnum >> 1);               // Shift bitnum right one place
                                                      // Once bitnum has shifted to equal 0
 						     // we know all 8 bits have been collected
@@ -211,3 +216,10 @@ void SpiReadChunk(uint8_t* pChunk, uint16_t nBytes)
   }
 }
 
+void SPI_clock_pulse(void)
+{
+  nop();
+  PC_ODR |= (uint8_t)0x04;         // SCK high
+  nop();
+  PC_ODR &= (uint8_t)(~0x04);      // SCK low
+}

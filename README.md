@@ -12,25 +12,28 @@ See the Wiki for links to the Youtube videos on how to install and operate the f
 Contact: You can reach me at nielsonm.projects@gmail.com. But questions can also be asked via the Issues section. Sometimes others have the same questions and Q&A in the Issues section might help them out.
 
 Feature Comparison of the MQTT and Browser builds:
-|Feature                      | MQTT  | Browser |    MQTT     | Browser Only |
-|:----------------------------|:-----:|:-------:|:-----------:|:------------:|
-|                             | Build |  Only   | Upgradeable |  Upgradeable |
-|                             |       | Build   |    Build    |     Build    |
-|MQTT Support                 |   x   |         |      x      |              |
-|Home Assistant Support       |   x   |         |      x      |              |
-|Browser IO Control           |   x   |    x    |      x      |       x      |
-|Browser Configuration        |   x   |    x    |      x      |       x      |
-|Full/Half Duplex             |   x   |    x    |      x      |       x      |
-|Link Error Statistics        |   x   |    x    |      x      |       x      |
-|DS18B20 Temp Sensor          |   x   |    x    |      x      |       x      |
-|IO Naming                    |       |    x    |             |       x      |
-|IO Timers                    |       |    x    |             |       x      |
-|Network Statistics           |       |    x    |             |       x      |
-|I2C Support                  |       |         |      x      |       x      |
-|Upgradeable over Ethernet  * |       |         |      x      |       x      |
+|Feature                      | MQTT  | Browser |    MQTT     | Browser Only |   MQTT w/   |
+|                             |       |         |             |              |   BME280    |
+|:----------------------------|:-----:|:-------:|:-----------:|:------------:|:---------=-:|
+|                             | Build |  Only   | Upgradeable |  Upgradeable | Upgradeable |
+|                             |       | Build   |    Build    |     Build    |    Build    |
+|MQTT Support                 |   x   |         |      x      |              |      x      |
+|Home Assistant Support       |   x   |         |      x      |              |      x      |
+|Browser IO Control           |   x   |    x    |      x      |       x      |      x      |
+|Browser Configuration        |   x   |    x    |      x      |       x      |      x      |
+|Full/Half Duplex             |   x   |    x    |      x      |       x      |      x      |
+|Link Error Statistics        |   x   |    x    |      x      |       x      |             |
+|DS18B20 Temp Sensor          |   x   |    x    |      x      |       x      |             |
+|IO Naming                    |       |    x    |             |       x      |             |
+|IO Timers                    |       |    x    |             |       x      |             |
+|Network Statistics           |       |    x    |             |       x      |             |
+|I2C Support                  |       |         |      x      |       x      |      x      |
+|Upgradeable over Ethernet  * |       |         |      x      |       x      |      x      |
 * "Upgradeable over Ethernet" requires additonal hardware - see Manual
 
 Short summary of recent history:
+
+January 25, 2023 - Addressed Issue #132 “Linked pins Output states not correct after reboot” and Issue #93 “Add BME280 Temperature Humidity Pressure sensor”
 
 December 17, 2022 - Addressed Issues #113 and #118 both related to Home Assistant Header Toggle, deprecated DS18B20 "hot add", addressed Issue #116 “Link Input pin to an Output pin”, addressed Issue #112 “Request to change output pins in “batch mode””, addressed Issue #126 “Malformed REST commands produce garbage Browser page”, addressed Issue #123 “Allow short press of Reset button to reboot the module", fixed several minor bugs.
 

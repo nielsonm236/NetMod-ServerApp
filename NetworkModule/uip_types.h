@@ -1,4 +1,4 @@
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -15,8 +15,9 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
+
 
 
 
@@ -31,13 +32,13 @@
  * 8 bit datatype
  * This typedef defines the 8-bit type used throughout uIP.
  */
-typedef uint8_t u8_t;
+// typedef uint8_t u8_t;
 
 /**
  * 16 bit datatype
  * This typedef defines the 16-bit type used throughout uIP.
  */
-typedef uint16_t u16_t;
+// typedef uint16_t u16_t;
 
 /**
  * Statistics datatype

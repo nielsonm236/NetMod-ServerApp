@@ -22,7 +22,7 @@
  *
  */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -39,8 +39,9 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
+
 
 #include <stdint.h>
 
@@ -117,6 +118,8 @@ void httpd_diagnostic(void);
 
 void HttpDStringInit(void);
 void init_off_board_string_pointers(struct tHttpD* pSocket);
+uint16_t read_two_bytes(void);
+void read_eight_bytes(void);
 uint16_t adjust_template_size(struct tHttpD* pSocket);
 
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen);
@@ -125,13 +128,17 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 			     uint16_t* pDataLeft,
 			     uint16_t nMaxBytes,
 			     struct tHttpD* pSocket);
+void create_sensor_ID(int8_t sensor);
 char *show_temperature_string(char * pBuffer, uint8_t nParsedNum);
+char *show_BME280_PTH_string(char *pBuffer);
+char *show_space_or_minus(int32_t value, char *pBuffer);
 
 void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad);
 int hex2int(char ch);
 uint8_t two_hex2int(char chmsb, char chlsb);
 uint8_t int2nibble(uint8_t j);
 void int2hex(uint8_t i);
+void int16to4hex(uint16_t i);
 
 void HttpDInit(void);
 // void init_tHttpD_struct(struct tHttpD* pSocket);

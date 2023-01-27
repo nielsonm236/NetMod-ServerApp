@@ -50,7 +50,7 @@
  *
  */
  
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -71,16 +71,16 @@
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
-
-
-#include "uip_arp.h"
+// All includes are in main.h
 #include "main.h"
 
-#include <string.h>
+// #include "uip_arp.h"
+// #include <string.h>
+
 
 struct arp_hdr {
   struct uip_eth_hdr ethhdr;

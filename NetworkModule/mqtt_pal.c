@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-/* Modifications 2020 Michael Nielson
+/* Modifications 2020-2022 Michael Nielson
  * Adapted for STM8S005 processor, ENC28J60 Ethernet Controller,
  * Web_Relay_Con V2.0 HW-584, and compilation with Cosmic tool set.
  * Author: Michael Nielson
@@ -39,21 +39,24 @@ SOFTWARE.
 
  See GNU General Public License at <http://www.gnu.org/licenses/>.
  
- Copyright 2020 Michael Nielson
+ Copyright 2022 Michael Nielson
 */
 
 
-#include <mqtt.h>
-#include <uip.h>
-#include <uip_arp.h>
+// All includes are in main.h
 #include "main.h"
-#include "uart.h"
+
+// #include <mqtt.h>
+// #include <uip.h>
+// #include <uip_arp.h>
+// #include "uart.h"
 
 extern uint16_t uip_slen;                 // Send Length for packets
 extern const char code_revision[];        // Code Revision
 extern uint8_t stored_devicename[20];     // Device name stored in EEPROM
 extern char mac_string[13];               // MAC formatted as string
-extern uint8_t OctetArray[11];            // Used in emb_itoa conversions
+extern uint8_t OctetArray[14];            // Used in emb_itoa conversions and
+                                          // to transfer short strings globally
 
 char *stpcpy(char * dest, char * src)
 {
@@ -323,9 +326,9 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
       memcpy(&payload_buf[0], mBuffer, 14);
       
       // Place a NULL terminator in payload_buf to creat the Pin Number /
-      // Temperature Sensor ID string.
-      // If a Temperature Sensor ID, terminate at payload_buf[14]
-      if (payload_buf[1] == 'T') payload_buf[14] = '\0';
+      // Sensor ID string.
+      // If a Sensor ID, terminate at payload_buf[14]
+      if (payload_buf[1] == 'T' || payload_buf[1] == 'P' || payload_buf[1] == 'H') payload_buf[14] = '\0';
       // If an Output or Input pin number, terminate at payload_buf[4]
       else payload_buf[4] = '\0';
 
@@ -333,7 +336,8 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // Found a marker - replace the existing payload with an auto
 	// discovery message.
 	auto_found = 1;
-        // Set pointer to uip_appdata
+        // Set pointer to uip_appdata, which is the position in the uip_buf
+	// where transmit data is to be placed.
         pBuffer = uip_appdata;
         // Copy the Fixed Header Byte 1 to the uip_buf
         *pBuffer++ = template_buf[0];
@@ -353,10 +357,25 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         }
 	
         if (payload_buf[1] == 'T') {
-          // This is a Temperature Sensor auto discovery message
+          // This is a DS18B20 or BME280 Temperature Sensor auto discovery
+	  // message
           payload_size = 332; // Manually calculated payload size without
 	                      // devicename
         }
+
+#if BME280_SUPPORT == 1
+        if (payload_buf[1] == 'P') {
+          // This is a BME280 Pressure Sensor auto discovery message
+          payload_size = 329; // Manually calculated payload size without
+	                      // devicename
+        }
+	
+        if (payload_buf[1] == 'H') {
+          // This is a BME280 Humidity Sensor auto discovery message
+          payload_size = 324; // Manually calculated payload size without
+	                      // devicename
+        }
+#endif // bme280_SUPPORT == 1
 	
 	// Add device name size to payload size
         payload_size += (3 * (uint8_t)strlen(stored_devicename));
@@ -388,7 +407,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	//   the payload_size
 	//   plus the old remaining length (in template_buf[1])
 	//   less four to account for removal of the 4 byte temporary payload
-	// For payload_buf[1] == T the new remaining length is:
+	// For payload_buf[1] == T or P or H the new remaining length is:
 	//   the payload_size
 	//   plus the old remaining length
 	//   less fourteen to account for removal of the 14 byte temporary
@@ -399,7 +418,9 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// the size of the Variable Header and gets added to the payload size
 	// variable.
         payload_size = payload_size + template_buf[1] - 4;
-	if (payload_buf[1] == 'T') payload_size -= 10;
+	if ((payload_buf[1] == 'T')
+	 || (payload_buf[1] == 'P')
+	 || (payload_buf[1] == 'H')) payload_size -= 10;
 	
 	// Note: The value "len" remains unchanged. It is the length of the
 	// "app_message" provided to this function, even if we are creating a
@@ -457,6 +478,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// the payload it is copied to the uip_buf.
         //
         // output payload
+	// In the following "aabbccddeeff" is the Network Module MAC
         // {                                                // 1
         // "uniq_id":"aabbccddeeff_output_01",              // 35
         // "name":"devicename123456789 output 01",          // 20 (without devicename)
@@ -475,6 +497,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         //                                                  // Total: 264 plus 3 x devicename
         //
         // input payload
+	// In the following "aabbccddeeff" is the Network Module MAC
         // {                                                // 1
         // "uniq_id":"aabbccddeeff_input_01",               // 34
         // "name":"devicename123456789 input 01",           // 19 (without devicename)
@@ -491,11 +514,11 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         // }                                                // 1
         //                                                  // Total: 235 plus 3 x devicename
         //
-	// temperature sensor payload
+	// DS18B20 temperature sensor payload
+	// In the following "aabbccddeeff" is the Network Module MAC
+	// In the following "xxxxxxxxxxxx" is the DS18B20 MAC
 	// {                                                // 1
 	// "uniq_id":"aabbccddeeff_temp_xxxxxxxxxxxx",      // 43
-	// 00000000011111111112222222222333333333344444444445
-	// 12345678901234567890123456789012345678901234567890
 	// "name":"devicename123456789 temp xxxxxxxxxxxx",  // 28 (without devicename)
 	// "~":"NetworkModule/devicename123456789",         // 21 (without devicename)
 	// "avty_t":"~/availability",                       // 26
@@ -512,7 +535,84 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	// }                                                // 1
 	// }                                                // 1
         //                                                  // Total: 332 plus 3 x devicename
+        //
+	// BME280 temperature sensor payload
+	// In the following "aabbccddeeff" is the Network Module MAC
+	// In the following "BME280-0xxxx" is the temperature sensor ID where
+	// "xxxx" is the lower 4 characters of the module IP address in hex.
+	// For example 192.168.1.182 is c0.a8.01.b6 in hex, so the ID is
+	// BME280-001b6
+	// {                                                // 1
+	// "uniq_id":"aabbccddeeff_temp_BME280-0xxxx",      // 43
+	// "name":"devicename123456789 temp BME280-0xxxx",  // 28 (without devicename)
+	// "~":"NetworkModule/devicename123456789",         // 21 (without devicename)
+	// "avty_t":"~/availability",                       // 26
+	// "stat_t":"~/temp/BME280-0xxxx",                  // 31
+        // "unit_of_meas":"\xc2\xb0\x43",                   // 21
+	// "dev_cla":"temperature",                         // 24
+	// "stat_cla":"measurement",                        // 25
+	// "dev":{                                          // 7
+	// "ids":["NetworkModule_aabbccddeeff"],            // 37
+	// "mdl":"HW-584",                                  // 15
+	// "mf":"NetworkModule",                            // 21
+	// "name":"devicename123456789",                    // 10 (without devicename)
+	// "sw":"20210204 0311"                             // 20
+	// }                                                // 1
+	// }                                                // 1
+        //                                                  // Total: 332 plus 3 x devicename
+        //
+	// BME280 pressure sensor payload
+	// In the following "aabbccddeeff" is the Network Module MAC
+	// In the following "BME280-1xxxx" is the temperature sensor ID where
+	// "xxxx" is the lower 4 characters of the module IP address in hex.
+	// For example 192.168.1.182 is c0.a8.01.b6 in hex, so the ID is
+	// BME280-101b6
+	// {                                                // 1
+	// "uniq_id":"aabbccddeeff_pres_BME280-1xxxx",      // 43
+	// "name":"devicename123456789 pres BME280-1xxxx",  // 28 (without devicename)
+	// "~":"NetworkModule/devicename123456789",         // 21 (without devicename)
+	// "avty_t":"~/availability",                       // 26
+	// "stat_t":"~/pres/BME280-1xxxx",                  // 31
+        // "unit_of_meas":"hPa",                            // 21
+	// "dev_cla":"pressure",                            // 21
+	// "stat_cla":"measurement",                        // 25
+	// "dev":{                                          // 7
+	// "ids":["NetworkModule_aabbccddeeff"],            // 37
+	// "mdl":"HW-584",                                  // 15
+	// "mf":"NetworkModule",                            // 21
+	// "name":"devicename123456789",                    // 10 (without devicename)
+	// "sw":"20210204 0311"                             // 20
+	// }                                                // 1
+	// }                                                // 1
+        //                                                  // Total: 329 plus 3 x devicename
+        //
+	// BME280 humidity sensor payload
+	// In the following "aabbccddeeff" is the Network Module MAC
+	// In the following "BME280-2xxxx" is the temperature sensor ID where
+	// "xxxx" is the lower 4 characters of the module IP address in hex.
+	// For example 192.168.1.182 is c0.a8.01.b6 in hex, so the ID is
+	// BME280-201b6
+	// {                                                // 1
+	// "uniq_id":"aabbccddeeff_hum_BME280-2xxxx",       // 42
+	// "name":"devicename123456789 hum BME280-2xxxx",   // 27 (without devicename)
+	// "~":"NetworkModule/devicename123456789",         // 21 (without devicename)
+	// "avty_t":"~/availability",                       // 26
+	// "stat_t":"~/hum/BME280-2xxxx",                   // 30
+        // "unit_of_meas":"%",                              // 19
+	// "dev_cla":"humidity",                            // 21
+	// "stat_cla":"measurement",                        // 25
+	// "dev":{                                          // 7
+	// "ids":["NetworkModule_aabbccddeeff"],            // 37
+	// "mdl":"HW-584",                                  // 15
+	// "mf":"NetworkModule",                            // 21
+	// "name":"devicename123456789",                    // 10 (without devicename)
+	// "sw":"20210204 0311"                             // 20
+	// }                                                // 1
+	// }                                                // 1
+        //                                                  // Total: 324 plus 3 x devicename
 
+	// 00000000011111111112222222222333333333344444444445
+	// 12345678901234567890123456789012345678901234567890
 
 
         // "stpcpy()" is used to efficiently copy data to the uip_buf
@@ -520,14 +620,16 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
         pBuffer = stpcpy(pBuffer, "{\"uniq_id\":\"");
 
         pBuffer = stpcpy(pBuffer, mac_string);
-   
+
 	switch(payload_buf[1]) {
 	  case 'O': pBuffer = stpcpy(pBuffer, "_output_"); break;
 	  case 'I': pBuffer = stpcpy(pBuffer, "_input_"); break;
 	  case 'T': pBuffer = stpcpy(pBuffer, "_temp_"); break;
+	  case 'P': pBuffer = stpcpy(pBuffer, "_pres_"); break;
+	  case 'H': pBuffer = stpcpy(pBuffer, "_hum_"); break;
 	}
 	
-        // Copy the IO pin number or Temperature Sensor ID to the pBuffer.
+        // Copy the IO pin number or Sensor ID to the pBuffer.
 	pBuffer = stpcpy(pBuffer, &payload_buf[2]);
 	
         pBuffer = stpcpy(pBuffer, "\",\"name\":\"");
@@ -538,9 +640,11 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	  case 'O': pBuffer = stpcpy(pBuffer, " output "); break;
 	  case 'I': pBuffer = stpcpy(pBuffer, " input "); break;
 	  case 'T': pBuffer = stpcpy(pBuffer, " temp "); break;
+	  case 'P': pBuffer = stpcpy(pBuffer, " pres "); break;
+	  case 'H': pBuffer = stpcpy(pBuffer, " hum "); break;
 	}
 
-        // Copy the IO pin number or Temperature Sensor ID to the pBuffer.
+        // Copy the IO pin number or Sensor ID to the pBuffer.
 	pBuffer = stpcpy(pBuffer, &payload_buf[2]);
     
         pBuffer = stpcpy(pBuffer, "\",\"~\":\"NetworkModule/");
@@ -553,9 +657,11 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
 	  case 'O': pBuffer = stpcpy(pBuffer, "output/"); break;
 	  case 'I': pBuffer = stpcpy(pBuffer, "input/"); break;
 	  case 'T': pBuffer = stpcpy(pBuffer, "temp/"); break;
+	  case 'P': pBuffer = stpcpy(pBuffer, "pres/"); break;
+	  case 'H': pBuffer = stpcpy(pBuffer, "hum/"); break;
 	}
 	
-        // Copy the IO pin number or Temperature Sensor ID to the pBuffer.
+        // Copy the IO pin number or Sensor ID to the pBuffer.
 	pBuffer = stpcpy(pBuffer, &payload_buf[2]);
 	
         pBuffer = stpcpy(pBuffer, "\",");
@@ -571,17 +677,33 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
           pBuffer = stpcpy(pBuffer, "/set\",");
         }
 
-        // Special case for temperature pin
+        // Special case for temperature sensor
         if (payload_buf[1] == 'T') {
           pBuffer = stpcpy(pBuffer, "\"unit_of_meas\":\"\xc2\xb0\x43\",");
 	  pBuffer = stpcpy(pBuffer, "\"dev_cla\":\"temperature\",");
-	  pBuffer = stpcpy(pBuffer, "\"stat_cla\":\"measurement\",");
 	}
 	
+        // Special case for pressure sensor
+        if (payload_buf[1] == 'P') {
+          pBuffer = stpcpy(pBuffer, "\"unit_of_meas\":\"hPa\",");
+	  pBuffer = stpcpy(pBuffer, "\"dev_cla\":\"pressure\",");
+	}
+	
+        // Special case for humidity sensor
+        if (payload_buf[1] == 'H') {
+          pBuffer = stpcpy(pBuffer, "\"unit_of_meas\":\"%\",");
+	  pBuffer = stpcpy(pBuffer, "\"dev_cla\":\"humidity\",");
+	}
+	
+	// Special case for temperature, pressure, humidity sensors
+	if ((payload_buf[1] == 'T') || (payload_buf[1] == 'P') || (payload_buf[1] == 'H')) {
+	  pBuffer = stpcpy(pBuffer, "\"stat_cla\":\"measurement\",");
+	}
+        
         pBuffer = stpcpy(pBuffer, "\"dev\":{\"ids\":[\"NetworkModule_");
         
         pBuffer = stpcpy(pBuffer, mac_string);
-
+        
         pBuffer = stpcpy(pBuffer, "\"],\"mdl\":\"HW-584\",\"mf\":\"NetworkModule\",\"name\":\"");
         
         pBuffer = stpcpy(pBuffer, stored_devicename);
@@ -602,10 +724,36 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
     uip_slen = len;
   }
 
+/*
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// KEEP THIS DEBUG CODE AS IT WILL LIKELY BE NEEDED IN THE FUTURE
+// Debug to print to the UART the MQTT packet contained in the uip_buf
+// Non-printable bytes are replaced with "-"
+// The output can be over 300 bytes per packet
+pBuffer = uip_appdata;
+OctetArray[1] = '\0';
+for (i = 0; i < uip_slen; i++) {
+  OctetArray[0] = pBuffer[0];
+//  if (isalnum(OctetArray[0])) {
+  if (OctetArray[0] >= 32 && OctetArray[0] <=127) {
+    UARTPrintf(OctetArray);
+  }
+  else UARTPrintf("-");
+  pBuffer++;
+  IWDG_KR = 0xaa;   // Prevent the IWDG hardware watchdog from firing.
+}
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+*/
+
   // Regardless of whether this was an Auto Discovery packet or not the MQTT
   // code needs to be told that the entire packet it provided to this function
-  // was "consumed". This function always returns the len value that was
-  // provided to it in the function call.
+  // was "consumed". This function always returns the oritinal len value that
+  // was provided to it in the function call. That's what the MQTT code thinks
+  // was the packet length even though placeholders may have been replaced
+  // resulting in a much larger packet in the uip_buf for transmission.
+  // If a larger packet was the result uip_slen will contain the actual length
+  // of the packet for transmission.
   
   return len; // This return value is only for the MQTT buffer mgmt code. The
               // UIP code uses the uip_slen value.

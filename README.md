@@ -12,6 +12,7 @@ See the Wiki for links to the Youtube videos on how to install and operate the f
 Contact: You can reach me at nielsonm.projects@gmail.com. But questions can also be asked via the Issues section. Sometimes others have the same questions and Q&A in the Issues section might help them out.
 
 Feature Comparison of the MQTT and Browser builds:
+
 |Feature                      | MQTT  | Browser |    MQTT     | Browser Only |   MQTT w/   |
 |                             |       |         |             |              |   BME280    |
 |:----------------------------|:-----:|:-------:|:-----------:|:------------:|:-----------:|

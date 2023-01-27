@@ -13,9 +13,9 @@ Contact: You can reach me at nielsonm.projects@gmail.com. But questions can also
 
 Feature Comparison of the MQTT and Browser builds:
 
+|:----------------------------|:-----:|:-------:|:-----------:|:------------:|:-----------:|
 |Feature                      | MQTT  | Browser |    MQTT     | Browser Only |   MQTT w/   |
 |                             |       |         |             |              |   BME280    |
-|:----------------------------|:-----:|:-------:|:-----------:|:------------:|:-----------:|
 |                             | Build |  Only   | Upgradeable |  Upgradeable | Upgradeable |
 |                             |       | Build   |    Build    |     Build    |    Build    |
 |MQTT Support                 |   x   |         |      x      |              |      x      |

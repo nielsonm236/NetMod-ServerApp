@@ -212,10 +212,13 @@ uint8_t search_limit;         // Used to limit the time spent searching for
 #define MQTT_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION		0x0042
 #define BROWSER_ONLY_WEBPAGE_IOCONTROL_ADDRESS_LOCATION		0x0044
 #define BROWSER_ONLY_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION	0x0046
+#define WEBPAGE_LOADUPLOADER_ADDRESS_LOCATION			0x0048
+
 #define MQTT_WEBPAGE_IOCONTROL_SIZE_LOCATION			0x0080
 #define MQTT_WEBPAGE_CONFIGURATION_SIZE_LOCATION		0x0082
 #define BROWSER_ONLY_WEBPAGE_IOCONTROL_SIZE_LOCATION		0x0084
 #define BROWSER_ONLY_WEBPAGE_CONFIGURATION_SIZE_LOCATION	0x0086
+#define WEBPAGE_LOADUPLOADER_SIZE_LOCATION			0x0088
 
 
 uint8_t eeprom_copy_to_flash_request;
@@ -262,6 +265,7 @@ uint8_t z_diag;               // The last value in a POST (hidden), used for
                               // diagnostics
 uint16_t HtmlPageIOControl_size;     // Size of the IOControl template
 uint16_t HtmlPageConfiguration_size; // Size of the Configuration template
+uint16_t HtmlPageLoadUploader_size;  // Size of the Load Uploader template
 
 
 // These MQTT variables must always be compiled in the MQTT_BUILD and
@@ -468,7 +472,11 @@ extern uint16_t Pending_IO_TIMER[16];
 //
 #define WEBPAGE_IOCONTROL		1
 #define PARSEBYTES_IOCONTROL		42
-// Next line is a dummy define used only by the strings pre-processor.
+// The next #define is used only by the "prepsx" program (a strings pre-
+// processor). The #define is used by the prepsx program as a keyword for
+// locating the webpage text constained in the statie const below. The prepsx
+// program places these strings in an SREC (.sx) file which will be used by
+// the Code Uploader to copy the strings into the I2C EEPROM.
 #define MQTT_WEBPAGE_IOCONTROL_BEGIN    90
 #if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageIOControl[] =
@@ -678,7 +686,11 @@ const m = (data => {
 //
 #define WEBPAGE_CONFIGURATION		2
 #define PARSEBYTES_CONFIGURATION	194
-// Next line is dummy define used only by the strings pre-processor.
+// The next #define is used only by the "prepsx" program (a strings pre-
+// processor). The #define is used by the prepsx program as a keyword for
+// locating the webpage text constained in the statie const below. The prepsx
+// program places these strings in an SREC (.sx) file which will be used by
+// the Code Uploader to copy the strings into the I2C EEPROM.
 #define MQTT_WEBPAGE_CONFIGURATION_BEGIN	91
 #if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageConfiguration[] =
@@ -980,7 +992,11 @@ const m = (data => {
 //
 #define WEBPAGE_IOCONTROL		1
 #define PARSEBYTES_IOCONTROL		42
-// Next line is dummy define used only by the strings pre-processor.
+// The next #define is used only by the "prepsx" program (a strings pre-
+// processor). The #define is used by the prepsx program as a keyword for
+// locating the webpage text constained in the statie const below. The prepsx
+// program places these strings in an SREC (.sx) file which will be used by
+// the Code Uploader to copy the strings into the I2C EEPROM.
 #define BROWSER_ONLY_WEBPAGE_IOCONTROL_BEGIN	92
 #if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageIOControl[] =
@@ -1222,7 +1238,11 @@ const m = (data => {
 //
 #define WEBPAGE_CONFIGURATION		2
 #define PARSEBYTES_CONFIGURATION	602
-// Next line is dummy define used only by the strings pre-processor.
+// The next #define is used only by the "prepsx" program (a strings pre-
+// processor). The #define is used by the prepsx program as a keyword for
+// locating the webpage text constained in the statie const below. The prepsx
+// program places these strings in an SREC (.sx) file which will be used by
+// the Code Uploader to copy the strings into the I2C EEPROM.
 #define BROWSER_ONLY_WEBPAGE_CONFIGURATION_BEGIN	93
 #if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageConfiguration[] =
@@ -1615,6 +1635,72 @@ static const char g_HtmlPageSstate[] =
   "%f00";
 
 
+
+
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// Read the comments below for an explanation for having
+//   #define WEBPAGE_LOADUPLOADER		12
+// but the HTML string that follows is commented out.
+// KEEP THIS ENTIRE HTML PAGE EVEN THOUGH COMMENTED OUT. It is needed so that
+// the prepsx program will capture the HTML for placement in the I2C EEPROM.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#define WEBPAGE_LOADUPLOADER		12
+/*
+#if OB_EEPROM_SUPPORT == 1
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+// Load Uploader page Template
+// This web page is shown when the user requests the Code Uploader with the
+// /72 command. It is stored in the I2C EEPROM and used only in upgradeable
+// builds, so it should never be compiled in any of the builds.
+#define WEBPAGE_LOADUPLOADER		12
+// The next #define is used only by the "prepsx" program (a strings pre-
+// processor). The #define is used by the prepsx program as a keyword for
+// locating the webpage text constained in the statie const below. The prepsx
+// program places these strings in an SREC (.sx) file which will be used by
+// the Code Uploader to copy the strings into the I2C EEPROM. This define, and
+// the HTML code that follows it, will be found by the prepsx file even if
+// commented out.
+#define WEBPAGE_LOADUPLOADER_BEGIN	94
+static const char g_HtmlPageLoadUploader[] =
+  "%y04%y05"
+  "<title>Loading Code Uploader</title>"
+  "</head>"
+  "<body>"
+  "<h1>Loading Code Uploader</h1>"
+  "<p>"
+  "DO NOT ACCESS BROWSER FOR 15 SECONDS.<br><br>"
+  "Wait until the progress bar completes, then click Continue.<br><br>"
+  
+  "<progress value='0' max='15' id='progressBar'></progress>"
+  "<script>"
+  "var timeleft = 15;"
+  "var downloadTimer = setInterval(function(){"
+    "if(timeleft <= 0){"
+      "clearInterval(downloadTimer);"
+    "}"
+    "document.getElementById('progressBar').value = 15 - timeleft;"
+    "timeleft -= 1;"
+  "}, 1000);"
+  "</script>"
+  
+  "<br>"
+  "<br>"
+  
+  "</p>"
+  "<button onclick='location=`/`'>Continue</button>"
+  "</body>"
+  "</html>";
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#endif // OB_EEPROM_SUPPORT == 1
+*/
+#if OB_EEPROM_SUPPORT == 1
+// Declared short static const here so that common code can be used for Flash
+// and I2C EEPROM webpage sources.
+static const char g_HtmlPageLoadUploader[] = " ";
+#endif // OB_EEPROM_SUPPORT == 1
+
+
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
 // Code Uploader Support page Template
 // This is the main web page shown by the Code Uploader.
@@ -1677,45 +1763,6 @@ static const char g_HtmlPageUploader[] =
   "</body>"
   "</html>";
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-
-
-#if OB_EEPROM_SUPPORT == 1
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-// Load Uploader page Template
-// This web page is shown when the user requests the Code Uploader with the
-// /72 command.
-#define WEBPAGE_LOADUPLOADER		12
-static const char g_HtmlPageLoadUploader[] =
-  "%y04%y05"
-  "<title>Loading Code Uploader</title>"
-  "</head>"
-  "<body>"
-  "<h1>Loading Code Uploader</h1>"
-  "<p>"
-  "DO NOT ACCESS BROWSER FOR 15 SECONDS.<br><br>"
-  "Wait until the progress bar completes, then click Continue.<br><br>"
-  
-  "<progress value='0' max='15' id='progressBar'></progress>"
-  "<script>"
-  "var timeleft = 15;"
-  "var downloadTimer = setInterval(function(){"
-    "if(timeleft <= 0){"
-      "clearInterval(downloadTimer);"
-    "}"
-    "document.getElementById('progressBar').value = 15 - timeleft;"
-    "timeleft -= 1;"
-  "}, 1000);"
-  "</script>"
-  
-  "<br>"
-  "<br>"
-  
-  "</p>"
-  "<button onclick='location=`/`'>Continue</button>"
-  "</body>"
-  "</html>";
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-#endif // OB_EEPROM_SUPPORT == 1
 
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -1977,8 +2024,13 @@ const struct page_string ps[6] = {
 
 void HttpDStringInit() {
   // Initialize HttpD string sizes
+  // If a non-upgradeable build the IOControl and Configuration webpage sizes
+  // are based on the HTML strings in the httpd.c file.
+  // If an upgradeable build the IOControl and Configuration webpage sizes are
+  // obtained from the I2C EEPROM where the webpage strings are stored.
   
 #if OB_EEPROM_SUPPORT == 0
+  // Webpage sizes for non-upgradeable builds
   HtmlPageIOControl_size = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
   HtmlPageConfiguration_size = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
 #endif // OB_EEPROM_SUPPORT == 0
@@ -1995,15 +2047,7 @@ void HttpDStringInit() {
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
   // Read 2 bytes from I2C EEPROM and save in the _size word.
-//  {
-//    uint16_t temp;
-//    OctetArray[0] = I2C_read_byte(0);
-//    OctetArray[1] = I2C_read_byte(1);
-//    temp = (uint16_t)(OctetArray[0] << 8);
-//    temp |= OctetArray[1];
-//    HtmlPageIOControl_size = temp;
-    HtmlPageIOControl_size = read_two_bytes();
-//  }
+  HtmlPageIOControl_size = read_two_bytes();
   
 #if BUILD_SUPPORT == MQTT_BUILD
   // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
@@ -2016,19 +2060,21 @@ void HttpDStringInit() {
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
   // Read 2 bytes from I2C EEPROM and save in the _size word.
-//  {
-//    uint16_t temp;
-//    OctetArray[0] = I2C_read_byte(0);
-//    OctetArray[1] = I2C_read_byte(1);
-//    temp = (uint16_t)(OctetArray[0] << 8);
-//    temp |= OctetArray[1];
-//    HtmlPageConfiguration_size = temp;
-    HtmlPageConfiguration_size = read_two_bytes();
-//    }
+  HtmlPageConfiguration_size = read_two_bytes();
+#endif // OB_EEPROM_SUPPORT == 1
+
+#if OB_EEPROM_SUPPORT == 1
+  // This is always performed if an upgradeable build
+  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, WEBPAGE_LOADUPLOADER_SIZE_LOCATION, 2);
+
+  // Read 2 bytes from I2C EEPROM and save in the _size word.
+  HtmlPageLoadUploader_size = read_two_bytes();
 #endif // OB_EEPROM_SUPPORT == 1
 }
 
 
+#if OB_EEPROM_SUPPORT == 1
 void init_off_board_string_pointers(struct tHttpD* pSocket) {
   // Initialize the index into the I2C EEPROM Strings region.
   //
@@ -2037,8 +2083,6 @@ void init_off_board_string_pointers(struct tHttpD* pSocket) {
   // addresses starting at 0x8000, however in the I2C EEPROM itself the base
   // address for Strings is 0x0000. This initialization will compensate for
   // that disparity.
-
-#if OB_EEPROM_SUPPORT == 1
 
   if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
 
@@ -2055,15 +2099,7 @@ void init_off_board_string_pointers(struct tHttpD* pSocket) {
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
     // Read 2 bytes
-//    {
-//      uint16_t temp;
-//      OctetArray[0] = I2C_read_byte(0);
-//      OctetArray[1] = I2C_read_byte(1);
-//      temp = (uint16_t)(OctetArray[0] << 8);
-//      temp |= OctetArray[1];
-//      off_board_eeprom_index = temp - 0x8000;
-      off_board_eeprom_index = read_two_bytes() - 0x8000;
-//    }
+    off_board_eeprom_index = read_two_bytes() - 0x8000;
   }
   
   if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
@@ -2081,19 +2117,18 @@ void init_off_board_string_pointers(struct tHttpD* pSocket) {
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
     // Read 2 bytes
-//    {
-//      uint16_t temp;
-//      OctetArray[0] = I2C_read_byte(0);
-//      OctetArray[1] = I2C_read_byte(1);
-//      temp = (uint16_t)(OctetArray[0] << 8);
-//      temp |= OctetArray[1];
-//      off_board_eeprom_index = temp - 0x8000;
-      off_board_eeprom_index = read_two_bytes() - 0x8000;
-//    }
-
+    off_board_eeprom_index = read_two_bytes() - 0x8000;
   }
-#endif // OB_EEPROM_SUPPORT == 1
+
+  if (pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
+    // Prepare to read the two byte string address from I2C EEPROM and
+    // convert to uint16_t.
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, WEBPAGE_LOADUPLOADER_ADDRESS_LOCATION, 2);
+    // Read 2 bytes
+    off_board_eeprom_index = read_two_bytes() - 0x8000;
+  }
 }
+#endif // OB_EEPROM_SUPPORT == 1
 
 
 #if OB_EEPROM_SUPPORT == 1
@@ -2173,6 +2208,12 @@ void httpd_diagnostic(void) {
 
   UARTPrintf("Configuration Page Size: ");
   emb_itoa(HtmlPageConfiguration_size, OctetArray, 16, 4);
+  UARTPrintf(OctetArray);
+  UARTPrintf("\r\n");
+
+
+  UARTPrintf("Load Uploader Page Size: ");
+  emb_itoa(HtmlPageLoadUploader_size, OctetArray, 16, 4);
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
 }
@@ -2604,7 +2645,8 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   // Adjust the size reported by the WEBPAGE_LOADUPLOADER template
   //-------------------------------------------------------------------------//
   else if (pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
-    size = (uint16_t)(sizeof(g_HtmlPageLoadUploader) - 1);
+//    size = (uint16_t)(sizeof(g_HtmlPageLoadUploader) - 1);
+    size = HtmlPageLoadUploader_size;
     
     // Account for header replacement strings %y04 %y05
     size = size + ps[4].size_less4
@@ -4164,7 +4206,9 @@ void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
   pSocket->ParseState = PARSE_NULL;
   pSocket->nNewlines = 0;
   pSocket->insertion_index = 0;
+#if OB_EEPROM_SUPPORT == 1
   init_off_board_string_pointers(pSocket);
+#endif // OB_EEPROM_SUPPORT == 1
 }
 
 
@@ -4856,14 +4900,18 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      pSocket->current_webpage = WEBPAGE_IOCONTROL;
               pSocket->pData = g_HtmlPageIOControl;
               pSocket->nDataLeft = HtmlPageIOControl_size;
+#if OB_EEPROM_SUPPORT == 1
               init_off_board_string_pointers(pSocket);
+#endif // OB_EEPROM_SUPPORT == 1
 	      break;
 	      
 	    case 61: // Show Configuration page
 	      pSocket->current_webpage = WEBPAGE_CONFIGURATION;
               pSocket->pData = g_HtmlPageConfiguration;
               pSocket->nDataLeft = HtmlPageConfiguration_size;
+#if OB_EEPROM_SUPPORT == 1
               init_off_board_string_pointers(pSocket);
+#endif // OB_EEPROM_SUPPORT == 1
 	      break;
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
@@ -5225,6 +5273,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		}
 
 
+//                COMMENTED THIS OUT. IT IS A GOOD IDEA BUT NEEDED TO SAVE
+//                FLASH SPACE
 //                // Now check that the URL termination is valid
 //                if (*pBuffer != ' ') {
 //		  pSocket->ParseState = PARSE_FAIL;
@@ -5285,12 +5335,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                   // change the current_webpage. This will cause the URL
                   // command to be ignored and the current webpage to be
                   // refreshed.
-//                  break;
                 }
               }
-//	      // Didn't break so far so parse was successful
-//              parse_complete = 1;
-//              GET_response_type = 204; // No return webpage
               break;
 #endif // PINOUT_OPTION_SUPPORT == 1
 
@@ -5338,17 +5384,22 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         if (pSocket->ParseState == PARSE_FAIL) {
           // Parsing failed above OR there was a decision to display the
 	  // default webpage.
+
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 	    pSocket->current_webpage = WEBPAGE_IOCONTROL;
             pSocket->pData = g_HtmlPageIOControl;
             pSocket->nDataLeft = HtmlPageIOControl_size;
+#if OB_EEPROM_SUPPORT == 1
             init_off_board_string_pointers(pSocket);
+#endif // OB_EEPROM_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
 	    pSocket->current_webpage = WEBPAGE_UPLOADER;
             pSocket->pData = g_HtmlPageUploader;
             pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+
             pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
 	                             // SENDHEADER
 	}

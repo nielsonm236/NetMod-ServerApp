@@ -5002,6 +5002,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+            case 50: // As 80, but also returns iostatus (as 98/99)
             case 80: // Mask and Output Pin settings
               // This is similar to case 55 and case 56, except a 4 hex char
 	      // Mask and a 4 hex char Pin State value hould also be in the
@@ -5107,7 +5108,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
                 }
               }
               parse_complete = 1;
-              GET_response_type = 204; // No return webpage
+              if (pSocket->ParseNum == 50) {
+                // Return IOPin status page
+                pSocket->current_webpage = WEBPAGE_SSTATE;
+                pSocket->pData = g_HtmlPageSstate;
+                pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
+              } else {
+                GET_response_type = 204; // No return webpage
+	      }
               break;
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 

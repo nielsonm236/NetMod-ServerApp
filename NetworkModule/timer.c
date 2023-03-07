@@ -324,6 +324,19 @@ void timer_update(void)
   // dependent time counters. The timer_update() function also forwards the
   // time remainder to the next up-count so that fractions of a millisecond
   // are not lost.
+  //
+  // Note: Calls to the function can be spread out by up to 640ms. Measure-
+  // ments show the current gap in calls to timer_update() to be from less
+  // than 1ms, typically 1 to 2ms, and rare gaps of up to 65ms. The function
+  // will now add the correct number of milliseconds to the periodic_timer,
+  // mqtt_timer, arp_timer, 100ms_timer, and second_counter. TIM1 is used as
+  // the time base for the counters. TIM1 is configured to clock at 100KHz and
+  // the counter will count to 64000 (640ms) before it resets. It is assumed
+  // the main.c loop NEVER takes longer than 640ms before getting around to
+  // calling timer_update(). If the counter does over-flow the time collected
+  // can be in error in 640ms increments. The overall main loop design must
+  // guarantee that this does not happen.
+
   
   uint16_t counter;
   uint16_t time_ms;

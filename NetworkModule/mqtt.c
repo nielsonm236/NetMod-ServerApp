@@ -45,10 +45,6 @@ SOFTWARE.
 // All includes are in main.h
 #include "main.h"
 
-// #include <mqtt.h>
-// #include <uip.h>
-// #include "uart.h"
-// #include "uipopt.h"
 
 #if BUILD_SUPPORT == MQTT_BUILD
 
@@ -767,6 +763,11 @@ int16_t __mqtt_send(struct mqtt_client *client)
       break;
     }
 
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf(".");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+
     // check for keep-alive
     {
       // At about 3/4 of the timeout period perform a ping. This calculation
@@ -776,9 +777,25 @@ int16_t __mqtt_send(struct mqtt_client *client)
       // Note that a ping is required only when the module is idle, as
       // indicated by checking against the time that the last command was
       // sent (time_of_last_send).
-      uint32_t keep_alive_timeout = client->time_of_last_send + (uint32_t)((client->keep_alive * 3) / 4);
+      uint32_t keep_alive_timeout;
+      int16_t rv;
+      
+      keep_alive_timeout = client->time_of_last_send + (uint32_t)((client->keep_alive * 3) / 4);
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("sec ctr = ");
+// emb_itoa(second_counter, OctetArray, 10, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   kl_tout = ");
+// emb_itoa(keep_alive_timeout, OctetArray, 10, 8);
+// UARTPrintf(OctetArray);
+// if (mqtt_start == MQTT_START_COMPLETE) UARTPrintf("   mqtt sc");
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+      
       if ((second_counter > keep_alive_timeout) && (mqtt_start == MQTT_START_COMPLETE)) {
-        int16_t rv = __mqtt_ping(client);
+        rv = __mqtt_ping(client);
         if (rv != MQTT_OK) {
           client->error = rv;
           return rv;

@@ -78,9 +78,6 @@
 // All includes are in main.h
 #include "main.h"
 
-// #include "uip_arp.h"
-// #include <string.h>
-
 
 struct arp_hdr {
   struct uip_eth_hdr ethhdr;

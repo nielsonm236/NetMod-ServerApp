@@ -51,11 +51,6 @@
 // All includes are in main.h
 #include "main.h"
 
-// #include "uip_TcpAppHub.h"
-// #include "uip.h"
-// #include "mqtt.h"
-// #include "uart.h"
-// #include "uipopt.h"
 
 extern uint16_t Port_Httpd;
 extern uint16_t Port_Mqttd;

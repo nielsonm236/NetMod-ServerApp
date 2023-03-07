@@ -76,10 +76,6 @@
 #define UIP_BIG_ENDIAN     1234
 #endif /* UIP_BIG_ENDIAN */
 
-#define BROWSER_ONLY_BUILD	0
-#define MQTT_BUILD		1
-#define CODE_UPLOADER_BUILD	2
-
 
 #include "uip_types.h"
 #include "Enc28j60.h"
@@ -124,7 +120,10 @@
 #define UIP_LISTENPORTS 4
 
 
-// The initial retransmission timeout counted in timer pulses.
+// The initial retransmission timeout counted in timer pulses. The "timer
+// pulses" are defined by the periodic timer calls, thus are equivalen to the
+// periodic timer period (search on periodic_timer_expired for more
+// information.
 // This should not be changed.
 #define UIP_RTO         3
 
@@ -247,14 +246,13 @@
 //  - Controls inclusion of MQTT functionality
 //  - Controls "MQTT" vs "Browser Only" vs "Code Uploader" build type
 
-
 // Guide for Production Builds
 //                          MQTT  Browser  MQTT     Browser  MQTT     Code
 //                                Only     Upgrade  Only     Upgrade  Uploader
 //                                                  Upgrade  BME280
 //
 // BUILD_SUPPORT            *     **       *        **       *        ***
-// UIP_STATISTICS           1     1        1        1        1        1
+// UIP_STATISTICS           0     1        0        1        0        0
 // DEBUG_SUPPORT            11    11       11       11       11       11
 // IWDG_ENABLE              1     1        1        1        1        1
 // I2C_SUPPORT              0     0        1        1        1        1
@@ -265,33 +263,35 @@
 // DS18B20_SUPPORT          1     1        1        1        0        0
 // BME280_SUPPORT           0     0        0        0        1        0
 // TEMP_DEBUG_EXCLUDE       0     0        0        0        1        0
-// HTTPD_DIAGNOSTIC_SUPPORT 1     1        1        1        0        1
+// HTTPD_DIAGNOSTIC_SUPPORT 0     0        0        0        0        0
+// PINOUT_OPTION_SUPPORT    1     1        0        0        0        0
+// PCF8574_SUPPORT          0     0        1        1        0        0
 //
 // *   = #define BUILD_SUPPORT     MQTT_BUILD
 // **  = #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
 // *** = #define BUILD_SUPPORT     CODE_UPLOADER_BUILD
 // Be sure to put the appropriate revision (date/time) in the main.c file
 
-// Uncomment ONLY ONE of the following to select the build type
-// #define BUILD_TYPE_MQTT_STANDARD			1
-// #define BUILD_TYPE_BROWSER_STANDARD			1
+// Enable ONLY ONE of the following to select the build type
+#define BUILD_TYPE_MQTT_STANDARD			0
+#define BUILD_TYPE_BROWSER_STANDARD			0
 #define BUILD_TYPE_MQTT_UPGRADEABLE			1
-// #define BUILD_TYPE_BROWSER_UPGRADEABLE		1
-// #define BUILD_TYPE_MQTT_UPGRADEABLE_BME280		1
-// #define BUILD_TYPE_CODE_UPLOADER			1
+#define BUILD_TYPE_BROWSER_UPGRADEABLE			0
+#define BUILD_TYPE_MQTT_UPGRADEABLE_BME280		0
+#define BUILD_TYPE_CODE_UPLOADER			0
 
 // The following #defines specify the code parts that need to be included in
-// the various BUILE_TYPEs. You shouldn't need to change any of these except
-// DEBUG_SUPPORT. Normally DEBUG_SUPPORT should be "11" for a production
-// build, but a developer may choose 7 or 15 to provide debug help during
-// code test and debug. See the definition of each #define in the comments
-// that follow this set of #define groupings.
+// the various BUILE_TYPEs. You shouldn't need to change any of these.
+
+#define BROWSER_ONLY_BUILD	0
+#define MQTT_BUILD		1
+#define CODE_UPLOADER_BUILD	2
 
 // MQTT (standard)
-#ifdef BUILD_TYPE_MQTT_STANDARD
+#if BUILD_TYPE_MQTT_STANDARD == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
-  #define UIP_STATISTICS		1
+  #define UIP_STATISTICS		0
   #define IWDG_ENABLE			1
   #define I2C_SUPPORT			0
   #define OB_EEPROM_SUPPORT		0
@@ -300,12 +300,13 @@
   #define DS18B20_SUPPORT		1
   #define BME280_SUPPORT		0
   #define TEMP_DEBUG_EXCLUDE		0
-  #define HTTPD_DIAGNOSTIC_SUPPORT	1
-  #define PINOUT_OPTION_SUPPORT		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
+  #define PINOUT_OPTION_SUPPORT		1
+  #define PCF8574_SUPPORT               0
 #endif
 
 // Browser (standard)
-#ifdef BUILD_TYPE_BROWSER_STANDARD
+#if BUILD_TYPE_BROWSER_STANDARD == 1
   #define BUILD_SUPPORT			BROWSER_ONLY_BUILD
   #define DEBUG_SUPPORT			11
   #define UIP_STATISTICS		1
@@ -317,29 +318,31 @@
   #define DS18B20_SUPPORT		1
   #define BME280_SUPPORT		0
   #define TEMP_DEBUG_EXCLUDE		0
-  #define HTTPD_DIAGNOSTIC_SUPPORT	1
-  #define PINOUT_OPTION_SUPPORT		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
+  #define PINOUT_OPTION_SUPPORT		1
+  #define PCF8574_SUPPORT               0
 #endif
 
 // MQTT Upgradeable
-#ifdef BUILD_TYPE_MQTT_UPGRADEABLE
+#if BUILD_TYPE_MQTT_UPGRADEABLE == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
-  #define UIP_STATISTICS		1
+  #define UIP_STATISTICS		0
   #define IWDG_ENABLE			1
   #define I2C_SUPPORT			1
   #define OB_EEPROM_SUPPORT		1
   #define DEBUG_SENSOR_SERIAL		0
   #define LINKED_SUPPORT		1
-  #define DS18B20_SUPPORT		1
+  #define DS18B20_SUPPORT	        1
   #define BME280_SUPPORT		0
   #define TEMP_DEBUG_EXCLUDE		0
-  #define HTTPD_DIAGNOSTIC_SUPPORT	1
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		0
+  #define PCF8574_SUPPORT               1
 #endif
 
 // Browser Upgradeable
-#ifdef BUILD_TYPE_BROWSER_UPGRADEABLE
+#if BUILD_TYPE_BROWSER_UPGRADEABLE == 1
   #define BUILD_SUPPORT			BROWSER_ONLY_BUILD
   #define DEBUG_SUPPORT			11
   #define UIP_STATISTICS		1
@@ -351,15 +354,16 @@
   #define DS18B20_SUPPORT		1
   #define BME280_SUPPORT		0
   #define TEMP_DEBUG_EXCLUDE		0
-  #define HTTPD_DIAGNOSTIC_SUPPORT	1
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		0
+  #define PCF8574_SUPPORT               1
 #endif
 
 // MQTT Upgradeable w/ BME280
-#ifdef BUILD_TYPE_MQTT_UPGRADEABLE_BME280
+#if BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
-  #define UIP_STATISTICS		1
+  #define UIP_STATISTICS		0
   #define IWDG_ENABLE			1
   #define I2C_SUPPORT			1
   #define OB_EEPROM_SUPPORT		1
@@ -370,10 +374,11 @@
   #define TEMP_DEBUG_EXCLUDE		1
   #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		0
+  #define PCF8574_SUPPORT               0
 #endif
 
 // Code Uploader
-#ifdef BUILD_TYPE_CODE_UPLOADER
+#if BUILD_TYPE_CODE_UPLOADER == 1
   #define BUILD_SUPPORT			CODE_UPLOADER_BUILD
   #define DEBUG_SUPPORT			11
   #define UIP_STATISTICS		1
@@ -385,18 +390,27 @@
   #define DS18B20_SUPPORT		0
   #define BME280_SUPPORT		0
   #define TEMP_DEBUG_EXCLUDE		0
-  #define HTTPD_DIAGNOSTIC_SUPPORT	1
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		0
+  #define PCF8574_SUPPORT               0
 #endif
 
-// DEVELOPERS: Rather than change anything in the above BUILD_TYPE defines you
-// may find it more convenient and less error-prone to add statements like the
-// following during development to change specific #defines. Comment out these
-// additional #undef / #define statements when doing actual production builds.
-// #undef DEBUG_SUPPORT
-// #define DEBUG_SUPPORT 15
+// DEVELOPERS: Rather than change anything in the above BUILD_TYPE define
+// tables you should use #undef / #define statements to temporarily over-ride
+// specific #defines from above. Comment out these additional #undef / #define
+// statements when doing actual production builds.
+//   DEBUG_SUPPORT over-ride: Normally DEBUG_SUPPORT should be "11" for a
+//   production build, but a developer may choose 7 or 15 to provide debug
+//   help during code test and debug.
+//
+//    #undef DEBUG_SUPPORT
+//    #define DEBUG_SUPPORT 15
+//
+//   #undef HTTPD_DIAGNOSTIC_SUPPORT
+//   #define HTTPD_DIAGNOSTIC_SUPPORT 1
 
-  // The following describes the various #defines used in the above.
+  // The following describes the various #defines used in the above #define
+  // tables.
 
   // BUILD_SUPPORT
   // Determines the type of code build to create:
@@ -475,8 +489,8 @@
   // 1 = Supported
 
   // OB_EEPROM_SUPPORT
-  // Determines if I2C  EEPROM support is to be compiled into the build.
-  // I2C  EEPROM support adds the ability to upload new firmware to the device
+  // Determines if I2C EEPROM support is to be compiled into the build.
+  // I2C EEPROM support adds the ability to upload new firmware to the device
   // via the Ethernet connection. I2C EEPROM support also enables off-board
   // storage of some webpage templates in a "Strings File" to make more STM8
   // Flash space available for use as code space. The requirements to use this
@@ -533,6 +547,8 @@
   // used to disable some debug functionality and UART print statements that
   // would normally be enabled in a build with debug turned on. So far I've
   // only needed to use this during development of the BME280 driver.
+  // 0 = Do not exclude
+  // 1 = Exclude specific function
 
   // HTTPD_DIAGNOSTIC_SUPPORT
   // Determines if the httpd_diagnostic() function should be included in
@@ -544,6 +560,31 @@
   // function produces output on the UART. So a UART enabled build is required
   // to use the function. The call to the function appears in main.c, and is
   // commented out.
+  // 0 = No support
+  // 1 = Supported
+    
+  // PINOUT_OPTION_SUPPORT
+  // Determines if alternative pinouts can be defined by the user. Even if
+  // supported this will only function if no "reserved pins" are in use, such
+  // as DS18B20, any I2C functions, or the UART. Essentially it is mant to
+  // allow a user that is using the module ONLY to drive relays, and the
+  // user wants to match the IO pinout to certain relay hardware that has
+  // relays mapped differently on the IO pins. See the manual or other 
+  // comments in the gpio.c file.
+  // 0 = No support - use native HW-584 pinout
+  // 1 = Supported - allow user to select pinout, but will be over-ridden if
+  //                 reserved pins are in use.
+
+  // PCF8574_SUPPORT
+  // Enables code to support a single PCF8574 device. The PCF8574 is an 8 bit
+  // IO expander that attaches to the I2C interface. This support can only be
+  // provided on Upgradeable builds that utilize pins 14 and 15 for the I2C
+  // interface and have the external I2C EEPROM attached.
+  // 0 = No support
+  // 1 = Supported
+
+
+
 
 
 //---------------------------------------------------------------------------//

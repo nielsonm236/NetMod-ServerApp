@@ -45,12 +45,6 @@
 
 // All includes are in main.h
 #include "main.h"
-// #include "Enc28j60.h"
-// #include "iostm8s005.h"
-// #include "stm8s-005.h"
-// #include "uipopt.h"
-// #include "timer.h"
-// #include "uart.h"
 
 #if DEBUG_SUPPORT != 0
 // Variables used to store debug information

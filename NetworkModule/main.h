@@ -49,11 +49,8 @@
 #include "uip.h"
 #include "uip_arch.h"
 #include "uip_arp.h"
+#include "pcf8574.h"
 #include "uip_TcpAppHub.h"
-
-
-
-
 
 
 //---------------------------------------------------------------------------//
@@ -99,6 +96,55 @@
 
 // Start of IO_NAME storage in Flash
 #define FLASH_START_IO_NAMES	0xff00
+
+
+// Defines to identify the locations in I2C EEPROM Region 2 for IO_NAMES and
+// IO_TIMERS associated with the PCF8574 IO pins.
+#define PCF8574_I2C_EEPROM_START_IO_TIMERS	0x7ec0
+#define PCF8574_I2C_EEPROM_START_IO_NAMES	0x7f00
+// The PCF8574 IO TIMER and IO NAME values for the PCF8574 IO pins are stored
+// in the I2C EEPROM because there is no room left in Flash. The I2C EEPROM is
+// always present if the PCF8574 is present.
+//
+// IO_TIMERS: Each pin requires 2 bytes. There are 8 pins so this is 16 bytes.
+// A 32 byte block is allocated in anticipation of adding more pins. So,
+// addresses 0x7ec0 to 0x7edf are considered allocated.
+
+// To write a PCF8574_IO_TIMER value:
+//   I2C_control(I2C_EEPROM2_WRITE);
+//   I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_TIMERS + (index * 2), 2);
+//   I2C_write_byte(msbyte);
+//   I2C_write_byte(lsbyte);
+//   I2C_stop(); // Start the EEPROM internal write cycle
+//   wait_timer(5000); // Wait 5ms
+// To read a PCF8574_IO_TIMER value:
+//   prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + (index * 2), 2);
+//   IO_timer_value = read_two_bytes();
+//
+// IO_NAMES: Each pin requires 16 bytes. There are 8 pins so this is 128
+// bytes. A 256 byte block is allocated in anticipation of adding more pins.
+// So, addresses 0x7f00 to 0x7fff are considered allocated.
+// To write a PCF8574_IO_NAME value:
+//   I2C_control(I2C_EEPROM2_WRITE);
+//   I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + (index * 16), 2);
+//   for (i=0; i<16; i++) {
+//     I2C_write_byte(Pending_IO_Name[i]);
+//   }
+//   I2C_stop(); // Start the EEPROM internal write cycle
+//   wait_timer(5000); // Wait 5ms
+// To read a PCF8574_IO_NAMES value:
+//   prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + (index * 16), 2);
+//   for (i=0; i<15; i++) {
+//     temp_byte[i] = I2C_read_byte(0);
+//   }
+//   temp_byte[15] = I2C_read_byte(1);
+
+// Defines to identify the location in I2C EEPROM Region 2 for non-volatile
+// storage of PCF8574 IO pin_control values. There are 8 pins, thus 8 bytes
+// are required. 16 bytes are allocated in anticipation of adding more pins
+// in the future, thus addresses 0x7ee0 to 0x7eef are considered allocated.
+#define PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE	 0x7ee0
+
 
 
 // MQTT Start States
@@ -154,9 +200,6 @@
 #define SEND_INPUT_DEFINE		2
 #define SEND_OUTPUT_DELETE		3
 #define SEND_OUTPUT_DEFINE		4
-// #define SEND_TEMP_SENSOR_DELETE		5
-// #define SEND_TEMP_SENSOR_DELETE2	6
-// #define SEND_TEMP_SENSOR_DEFINE		7
 
 // MQTT Input Output Temp Sensor define/delete controls
 #define DEFINE_IOT			0
@@ -193,7 +236,8 @@ void unlock_flash(void);
 void lock_flash(void);
 void upgrade_EEPROM(void);
 void check_eeprom_settings(void);
-void check_eeprom_IOpin_settings(void);
+void apply_PCF8574_pin_settings(void);
+uint8_t is_allowed_char(uint8_t character);
 void update_mac_string(void);
 void check_runtime_changes(void);
 uint8_t chk_iotype(uint8_t pin_byte, int pin_index, uint8_t chk_mask);
@@ -228,11 +272,21 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel);
 void mqtt_sanity_check(struct mqtt_client *client);
 void publish_callback(void** unused, struct mqtt_response_publish *published);
 void publish_outbound(void);
+
+#if PCF8574_SUPPORT == 0
 void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t mask);
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t mask);
+#endif // PCF8574_SUPPORT == 1
+
 void publish_pinstate_all(void);
 void publish_temperature(uint8_t sensor);
 void publish_BME280(int8_t sensor);
 
 int8_t reverse_bit_order(uint8_t k);
+
+void PCF8574_display_pin_control(void);
+void STM8_display_pin_control(void);
 
 #endif /* __MAIN_H__ */

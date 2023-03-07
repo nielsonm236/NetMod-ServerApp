@@ -32,31 +32,11 @@
 #include "main.h"
 
 
-// #include <stdlib.h>
-// #include "Enc28j60.h"
-// #include "Spi.h"
-// #include "uip.h"
-// #include "uip_arp.h"
-// #include "gpio.h"
-// #include "timer.h"
-// #include "httpd.h"
-// #include "iostm8s005.h"
-// #include "stm8s-005.h"
-// #include "uip_arch.h"
-// #include "uip_TcpAppHub.h"
-// #include "uipopt.h"
-// #include "mqtt.h"
-// #include "DS18B20.h"
-// #include "i2c.h"
-// #include "UART.h"
-// #include "bme280.h"
-
-
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20230125 2003"; // Normal Release Revision
+const char code_revision[] = "20230305 1816"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -160,15 +140,20 @@ uint8_t stack_limit2;
 @eeprom uint8_t stored_uip_ethaddr_oct[6]; // Bytes 24-29 MAC MSB
 @eeprom uint8_t stored_EEPROM_revision2;   // Byte 23 EEPROM revision
 @eeprom uint8_t stored_EEPROM_revision1;   // Byte 22 EEPROM revision
-@eeprom uint8_t stored_hardware_options;   // Byte 21 unused
+@eeprom uint8_t stored_hardware_options;   // Byte 21 Hardware Options
                                            // Bit 7: Undefined, 0 only
                                            // Bit 6: Undefined, 0 only
                                            // Bit 5: Undefined, 0 only
                                            // Bit 4: Undefined, 0 only
-                                           // Bit 3: Undefined, 0 only
+                                           // Bit 3: PCF8574 present
+					   //   0 = No PCF8574 detected or
+					   //       PCF8574 not supported
+					   //   1 = PCF8574 detected and
+					   //       supported
                                            // Bit 0-2: Pinout
-					   //   See Manaual
-					   //   001 Pinout Option 1
+					   //   See Manual
+					   //   000 Pinout Option 1
+					   //   001 Pinout Option 1 (default)
 					   //   010 Pinout Option 2
 					   //   011 Pinout Option 3
 @eeprom uint8_t stored_devicename[20];     // Byte 01 Device name @4000
@@ -185,19 +170,44 @@ uint8_t debug[10];
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-// Define Flash addresses for IO Names and IO Timers
+// Define Flash addresses for STM8 pin IO Names and IO Timers
 uint16_t IO_TIMER[16] @FLASH_START_IO_TIMERS;
 char IO_NAME[16][16] @FLASH_START_IO_NAMES;
+
+// Define RAM for IO Timers
+#if PCF8574_SUPPORT == 0
 uint16_t Pending_IO_TIMER[16];
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+uint16_t Pending_IO_TIMER[24];
+#endif // PCF8574_SUPPORT == 1
+uint8_t timer_flags; // Flags to aid in timer decrementing
 
 // Define pin_timers
-uint32_t pin_timer[16];
-
+#if PCF8574_SUPPORT == 0
+uint16_t pin_timer[16]; // The pin_timers are 14 bit timers with the 2 most
+                        // significant bits defining the resolution as:
+			//   00 = 0.1 second
+			//   01 = 1 second
+			//   10 = 1 minute
+			//   11 = 1 hour
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+uint16_t pin_timer[24]; // The pin_timers are 14 bit timers with the 2 most
+                        // significant bits of the 16 bit word defining the
+			// resolution as:
+			//   00 = 0.1 second
+			//   01 = 1 second
+			//   10 = 1 minute
+			//   11 = 1 hour
+#endif // PCF8574_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 
-uint8_t pin_control[16];                // Per pin configuration byte
+#if PCF8574_SUPPORT == 0
+uint8_t pin_control[16];                // Array of per pin configuration
+                                        // bytes
 uint16_t ON_OFF_word;                   // ON/OFF states of pins in single 16
                                         // bit word
 uint16_t ON_OFF_word_new1;              // ON/OFF states of pins stored for
@@ -208,10 +218,42 @@ uint16_t ON_OFF_word_sent;              // Used to indicate pin states that
                                         // need to be sent in MQTT Publish msgs
 uint16_t Invert_word;                   // Invert state of pins in single 16 bit
                                         // word
+#endif // PCF8574_SUPPORT == 0
+
+#if PCF8574_SUPPORT == 1
+uint8_t pin_control[24];                // Array of per pin configuration
+                                        // bytes when PCF8574 is included in
+					// the hardware configuration
+uint32_t ON_OFF_word;                   // ON/OFF states of pins in single 32
+                                        // bit word
+uint32_t ON_OFF_word_new1;              // ON/OFF states of pins stored for
+                                        // debounce of input pins
+uint32_t ON_OFF_word_new2;              // ON/OFF states of pins stored for
+                                        // debounce of input pins
+uint32_t ON_OFF_word_sent;              // Used to indicate pin states that
+                                        // need to be sent in MQTT Publish msgs
+uint32_t Invert_word;                   // Invert state of pins in single 32 bit
+                                        // word
+#endif // PCF8574_SUPPORT == 1
+
+
+// Flag bytes
 uint8_t state_request;			// Indicates that a PUBLISH state
                                         // request was received
 
 uint8_t stack_error;			// Stack error flag storage
+uint8_t magic_number_missing_flag;      // Indicates a missing Magic Number
+                                        // during boot processes.
+uint8_t reboot_request;                 // Signals the need for a reboot
+uint8_t user_reboot_request;            // Signals a user request for a reboot
+uint8_t restart_request;                // Signals the need for a restart
+uint8_t mqtt_close_tcp;                 // Signals the need to close the MQTT TCP
+                                        // connection
+uint8_t parse_complete;                 // Signals the completion of POST parsing
+uint8_t mqtt_parse_complete;            // Signals the completion of MQTT parsing
+
+
+
 
 //---------------------------------------------------------------------------//
 // Pending values are used to pass change requests from the user to the main.c
@@ -231,19 +273,17 @@ uint8_t Pending_config_settings;
 
 uint8_t Pending_uip_ethaddr_oct[6];
 
+#if PCF8574_SUPPORT == 0
 uint8_t Pending_pin_control[16];
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+uint8_t Pending_pin_control[24];
+#endif // PCF8574_SUPPORT == 1
 
 char mac_string[13];
 
-uint8_t reboot_request;         // Signals the need for a reboot
-uint8_t user_reboot_request;    // Signals a user request for a reboot
-uint8_t restart_request;        // Signals the need for a restart
 uint8_t restart_reboot_step;    // Tracks steps used in restart and reboot
                                 // functions
-uint8_t mqtt_close_tcp;         // Signals the need to close the MQTT TCP
-                                // connection
-uint8_t parse_complete;         // Signals the completion of POST parsing
-uint8_t mqtt_parse_complete;    // Signals the completion of MQTT parsing
 
 uint16_t Port_Httpd;            // HTTP port number
 uip_ipaddr_t IpAddr;
@@ -258,9 +298,36 @@ extern uint8_t parse_tail[66];  // >>> Used mostly in POST packet processing
                                 // but also repurposed for buffering data
 				// received in a program update file.
 
+int8_t io_map_offset;           // Used in pinout options
+
+
 #if LINKED_SUPPORT == 1
+#if PCF8574_SUPPORT == 0
 uint8_t linked_edge;		// Used for indicating Input pin edge
 				// detection when using Linked pins
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+uint16_t linked_edge;		// Used for indicating Input pin edge
+				// detection when using Linked pins.
+				// If a bit is set to 1 it means the
+				// following:
+				// bit 0  = edge on STM8 pin 1
+				// bit 1  = edge on STM8 pin 2
+				// bit 2  = edge on STM8 pin 3
+				// bit 3  = edge on STM8 pin 4
+				// bit 4  = edge on STM8 pin 5
+				// bit 5  = edge on STM8 pin 6
+				// bit 6  = edge on STM8 pin 7
+				// bit 7  = edge on STM8 pin 8
+				// bit 8  = edge on PCF8574 pin 17
+				// bit 9  = edge on PCF8574 pin 18
+				// bit 10 = edge on PCF8574 pin 19
+				// bit 11 = edge on PCF8574 pin 20
+				// bit 12 = N/A
+				// bit 13 = N/A
+				// bit 14 = N/A
+				// bit 15 = N/A
+#endif // PCF8574_SUPPORT == 1
 #endif // LINKED_SUPPORT == 1
 
 
@@ -268,17 +335,23 @@ uint8_t linked_edge;		// Used for indicating Input pin edge
 
 #if BUILD_SUPPORT == MQTT_BUILD
 // MQTT variables
+// Flag bytes
 uint8_t mqtt_enabled;                 // Used to signal use of MQTT functions
                                       // Initialized to 'disabled'. This can
 				      // only get set to 1 if the MQTT Enable
 				      // bit is set in the Config settings AND
 				      // at least one IO pin is enabled.
+extern uint8_t connack_received;      // Used to communicate CONNECT CONNACK
+                                      // received from mqtt.c to main.c
+extern uint8_t suback_received;       // Used to communicate SUBSCRIBE SUBACK
+                                      // received from mqtt.c to main.c
+				      
 uint8_t connect_flags;                // Used in MQTT setup
 uint16_t mqtt_keep_alive;             // Ping interval
 struct mqtt_client mqttclient;        // Declare pointer to the MQTT client
                                       // structure
 const char* client_id;                // MQTT Client ID
-char client_id_text[26];              // Client ID comprised of text
+// char client_id_text[26];              // Client ID comprised of text
                                       // "NetworkModule" (13 bytes) and MAC
 				      // (12 bytes) and terminator (1 byte)
 				      // for a total of 26 bytes.
@@ -288,10 +361,6 @@ uint8_t mqtt_start_ctr1;              // Tracks time for the MQTT startup
 uint8_t verify_count;                 // Used to limit the number of ARP and
                                       // TCP verify attempts
 uint8_t mqtt_sanity_ctr;              // Tracks time for the MQTT sanity steps
-extern uint8_t connack_received;      // Used to communicate CONNECT CONNACK
-                                      // received from mqtt.c to main.c
-extern uint8_t suback_received;       // Used to communicate SUBSCRIBE SUBACK
-                                      // received from mqtt.c to main.c
 
 extern uint8_t mqtt_sendbuf[MQTT_SENDBUF_SIZE]; // Buffer to contain MQTT
                                       // transmit queue and data.
@@ -306,7 +375,7 @@ uint8_t mqtt_restart_step;            // Step tracker for restarting MQTT
 
 static const unsigned char devicetype[] = "NetworkModule/"; // Used in
                                       // building topic and client id names
-unsigned char topic_base[55];         // Used for building connect, subscribe,
+// unsigned char topic_base[55];         // Used for building connect, subscribe,
                                       // and publish topic strings.
 				      // Longest string content:
 				      // NetworkModule/DeviceName123456789/availability
@@ -318,7 +387,12 @@ uint8_t auto_discovery;               // Used in the Auto Discovery state machin
 uint8_t auto_discovery_step;          // Used in the Auto Discovery state machine
 uint8_t pin_ptr;                      // Used in the Auto Discovery state machine
 uint8_t sensor_number;                // Used in the Auto Discovery state machine
+#if PCF8574_SUPPORT == 0
 uint16_t MQTT_transmit;               // Used to force a publish_pinstate
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+uint32_t MQTT_transmit;               // Used to force a publish_pinstate
+#endif // PCF8574_SUPPORT == 1
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 // These MQTT variables must always be compiled for both the MQTT_BUILD and
@@ -421,7 +495,24 @@ uint8_t eeprom_detect;               // Used in code update routines
 extern uint8_t I2C_failcode;         // Used in monitoring I2C transactions
 #endif // I2C_SUPPORT == 1
 
+#if PCF8574_SUPPORT == 1
+extern uint8_t I2C_PCF8574_1_WRITE_CMD; // Used to store the write command for
+                                 // the first PCF8574 device found. This value
+				 // is initialized to zero, so if it is non-
+				 // zero this also serves as a "found"
+				 // indicator. If it remains at zero this
+				 // indicates no PCF devices were discovered.
+#endif // PCF8574_SUPPORT == 1
 
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+uint16_t debug_main_loop_start;
+uint16_t debug_main_loop_end;
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  
 
 
 //---------------------------------------------------------------------------//
@@ -430,7 +521,19 @@ int main(void)
   uip_ipaddr_t IpAddr;
   uint8_t flash_mismatch;
   extern uint16_t uip_slen;
+
+  // Initialize and enable clocks and timers. This must be done first to let
+  // the processor clock stabilize.
+  clock_init();
+  // A mystery: When the ST-LINK V2 is used to program the code it appears to
+  // start running for a brief number of milliseconds (2 or 3 times!) before
+  // reset is released. I placed a wait timer here to absorb that activity so
+  // that no other code runs until the device is actually released from reset.
+  wait_timer(50000); // Wait 50ms
+  wait_timer(50000); // Wait 50ms
   
+  
+
   parse_complete = 1; // parse_complete is set to 1 so that the first time
                       // check_runtime_changes is called it will sync the
 		      // runtime variables with the EEPROM.
@@ -442,7 +545,7 @@ int main(void)
   stack_error = 0;
   
 #if IWDG_ENABLE == 1
-  init_IWDG(); // Initialize the hardware watchdog
+  init_IWDG();      // Initialize the Independant Watchdog
 #endif // IWDG_ENABLE
   
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -483,6 +586,9 @@ int main(void)
   MQTT_broker_dis_counter = 0;           // Initialize the MQTT broker
                                          // disconnect event counter
 
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+  timer_flags = 0x07; // Set all timer_flags to 1 to support IO_TIMER decrementing
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 #if I2C_SUPPORT == 1
   // Initialize error reporting for I2C
@@ -498,7 +604,6 @@ int main(void)
 #endif // OB_EEPROM_SUPPORT == 1
 
 
-  clock_init();            // Initialize and enable clocks and timers
 
   upgrade_EEPROM();        // Check for down revision EEPROM and upgrade if
                            // needed.
@@ -510,16 +615,42 @@ int main(void)
 			   // This must occur before gpio_init() because
 			   // gpio_init() uses settings in the EEPROM and we
 			   // need to make sure it is up to date.
+			   
+  gpio_init();             // Initialize and enable gpio pins
+
+  apply_PCF8574_pin_settings(); // Initialize the PCF8574 settings and pins.
+                                // This must occur after gpio_init() because
+				// the PCF8574 settings are stored in I2C
+				// EEPROM which uses IO pins 14 and 15 to
+				// implement the I2C bus.
 
   // Restore the saved debug statistics
   restore_eeprom_debug_bytes();
 
-  gpio_init();             // Initialize and enable gpio pins
     
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   // Initialize the UART for debug output
   // Note: gpio_init() must be called prior to this call
   InitializeUART();
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+UARTPrintf("STM8 pin_control[] after initialize UART\r\n");
+STM8_display_pin_control();
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if PCF8574_SUPPORT == 1
+// UARTPrintf("PCF8574 pin_control[] after initialize UART\r\n");
+// PCF8574_display_pin_control();
+#endif // PCF8574_SUPPORT == 1
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Configuration byte at boot time = ");
+// emb_itoa(stored_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
   spi_init();              // Initialize the SPI bit bang interface to the
@@ -537,22 +668,21 @@ int main(void)
   
   HttpDStringInit();       // Initialize HttpD string sizes
 
-#if PINOUT_OPTION_SUPPORT == 1
-  // Set Pinout Option
-  // (stored_hardware_options & 0x07) = 1 for the first 16 io_map definitions
-  // (stored_hardware_options & 0x07) = 2 for the second 16 io_map definitions
-  // (stored_hardware_options & 0x07) = 3 for the third 16 io_map definitions
-  // io_map_offset defines the user selected IO pinout map.
-  // io_map_offset = 0 for the first 16 io_map definitions
-  // io_map_offset = 16 for the second 16 io_map definitions
-  // io_map_offset = 32 for the third 16 io_map definitions
-  // See the manual for explanation
-  {
-  uint8_t j;
-    io_map_offset = (uint8_t)(((stored_hardware_options & 0x07) - 1) * 16);
-  }
-  
-#endif // PINOUT_OPTION_SUPPORT == 1
+
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n\r\n\r\nStarting Uploader code\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n\r\n\r\nStarting MQTT code\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // BUILD_SUPPORT == MQTT_BUILD
+
+
+
+
 
 #if LINKED_SUPPORT == 1
   linked_edge = 0;	   // Used for indicating Input pin edge detection
@@ -637,6 +767,63 @@ int main(void)
 #endif // BME280_SUPPORT == 1
 
 
+#if PCF8574_SUPPORT == 1
+  PCF8574_init();
+  if (I2C_PCF8574_1_WRITE_CMD) {
+    // A PCF8574 or PCF8574A was found as indicated by a non-zero value in
+    // variable I2C_PCF8574_1_WRITE_CMD after running PCF8574_init().
+    // Update the stored_hardware_options byte in EEPROM.
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Main - Found PCF8574 at ");
+// emb_itoa(I2C_PCF8574_1_WRITE_CMD, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+    {
+      uint8_t j;
+      j = stored_hardware_options;
+      if ((j & 0x08) != 0x08) {
+        j |= 0x08;
+        unlock_eeprom();
+        stored_hardware_options = j;
+        lock_eeprom();
+      }
+    }
+  }
+  else {
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Main - DID NOT FIND PCF8574\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+    {
+      uint8_t j;
+      j = stored_hardware_options;
+      if ((j & 0x08) == 0x08) {
+        j &= (uint8_t)(~0x08);
+        unlock_eeprom();
+        stored_hardware_options = j;
+        lock_eeprom();
+      }
+    }
+  }
+#endif // PCF8574_SUPPORT == 1
+
+#if PCF8574_SUPPORT == 0
+  // PCF8574 not supported. Make sure the hardware option is off.
+  {
+    uint8_t j;
+    j = stored_hardware_options;
+    if ((j & 0x08) == 0x08) {
+      j &= (uint8_t)~0x08;
+      unlock_eeprom();
+      stored_hardware_options = j;
+      lock_eeprom();
+    }
+  }  
+#endif // PCF8574_SUPPORT == 0
+
+
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
   // there is a stack overflow (wherein the stack will over write this preset
@@ -706,19 +893,20 @@ int main(void)
 
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-  // If a Code Uploader Build determine if Flash matches the content of
-  // I2C EEPROM1.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // I am not sure if a compare is needed. Why not just write the Flash
-  // to I2C EEPROM regardless? The I2C EEPROM can absorb MANY writes.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  
-//  if (eeprom_detect == 1) flash_mismatch = compare_flash_to_EEPROM1();
-  // If a Code Uploader build and Flash does not match the content of
-  // I2C EEPROM1 copy the Flash to I2C EEPROM1. This is needed to
-  // address the case where a user uploads a new Code Uploader with the SWIM
-  // interface - in that case the program needs to copy itself to I2C EEPROM1.
-//  if ((eeprom_detect == 1) && (flash_mismatch)) copy_code_uploader_to_EEPROM1();
-  copy_code_uploader_to_EEPROM1();
+  // If a Code Uploader Build copy Flash to EEPROM1.
+  if (eeprom_detect == 1) {
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Copying Code Uploader to EEPROM1\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+    copy_code_uploader_to_EEPROM1();
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Finished Copy\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+  }
   // Flicker LED for 1 second to indicate I2C EEPROM write completion
   fastflash();
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -726,30 +914,28 @@ int main(void)
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 #if OB_EEPROM_SUPPORT == 1
-  // These calls are only needed if we want to protect the user from a
-  // scenario where they:
+  // This code protects the user from a scenario where they:
   // a) Have the Uploader installed in I2C EEPROM
   // b) Use SWIM to load a new runtime firmware
   // c) When they start the Uploader they select "reinstall".
   // The above scenario fails because SWIM installed the runtime firmware
   // rather than the Uploader. If the Uploader had been used to install the
-  // runtime firmware a copy of the firmware image would be in I2C 
-  // EEPROM. If the below calls are un-commented it will protect against
-  // this scenario assuming that the Uploader and the Strings File are still
-  // compatible with the code the user loaded via the SWIM interface. This
-  // functionality costs about 250 bytes of firmware.
+  // runtime firmware a copy of the firmware image would be in I2C EEPROM.
   //
-  // If a Browser Only or MQTT build determine if Flash matches the content of
-  // I2C EEPROM0.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// I am not sure if a compare is needed. Why not just write the Flash
-// to I2C EEPROM regardless? The I2C EEPROM can absorb MANY writes.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  
-//  if (eeprom_detect == 1) flash_mismatch = compare_flash_to_EEPROM0();
-  // If a Browser Only or MQTT build and Flash does not match the content of
-  // I2C EEPROM0 copy the Flash to I2C EEPROM0.
-//  if ((eeprom_detect == 1) && (flash_mismatch)) copy_flash_to_EEPROM0();
-  copy_flash_to_EEPROM0();
+  // Copy Flash to I2C EEPROM0.
+  if (eeprom_detect == 1) {
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Copying Flash to EEPROM0\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+    copy_flash_to_EEPROM0();
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Finished Copy\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+    
+  }
   // Flicker LED for 1 second to indicate I2C EEPROM write completion
   fastflash();
 #endif // OB_EEPROM_SUPPORT == 1
@@ -758,7 +944,9 @@ int main(void)
 
 // Call the httpd_diagnotic() to verify that the content of the String file
 // is correct. The UART must be enabled for this to work.
-// httpd_diagnostic();
+#if HTTPD_DIAGNOSTIC_SUPPORT == 1
+httpd_diagnostic();
+#endif // HTTPD_DIAGNOSTIC_SUPPORT == 1
 
 
   //-------------------------------------------------------------------------//
@@ -860,6 +1048,18 @@ int main(void)
     // occupies processing and buffer memory in addition to the genuine
     // application traffic of interest.
 
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("second_counter = ");
+// emb_itoa(second_counter, OctetArray, 10, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
     uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
 
     if (uip_len > 0) {
@@ -923,7 +1123,6 @@ int main(void)
     // Update the time keeping function
     timer_update();
 
-
 #if BUILD_SUPPORT == MQTT_BUILD
     // If the MQTT timer expires (50ms)
     //   And MQTT is enabled
@@ -966,26 +1165,23 @@ int main(void)
     }
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
-
     if (periodic_timer_expired()) {
       // The periodic timer expires every 20ms.
       // Call the periodic_service() function
       periodic_service();
     }
 
-
     // 100ms timer
     if (t100ms_timer_expired()) {
       t100ms_ctr1++;     // Increment the 100ms counter. ctr1 is used in the
                          // restart/reboot process. Normally the counter is
 			 // not used and will just roll over every 2^32
-			 // counts. Any code that uses crt1 should reset it to
+			 // counts. Any code that uses ctr1 should reset it to
 			 // zero then compare to a value needed for a timeout.
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-      decrement_pin_timers(); // Decrement the pin_timers every 100ms
+      decrement_pin_timers(); // Call the pin_timers function every 100ms
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
     }
-
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
     // Check for a request to copy the I2C EEPROM0 to Flash.
@@ -1021,7 +1217,7 @@ int main(void)
 	// contents. On completion of the copy the module will reboot.
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-UARTPrintf("Copying EEPROM0 to Flash\r\n");
+// UARTPrintf("Copying EEPROM0 to Flash\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
         eeprom_copy_to_flash();
@@ -1029,7 +1225,6 @@ UARTPrintf("Copying EEPROM0 to Flash\r\n");
       lock_flash();
     }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-
 
 #if OB_EEPROM_SUPPORT == 1
     // Check for a request to copy the I2C EEPROM1 to Flash. The request
@@ -1066,15 +1261,13 @@ UARTPrintf("Copying EEPROM0 to Flash\r\n");
     }
 #endif // OB_EEPROM_SUPPORT == 1
 
-
     // Call the ARP timer function every 10 seconds.
     if (arp_timer_expired()) {
       uip_arp_timer(); // Clean out old ARP Table entries. Any entry that has
                        // exceeded the UIP_ARP_MAXAGE without being accessed
 		       // is cleared. UIP_ARP_MAXAGE is typically 20 minutes.
     }
-    
-    
+
 #if DS18B20_SUPPORT == 1
     // Update temperature data
     // Not sure of the best interval. I will set it at 300 seconds (5 min) for
@@ -1088,7 +1281,6 @@ UARTPrintf("Copying EEPROM0 to Flash\r\n");
 #endif // BUILD_SUPPORT == MQTT_BUILD
     }
 #endif // DS18B20_SUPPORT == 1
-
 
 #if BME280_SUPPORT == 1
     if ((BME280_found == 1) && (stored_config_settings & 0x20)) {
@@ -1116,7 +1308,7 @@ UARTPrintf("Copying EEPROM0 to Flash\r\n");
     // This functionality is not needed for the CODE_UPLOADER build.
     check_runtime_changes();
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-    
+
     // Check for the Reset button
     check_reset_button();
 
@@ -1124,7 +1316,27 @@ UARTPrintf("Copying EEPROM0 to Flash\r\n");
     // reset button or generated by the user making changes in the GUI that
     // require a restart or reboot.
     check_restart_reboot();
+
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+debug_main_loop_end = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
+//
+// UARTPrintf("Main Loop Time = ");
+// emb_itoa((uint16_t)(debug_main_loop_end - debug_main_loop_start), OctetArray, 10, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+//
+if ((debug_main_loop_end - debug_main_loop_start) > 80) {
+UARTPrintf("Main Loop Time = ");
+emb_itoa((uint16_t)(debug_main_loop_end - debug_main_loop_start), OctetArray, 10, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+UARTPrintf("EXCESSIVE TIME IN LOOP XXXXXXXXXXXXXXXXXXXXXX\r\n");
+}
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
   }
+
   return 0;
 }
 
@@ -1275,92 +1487,6 @@ void write_one(uint8_t byte)
 }
 #endif // OB_EEPROM_SUPPORT == 1
 
-/*
-#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-uint8_t compare_flash_to_EEPROM1(void)
-{
-  // Compare Flash to I2C EEPROM1 up to but not including the
-  // IO_TIMERS and IO_NAMES memory.
-  // EEPROM1 is the I2C EEPROM storage of the Code Uploader.
-  uint16_t i;
-  uint8_t fail;
-  uint8_t temp;
-  
-  flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-  prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, I2C_EEPROM1_BASE, 2);
-  fail = 0;
-
-  // Compare Flash to I2C EEPROM1 up to but not including the
-  // IO_TIMERS and IO_NAMES.
-  // Terminate at the first mis-compare
-  for (i=0; i<(OFFSET_TO_FLASH_START_USER_RESERVE - 1); i++) {
-    temp = I2C_read_byte(0);
-    if (*flash_ptr != temp) {
-      fail = 1;
-      break;
-    }
-    else {
-      flash_ptr++;
-      IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
-    }
-  }
-  
-  // Read one more to terminate sequential read
-  temp = I2C_read_byte(1);
-  if (*flash_ptr != temp) {
-    fail = 1;
-  }
-  // if (fail == 0) I2C EEPROM1 matches Flash
-  return fail;
-}
-#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-*/
-
-
-/*
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-#if OB_EEPROM_SUPPORT == 1
-uint8_t compare_flash_to_EEPROM0(void)
-{
-  // Compare Flash to I2C EEPROM0 up to but not including the IO_TIMERS
-  // memory. This is only needed to cover the case where there is an I2C 
-  // EEPROM but the user has used the SWIM interface to update the Runtime
-  // code.
-  uint16_t i;
-  uint8_t fail;
-  uint8_t temp;
-  
-  flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE, 2);
-  fail = 0;
-
-  // Compare Flash to I2C EEPROM0 up to but not including the
-  // IO_TIMERS and IO_NAMES.
-  // Terminate at the first mis-compare
-  for (i=0; i<(OFFSET_TO_FLASH_START_USER_RESERVE - 1); i++) {
-    temp = I2C_read_byte(0);
-    if (*flash_ptr != temp) {
-      fail = 1;
-      break;
-    }
-    else {
-      flash_ptr++;
-      IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
-    }
-  }
-  
-  // Read one more to terminate sequential read
-  temp = I2C_read_byte(1);
-  if (*flash_ptr != temp) {
-    fail = 1;
-  }
-  
-  // if (fail == 0) I2C EEPROM0 matches Flash
-  return fail;
-}
-#endif // OB_EEPROM_SUPPORT == 1
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-*/
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
 void copy_code_uploader_to_EEPROM1(void)
@@ -1392,6 +1518,21 @@ void copy_code_uploader_to_EEPROM1(void)
     I2C_stop();
     wait_timer(5000); // Wait 5ms
     
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // So ... I copy the Code Uploader to I2C EEPROM1. But then in the code
+    // below, while the comment says "validate data", all that happens is
+    // the I2C EEPROM is read. No compare, and no means of notifying the
+    // user if there is a problem.
+    // For now I will comment out the read code below, but leave it here in
+    // case it can be utilized somehow to provide a real validation and
+    // notification to the user.
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+/*
     // Validate data in I2C EEPROM
     flash_ptr -= 128;
     prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, address_index, 2);
@@ -1401,6 +1542,8 @@ void copy_code_uploader_to_EEPROM1(void)
       temp_byte = I2C_read_byte(I2C_last_flag);
       flash_ptr++;
     }
+*/
+
     address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
@@ -1438,6 +1581,21 @@ void copy_flash_to_EEPROM0(void)
     I2C_stop();
     wait_timer(5000); // Wait 5 ms
     
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // So ... I copy the Runtime code to I2C EEPROM0. But then in the code
+    // below, while the comment says "validate data", all that happens is
+    // the I2C EEPROM is read. No compare, and no means of notifying the
+    // user if there is a problem.
+    // For now I will comment out the read code below, but leave it here in
+    // case it can be utilized somehow to provide a real validation and
+    // notification to the user.
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+/*
     // Validate data in I2C EEPROM
     flash_ptr -= 128;
     prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, address_index, 2);
@@ -1447,6 +1605,8 @@ void copy_flash_to_EEPROM0(void)
       temp_byte = I2C_read_byte(I2C_last_flag);
       flash_ptr++;
     }
+*/
+    
     address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
@@ -1481,6 +1641,13 @@ void copy_flash_to_EEPROM0(void)
 void mqtt_startup(void)
 {
   uint8_t i;
+  char client_id_text[26]; // Client ID comprised of text
+                           // "NetworkModule" (13 bytes) and
+			   // MAC (12 bytes) and
+			   // terminator (1 byte)
+			   // for a total of 26 bytes.
+  unsigned char topic_base[55];
+  
   i = 0;
   // This function walks through the steps needed to get MQTT initialized and
   // a connection made to the MQTT Server and Broker
@@ -1861,6 +2028,9 @@ void mqtt_startup(void)
       // bytes and send an Auto Discovery Publish message for every pin as
       // follows:
       //
+      //   Each pin, indexed by variable "pin_ptr", is examined 3 times (once
+      //   per call of this function).
+      //
       //   For every pin that is an Enabled Input:
       //     - An Output Config message is sent with an empty payload (to make
       //       sure any prior Output definition is deleted in Home Assistant).
@@ -1908,7 +2078,14 @@ void mqtt_startup(void)
             // Create Input pin define msg.
             send_IOT_msg(pin_ptr, INPUTMSG, DEFINE_IOT);
 	    
+#if PCF8574_SUPPORT == 0
 	    if (pin_ptr == 16) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+//	    if (pin_ptr == 24) {
+	    if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
+	     || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+#endif // PCF8574_SUPPORT == 1
 	      pin_ptr = 1;
               auto_discovery = DEFINE_OUTPUTS;
               auto_discovery_step = SEND_INPUT_DELETE;
@@ -1920,7 +2097,14 @@ void mqtt_startup(void)
 	  }
 	}
         else {
+#if PCF8574_SUPPORT == 0
 	  if (pin_ptr == 16) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+//	  if (pin_ptr == 24) {
+	  if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
+	   || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+#endif // PCF8574_SUPPORT == 1
 	    pin_ptr = 1;
             auto_discovery = DEFINE_OUTPUTS;
             auto_discovery_step = SEND_INPUT_DELETE;
@@ -1948,7 +2132,14 @@ void mqtt_startup(void)
             // Create Output pin define msg.
             send_IOT_msg(pin_ptr, OUTPUTMSG, DEFINE_IOT);
 	    
+#if PCF8574_SUPPORT == 0
 	    if (pin_ptr == 16) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+//	    if (pin_ptr == 24) {
+	    if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
+	     || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+#endif // PCF8574_SUPPORT == 1
 	      pin_ptr = 1;
               auto_discovery = DEFINE_DISABLED;
               auto_discovery_step = SEND_INPUT_DELETE;
@@ -1958,7 +2149,14 @@ void mqtt_startup(void)
 	  }
 	}
         else {
+#if PCF8574_SUPPORT == 0
 	  if (pin_ptr == 16) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+//	  if (pin_ptr == 24) {
+	  if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
+	   || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+#endif // PCF8574_SUPPORT == 1
 	    pin_ptr = 1;
             auto_discovery = DEFINE_DISABLED;
             auto_discovery_step = SEND_INPUT_DELETE;
@@ -1979,8 +2177,15 @@ void mqtt_startup(void)
 	  else if (auto_discovery_step == SEND_OUTPUT_DELETE) {
             // Create Output pin delete msg.
             send_IOT_msg(pin_ptr, OUTPUTMSG, DELETE_IOT);
-	    
+
+#if PCF8574_SUPPORT == 0
 	    if (pin_ptr == 16) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+//	    if (pin_ptr == 24) {
+	    if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
+	     || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+#endif // PCF8574_SUPPORT == 1
               auto_discovery = DEFINE_TEMP_SENSORS;
 	    }
 	    else {
@@ -1990,19 +2195,34 @@ void mqtt_startup(void)
 	  }
 	}
         else {
+#if PCF8574_SUPPORT == 0
 	  if (pin_ptr == 16) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+//	  if (pin_ptr == 24) {
+	  if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
+	   || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+#endif // PCF8574_SUPPORT == 1
 	    auto_discovery = DEFINE_TEMP_SENSORS;
 	  }
 	  else pin_ptr++;
 	}
       }
- 
+
       else if (auto_discovery == DEFINE_TEMP_SENSORS) {
 #if DS18B20_SUPPORT == 1
-        define_temp_sensors();
+        define_temp_sensors();    // define_temp_sensors will be called
+	                          // repeatedly until all temp sensors are
+				  // defined. define_temp_sensors will set
+				  // auto_discovery = AUTO_COMPLETE when
+	                          // all temp sensors are defined.
 #endif // DS18B20_SUPPORT == 1
 #if BME280_SUPPORT == 1
-        define_BME280_sensors();
+        define_BME280_sensors();  // define_BME280_sensors will be called
+	                          // repeatedly until all BME260 sensors are
+				  // defined. define_BME280_sensors will set
+				  // auto_discovery = AUTO_COMPLETE when
+	                          // all BME280 sensors are defined.
 #endif // BME280_SUPPORT == 1
       }
 
@@ -2039,7 +2259,12 @@ void mqtt_startup(void)
       // This is accomplished by setting ON_OFF_word_sent to the inverse of
       // whatever is currently in ON_OFF_word. This will cause the normal
       // checks for pin state changes to trigger a transmit for every pin.
+#if PCF8574_SUPPORT == 0
       ON_OFF_word_sent = (uint16_t)(~ON_OFF_word);
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+      ON_OFF_word_sent = (uint32_t)(~ON_OFF_word);
+#endif // PCF8574_SUPPORT == 1
       // Indicate succesful completion
       mqtt_start = MQTT_START_COMPLETE;
     }
@@ -2175,7 +2400,8 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 				 //   sensor ID allowing app_message to be
 				 //   used in creating the topic part of the
 				 //   message.
-  
+  unsigned char topic_base[55];
+
   // Create the % marker in the payload template
   app_message[0] = '%';
 
@@ -2244,26 +2470,6 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
     //   0 = Temperature
     //   1 = Pressure
     //   2 = Humidity 
-//    app_message[2] = 'B';
-//    app_message[3] = 'M';
-//    app_message[4] = 'E';
-//    app_message[5] = '2';
-//    app_message[6] = '8';
-//    app_message[7] = '0';
-//    app_message[8] = '-';
-//    if (IOT_ptr == 0) app_message[9] = '0';
-//    if (IOT_ptr == 1) app_message[9] = '1';
-//    if (IOT_ptr == 2) app_message[9] = '2';
-//    // Isolate the two least significant octets of the uip_hostaddr (the module
-//    // IP address). Convert these two octets into a 4 character hexidecimal and use
-//    // that to create a unique ID for the BME280 sensor.
-//    int2hex(stored_hostaddr[1]);
-//    app_message[10] = OctetArray[0];
-//    app_message[11] = OctetArray[1];
-//    int2hex(stored_hostaddr[0]);
-//    app_message[12] = OctetArray[0];
-//    app_message[13] = OctetArray[1];
-//    app_message[14] = '\0';
     create_sensor_ID(IOT_ptr);
     strcpy(&app_message[2], OctetArray);
   }
@@ -2572,7 +2778,13 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   uint8_t pin_value;
   uint8_t ParseNum;
   int i;
+  int k;
+#if PCF8574_SUPPORT == 0
   uint16_t j;
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+  uint32_t j;
+#endif // PCF8574_SUPPORT == 1
 
   pin_value = 0;
   ParseNum = 0;
@@ -2647,7 +2859,15 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       // Determine if payload is ON or OFF
       if (*pBuffer == 'N') {
         // Turn all outputs ON
+#if PCF8574_SUPPORT == 0
 	for (i=0; i<16; i++) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+//        for (i=0; i<24; i++) {
+	if (!(stored_hardware_options & 0x08)) k = 16;
+	else k = 24;
+        for (i=0; i<k; i++) {
+#endif // PCF8574_SUPPORT == 1
 #if LINKED_SUPPORT == 0
 	  if ((pin_control[i] & 0x03) == 0x03) {
 #endif // LINKED_SUPPORT == 0
@@ -2661,7 +2881,15 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       }
       else {
         // Turn all outputs OFF
+#if PCF8574_SUPPORT == 0
 	for (i=0; i<16; i++) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+//        for (i=0; i<24; i++) {
+	if (!(stored_hardware_options & 0x08)) k = 16;
+	else k = 24;
+        for (i=0; i<k; i++) {
+#endif // PCF8574_SUPPORT == 1
 #if LINKED_SUPPORT == 0
 	  if ((pin_control[i] & 0x03) == 0x03) {
 #endif // LINKED_SUPPORT == 0
@@ -2675,7 +2903,12 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       }
     }
     
+#if PCF8574_SUPPORT == 0
     else if (*pBuffer == '0' || *pBuffer == '1') {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+    else if (*pBuffer == '0' || *pBuffer == '1' || *pBuffer == '2') {
+#endif // PCF8574_SUPPORT == 1
       // Output field is a digit
       // Note that Output messages can are received with QOS == 0.
       // Collect the IO number
@@ -2686,7 +2919,12 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       ParseNum += (uint8_t)(*pBuffer - '0');
 
       // Verify ParseNum is in the correct range
+#if PCF8574_SUPPORT == 0
       if (ParseNum > 0 && ParseNum < 17) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+      if (ParseNum > 0 && ParseNum < 25) {
+#endif // PCF8574_SUPPORT == 1
         // Adjust Parsenum to match 0 to 15 numbering (instead of 1 to 16)
         ParseNum--;
         // Skip past the "1/setO" part of the message. If QOS == 0 there is
@@ -2724,8 +2962,9 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
 	MQTT_transmit = (MQTT_transmit | j);
       }
     }
+    
     // The above code effectively did for MQTT what the POST parsing does for
-    // HTML (changed the pin_control byte). So we need to set the 
+    // HTML, ie, changed the pin_control byte. So we need to set the 
     // mqtt_parse_complete value so that the check_runtime_changes() function
     // will perform the necessary IO actions.
     mqtt_parse_complete = 1;
@@ -2762,10 +3001,10 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
 #if BUILD_SUPPORT == MQTT_BUILD
 void publish_outbound(void)
 {
-  // This function checks for a change on any pin (Output or Sense
-  // Input) and PUBLISHes state messages to the Broker if a pin state changed.
-  // The function also checks for a state_request and sends the 2 byte "all
-  // pin states" message as a response.
+  // This function checks for a change on any pin (Output or Sense Input) and
+  // PUBLISHes state messages to the Broker if a pin state changed. The
+  // function also checks for a state_request and sends the 2 byte "all pin
+  // states" message as a response.
   //
   // Something I don't understand and have mentioned elsewhere: Queueing
   // multiple PUBLISH messages doesn't work. I have to get any PUBLISH
@@ -2785,16 +3024,22 @@ void publish_outbound(void)
   // (contained in ON_OFF_word_sent). This provides a pin by pin indication
   // of what has changed since the last publish.
   //
-  // Note that if the high order bits were to keep changing very quickly the
-  // code might not get to the low order bits as often. This is a flaw but
+  // Note that if the high order pins were to keep changing very quickly the
+  // code might not get to the low order pins as often. This is a flaw but
   // may not matter much in this application. The code only checks and sends
   // a message at the periodic_timer_expired(), thus it takes at least 16
   // expirations to get all bits sent, and frequent changes in higher order
   // bits will supersede the processing of lower order bits.
-  
+
+#if PCF8574_SUPPORT == 0
   uint16_t xor_tmp;
-  int i;
   uint16_t j;
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+  uint32_t xor_tmp;
+  uint32_t j;
+#endif // PCF8574_SUPPORT == 1
+  int i;
   int signal_break;
 
   signal_break = 0;
@@ -2821,10 +3066,28 @@ void publish_outbound(void)
     // XOR the current ON_OFF_word with the ON_OFF_word_sent (_sent being the
     // pin states we already transmitted via MQTT). This gives a result that
     // has a 1 for any pin state that still needs to be transmitted.
+#if PCF8574_SUPPORT == 0
     xor_tmp = (uint16_t)(ON_OFF_word ^ ON_OFF_word_sent);
-    
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+    xor_tmp = (uint32_t)(ON_OFF_word ^ ON_OFF_word_sent);
+#endif // PCF8574_SUPPORT == 1
+
+#if PCF8574_SUPPORT == 0
     i = 15;
     j = 0x8000;
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+    if (stored_hardware_options & 0x08) {
+      i = 23;
+      j = 0x00800000;
+    }
+    else {
+      i = 15;
+      j = 0x8000;
+    }
+#endif // PCF8574_SUPPORT == 1
+
     while ( 1 ) {
 
 #if DS18B20_SUPPORT == 1
@@ -2906,10 +3169,16 @@ void publish_outbound(void)
         // ON_OFF_word_sent matches the bit in ON_OFF_word for the pin
         // just examined. This will inidcate it was processed.
         if (ON_OFF_word & j) ON_OFF_word_sent |= j;
+#if PCF8574_SUPPORT == 0
         else ON_OFF_word_sent &= (uint16_t)~j;
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+        else ON_OFF_word_sent &= (uint32_t)~j;
+#endif // PCF8574_SUPPORT == 1
 	// Clear the bit in the MQTT_transmit word to indicate that the
 	// transmit was satisfied.
 	MQTT_transmit &= ~j;
+
 	// Break out of the while() loop only if a PUBLISH Response was sent.
 	if (signal_break == 1) break;
       }
@@ -2933,16 +3202,21 @@ void publish_outbound(void)
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
+#if PCF8574_SUPPORT == 0
 void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t mask)
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t mask)
+#endif // PCF8574_SUPPORT == 1
 {
-  // This function transmits a change in pin state and updates the "sent"
-  // value.
+  // This function transmits a change in pin state for a single pin.
   
   int size;
   int i;
   unsigned char app_message[4];       // Stores the application message (the
                                       // payload) that will be sent in an
 				      // MQTT message.
+  unsigned char topic_base[55];
   
   app_message[0] = '\0';
   
@@ -2952,7 +3226,12 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
   // If we are sending an Input message invert the value if the Invert_word
   // bit associated with the pin is 1
   if (direction == 'I') {
+#if PCF8574_SUPPORT == 0
     if ((Invert_word & mask)) value = (uint16_t)(~value);
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+    if ((Invert_word & mask)) value = (uint32_t)(~value);
+#endif // PCF8574_SUPPORT == 1
     // Build first part of the topic message
     strcat(topic_base, "/input/");
   }
@@ -2995,7 +3274,9 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
 void publish_pinstate_all(void)
 {
   // This function transmits the state of all pins (outputs and sense inputs)
-  // in a single message response regardless of the enabled/disabled state.
+  // in response to a state-req PUBLISH from the Client. The pin states are
+  // sent in a single message response regardless of the enabled/disabled
+  // state.
   // Input pins need to be inverted per the Invert_word.
   // Output pins were already inverted elsewhere so they stay unchanged in
   // this function.
@@ -3005,18 +3286,43 @@ void publish_pinstate_all(void)
   // msb of the byte. The ON/OFF state for IO 1 is in the lsb.
   
   int i;
+  int m;
   uint16_t j;
   uint16_t k;
   unsigned char app_message[3];       // Stores the application message (the
                                       // payload) that will be sent in an
 				      // MQTT message.
+  unsigned char topic_base[55];
   
   j = 0x0001;
   k = 0x0000;
   
-  for(i=0; i<16; i++) {
-    // Check for input/output
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// PROBLEM: Before adding the PCF8574 this function published two bytes for
+// the state of the 16 pins on the STM8. NOW there is the need to publish 24
+// pins (3 bytes). Should there be a separate state-req for the added pins?
+// Or should the code send a 2 byte payload when the PCH8574 is not present
+// and a 3 byte payload when the PCF8574 is present.
+// Comment: In the REST commands /98 /99 show 16 bits if no PCF8574 and 24
+// bits if there is a PCF8574.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  for (i=0; i<16; i++) {
+/*
+#if PCF8574_SUPPORT == 0
+  for (i=0; i<16; i++) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+  if (stored_hardware_options & 0x08) m = 24;
+  else m = 16;
+  for (i=0; i<m; i++) {
+#endif // PCF8574_SUPPORT == 1
+*/
 
+    // Check for input/output
 #if LINKED_SUPPORT == 0
     if ((pin_control[i] & 0x03) == 0x03) {
 #endif // LINKED_SUPPORT == 0
@@ -3081,6 +3387,8 @@ void publish_temperature(uint8_t sensor)
   // This function is called to Publish a temperature value collected from
   // a DS18B20 connected to IO 16.
   
+  unsigned char topic_base[55];
+  
   if (sensor <= numROMs) {
     // Only Publish if the sensor number is one of the sensors found by
     // FindDevices as indicated by numROMs.
@@ -3133,6 +3441,9 @@ void publish_BME280(int8_t sensor)
 {
   // This function is called to Publish the sensor values collected from
   // a BME280 temperature, pressure, humidity sensor.
+  
+  unsigned char topic_base[55];
+
   
   if (BME280_found == 1) {
     // Only Publish if the sensor number is one of the sensors found by
@@ -3319,6 +3630,8 @@ void check_eeprom_settings(void)
   //
   // The magic number sequence is MSB 0x55 0xee 0x0f 0xf0 LSB
   
+  magic_number_missing_flag = 0; // Track whether Magic Number is found
+  
   if ((stored_magic4 != 0x55) || 
       (stored_magic3 != 0xee) || 
       (stored_magic2 != 0x0f) || 
@@ -3327,6 +3640,9 @@ void check_eeprom_settings(void)
     // MAGIC NUMBER IS NOT PRESENT. Initialize EEPROM with the default Device
     // Name, IP, Gateway, Netmask, Port, and MAC values. Also initialize
     // EEPROM to turn off all Outputs and write the magic number.
+    
+    magic_number_missing_flag = 1; // Indicate Magic Number was missing at
+                                   // boot time.
 
     unlock_eeprom(); // Make EEPROM writeable
     
@@ -3427,14 +3743,20 @@ void check_eeprom_settings(void)
     //  Bytes 69 to 113:  Fill with zero
 
     {
-    static const uint8_t EEPROM_default_devicename[] = {
     // First 20 bytes - device name
+    static const uint8_t EEPROM_default_devicename[] = {
     'N', 'e', 'w', 'D', 'e', 'v', 'i', 'c', 'e', '0', '0', '0', 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00 };
     memcpy(&stored_devicename[0], EEPROM_default_devicename, 20);
     } // 20 bytes
+    
+    // 1 byte stored hardware options
+    stored_hardware_options = 0;
+    
+    // Skip 2 bytes (the EEPROM revision bytes)
 
     {
+    // Next 30 bytes
     static const uint8_t EEPROM_default_general[] = {
     // 6 bytes MAC address (aka ethaddr)
     0x00, 0x65, 0x6b, 0x69, 0x4d, 0xc2,
@@ -3454,19 +3776,29 @@ void check_eeprom_settings(void)
     0x00, 0x00, 0x00, 0x00};
     memcpy(&stored_uip_ethaddr_oct[0], EEPROM_default_general, 30);
     } // 30 bytes
-
+    
+    // Next 45 bytes are all 0
+    //   MQTT username 11 bytes
+    //   MQTT password 11 bytes
+    //   Unused 5 bytes
+    //   Copy of Config settings 1 byte
+    //   Config settings 1 byte
+    //   STM8 pin_controls 16 bytes
     memset(&stored_mqtt_username[0], 0, 45); // 45 bytes
+    
+    // Skip 10 bytes (the Debug bytes)
+    
+    // Altitude 2 bytes
+    memset(&stored_altitude, 0, 2);
 
     lock_eeprom();
-    
-    
+
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-    // Initialize Flash memory that is used to store IO Timers
-    // Since the magic number didn't match all timers are set
-    // to zero.
+    // Initialize Flash memory that is used to store IO Timers for STM8 output
+    // pins.
+    // Since the magic number didn't match all timers are set to zero.
     unlock_flash();
-    // IO_TIMER bytes are written 4 bytes at a time to reduce
-    // Flash wear
+    // IO_TIMER bytes are written 4 bytes at a time to reduce Flash wear
     i = 0;
     while(i<16) {
       // Enable Word Write Once
@@ -3475,13 +3807,15 @@ void check_eeprom_settings(void)
       memcpy(&IO_TIMER[i], 0, 4);
       i += 4;
     }
-
+    lock_flash();
+    
     // Initialize Flash memory that is used to store IO Names
     // Since the magic number didn't match all names are set
     // to defaults. 4 byte writes are used to reduce Flash wear.
     // Even though 16 bytes are allocated in Flash, only 8 bytes
     // are written here (a 4 byte IO Name and a 4 byte set of
     // NULL characters to provide a string terminator).
+    unlock_flash();
     for (i=0; i<16; i++) {
       strcpy(temp, "IO");
       emb_itoa(i+1, OctetArray, 10, 2);
@@ -3496,9 +3830,25 @@ void check_eeprom_settings(void)
       memcpy(&IO_NAME[i][4], 0, 4);
     }
     lock_flash();
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD    
   }
-  
+
+
+
+  // ********************************************************************** //
+  // ********************************************************************** //
+  // ********************************************************************** //
+  //
+  // The code above was run if the Magic Number did not match.
+  //
+  // The next code is run regardless of matching Magic Number or not.
+  //
+  // In the next code EEPROM content is copied to RAM variables.
+  //
+  // ********************************************************************** //
+  // ********************************************************************** //
+  // ********************************************************************** //
+
   // Read the values in the EEPROM to initialize the code variables.
     
   // Read and use the IP Address from EEPROM
@@ -3551,42 +3901,107 @@ void check_eeprom_settings(void)
   uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
 
 
+
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  // Check the IO Names in Flash to make sure they are not NULL.
-  //   IO Names might be NULL if the device is programmed using
+  // Check the IO Names in Flash to make sure they are not corrupted. The
+  // names must contain only * - . _ 0-9 A-Z a-z
+  // If any name is corrupted it is replaced with a name of format "IOxx"
+  // where xx is the pin number.  
+  //   IO Names might be corrupted if the device is programmed using
   //   "Program/Current Tab" instead of "Program/Address Range".
   //   "Program/Current Tab" will zero out the Flash area where these
   //   variables are stored but will leave a valid magic number in
   //   the EEPROM. If there is already an IO Name stored this code will
-  //   not change it.
+  //   not change it. The IO Names might also be corrupted if MQTT code
+  //   is replaced with Browser Code, leaving a Magic Number in place but
+  //   failing to initialize the IO Names storage area.
+  // There are 16 names, 16 bytes each.
   unlock_flash();
-  for (i=0; i<16; i++) {
-    strcpy(temp, "IO");
-    emb_itoa(i+1, OctetArray, 10, 2);
-    strcat(temp, OctetArray);
-    if (IO_NAME[i][0] == 0) {
-      // Enable Word Write Once
-      FLASH_CR2 |= FLASH_CR2_WPRG;
-      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-      memcpy(&IO_NAME[i][0], &temp, 4); // Write default name
-      // Enable Word Write Once
-      FLASH_CR2 |= FLASH_CR2_WPRG;
-      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-      memcpy(&IO_NAME[i][4], 0, 4); // Add NULL
+  {
+    int i;
+    int j;
+    int fail;
+    char temp[16];
+    for (i=0; i<16; i++) {
+      // Build replacement name in case it is needed
+      memcpy(&temp, 0, 16); // Fill temp with null
+      strcpy(temp, "IO");
+      emb_itoa(i+1, OctetArray, 10, 2);
+      strcat(temp, OctetArray);
+    
+      // Check name for corruption
+      fail = 0;
+      if (IO_NAME[i][0] == 0) fail = 1;
+      else {
+        for (j = 0; j < 16; j++) {
+          if (is_allowed_char(IO_NAME[i][j]) == 0) fail = 1;
+        }
+      }
+      if (fail) {
+        // Write the default NAME to Flash
+        // Enable Word Write Once
+        FLASH_CR2 |= FLASH_CR2_WPRG;
+        FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+        memcpy(&IO_NAME[i][0], &temp, 4); // Write default name
+        // Enable Word Write Once
+        FLASH_CR2 |= FLASH_CR2_WPRG;
+        FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+        memcpy(&IO_NAME[i][4], 0, 4); // Add NULL
+      }
     }
   }
   lock_flash();
   
-  // Initialize the Pending IO_TIMER variables
+  
+  // IO_TIMER check: Any 16 bit value is legitimate in the IO_TIMER values so
+  // it is not possible to check for corruption.
+  
+  // Copy Flash IO_TIMER values to the Pending IO_TIMER variables for STM8
+  // pins
   memcpy(&Pending_IO_TIMER[0], &IO_TIMER[0], 32);
+
+  // Zero out the pin_timer down counters. Leave the counter unit bits as-is.
+  {
+    int i;
+    for (i=0; i<16; i++) {
+      pin_timer[i] = pin_timer[i] & 0xc000;
+    }
+  }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
-  // Since this code is run one time at boot, initialize the variables that
-  // are dependent on EEPROM content.
+#if LINKED_SUPPORT == 1
+  {
+    // Linked pin check:
+    //    Verify that there is no corruption in the EEPROM in the form of
+    //    Linked pins that do not have a partner (for example, pin 1 is
+    //    defined as Linked, but the partner pin 9 is not defined as Linked).
+    //    In such a case the EEPROM should have both pins set to Disabled.
+    //    Note: I think this could only happen if a user made manual edits to
+    //    the EEPROM, or if the GUI update process was interrupted by a power
+    //    fail.
+    int i;
+    for (i=0; i<8; i++) {
+      if (((stored_pin_control[i] & 0x03) == 0x02) || ((stored_pin_control[i+8] & 0x03) == 0x02)) {
+        // At least one pin is defined as Linked
+        if ((stored_pin_control[i] & 0x03) != (stored_pin_control[i+8] & 0x03)) {
+	  // One of the pins is not defined as Linked. Set both pins to Disabled.
+	  unlock_eeprom();
+	  stored_pin_control[i] = 0x00;
+	  stored_pin_control[i+8] = 0x00;
+	  lock_eeprom();
+	}
+        // else do nothing - the settings are OK.
+      }
+      // else do nothing - the settings are OK.
+    }
+  }
+#endif // LINKED_SUPPORT == 1
 
-  // Read the pin_control bytes from EEEPROM
+
+  // Read the pin_control bytes from EEEPROM for STM8 pins
   for (i=0; i<16; i++) pin_control[i] = stored_pin_control[i];
+
 
 #if LINKED_SUPPORT == 0
   // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
@@ -3607,6 +4022,7 @@ void check_eeprom_settings(void)
   }
 #endif // LINKED_SUPPORT == 0
 
+
 #if LINKED_SUPPORT == 1
   // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
   // accordingly. Do this on Outputs only.
@@ -3626,24 +4042,14 @@ void check_eeprom_settings(void)
   }
 #endif // LINKED_SUPPORT == 1
 
- // Update Pending_pin_control bytes
- // Do NOT update the stored_pin_control at this point as we've only
- // manipulated the output state and we don't want to update the output
- // state in the stored_pin_control if Retain is turned on. That will be
- // handled later.
-  for (i=0; i<16; i++) {
-    Pending_pin_control[i] = pin_control[i];
-  }
 
-  // Initialize 16bit versions of the ON/OFF and Invert pin control
-  // information
-  encode_16bit_registers(1);
-    
-  // Initialize IO ON/OFF state tracking
-  ON_OFF_word_new1 = ON_OFF_word_new2 = ON_OFF_word_sent = ON_OFF_word;
-    
-  // Set Output pins
-  write_output_pins();
+  // Update Pending_pin_control bytes
+  // Do NOT update the stored_pin_control at this point as we've only
+  // manipulated the output state and we don't want to update the output
+  // state in the stored_pin_control if Retain is turned on. That will be
+  // handled later in the check_runtime_changes() function.
+  for (i=0; i<16; i++) Pending_pin_control[i] = pin_control[i];
+
 
   for (i=0; i<4; i++) {
     Pending_hostaddr[i] = stored_hostaddr[i];
@@ -3678,6 +4084,342 @@ void check_eeprom_settings(void)
 }
 
 
+void apply_PCF8574_pin_settings(void)
+{
+#if PCF8574_SUPPORT == 1
+  // Apply PCF8574 pin settings (if PCF8574 is enabled) THEN call funtions
+  // to write the Output pins on the STM8 and PCF8574.
+  
+  // With the exception of a few lines of code at the very end of this
+  // function this code is ONLY used when PCF8574_SUPPORT is compiled.
+  
+  // PCF8574 pin settings are:
+  //   pin_control bits
+  //   IO_NAMES
+  //   IO_TIMERS
+  // This cannot run until after gpio_init() is run because the PCF8574
+  // function needs to access the I2C EEPROM via the I2C bus on pins 14
+  // and 15.
+  
+  // Some functionality needs to run first if check_eeprom_settings() found
+  // that there was no Magic Number in the EEPROM.
+  
+  if (magic_number_missing_flag == 1) {
+    // check_eeprom_settings() did not find a Magic Number at boot time. The
+    // check_eeprom_settings() function will have established the Magic
+    // Number, but this function still needs to provide initialization of
+    // the PCF8574 settings and variables.
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    // Initialize I2C EEPROM memory that is used to store pin_control
+    // values for PCF8574 pins.
+    // Since the magic number didn't match all pins are set to zero.
+    {
+      int i;
+      I2C_control(I2C_EEPROM2_WRITE);
+      I2C_byte_address(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE, 2);
+      for (i=0; i<8; i++) {
+        I2C_write_byte(0);
+      }
+      I2C_stop(); // Start the EEPROM internal write cycle
+      wait_timer(5000); // Wait 5ms
+    }
+
+
+    // Initialize I2C EEPROM memory that is used to store IO Timers for
+    // PCF8574 output pins.
+    // Since the magic number didn't match all timers are set to zero.
+    // There are 8 timers, 4 bytes each. Write 0 to 32 bytes.
+    {
+      int i;
+      I2C_control(I2C_EEPROM2_WRITE);
+      I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_TIMERS, 2);
+      for (i=0; i<32; i++) {
+        I2C_write_byte(0);
+      }
+      I2C_stop(); // Start the EEPROM internal write cycle
+      wait_timer(5000); // Wait 5ms
+    }
+
+
+    // Initialize I2C EEPROM memory that is used to store IO Names for
+    // PCF8574 output pins.
+    // Since the magic number didn't match all names are set to default.
+    // There are 8 names, 16 bytes each. Write 128 bytes.
+    I2C_control(I2C_EEPROM2_WRITE);
+    I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES, 2);
+    {
+      char temp[16];
+      int i;
+      int j;
+      for (i=16; i<24; i++) {
+        memcpy(&temp, 0, 16); // Fill temp with null
+        strcpy(temp, "IO");
+        emb_itoa(i+1, OctetArray, 10, 2);
+        strcat(temp, OctetArray);
+	for (j=0; j<16; j++) {
+          I2C_write_byte(temp[j]);
+	}
+      }
+    }
+    I2C_stop(); // Start the EEPROM internal write cycle
+    wait_timer(5000); // Wait 5ms
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD        
+  }
+
+
+// With the exception of a few items the following code runs regardless of
+// whether a Magic Number was present at boot or not.
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+  if (magic_number_missing_flag == 0) {
+    // Check the IO Names in I2C EEPROM to make sure they are not corrupted. The
+    // names must contain only * - . _ 0-9 A-Z a-z
+    // If any name is corrupted it is replaced with a name of format "IOxx"
+    // where xx is the pin number.
+    //   The IO Names might be corrupted if MQTT code is replaced with Browser
+    //   Code, leaving a Magic Number in place but failing to initialize the
+    //   IO Names storage area.
+    //   If there is already a valid IO Name stored this code will not change
+    //   it.
+    // There are 8 names, 16 bytes each.
+    {
+      int i;
+      int j;
+      int fail;
+      char temp[16];
+      for (i=0; i<8; i++) {
+        // Read NAME and check for corruption
+        fail = 0;
+        for (j=0; j<15; j++) {
+          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + (i * 16), 2);
+          temp[j] = I2C_read_byte(0);
+          if (temp[0] == 0) fail = 1;
+          if (is_allowed_char(temp[i]) == 0) fail = 1;
+        }
+        temp[15] = I2C_read_byte(1);
+        if (is_allowed_char(temp[15]) == 0) fail = 1;
+      
+        if (fail) {
+          // Build the default NAME
+          memcpy(&temp, 0, 16); // Fill temp with null
+          strcpy(temp, "IO");
+          emb_itoa(i+17, OctetArray, 10, 2);
+          strcat(temp, OctetArray);
+          // Write the default NAME to I2C EEPROM      
+          I2C_control(I2C_EEPROM2_WRITE);
+          I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + (i * 16), 2);
+          for (j=0; j<16; j++) {
+            I2C_write_byte(temp[j]);
+          }
+          I2C_stop(); // Start the EEPROM internal write cycle
+          wait_timer(5000); // Wait 5ms
+        }
+      }
+    }
+  }
+
+  // IO_TIMER check: Any 16 bit value is legitimate in the IO_TIMER values so
+  // it is not possible to check for corruption.
+  
+  // Copy I2C EEPROM IO_TIMER values to the Pending IO_TIMER variables for
+  // PCF8574 pins
+  {
+    int i;
+    uint8_t j;
+    uint16_t temp;
+    
+    j = 0;
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS, 2);
+    for (i=0; i<8; i++) {
+      temp = I2C_read_byte(j);       // Read upper byte
+      temp = temp << 8;
+      if (i == 7) j = 1;             // Signal read of last byte
+      temp |= I2C_read_byte(j);      // Read lower byte
+      Pending_IO_TIMER[i+16] = temp;
+    }
+  }
+
+  // Zero out the pin_timer down counters. Leave the counter unit bits as-is.
+  {
+    int i;
+    for (i=16; i<24; i++) {
+      pin_timer[i] = pin_timer[i] & 0xc000;
+    }
+  }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+  // Read the pin_control bytes from I2C EEPROM for the PCF8574 pins
+  {
+    int i;
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE, 2);
+    for (i=16; i<23; i++) {
+      pin_control[i] = I2C_read_byte(0);
+    }
+    pin_control[23] = I2C_read_byte(1);
+  }
+
+
+#if LINKED_SUPPORT == 1
+  {
+    // Linked pin check:
+    //    Verify that there is no corruption in the EEPROM in the form of
+    //    Linked pins that do not have a partner (for example, pin 1 is
+    //    defined as Linked, but the partner pin 9 is not defined as Linked).
+    //    In such a case the EEPROM should have both pins set to Disabled.
+    //    Note: I think this could only happen if a user made manual edits to
+    //    the EEPROM, or if the GUI update process was interrupted by a power
+    //    fail.
+    int i;
+    uint16_t byte_address_1;
+    uint16_t byte_address_2;
+    uint8_t byte_1;
+    uint8_t byte_2;
+      
+    for (i=0; i<4; i++) {
+      // Read stored_pin_control from I2C EEPROM for the partner input and
+      // output pins.
+      byte_address_1 = (uint16_t)(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE + i);
+      prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, byte_address_1, 2);
+      byte_1 = I2C_read_byte(1);
+      byte_address_2 = (uint16_t)(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE + i + 4);
+      prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, byte_address_2, 2);
+      byte_2 = I2C_read_byte(1);
+
+      if (((byte_1 & 0x03) == 0x02) || ((byte_2 & 0x03) == 0x02)) {
+        // At least one pin is defined as Linked
+        if ((byte_1 & 0x03) != (byte_2 & 0x03)) {
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("One PCF pin of a pair is Linked\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+          // One of the pins is not defined as Linked. Set both pins to Disabled.
+          // Pin is linked. Change it to Disabled.
+          I2C_control(I2C_EEPROM2_WRITE);
+          I2C_byte_address(byte_address_1, 2);
+          I2C_write_byte(0x00);
+          I2C_stop();
+          wait_timer(5000); // Wait 5ms
+          I2C_control(I2C_EEPROM2_WRITE);
+          I2C_byte_address(byte_address_2, 2);
+          I2C_write_byte(0x00);
+          I2C_stop();
+          wait_timer(5000); // Wait 5ms
+        }
+        // else do nothing - the settings are OK.
+      }
+      // else do nothing - the settings are OK.
+    }
+  }
+#endif // LINKED_SUPPORT == 1
+
+
+#if LINKED_SUPPORT == 0
+  // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
+  // accordingly. Do this on Outputs only.
+  for (i=16; i<24; i++) {
+    if (((pin_control[i] & 0x08) == 0x00) && ((pin_control[i] & 0x03) == 0x03)) {
+      // Retain is not set and this is an output
+      if ((pin_control[i] & 0x10) == 0x00) {
+        // Force ON/OFF to zero
+        pin_control[i] &= 0x7f;
+      }
+      else if ((pin_control[i] & 0x10) == 0x10) {
+        // Force ON/OFF to one
+        pin_control[i] |= 0x80;
+      }
+      // else Retain the ON/OFF bit
+    }
+  }
+#endif // LINKED_SUPPORT == 0
+
+#if LINKED_SUPPORT == 1
+  // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
+  // accordingly. Do this on Outputs only.
+  {
+    int i;
+    for (i=16; i<24; i++) {
+      if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+        // Pin is an Output and Retain is not set
+        if ((pin_control[i] & 0x18) == 0x00) {
+          // Retain is not set, and Force Zero is indicated
+          pin_control[i] &= 0x7f;
+        }
+        else if ((pin_control[i] & 0x18) == 0x10) {
+          // Retain is not set, and Force One is indicated
+          pin_control[i] |= 0x80;
+        }
+      }
+      // else do nothing so that the ON/OFF bit is retained
+    }
+  }
+#endif // LINKED_SUPPORT == 1
+
+  // Update PCF8574 Pending_pin_control bytes
+  // Do NOT update the stored_pin_control at this point as we've only
+  // manipulated the output state and we don't want to update the output
+  // state in the stored_pin_control if Retain is turned on. That will be
+  // handled later in the check_runtime_changes() function.
+  {
+    int i;
+    for (i=16; i<24; i++) {
+      Pending_pin_control[i] = pin_control[i];
+    }
+  }
+#endif // PCF8574_SUPPORT == 1
+
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+//
+// Might need to do the following for the STM8 pins earlier to avoid relay
+// chatter on those pins. Waiting until this point to settle the STM8 pins
+// means they wait the many milliseconds it takes to do all the I2C bus
+// transactions required to handle the PCF8574 pins.
+//
+// If earlier settling of the STM8 pins needs to be done the functions below
+// may need to be modified so that they know when they are being called to
+// update ONLY the STM8 pins (and NOT the PCF8574 pins.
+//
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+  // Initialize 16bit versions of the ON/OFF and Invert pin control
+  // information
+  encode_16bit_registers(1);
+    
+  // Initialize IO ON/OFF state tracking
+  ON_OFF_word_new1 = ON_OFF_word_new2 = ON_OFF_word_sent = ON_OFF_word;
+    
+  // Set Output pins
+  write_output_pins();
+}
+
+
+
+
+
+
+uint8_t is_allowed_char(uint8_t character)
+{
+  // Checks that a character is permissible in a specific string.
+  if ((character >= 48 && character <=57)   // 0 to 9
+   || (character >= 65 && character <=90)   // A to Z
+   || (character >= 97 && character <=122)  // a to z
+   || (character == 42)                     // * (asterisk)
+   || (character == 45)                     // - (dash)
+   || (character == 46)                     // . (period)
+   || (character == 95)                     // _ (underbar)
+   || (character == 0)) {                   // NULL
+    return (1);
+   }
+  else return(0);
+}
+
+
 void update_mac_string(void)
 {
   // Function to turn the uip_ethaddr values into a single string containing
@@ -3702,30 +4444,57 @@ void check_runtime_changes(void)
 {
   //-------------------------------------------------------------------------//
   // Step 1:
-  // Read the input registers and update the pin_control values as needed.
+  // Read the input registers and update the input state in the pin_control
+  // values as needed.
   // 
   // Step 2:
+  // Validate the user selected IO pinout. If DS18B20, BME280, any I2C
+  // functionality, or the UART are being used then the only valid pinout is
+  // Option 1.
+  //   Note: Since this check occurs after the "read input registers" step
+  //   there may be a problem if the pin option is forced to change due to
+  //   the user deciding to use a reserved pin. Since the user is making
+  //   concious decisions about reserved pins I don't think this will be
+  //   very confusing.
+  //
+  // Step 3:
   // Check if the DS18B20 feature is enabled. If yes over-ride the
   // pin_control byte settings for IO 16 to force them to all zero. This
   // forces the disabled state so the DS18B20 code can utilize the pin for
   // temperature sensor communication.
   //
-  // Step 3:
+  // Step 4:
+  // If BME280 is not supported but the user has requested BME280 support on
+  // the Configuration page then deselect the BME280 support request in the
+  // Configuration byte.
+  //
+  // Step 4:
   // Check if I2C functionality is enabled. If yes over-ride the pin_control
   // byte settings for pins 14 and 15 to force them to all zero. This forces
   // the disabled state so that the I2C code can utilize the pin for I2C
   // communication.
   //
-  // Step 4:
+  // Step 5:
   // Check if the UART is enabled. If yes over-ride the pin_control byte
   // settings for IO 11 to force them to all zero. This forces the disabled
   // state so the UART code can utilize the pin for UART communication.
   //
-  // Step 5:
+  // Step 6:
+  // Validate the Linked Pins configuration. If pins are not properly linked
+  // set them back to their prior pin_control value (invalidates the incorrect
+  // changes made by the user).
+  //
+  // Step 7:
+  // If Linked Pins are enabled check for any edges that may have occurred on
+  // linked input pins. This is done at this step to allow a valid input
+  // to be treated as a pending output change by the rest of the runtime
+  // changes code.
+  //
+  // Step 8:
   // Manage Output pin Timers. Change Output pin states and Timers as
   // appropriate.
   //
-  // Step 6:
+  // Step 9:
   // Check if the user requested changes to Device Name, Output States, IP
   // Address, Gateway Address, Netmask, Port, or MAC. If a change occurred
   // update the appropriate variables and output controls, and store the new
@@ -3733,9 +4502,75 @@ void check_runtime_changes(void)
 
   uint8_t update_EEPROM;
 
-  unlock_eeprom();
-
   read_input_pins(0);
+
+
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// if (parse_complete == 1) {
+// UARTPrintf("start of runtime_changes stored_config_settings = ");
+// emb_itoa(stored_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   Pending_config_settings = ");
+// emb_itoa(Pending_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+// }
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if PCF8574_SUPPORT == 1
+// UARTPrintf("PCF8574 pin_control[] at start of check_runtime_changes\r\n");
+// PCF8574_display_pin_control();
+#endif // PCF8574_SUPPORT == 1
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if PCF8574_SUPPORT == 1
+// if (parse_complete == 1) UARTPrintf("parse_complete detected\r\n");
+// if (mqtt_parse_complete == 1) UARTPrintf("mqtt_parse_complete detected\r\n");
+#endif // PCF8574_SUPPORT == 1
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+
+#if PINOUT_OPTION_SUPPORT == 1
+  // Only pinout Option 1 is allowed if any reserved pins are in use. There
+  // can be a bit of a chicken-and-egg problem here as the user might already
+  // have reserved pins in use and then selects an alternative pinout, OR the
+  // user might select a reserved pin function while an alternative pinout is
+  // already in place. Either case will invalidate use of an alternative
+  // pinout.
+  
+  // Note: The build map in uipopt.h does not allow a build that has both
+  // PINOUT_OPTION_SUPPORT and I2C_SUPPORT, so we don't need to check that.
+  // And code in the httpd.c file will force the use of Pinout Option 1 if
+  // the UART is enabled. So here we only need to check if the user tried to
+  // enable DS18B20 or BME280 on pin 16.
+  
+  // If a pinout other than Option 1 is in use then don't allow the user to
+  // enable DS18B20. If DS18B20 was already enabled and the user then selected
+  // a pinout other than Option 1 then disable DS18B20.
+  if ((Pending_config_settings & 0x08) || (stored_config_settings & 0x08)) {
+    // User has requested that DS18B20 functionality be enabled, or DS18B20
+    // was already enabled in the config settings. DS18B20 is only allowed if
+    // pinout Option 1 is being used.
+    if ((stored_hardware_options & 0x07) > 1) {
+      Pending_config_settings &= (uint8_t)~0x08;
+      // If DS18B20 is enabled in the stored_config_settings it will be
+      // disabled in code further below.
+    }
+  }
+  if ((Pending_config_settings & 0x20) || (stored_config_settings & 0x20)) {
+    // User has requested that BME280 functionality be enabled, or BME280
+    // was already enabled in the config settings. BME280 is only allowed if
+    // pinout Option 1 is being used.
+    if ((stored_hardware_options & 0x07) > 1) {
+      Pending_config_settings &= (uint8_t)~0x20;
+      // If DS18B20 is enabled in the stored_config_settings it will be
+      // disabled in code further below.
+    }
+  }
+#endif // PINOUT_OPTION_SUPPORT == 1
 
 
 #if DS18B20_SUPPORT == 1
@@ -3746,9 +4581,19 @@ void check_runtime_changes(void)
   if (Pending_config_settings & 0x08) {
     pin_control[15] = Pending_pin_control[15] = (uint8_t)0x00;
     // Update the stored_pin_control[] variables
+    unlock_eeprom();
     if (stored_pin_control[15] != pin_control[15]) stored_pin_control[15] = pin_control[15];
+    lock_eeprom();
   }
 #endif // DS18B20_SUPPORT == 1
+
+
+#if BME280_SUPPORT == 0
+  // If BME280 is not supported do not allow a user request to enable BME280
+  // in the Pending_config_settings.
+  Pending_config_settings &= (uint8_t)(~0x20);
+#endif // BME280_SUPPORT == 0
+
 
 #if I2C_SUPPORT == 1
   // If I2C functionality is enabled disable pins 14 and 15 so that they can
@@ -3758,8 +4603,10 @@ void check_runtime_changes(void)
   pin_control[13] = Pending_pin_control[13] = (uint8_t)0x00;
   pin_control[14] = Pending_pin_control[14] = (uint8_t)0x00;
   // Update the stored_pin_control[] variables
+  unlock_eeprom();
   if (stored_pin_control[13] != pin_control[13]) stored_pin_control[13] = pin_control[13];
   if (stored_pin_control[14] != pin_control[14]) stored_pin_control[14] = pin_control[14];    
+  lock_eeprom();
 #endif // I2C_SUPPORT == 1
 
 
@@ -3770,59 +4617,26 @@ void check_runtime_changes(void)
   // from Disabled in the GUI. This will force the state back to Disabled.
   pin_control[10] = Pending_pin_control[10] = (uint8_t)0x00;
   // Update the stored_pin_control[] variables
+  unlock_eeprom();
   if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
+  lock_eeprom();
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
-#if LINKED_SUPPORT == 0
-  {
-    // If Linked pins are NOT supported we need to set any Linked pins to
-    // disabled. This is done in case a code load that does not support linked
-    // pins is applied to a module that previously had a code load that did
-    // support linked pins.
-    int i;
-    for (i=0; i<16; i++) {
-      if ((stored_pin_control[i] & 0x03) == 0x02) {
-        // Pin is linked. Change it to Disabled.
-        unlock_eeprom();
-        stored_pin_control[i] = 0x00;
-        lock_eeprom();
-      }
-    }
-  }
-#endif // LINKED_SUPPORT == 0
 
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// Should the following only run if "parse_complete"? I don't think it matters
+// because Linking changes MUST be made synchronously.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #if LINKED_SUPPORT == 1
   {
-    // Linked pin check:
-    // 1) Verify that there is no corruption in the EEPROM in the form of
-    //    Linked pins that do not have a partner (for example, pin 1 is
-    //    defined as Linked, but the partner pin 9 is not defined as Linked).
-    //    In such a case the EEPROM should have both pins set to Disabled.
-    //    Note: I think this could only happen if a user made manual edits to
-    //    the EEPROM, or if the GUI update process was interrupted by a power
-    //    fail.
-    // 2) Look for Linked pins in the Pending_pin_control values and make sure
-    //    their partner also has a Pending_pin_control value of Linked. If
-    //    not revert both pins to their value in the EEPROM. Note: This can
-    //    only happen if parse_complete is also set by the GUI process that
-    //    changed the pin Type.
     int i;
-    for (i=0; i<8; i++) {
-      if (((stored_pin_control[i] & 0x03) == 0x02) || ((stored_pin_control[i+8] & 0x03) == 0x02)) {
-        // At least one pin is defined as Linked
-        if ((stored_pin_control[i] & 0x03) != (stored_pin_control[i+8] & 0x03)) {
-	  // One of the pins is not defined as Linked. Set both pins to Disabled.
-	  unlock_eeprom();
-	  stored_pin_control[i] = 0x00;
-	  stored_pin_control[i+8] = 0x00;
-	  lock_eeprom();
-	}
-        // else do nothing - the settings are OK.
-      }
-      // else do nothing - the settings are OK.
-    }
-    // Now that we know the EEPROM is valid with regard to Linked pin types
-    // check the Pending_pin_controls
+    // Check the Pending_pin_controls for Linked pins to make sure that
+    // Linking is applied to appropriate partner pins.
+    // First check the STM8 pins
     for (i=0; i<8; i++) {
       if (((Pending_pin_control[i] & 0x03) == 0x02) || ((Pending_pin_control[i+8] & 0x03) == 0x02)) {
         // At least one pin is in the process of being defined as Linked
@@ -3837,6 +4651,35 @@ void check_runtime_changes(void)
       }
       // else do nothing - the settings are OK.
     }
+#if PCF8574_SUPPORT == 1
+    {
+      // Check the PCF8574 pins
+      int i;
+      uint16_t byte_address_1;
+      uint16_t byte_address_2;
+      uint8_t byte_1;
+      uint8_t byte_2;
+      for (i=16; i<20; i++) {
+        if (((Pending_pin_control[i] & 0x03) == 0x02) || ((Pending_pin_control[i+4] & 0x03) == 0x02)) {
+          // At least one pin is in the process of being defined as Linked
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("At least one PCF pin of a pair is Pending Linked\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+          if ((Pending_pin_control[i] & 0x03) != (Pending_pin_control[i+4] & 0x03)) {
+            // One of the pins is not defined as Linked. Revert the 
+	    // Pending_pin_control back to the value in the existing pin_control.
+	    // This should just have the effect of invalidating the Pending request.
+	    Pending_pin_control[i] = pin_control[i];
+	    Pending_pin_control[i+4] = pin_control[i+4];
+	  }
+          // else do nothing - the settings are OK.
+        }
+        // else do nothing - the settings are OK.
+      }
+    }
+#endif // PCF8574_SUPPORT == 1
   }
 #endif // LINKED_SUPPORT == 1
 
@@ -3844,14 +4687,18 @@ void check_runtime_changes(void)
 #if LINKED_SUPPORT == 1
   {
     int i;
-    uint8_t mask;
+    uint16_t mask;
     // Check the linked_edge byte for any indication of an Input pin edge on
     // a Linked input pin. It doesn't matter if the edge is positive or
     // negative, only that an edge occurred.
     //
-    // The Linked pin function only allows Inputs on pins 1 to 8, and
-    // corresponding Outputs on pin 9 to 16. If an Input edge is detected then
-    // the corresponding Output state is to be toggled.
+    // STM8 pins: The Linked pin function only allows Inputs on pins 1 to 8,
+    // and corresponding Outputs on pin 9 to 16. If an Input edge is detected
+    // then the corresponding Output state is to be toggled.
+    //
+    // PCF8574 pins: The Linked pin function only allows Inputs on pins 17 to
+    // 20, and corresponding Outputs on pin 21 to 24. If an Input edge is
+    // detected then the corresponding Output state is to be toggled.
     //
     // This check must be performed before the Pending_pin_control check in
     // this function. This is to allow all the other processes of this
@@ -3870,11 +4717,12 @@ void check_runtime_changes(void)
     //    one will win. And it probably doesn't matter. So I won't put
     //    any effort into resolving such a case.
     
-    if (linked_edge) {
+    if (linked_edge & 0x0fff) {
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 // UARTPrintf("linked_edge detected\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       // There is an edge on at least one pin
+      // Check the STM8 pins
       for (i=0, mask=1; i<8; i++, mask<<=1) {
         // Sweep through the first 8 pins
         if (mask & linked_edge) {
@@ -3902,6 +4750,41 @@ void check_runtime_changes(void)
 	  }
 	}
       }
+#if PCF8574_SUPPORT == 1
+      // Check the PCF8574 pins
+      for (i=16, mask=0x0100; i<20; i++, mask<<=1) {
+        // Sweep through the first 4 pins
+        if (mask & linked_edge) {
+	  // Found an edge
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Linked Edge found on PCF pin\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+	  linked_edge &= (uint8_t)(~mask); // Clear the linked_edge bit
+          if ((Pending_pin_control[i] & 0x03) == 0x02) {
+	    // Verify that the pin is a Linked pin. The Pending_pin_control
+	    // is used because: a) If the pin was previously set to Linked
+	    // the Pending_pin_control will equal the pin_control value, and
+	    // b) If the user just changed the pin to Linked we can go ahead
+	    // and act on that change.
+	    // Note that the Linked pins have already been validated as
+	    // Linked.
+	    if (Pending_pin_control[i+4] & 0x80) {
+	      Pending_pin_control[i+4] &= 0x7f; // Toggle to zero
+	    }
+	    else {
+	      Pending_pin_control[i+4] |= 0x80; // Toggle to one
+	    }
+	    parse_complete = 1; // Set parse_complete so that the
+	                        // Pending_pin_control changes will be
+				// processed, just as if a GUI, REST,
+				// or MQTT action had changed the
+				// Output pin.
+	  }
+	}
+      }
+#endif // PCF8574_SUPPORT == 1
     }
   }
 #endif // LINKED_SUPPORT == 1
@@ -3960,18 +4843,46 @@ void check_runtime_changes(void)
     //   then set the pin_timer for that pin to the Pending_IO_TIMER value
     // Note this also applies to Linked pins that are pins 9 to 16 (as those
     //   are also Outputs).
+    
 #if LINKED_SUPPORT == 0
     {
       int i;
       for (i=0; i<16; i++) {
         if ((pin_control[i] & 0x0b) == 0x03) {
-          // The above: If an Enabled Output AND Retain is not set
+          // Pin is an Output AND Retain is not set
           if (IO_TIMER[i] != Pending_IO_TIMER[i]) {
-            pin_timer[i] = calculate_timer(Pending_IO_TIMER[i]);
+            pin_timer[i] = Pending_IO_TIMER[i];
+          }
+        }
+      }
+    |
+#if PCF8574_SUPPORT == 1
+    {
+      int i;
+      uint16_t IO_timer_value;
+      for (i=16; i<24; i++) {
+        if ((pin_control[i] & 0x0b) == 0x03) {
+          // Pin is an Output AND Retain is not set
+	  // Read the PCF8574 IO_TIMER value from I2C EEPROM
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // This is a potential timing problem as reading from the I2C EEPROM
+	  // takes so long. I think the problem is mitigated in that this code
+	  // is only applicable to the Browser version of code and will only run
+	  // if parse_complete == 1.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+          IO_timer_value = read_two_bytes();
+          if (IO_timer_value != Pending_IO_TIMER[i]) {
+            pin_timer[i] = Pending_IO_TIMER[i];
           }
         }
       }
     }
+#endif // PCF8574_SUPPORT == 1
 #endif // LINKED_SUPPORT == 0
 
 #if LINKED_SUPPORT == 1
@@ -3981,11 +4892,38 @@ void check_runtime_changes(void)
         if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
 	  // Pin is an Output and Retain is not set
           if (IO_TIMER[i] != Pending_IO_TIMER[i]) {
-            pin_timer[i] = calculate_timer(Pending_IO_TIMER[i]);
+            pin_timer[i] = Pending_IO_TIMER[i];
 	  }
         }
       }
     }
+#if PCF8574_SUPPORT == 1
+    {
+      int i;
+      uint16_t IO_timer_value;
+      for (i=16; i<24; i++) {
+        if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+	  // Pin is an Output and Retain is not set
+	  // Read the PCF8574 IO_TIMER value from I2C EEPROM
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // This is a potential timing problem as reading from the I2C EEPROM
+	  // takes so long. I think the problem is mitigated in that this code
+	  // is only applicable to the Browser version of code and will only run
+	  // if parse_complete == 1.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+          IO_timer_value = read_two_bytes();
+          if (IO_timer_value != Pending_IO_TIMER[i]) {
+            pin_timer[i] = Pending_IO_TIMER[i];
+          }
+        }
+      }
+    }
+#endif // PCF8574_SUPPORT == 1
 #endif // LINKED_SUPPORT == 1
   }
   
@@ -4006,23 +4944,23 @@ void check_runtime_changes(void)
   // b0         | 00: Disabled  01: Input  10: Linked  11: Output
   // Note this also applies to Linked pins that are pins 9 to 16 (as those
   //   are also Outputs).
+  
 #if LINKED_SUPPORT == 0
   {
     int i;
     for (i=0; i<16; i++) {
       if ((pin_control[i] & 0x0b) == 0x03) {
-      // The above: If an Enabled Output AND Retain is not set
-        if (((IO_TIMER[i] & 0x3fff) != 0) && (pin_timer[i] == 0)) {
-          // The above: If pin has a non-zero TIMER value AND the timer
-	  // countdown is zero
+        // Pin is an Output and Retain is not set
+        if (((IO_TIMER[i] & 0x3fff) != 0) && ((pin_timer[i] & 0x3fff) == 0)) {
+          // Pin has a non-zero TIMER value AND the timer countdown is zero
 	  if ((pin_control[i] & 0x90) == 0x80) {
-	    // The above: If the pin is ON and the idle state is OFF
+	    // Pin is ON and the idle state is OFF
 	    // Turn the pin OFF
 	    Pending_pin_control[i] &= 0x7f;
 	    pin_control[i] &= 0x7f;
 	  }
 	  if ((pin_control[i] & 0x90) == 0x10) {
-	    // The above: If the pin is OFF and the idle state is ON
+	    // Pin is OFF and the idle state is ON
 	    // Turn the pin ON
 	    Pending_pin_control[i] |= 0x80;
 	    pin_control[i] |= 0x80;
@@ -4035,6 +4973,50 @@ void check_runtime_changes(void)
       }
     }
   }
+#if PCF8574_SUPPORT == 1
+  {
+    int i;
+    uint16_t IO_timer_value;
+    for (i=16; i<24; i++) {
+      if ((pin_control[i] & 0x0b) == 0x03) {
+        // Pin is an Output and Retain is not set
+        // Read the PCF8574 IO_TIMER value from I2C EEPROM
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // This is a potential timing problem as reading from the I2C EEPROM
+	  // takes so long. This code runs on every pass of check_runtime_changes.
+	  // The I2C EEPROM read is only to check if the user entered timer value
+	  // is non-zero. Maybe a byte containing "non-zero" flags could be used
+	  // for the PCF8574 timers.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+        IO_timer_value = read_two_bytes();
+        if (((IO_timer_value & 0x3fff) != 0) && ((pin_timer[i] & 0x3fff) == 0)) {
+          // Pin has a non-zero TIMER value AND the timer countdown is zero
+	  if ((pin_control[i] & 0x90) == 0x80) {
+	    // Pin is ON and the idle state is OFF
+	    // Turn the pin OFF
+	    Pending_pin_control[i] &= 0x7f;
+	    pin_control[i] &= 0x7f;
+	  }
+	  if ((pin_control[i] & 0x90) == 0x10) {
+	    // Pin is OFF and the idle state is ON
+	    // Turn the pin ON
+	    Pending_pin_control[i] |= 0x80;
+	    pin_control[i] |= 0x80;
+	  }
+          // Update the 16 bit registers with the changed Output pin states
+          encode_16bit_registers(0);
+          // Update the Output pins
+          write_output_pins();
+        }
+      }
+    }
+  }
+#endif // PCF8574_SUPPORT == 1
 #endif // LINKED_SUPPORT == 0
 
 #if LINKED_SUPPORT == 1
@@ -4043,9 +5025,8 @@ void check_runtime_changes(void)
     for (i=0; i<16; i++) {
       if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
         // Pin is an Output and Retain is not set
-        if (((IO_TIMER[i] & 0x3fff) != 0) && (pin_timer[i] == 0)) {
-          // The above: If pin has a non-zero TIMER value AND the timer
-	  // countdown is zero
+        if (((IO_TIMER[i] & 0x3fff) != 0) && ((pin_timer[i] & 0x3fff) == 0)) {
+          // Pin has a non-zero TIMER value AND the timer countdown is zero
 	  if ((pin_control[i] & 0x90) == 0x80) {
 	    // The above: If the pin is ON and the idle state is OFF
 	    // Turn the pin OFF
@@ -4053,7 +5034,7 @@ void check_runtime_changes(void)
 	    pin_control[i] &= 0x7f;
 	  }
 	  if ((pin_control[i] & 0x90) == 0x10) {
-	    // The above: If the pin is OFF and the idle state is ON
+	    // Pin is OFF and the idle state is ON
 	    // Turn the pin ON
 	    Pending_pin_control[i] |= 0x80;
 	    pin_control[i] |= 0x80;
@@ -4066,19 +5047,73 @@ void check_runtime_changes(void)
       }
     }
   }
+#if PCF8574_SUPPORT == 1
+  {
+    int i;
+    uint16_t IO_timer_value;
+    for (i=16; i<23; i++) {
+      if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+        // Pin is an Output and Retain is not set
+        // Read the PCF8574 IO_TIMER value from I2C EEPROM
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // This is a potential timing problem as reading from the I2C EEPROM
+	  // takes so long. This code runs on every pass of check_runtime_changes.
+	  // The I2C EEPROM is only to check if the user entered timer value is
+	  // non-zero. Maybe a byte containing "non-zero" flags could be used
+	  // for the PCF8574 timers.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+        IO_timer_value = read_two_bytes();
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Pin 21 Timer = ");
+// emb_itoa(pin_timer[20], OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+        if (((IO_timer_value & 0x3fff) != 0) && ((pin_timer[i] & 0x3fff) == 0)) {
+          // Pin has a non-zero TIMER value AND the timer countdown is zero
+	  if ((pin_control[i] & 0x90) == 0x80) {
+	    // The above: If the pin is ON and the idle state is OFF
+	    // Turn the pin OFF
+	    Pending_pin_control[i] &= 0x7f;
+	    pin_control[i] &= 0x7f;
+	  }
+	  if ((pin_control[i] & 0x90) == 0x10) {
+	    // Pin is OFF and the idle state is ON
+	    // Turn the pin ON
+	    Pending_pin_control[i] |= 0x80;
+	    pin_control[i] |= 0x80;
+	  }
+          // Update the 16 bit registers with the changed Output pin states
+          encode_16bit_registers(0);
+          // Update the Output pins
+          write_output_pins();
+	}
+      }
+    }
+  }
+#endif // PCF8574_SUPPORT == 1
 #endif // LINKED_SUPPORT == 1
   
   if (parse_complete) {
   
-    // Update the IO_TIMER array in Flash to the Pending_IO_TIMER
-    // array.
+    // For STM8 pins update the IO_TIMER array in Flash to match the
+    // Pending_IO_TIMER array.
     unlock_flash();
-    
     {
       int i;
       for (i=0; i<16; i+=2) {
-        // Check for differences updates to the TIMER values. Compare 4 bytes
-	// at a time. If any miscompare write to Flash 4 bytes at a time.
+        // Check for differences between the existing and pending TIMER
+	// values. Each of the 16 TIMER values is a uint16_t (two bytes), but
+	// to reduce Flash wear we need to write 4 bytes at a time. So,
+	// compare 4 bytes at a time and if any miscompare write to Flash 4
+	// bytes at a time.
         if (IO_TIMER[i] != Pending_IO_TIMER[i] || IO_TIMER[i+1] != Pending_IO_TIMER[i+1]) {
           // Enable Word Write Once
           FLASH_CR2 |= FLASH_CR2_WPRG;
@@ -4088,6 +5123,45 @@ void check_runtime_changes(void)
       }
     }
     lock_flash();
+
+#if PCF8574_SUPPORT == 1
+    // For PCF8574 pins update the IO_TIMER array in the I2C EEPROM to match
+    // the Pending_IO_TIMER array. Each TIMER value is a uint16_t (two bytes).
+    // Each TIMER value can be written to I2C EEPROM one at a time.
+    {
+      int i;
+      uint16_t IO_timer_value;
+      for (i=16; i<24; i++) {
+        // Check for differences between the existing and pending TIMER
+	// values. Compare 2 bytes at a time. If any miscompare write the
+	// Pending value to I2C EEPROM.
+        // Read the PCF8574 IO_TIMER value from I2C EEPROM
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // This is a potential timing problem as reading from the I2C EEPROM
+	  // takes so long. I think the problem is mitigated in that this code
+	  // is only applicable to the Browser version of code and will only run
+	  // if parse_complete == 1.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+        IO_timer_value = read_two_bytes();
+        if (IO_timer_value != Pending_IO_TIMER[i]) {
+          // Write the Pending value to the I2C EEPROM
+          I2C_control(I2C_EEPROM2_WRITE);
+          I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+	  IO_timer_value = (Pending_IO_TIMER[i] >> 8);
+          I2C_write_byte((uint8_t)IO_timer_value);
+	  IO_timer_value = (Pending_IO_TIMER[i] & 0x00ff);
+          I2C_write_byte((uint8_t)IO_timer_value);
+          I2C_stop(); // Start the EEPROM internal write cycle
+          wait_timer(5000); // Wait 5ms
+        }
+      }
+    }
+#endif // PCF8574_SUPPORT == 1
   
     // Check for Output pin Timer activate:
     // If an Enabled Output pin and Retain is NOT set
@@ -4102,27 +5176,64 @@ void check_runtime_changes(void)
       int i;
       for (i=0; i<16; i++) {
         if ((pin_control[i] & 0x0b) == 0x03) {
-          // The above: If an Enabled Output AND Retain is not set
+          // Pin is an Enabled Output AND Retain is not set
           if ((IO_TIMER[i] & 0x3fff) != 0) {
             if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
-              // The above: If the user changed the pin ON/OFF state
+              // The user changed the pin ON/OFF state
               if (((Pending_pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
-                // The above: If the user turned the pin ON and the idle state
-	        //   is OFF
-                // then set the pin timer
-                pin_timer[i] = calculate_timer(IO_TIMER[i]);
+                // The user turned the pin ON and the idle state is OFF
+                // Set the pin timer
+                pin_timer[i] = IO_TIMER[i];
               }
               if (((Pending_pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
-                // The above: If the user turned the pin OFF and the idle state
-	        //   is ON
-                // then set the pin timer
-                pin_timer[i] = calculate_timer(IO_TIMER[i]);
+                // The user turned the pin OFF and the idle state is ON
+                // Set the pin timer
+                pin_timer[i] = IO_TIMER[i];
               }
             }
           }
         }
       }
     }
+#if PCF8574_SUPPORT == 1
+    {
+      int i;
+      uint16_t IO_timer_value;
+      for (i=16; i<24; i++) {
+        if ((pin_control[i] & 0x0b) == 0x03) {
+          // Pin is an Enabled Output AND Retain is not set
+          // Read the PCF8574 IO_TIMER value from I2C EEPROM
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // This is a potential timing problem as reading from the I2C EEPROM
+	  // takes so long. I think the problem is mitigated in that this code
+	  // is only applicable to the Browser version of code and will only run
+	  // if parse_complete == 1.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+          IO_timer_value = read_two_bytes();
+          if ((IO_timer_value & 0x3fff) != 0) {
+            if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
+              // The user changed the pin ON/OFF state
+              if (((Pending_pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
+                // The user turned the pin ON and the idle state is OFF
+                // Set the pin timer
+                pin_timer[i] = IO_timer_value;
+              }
+              if (((Pending_pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
+                // The user turned the pin OFF and the idle state is ON
+                // Set the pin timer
+                pin_timer[i] = IO_timer_value;
+              }
+            }
+          }
+        }
+      }
+    }
+#endif // PCF8574_SUPPORT == 1
 #endif // LINKED_SUPPORT == 0
 
 #if LINKED_SUPPORT == 1
@@ -4133,27 +5244,67 @@ void check_runtime_changes(void)
 	  // Pin is an Output and Retain is not set
           if ((IO_TIMER[i] & 0x3fff) != 0) {
             if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
-              // The above: If the user changed the pin ON/OFF state
+              // The user changed the pin ON/OFF state
               if (((Pending_pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
-                // The above: If the user turned the pin ON and the idle state
-	        //   is OFF
-                // then set the pin timer
-                pin_timer[i] = calculate_timer(IO_TIMER[i]);
+                // The user turned the pin ON and the idle state is OFF
+                // Set the pin timer
+                pin_timer[i] = IO_TIMER[i];
               }
               if (((Pending_pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
-                // The above: If the user turned the pin OFF and the idle state
-	        //   is ON
-                // then set the pin timer
-                pin_timer[i] = calculate_timer(IO_TIMER[i]);
+                // The user turned the pin OFF and the idle state is ON
+                // Set the pin timer
+                pin_timer[i] = IO_TIMER[i];
 	      }
             }
           }
         }
       }
     }
+#if PCF8574_SUPPORT == 1
+    {
+      int i;
+      uint16_t IO_timer_value;
+      for (i=16; i<24; i++) {
+        if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+	  // Pin is an Output and Retain is not set
+          // Read the PCF8574 IO_TIMER value from I2C EEPROM
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // This is a potential timing problem as reading from the I2C EEPROM
+	  // takes so long. I think the problem is mitigated in that this code
+	  // is only applicable to the Browser version of code and will only run
+	  // if parse_complete == 1.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+          IO_timer_value = read_two_bytes();
+          if ((IO_timer_value & 0x3fff) != 0) {
+            if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
+              // The user changed the pin ON/OFF state
+              if (((Pending_pin_control[i] & 0x80) == 0x80) && ((pin_control[i] & 0x10) == 0x00)) {
+                // The user turned the pin ON and the idle state is OFF
+                // Set the pin timer
+                pin_timer[i] = IO_timer_value;
+              }
+              if (((Pending_pin_control[i] & 0x80) == 0x00) && ((pin_control[i] & 0x10) == 0x10)) {
+                // The user turned the pin OFF and the idle state is ON
+                // Set the pin timer
+                pin_timer[i] = IO_timer_value;
+	      }
+            }
+          }
+        }
+      }
+    }
+#endif // PCF8574_SUPPORT == 1
 #endif // LINKED_SUPPORT == 1
   }
-#endif BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+
+
 
   if (parse_complete || mqtt_parse_complete) {
     // Check for changes from the user via the GUI, MQTT, or REST commands.
@@ -4195,7 +5346,12 @@ void check_runtime_changes(void)
     update_EEPROM = 0;
     {
       int i;
+#if PCF8574_SUPPORT == 0
       for (i=0; i<16; i++) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+      for (i=0; i<24; i++) {
+#endif // PCF8574_SUPPORT == 1
         if (pin_control[i] != Pending_pin_control[i]) {
           // Something changed - sort it out
 
@@ -4237,6 +5393,11 @@ void check_runtime_changes(void)
 	    // requires a hardware reboot as the IO hardware needs to be
 	    // reconfigured.
             user_reboot_request = 1;
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("User reboot request due to change in Input/Output\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
 	  }
 
           // Check for change in Invert
@@ -4276,19 +5437,19 @@ void check_runtime_changes(void)
 #endif // LINKED_SUPPORT == 1
 
 #if LINKED_SUPPORT == 0
-	  if ((Pending_pin_control[i] & 0x03) == 0x01) { // Input
+	  if ((Pending_pin_control[i] & 0x03) == 0x01) {
 #endif // LINKED_SUPPORT == 0
 #if LINKED_SUPPORT == 1
           if (chk_iotype(Pending_pin_control[i], i, 0x03) == 0x01) {
-	    // Input pin
 #endif // LINKED_SUPPORT == 1
+	    // Input pin
 	    // Update all bits except the ON/OFF bit
 	    // The ON/OFF bit setting for inputs is handled in the
 	    // read_input_pins() function.
             pin_control[i] &= 0x80;
 	    pin_control[i] |= (uint8_t)(Pending_pin_control[i] & 0x7f);
 	  }
-	  if ((Pending_pin_control[i] & 0x03) == 0x00) { // Disable
+	  if ((Pending_pin_control[i] & 0x03) == 0x00) {
 	    // Disabled pin
 	    // Update all bits
 	    pin_control[i] = Pending_pin_control[i];
@@ -4296,12 +5457,57 @@ void check_runtime_changes(void)
 	  
           if (update_EEPROM) {
             // Update the stored_pin_control[] variables
-            if (stored_pin_control[i] != pin_control[i]) stored_pin_control[i] = pin_control[i];
+	    
+	    if (i < 16) {
+	      unlock_eeprom();
+              if (stored_pin_control[i] != pin_control[i]) stored_pin_control[i] = pin_control[i];
+	      lock_eeprom();
+	    }
+	    
+#if PCF8574_SUPPORT == 1
+	    else {
+	      {
+	        uint16_t byte_address;
+	        // Read stored_pin_control from I2C EEPROM
+                byte_address = (uint16_t)(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE + i - 16);
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // This is a potential timing problem as reading from the I2C EEPROM
+	  // takes so long. I think the problem is mitigated in that this code
+	  // will only run if parse_complete == 1.
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+                prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, byte_address, 2);
+                if (I2C_read_byte(1) != pin_control[i]) {
+                  // Update stored_pin_control in I2C EEPROM.
+	          I2C_control(I2C_EEPROM2_WRITE);
+	          I2C_byte_address(byte_address, 2);
+	          I2C_write_byte(pin_control[i]);
+	          I2C_stop();
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Updating pin_control in I2C EEPROM\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+                  wait_timer(5000); // Wait 5ms
+	        }
+	      }
+	    }
+#endif // PCF8574_SUPPORT == 1
             update_EEPROM = 0;
           }
         }
       }
     }
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if PCF8574_SUPPORT == 1
+// UARTPrintf("PCF8574 pin_control[] after check pin_control\r\n");
+// PCF8574_display_pin_control();
+#endif // PCF8574_SUPPORT == 1
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
     // Update the 16 bit registers with the changed Output pin states
     encode_16bit_registers(0);
@@ -4314,6 +5520,8 @@ void check_runtime_changes(void)
     // Only perform the next checks if parse_complete indicates that all
     // HTML POST processing is complete.
 
+    unlock_eeprom();
+
     if (stored_config_settings != Pending_config_settings) {
       // Save the "prior" config (Features) setting in case it is needed
       // after boot.
@@ -4323,12 +5531,33 @@ void check_runtime_changes(void)
       // reboot so to simplify code the bits are not individually checked.
       // The Feature bits include:
       //   Disable Config Button
+      //   BME280
       //   DS18B20
       //   MQTT
       //   Home Assistant Auto Discovery
       //   Full Duplex
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("User reboot request due to change in config settings\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
       user_reboot_request = 1;
-      
+
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("end of runtime_changes stored_config_settings = ");
+// emb_itoa(stored_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   Pending_config_settings = ");
+// emb_itoa(Pending_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+//
+// PCF8574_display_pin_control();
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+
+
       // If any bit of the config_settings changed write to EEPROM
       stored_config_settings = Pending_config_settings;
     }
@@ -4433,7 +5662,7 @@ void check_runtime_changes(void)
     }
   }
   
-  lock_eeprom();
+  lock_eeprom(); // Make sure eeprom is locked
   
   
   // Decide if a restart or reboot is needed. If both are set the reboot
@@ -4457,6 +5686,12 @@ void check_runtime_changes(void)
       user_reboot_request = 0;
       reboot_request = 1;
     }
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if PCF8574_SUPPORT == 1
+// UARTPrintf("PCF8574 pin_control[] at end of check_runtime_changes\r\n");
+// PCF8574_display_pin_control();
+#endif // PCF8574_SUPPORT == 1
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   }
   
   
@@ -4504,17 +5739,34 @@ uint8_t chk_iotype(uint8_t pin_byte, int pin_index, uint8_t chk_mask)
   //     0x03 = Output pin, Retain Not Set
   //     0x0b = Output pin, Retain Set
   //     
-  // This function will also check Linked pins to determine if they are Inputs
-  // (pins 1 to 8) or Outputs (pins 9 to 16).
+  // STM8 pins: This function will also check Linked pins to determine if they
+  // are Inputs (pins 1 to 8) or Outputs (pins 9 to 16).
+  // PCF8574 pins: This function will also check Linked pins to determine if
+  // the are Inputs (pins 17 to 20) or Outputs (pins 21 to 24).
+  //
   // 
-  // pin_index is 0 to 15 corresponding to pins 1 to 16
+  // STM8 pins: pin_index is 0 to 15 corresponding to pins 1 to 16
+  // If Linked pin_index 0 to 7 must be inputs
   if (((pin_byte & 0x03) == 0x01)
   || (((pin_byte & 0x03) == 0x02) && (pin_index<8))) {
     // This is an Input or a Linked pin 1 to 8.
     return 0x01;
   }
+#if PCF8574_SUPPORT == 1
+  // PCF8574 pins: pin_index is 16 to 23 corresponding to pins 17 to 24
+  // If Linked pin_index 16 to 19 must be inputs
+  if (((pin_byte & 0x03) == 0x01)
+  || (((pin_byte & 0x03) == 0x02) && (pin_index>15) && (pin_index<20))) {
+    // This is an Input or a Linked pin 17 to 20.
+    return 0x01;
+  }
+#endif // PCF8574_SUPPORT == 1
+  
+    
+  // STM8 pins: pin_index is 0 to 15 corresponding to pins 1 to 16
+  // If Linked pin_index 8 to 15 must be outputs
   if (((pin_byte & 0x03) == 0x03)
-  || (((pin_byte & 0x03) == 0x02) && (pin_index>7))) {
+  || (((pin_byte & 0x03) == 0x02) && (pin_index>7) && (pin_index<16))) {
     // This is an output, or an output created by linking
     if (chk_mask == 0x03) return 0x03;
     if (chk_mask == 0x0b) {
@@ -4522,6 +5774,20 @@ uint8_t chk_iotype(uint8_t pin_byte, int pin_index, uint8_t chk_mask)
       else return 0x03;
     }
   }
+#if PCF8574_SUPPORT == 1
+  // PCF8574 pins: pin_index is 16 to 23 corresponding to pins 17 to 24
+  // If Linked pin_index 20 to 23 must be outputs
+  if (((pin_byte & 0x03) == 0x03)
+  || (((pin_byte & 0x03) == 0x02) && (pin_index>19) && (pin_index<24))) {
+    // This is an output, or an output created by linking
+    if (chk_mask == 0x03) return 0x03;
+    if (chk_mask == 0x0b) {
+      if (pin_byte & 0x08) return 0x0b; // Return with Retain set
+      else return 0x03;
+    }
+  }
+#endif // PCF8574_SUPPORT == 1
+  
   // Else pin is Disabled so return 0
   return 0;
 }
@@ -4534,6 +5800,8 @@ void check_restart_reboot(void)
   // connections and trigger a restart or reboot. This function is called
   // from the main loop and returns to the main loop so that the periodic()
   // function can run.
+  
+  unsigned char topic_base[55];
 
   if (restart_request || reboot_request) {
     // A restart or reboot has been requested. The restart and reboot
@@ -4725,6 +5993,9 @@ void restart(void)
 			   // etc. Needed in a restart to make sure all
 			   // changes made on the Configuration page are
 			   // applied.
+  apply_PCF8574_pin_settings(); // Initialize the PCF8574 settings and pins.
+			   // Needed in a restart to make sure all changes
+			   // made on the Configuration page are applied.
   Enc28j60Init();          // Initialize the ENC28J60 ethernet interface.
                            // Needed in a restart to make sure the ENC20J60
 			   // is updated with the correct MAC address.
@@ -4751,24 +6022,37 @@ void reboot(void)
   
   // Flicker LED for 1 second to indicate deliberate reboot
   fastflash();
-//  LEDcontrol(0);     // turn LED off
-//  wait_timer((uint16_t)50000); // wait 50ms
-//  LEDcontrol(1);     // turn LED on
-//  wait_timer((uint16_t)50000); // wait 50ms
-//  LEDcontrol(0);     // turn LED off
-//  wait_timer((uint16_t)50000); // wait 50ms
-//  LEDcontrol(1);     // turn LED on
-//  wait_timer((uint16_t)50000); // wait 50ms
   LEDcontrol(0);  // turn LED off
-  
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Reboot in reboot() function\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // Not sure if WWDG (Window Watchdog) or IWDG (Independent Watchdog) is the
+  // better choice here.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   WWDG_WR = (uint8_t)0x7f;     // Window register reset
   WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
   WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
                                // much as we plan to reset
 				 
-  wait_timer((uint16_t)50000); // Wait for watchdog to generate reset
-  wait_timer((uint16_t)50000);
-  wait_timer((uint16_t)50000);
+  while(1);                    // Wait for watchdog to generate reset
+
+/*
+  // Change the setting of the IDWG to cause a Reboot in about 63ms.
+  IWDG_KR  = 0xcc;  // Enable the IWDG
+  IWDG_KR  = 0x55;  // Unlock the configuration registers
+  IWDG_PR  = 0x02;  // Divide clock by 16
+  IWDG_RLR = 0xff;  // Countdown reload value. The /2 prescaler plus the
+                    // Divisor plus the Countdown value create the 63ms
+		    // timeout interval
+  IWDG_KR  = 0xaa;  // Start the IWDG.
+
+  // Wait here for WWDG to reset the module.
+  while(1);
+*/
+
 }
 
 
@@ -4778,6 +6062,12 @@ void init_IWDG(void)
   // The IWDG will perform a hardware reset after 1 second if it is not
   // serviced with a write to the IWDG_KR register - the main loop needs to
   // perform the servicing writes.
+  //
+  // The IWDG runs off the 128KHz LSI clock. That clock goes through a divide
+  // by 2 element before entering a pre-scaler. The pre-scaler is set with a
+  // divisor defined by IWDG_PR. In this case a value of 0x06 divides by 256
+  // (see document RM0016). Setting IWDG_RLR to 0xff then results in a timeout
+  // of about 1 second.
   
   IWDG_KR  = 0xcc;  // Enable the IWDG
   IWDG_KR  = 0x55;  // Unlock the configuration registers
@@ -4793,6 +6083,7 @@ void init_IWDG(void)
 
 
 #if LINKED_SUPPORT == 0
+#if PCF8574_SUPPORT == 0
 void read_input_pins(uint8_t init_flag)
 {
   // This function reads and debounces the Input pins. It is called from the
@@ -4853,10 +6144,107 @@ void read_input_pins(uint8_t init_flag)
     }
   }
 }
+#endif // PCF8574_SUPPORT == 0
+#endif // LINKED_SUPPORT == 0
+
+
+#if LINKED_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+// When the PCH8574 is present the ON_OFF words need to be 32 bit to
+// accommodate 24 pins of IO. But pins 1 to 16 need to be mapped to hardware
+// using the io.map, whereas pins 17 to 24 are directly read via the I2C bus.
+void read_input_pins(uint8_t init_flag)
+{
+  // This function reads and debounces the Input pins. It is called from the
+  // check_runtime_changes() function, which is in turn called from the main
+  // loop. Thus this function runs about once per millisecond.
+  //
+  // The function works as follows:
+  // - Pins are read and stored in the ON_OFF_word_new1 word.
+  // - ON_OFF_word_new1 is compared to the prior value stored in
+  //   ON_OFF_word_new2
+  // - If a bit in ON_OFF_word_new1 is the same as in ON_OFF_word_new2 then
+  //   ON_OFF_word is updated.
+  // - ON_OFF_word_new1 is transferred to ON_OFF_word_new2 for the next round.
+  //
+  // Note: init_flag is not used when LINKED_SUPPORT == 0
+  uint32_t mask;
+  uint8_t byte;
+  uint8_t byte_mask;
+  int i;
+  int j;
+  
+  
+  // Loop across all i/o's on the STM8 and read input port register:bit state
+  // and 
+  // Compare the _new1 and _new2 samples then, for Input pins only, update
+  // the bits in the ON_OFF_word where the corresponding bits match in _new1
+  // and _new2 (ie, a debounced change occurred).
+
+  for (i=0, mask=1; i<16; i++, mask<<=1) {
+    // Is the corresponding bit of the input port register set?
+#if PINOUT_OPTION_SUPPORT == 0
+    if ( io_reg[ io_map[i].port ].idr & io_map[i].bit)
+#endif // PINOUT_OPTION_SUPPORT == 0
+#if PINOUT_OPTION_SUPPORT == 1
+    j = i + io_map_offset;
+    if ( io_reg[ io_map[j].port ].idr & io_map[j].bit)
+#endif // PINOUT_OPTION_SUPPORT == 1
+      ON_OFF_word_new1 |= (uint32_t)mask;
+    else
+      ON_OFF_word_new1 &= (uint32_t)(~mask);
+    
+    if ((ON_OFF_word_new1 & mask) == (ON_OFF_word_new2 & mask)) {
+      // If the old and new bits match, and the bit is for an Input
+      // pin, set or clear the corresponding bit in ON_OFF_word.
+      if ((pin_control[i] & 0x03) == 0x01) { // input?
+        if (ON_OFF_word_new2 & mask) ON_OFF_word |= mask; // set
+        else                         ON_OFF_word &= ~mask; // clear
+      }
+    }
+  }
+
+
+  // Read the pin states on the PCF8574
+  byte = PCF8574_read();
+//  for (i=16, mask = 0x0100, byte_mask=1; i<24; i++, mask<<=1, byte_mask<<=1) {
+  for (i=16, mask = 0x00010000, byte_mask=1; i<24; i++, mask<<=1, byte_mask<<=1) {
+    // Is the corresponding bit of the PCF8574 pin set?
+    if (byte & byte_mask)
+      ON_OFF_word_new1 |= (uint32_t)mask;
+    else
+      ON_OFF_word_new1 &= (uint32_t)(~mask);
+    
+    if ((ON_OFF_word_new1 & mask) == (ON_OFF_word_new2 & mask)) {
+      // If the old and new bits match, and the bit is for an Input
+      // pin, set or clear the corresponding bit in ON_OFF_word.
+      if ((pin_control[i] & 0x03) == 0x01) { // input?
+        if (ON_OFF_word_new2 & mask) ON_OFF_word |= mask; // set
+        else                         ON_OFF_word &= ~mask; // clear
+      }
+    }
+  }
+
+
+  // Copy _new1 to _new2 for the next round
+  ON_OFF_word_new2 = ON_OFF_word_new1;
+
+
+  // Update the pin_control bytes to match the debounced ON_OFF_word.
+  // Only input pin_control bytes are updated.
+  for (i=0, mask=1; i<24; i++, mask<<=1) {
+    if ((pin_control[i] & 0x03) == 0x01) { // input?
+      if (ON_OFF_word & mask) pin_control[i] |= 0x80;
+      else                    pin_control[i] &= 0x7f;
+    }
+  }
+}
+#endif // PCF8574_SUPPORT == 1
 #endif // LINKED_SUPPORT == 0
 
 
 #if LINKED_SUPPORT == 1
+#if PCF8574_SUPPORT == 0
 void read_input_pins(uint8_t init_flag)
 {
   // This function reads and debounces the Input pins. It is called from the
@@ -4901,8 +6289,8 @@ void read_input_pins(uint8_t init_flag)
 	// different than the existing ON_OFF_word. This means a debounced
 	// edge just occured on the pin indicated by the mask. This is only
 	// important for the Linked function, so record the event in the
-	// linked_edge detection byte. This is stored in a byte because we
-	// only keep the bits associated with pins 1 to 8.
+	// linked_edge detection byte. For STM8 pins we only need to keep the
+	// bits associated with pins 1 to 8.
 	// Special Case: If init_flag is set DO NOT set change the linked_edge
 	// byte. This is to allow input pins to be read and the ON_OFF_words
 	// to be updated to the "time of boot" states without triggering
@@ -4937,9 +6325,141 @@ void read_input_pins(uint8_t init_flag)
     }
   }
 }
+#endif // PCF8574_SUPPORT == 0
 #endif // LINKED_SUPPORT == 1
 
 
+#if LINKED_SUPPORT == 1
+#if PCF8574_SUPPORT == 1
+void read_input_pins(uint8_t init_flag)
+{
+  // This function reads and debounces the Input pins. It is called from the
+  // check_runtime_changes() function, which is in turn called from the main
+  // loop. Thus this function runs about once per millisecond.
+  //
+  // The function works as follows:
+  // - Pins are read and stored in the ON_OFF_word_new1 word.
+  // - ON_OFF_word_new1 is compared to the prior value stored in
+  //   ON_OFF_word_new2
+  // - If a bit in ON_OFF_word_new1 is the same as in ON_OFF_word_new2 then
+  //   ON_OFF_word is updated.
+  // - ON_OFF_word_new1 is transferred to ON_OFF_word_new2 for the next round.
+  uint32_t mask;
+  uint8_t byte;
+  uint8_t byte_mask;
+  uint16_t linked_mask;
+  int i;
+  int j;
+  
+  // Loop across all STM8 i/o's and read input port register:bit state
+  // and 
+  // Compare the _new1 and _new2 samples then, for Input pins only, update
+  // the bits in the ON_OFF_word where the corresponding bits match in _new1
+  // and _new2 (ie, a debounced change occurred).
+  for (i=0, mask=1; i<16; i++, mask<<=1) {
+    // Is the corresponding bit of the input port register set?
+#if PINOUT_OPTION_SUPPORT == 0
+    if ( io_reg[ io_map[i].port ].idr & io_map[i].bit) {
+#endif // PINOUT_OPTION_SUPPORT == 0
+#if PINOUT_OPTION_SUPPORT == 1
+    j = i + io_map_offset;
+    if ( io_reg[ io_map[j].port ].idr & io_map[j].bit) {
+#endif // PINOUT_OPTION_SUPPORT == 1
+      ON_OFF_word_new1 |= (uint32_t)mask;
+    }
+    else {
+      ON_OFF_word_new1 &= (uint32_t)(~mask);
+    }
+    
+    if ((ON_OFF_word_new1 & mask) == (ON_OFF_word_new2 & mask)) {
+      // Check for a debounced edge on pins 1 to 8
+      if ((ON_OFF_word & mask) != (ON_OFF_word_new2 & mask)) {
+        // If true this indicates that the _new1 and _new2 are equal but are
+	// different than the existing ON_OFF_word. This means a debounced
+	// edge just occured on the pin indicated by the mask. This is only
+	// important for the Linked function, so record the event in the
+	// linked_edge detection word.
+	// For STM8 pins we only keep the linked_edge indicator for pins 1 to
+	// 8.
+	// For PCF8574 pins we only keep the bits associated with pins 17 to
+	// 20.
+	// Special Case: If init_flag is set DO NOT set the linked_edge
+	// byte. This is to allow input pins to be read and the ON_OFF_words
+	// to be updated to the "time of boot" states without triggering
+	// edge detection.
+	if (((pin_control[i] & 0x03) == 0x02) && (i<8) && (init_flag == 0)) {
+	  // Update linked_edge for the 8 least significant bits.
+          linked_edge |= (uint8_t)(mask);
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("edge detected\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+	}
+      }
+    }
+  }
+
+
+  // Read the pin states on the PCF8574
+  byte = PCF8574_read();
+  for (i=16, mask = 0x00010000, byte_mask=1, linked_mask=0x0100; i<24; i++, mask<<=1, byte_mask<<=1, linked_mask<<=1) {
+    // Is the corresponding bit of the PCF8574 pin set?
+    if (byte & byte_mask)
+      ON_OFF_word_new1 |= (uint32_t)mask;
+    else
+      ON_OFF_word_new1 &= (uint32_t)(~mask);
+    
+    if ((ON_OFF_word_new1 & mask) == (ON_OFF_word_new2 & mask)) {
+      // Check for a debounced edge on pins 17 to 20
+      if ((ON_OFF_word & mask) != (ON_OFF_word_new2 & mask)) {
+        // If true this indicates that the _new1 and _new2 are equal but are
+	// different than the existing ON_OFF_word. This means a debounced
+	// edge just occured on the pin indicated by the mask. This is only
+	// important for the Linked function, so record the event in the
+	// linked_edge detection word.
+	// For STM8 pins we only keep the linked_edge indicator for pins 1 to
+	// 8.
+	// For PCF8574 pins we only keep the bits associated with pins 17 to
+	// 20.
+	// Special Case: If init_flag is set DO NOT set change the linked_edge
+	// byte. This is to allow input pins to be read and the ON_OFF_words
+	// to be updated to the "time of boot" states without triggering
+	// edge detection.
+	if (((pin_control[i] & 0x03) == 0x02) && i>15 && i<20 && (init_flag == 0)) {
+          linked_edge |= linked_mask;
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("edge detected, linked_edge = ");
+// emb_itoa(linked_edge, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+	}
+      }
+    }
+  }
+      
+  for (i=0, mask=1; i<24; i++, mask<<=1) {
+    if ((ON_OFF_word_new1 & mask) == (ON_OFF_word_new2 & mask)) {
+      // If the old and new bits match, and the bit is for an Input
+      // pin, set or clear the corresponding bit in ON_OFF_word.
+      if (chk_iotype(pin_control[i], i, 0x03) == 0x01) { // input?
+        if (ON_OFF_word_new2 & mask) ON_OFF_word |= mask; // set
+        else                         ON_OFF_word &= ~mask; // clear
+        // Update the pin_control bytes to match the debounced ON_OFF_word.
+        // Only input pin_control bytes are updated.
+        if (ON_OFF_word & mask) pin_control[i] |= 0x80;
+        else                    pin_control[i] &= 0x7f;
+      }
+    }
+  }
+
+  // Copy _new1 to _new2 for the next round
+  ON_OFF_word_new2 = ON_OFF_word_new1;  
+}
+#endif // PCF8574_SUPPORT == 1
+#endif // LINKED_SUPPORT == 1
+
+
+#if PCF8574_SUPPORT == 0
 void encode_16bit_registers(uint8_t sort_init)
 {
   // Function to sort the pin control bytes into the 16 bit registers.
@@ -4985,8 +6505,59 @@ void encode_16bit_registers(uint8_t sort_init)
     j = j << 1;
   }
 }
+#endif // PCF8574_SUPPORT == 0
 
 
+#if PCF8574_SUPPORT == 1
+void encode_16bit_registers(uint8_t sort_init)
+{
+  // Function to sort the pin control bytes into the 16 bit registers.
+  int i;
+  uint32_t j;
+  i = 0;
+  j = 0x00000001;
+  while( i<24 ) {
+    // Update the Invert_word
+    if (pin_control[i] & 0x04) Invert_word = Invert_word |  j;
+    else                       Invert_word = Invert_word & ~j;
+    
+    // Update the ON_OFF_word. This function can be called during boot
+    // initialization at which time both Input pins and Output pins should
+    // be sorted into the ON_OFF word. All other calls to this function
+    // should only sort the Output pins into the ON_OFF word, as the
+    // read_input_pins() function will handle this for Input pins.
+    if (sort_init == 1) {
+      // sort_init indicates the function was called during initialization.
+      // All pin states are sorted into the ON_OFF_word.
+      if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
+      else                       ON_OFF_word = ON_OFF_word & ~j;
+    }
+    else {
+      // sort_init indicates the function was called during runtime. During
+      // runtime only the Output pins and STM8 Linked pins 9 to 16 and PCF8574
+      // Linked pins 21 to 24 are sorted into the ON_OFF_word. Input pins are
+      // handled by the read_input_pins() function.
+#if LINKED_SUPPORT == 0
+      if ((pin_control[i] & 0x03) == 0x03) {
+        // Only the Output pins are sorted into the ON_OFF_word.
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+      if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+        // Pin is an Output. Only the Output pins are sorted into the
+	// ON_OFF_word.
+#endif // LINKED_SUPPORT == 1
+        if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
+        else                       ON_OFF_word = ON_OFF_word & ~j;
+      }
+    }
+    i++;
+    j = j << 1;
+  }
+}
+#endif // PCF8574_SUPPORT == 1
+
+
+#if PCF8574_SUPPORT == 0
 void write_output_pins(void)
 {
   // This function updates the Output GPIO pins to match the output pin
@@ -5049,8 +6620,112 @@ void write_output_pins(void)
 #endif // PINOUT_OPTION_SUPPORT == 1
   }
 }
+#endif // PCF8574_SUPPORT == 0
 
 
+#if PCF8574_SUPPORT == 1
+void write_output_pins(void)
+{
+  // This function updates the Output GPIO pins to match the output pin
+  // states.
+  //
+  // xor_temp combines the ON_OFF_word with the Invert_word as follows:
+  //   If the Invert_word bit associated with a given pin is = 0, then a 0 in
+  //   the associated bit of the ON_OFF_word sets the output pin to 0.
+  //   If the Invert_word bit associated with a given pin is = 1, then a 0 in
+  //   the associated bit of the ON_OFF_word sets the output pin to 1.
+
+  uint32_t xor_tmp;
+  uint8_t byte;
+  uint8_t mask;
+  int i;
+  int j;
+
+  // Update the output pins to match the bits in the ON_OFF_word.
+  //
+  // STM8 pins: To simplify code this function writes all STM8 pins. Note that
+  // if the STM8 pin is configured as an Input writing the ODR will have no
+  // effect, thus the routine does not need to check if the STM8 pin is an
+  // input or output.
+  //
+  // PCF8574 pins: Pins defined as inputs by their respective pin_control[]
+  // byte must NEVER be written with 0. The typical way a PCF8574 IO pin is
+  // handled as an input is to write it to "1" when it is initially defined as
+  // an input, then never write it again. In this application that is a bit
+  // problematic, so this function will write the PCF8574 input pins to "1"
+  // any time the PCF8574 pins are updated. This works because even if the
+  // external driver connected to the input is at a zero state the "1" write
+  // performed here will produce a brief "glitch" on the PCF8574 pin before
+  // the external driver drives the input pin back to the correct input state.
+  // In the manual it is recommended that the signal driving the input pin do
+  // so through a resistor to reduce the current flow during the brief
+  // conflict period when a "1" is written.
+  
+  // Invert the output if the Invert_word has the corresponding bit set.
+  xor_tmp = (uint32_t)(Invert_word ^ ON_OFF_word);
+
+  // Loop across all IO and set or clear them according to the mask.
+  // Skip IO pins that are being used for UART, I2C or DS18B20.
+  for (i=0; i<16; i++) {
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+    // If UART support is enabled do not write Output 11
+    if (i == 10) continue; // Output 11
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if I2C_SUPPORT == 1
+    // If I2C support is enabled do not write Output 14 and 15
+    if (i == 13) continue; // Output 14
+    if (i == 14) continue; // Output 15
+#endif // I2C_SUPPORT == 1
+#if DS18B20_SUPPORT == 1
+    // If DS18B20 mode is enabled do not write Output 16
+    if (i == 15 && (stored_config_settings & 0x08))
+      break;
+#endif // DS18B20_SUPPORT == 1
+
+#if PINOUT_OPTION_SUPPORT == 0
+    if (xor_tmp & (1 << i)) {
+      io_reg[ io_map[i].port ].odr |= io_map[i].bit;
+    }
+    else {
+      io_reg[ io_map[i].port ].odr &= (uint8_t)(~io_map[i].bit);
+    }
+#endif // PINOUT_OPTION_SUPPORT == 0
+
+#if PINOUT_OPTION_SUPPORT == 1
+    j = i + io_map_offset;
+    if (xor_tmp & (1 << i)) {
+      io_reg[ io_map[j].port ].odr |= io_map[j].bit;
+    }
+    else {
+      io_reg[ io_map[j].port ].odr &= (uint8_t)(~io_map[j].bit);
+    }
+#endif // PINOUT_OPTION_SUPPORT == 1
+  }
+
+  // Write the PCF8574 pins
+  byte = (uint8_t)(xor_tmp >> 16);
+  for (i=16, mask=1; i<24; i++, mask<<=1) {
+  
+#if LINKED_SUPPORT == 0
+    if ((pin_control[i] & 0x03) == 0x01) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+    if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
+#endif // LINKED_SUPPORT == 1
+
+      // Pin is an input. Always set PCF8574 Input pins to "1" so that they
+      // can be driven to the proper state by external hardware logic.
+      if ((byte & mask) == 0) byte |= mask;
+    }
+  }
+  // Write the resulting byte to the PCF8574. Output pins will be written as
+  // defined in xor_temp. Input pins will always be written to "1".
+  PCF8574_write(byte);
+}
+#endif // PCF8574_SUPPORT == 1
+
+
+/*
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 uint32_t calculate_timer(uint16_t timer_value)
 {
@@ -5061,23 +6736,82 @@ uint32_t calculate_timer(uint16_t timer_value)
   //   If units = 1m   pin_timer = IO_TIMER Value * 10 * 60
   //   If units = 1h   pin_timer = IO_TIMER Value * 10 * 60 * 60
   //   (note for manual: Any setting selected may be up to 100ms
-  //    longer that the selected value)
+  //    longer than the selected value)
   if ((timer_value & 0xc000) == 0x0000) return (uint32_t)(           (timer_value & 0x3fff)          );
   if ((timer_value & 0xc000) == 0x4000) return (uint32_t)(((uint32_t)(timer_value & 0x3fff) * 10U)   );
   if ((timer_value & 0xc000) == 0x8000) return (uint32_t)(((uint32_t)(timer_value & 0x3fff) * 600U)  );
   if ((timer_value & 0xc000) == 0xc000) return (uint32_t)(((uint32_t)(timer_value & 0x3fff) * 36000U));
   return 0;
 }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+*/
 
 
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 void decrement_pin_timers(void)
 {
   int i;
-  // This function decrements the pin_timers as needed
-  // This function is called once per 100ms
-  for(i=0; i<16; i++) if (pin_timer[i] > 0) pin_timer[i]--;
+  // This function decrements the pin_timers as needed.
+  // This function is called once per 100ms, however pin_timers are
+  // decremented at 0.1 second, 1 second, 1 minute, or 1 hour intervals
+  // depending on the settings for that counter.
+#if PCF8574_SUPPORT == 0
+  for(i=0; i<16; i++) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+  for(i=0; i<23; i++) {
+#endif // PCF8574_SUPPORT == 1
+    if ((pin_timer[i] & 0x3fff) > 0) { // Do not decrement if already zero
+      if ((pin_timer[i] & 0xc000) == 0x0000) {
+        // 0.1 second resolution. Decrement timer.
+        pin_timer[i]--;
+      }
+      if ((pin_timer[i] & 0xc000) == 0x4000) {
+        // 1 second resolution
+	if ((second_counter & 0x01) == (timer_flags & 0x01)) {
+	  // Second_counter matches second_flag. Decrement timer.
+          pin_timer[i]--;
+	  // Invert second_flag to enable a repeat of this process.
+	  if (timer_flags & 0x01) {
+	    timer_flags &= (uint8_t)(~0x01);
+	  }
+	  else timer_flags |= 0x01;
+	}
+      }
+      if ((pin_timer[i] & 0xc000) == 0x8000) {
+        // 1 minute resolution
+	if (((second_counter & 0x3c) == 0x3c) && (timer_flags & 0x02)) {
+	  // Second_counter at 60 second interval and minute_flag is set.
+	  // Decrement timer.
+          pin_timer[i]--;
+	  // Invert the minute_flag to disable this compare.
+	  timer_flags &= (uint8_t)(~0x02);
+	}
+	if ((second_counter & 0x3d) == 0x3d) {
+	  // At next second_counter interval set the minute_flag to enable a
+	  // repeat of this process.
+	  timer_flags |= 0x02;
+	}
+      }
+      if ((pin_timer[i] & 0xc000) == 0xc000) {
+        // 1 hour resolution
+	if (((second_counter & 0xe10) == 0xe10) && (timer_flags & 0x04)) {
+	  // Second_counter at 3600 second interval and hour_flag is set.
+	  // Decrement timer.
+          pin_timer[i]--;
+	  // Invert the minute_flag to disable this compare.
+	  timer_flags &= (uint8_t)(~0x04);
+	}
+	if ((second_counter & 0xe11) == 0xe11) {
+	  // At next second_counter interval set the hour_flag to enable a
+	  // repeat of this process.
+	  timer_flags |= 0x04;
+	}
+      }
+    }
+  }
 }
-#endif BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 void check_reset_button(void)
@@ -5125,14 +6859,35 @@ void check_reset_button(void)
     while((PA_IDR & 0x02) == 0x00) {  // Wait for button release
     }
 
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Reboot in check_reset_button() function\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // Not sure if WWDG (Window Watchdog) or IWDG (Independent Watchdog) is
+    // the better choice here.
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     WWDG_WR = (uint8_t)0x7f;       // Window register reset
     WWDG_CR = (uint8_t)0xff;       // Set watchdog to timeout in 49ms
     WWDG_WR = (uint8_t)0x60;       // Window register value - doesn't matter
                                    // much as we plan to reset
 				 
-    wait_timer((uint16_t)50000);   // Wait for watchdog to generate reset
-    wait_timer((uint16_t)50000);
-    wait_timer((uint16_t)50000);
+    while(1);                      // Wait for watchdog to generate reset
+
+/*
+    // Change the setting of the IDWG to cause a Reboot in about 63ms.
+    IWDG_KR  = 0xcc;  // Enable the IWDG
+    IWDG_KR  = 0x55;  // Unlock the configuration registers
+    IWDG_PR  = 0x02;  // Divide clock by 16
+    IWDG_RLR = 0xff;  // Countdown reload value. The /2 prescaler plus the
+                      // Divisor plus the Countdown value create the 63ms
+		      // timeout interval
+    IWDG_KR  = 0xaa;  // Start the IWDG.
+
+    // Wait here for WWDG to reset the module.
+    while(1);
+*/
+
   }
 }
 
@@ -5203,6 +6958,94 @@ void update_debug_storage1() {
   for (i = 0; i < 10; i++) {
     if (stored_debug[i] != debug[i]) stored_debug[i] = debug[i];
   }
-  lock_eeprom();
-  
+  lock_eeprom();  
 }
+
+
+/*
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if PCF8574_SUPPORT == 1
+void PCF8574_display_pin_control(void)
+{
+// Diagnostic routine to read the PCF8574 pin_control bytes from the I2C
+// EEPROM and display them via the UART.
+  int i;
+  uint8_t byte[8];
+  
+//  UARTPrintf("Called PCF8574_display_pin_control\r\n");
+  // Read the pin_control bytes from I2C EEPROM for the PCF8574 pins
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE, 2);
+  for (i=0; i<7; i++) {
+    byte[i] = I2C_read_byte(0);
+  }
+  byte[7] = I2C_read_byte(1);
+  
+  // Display the non-volatile pin_control bytes
+  UARTPrintf("PCF8574 pin_control bytes from EEPROM:       ");
+  for (i=0; i<8; i++) {
+    emb_itoa(byte[i], OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+  }
+  UARTPrintf("\r\n");
+  
+  // Display the RAM pin_control bytes
+  UARTPrintf("PCF8574 pin_control bytes from RAM:          ");
+  for (i=16; i<24; i++) {
+    emb_itoa(pin_control[i], OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+  }
+  UARTPrintf("\r\n");
+  
+  // Display the RAM Pending_pin_control bytes
+  UARTPrintf("PCF8574 Pending_pin_control bytes from RAM:  ");
+  for (i=16; i<24; i++) {
+    emb_itoa(Pending_pin_control[i], OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+  }
+  UARTPrintf("\r\n");
+}
+#endif // PCF8574_SUPPORT == 1
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+*/
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+void STM8_display_pin_control(void)
+{
+// Diagnostic routine to display the STM8 pin_control bytes via the UART.
+  int i;
+  uint8_t byte[8];
+  
+//  UARTPrintf("Called PCF8574_display_pin_control\r\n");
+  
+  // Display the non-volatile pin_control bytes
+  UARTPrintf("STM8 pin_control bytes from EEPROM:       ");
+  for (i=0; i<16; i++) {
+    emb_itoa(stored_pin_control[i], OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+  }
+  UARTPrintf("\r\n");
+  
+  // Display the RAM pin_control bytes
+  UARTPrintf("STM8 pin_control bytes from RAM:          ");
+  for (i=0; i<16; i++) {
+    emb_itoa(pin_control[i], OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+  }
+  UARTPrintf("\r\n");
+  
+  // Display the RAM Pending_pin_control bytes
+  UARTPrintf("STM8 Pending_pin_control bytes from RAM:  ");
+  for (i=0; i<16; i++) {
+    emb_itoa(Pending_pin_control[i], OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+    UARTPrintf(" ");
+  }
+  UARTPrintf("\r\n");
+}
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+

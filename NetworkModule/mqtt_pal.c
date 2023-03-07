@@ -46,10 +46,6 @@ SOFTWARE.
 // All includes are in main.h
 #include "main.h"
 
-// #include <mqtt.h>
-// #include <uip.h>
-// #include <uip_arp.h>
-// #include "uart.h"
 
 extern uint16_t uip_slen;                 // Send Length for packets
 extern const char code_revision[];        // Code Revision

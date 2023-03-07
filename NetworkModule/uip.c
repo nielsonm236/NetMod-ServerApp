@@ -104,11 +104,6 @@
 // All includes are in main.h
 #include "main.h"
 
-// #include "uip.h"
-// #include "uipopt.h"
-// #include "uip_arch.h"
-// #include "uart.h"
-// #include <string.h>
 
 //---------------------------------------------------------------------------//
 /* Variable definitions. */

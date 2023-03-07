@@ -25,18 +25,27 @@
 // All includes are in main.h
 #include "main.h"
 
-// #include <stdint.h>
-// #include <stdlib.h>
-// #include <string.h>
-// #include "iostm8s005.h"
-// #include "stm8s-005.h"
-// #include "UART.h"
-// #include "timer.h"
-// #include "uipopt.h"
 
-extern uint8_t pin_control[16];
-extern uint8_t stored_pin_control[16];
-extern uint8_t Pending_pin_control[16];
+#if PCF8574_SUPPORT == 0
+extern uint8_t pin_control[16];           // Per pin configuration byte
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+extern uint8_t pin_control[24];           // Per pin configuration byte when
+                                          // PCF8574 is included in the
+					  // hardware configuration
+#endif // PCF8574_SUPPORT == 1
+
+extern uint8_t stored_pin_control[16];    // STM8 per pin control bytes stored
+                                          // in EEPROM
+
+#if PCF8574_SUPPORT == 0
+extern uint8_t Pending_pin_control[16];   // Per pin configuration byte
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+extern uint8_t Pending_pin_control[24];   // Per pin configuration byte when
+                                          // PCF8574 is included in the
+					  // hardware configuration
+#endif // PCF8574_SUPPORT == 1
 
 //---------------------------------------------------------------------------//
 // This function enables the use of the STM8S UART to output characters to a

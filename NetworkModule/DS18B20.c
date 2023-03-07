@@ -25,22 +25,10 @@
 // all includes are in main.h
 #include "main.h"
 
-// #include <stdint.h>
-// #include <stdlib.h>
-// #include <string.h>
-// #include <stdio.h>
-
-// #include "iostm8s005.h"
-// #include "stm8s-005.h"
-// #include "DS18B20.h"
-// #include "timer.h"
-// #include "uart.h"
-// #include "uipopt.h"
-
 
 #if DS18B20_SUPPORT == 1
 
-uint8_t DS18B20_scratch_byte[2];        // Array to store scratchpad bytes
+// uint8_t DS18B20_scratch_byte[2];        // Array to store scratchpad bytes
                                         // read from DS18B20
 uint8_t DS18B20_scratch[5][2];          // Stores the temperature measurement
                                         // for the DS18B20s

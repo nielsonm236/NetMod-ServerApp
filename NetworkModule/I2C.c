@@ -25,17 +25,6 @@
 // All includes are in main.h
 #include "main.h"
 
-// #include <stdint.h>
-// #include <stdlib.h>
-// #include <string.h>
-// #include "iostm8s005.h"
-// #include "stm8s-005.h"
-// #include "I2C.h"
-// #include "uip.h"
-// #include "timer.h"
-// #include "uart.h"
-// #include "httpd.h"
-// #include "uipopt.h"
 
 extern uint8_t OctetArray[14];  // Used in emb_itoa conversions and to
                                 // transfer short strings globally
@@ -43,7 +32,7 @@ extern uint8_t OctetArray[14];  // Used in emb_itoa conversions and to
 uint8_t I2C_failcode;
 char * flash_ptr;
 char * ram_ptr;
-uint16_t copy_ram_index;
+// uint16_t copy_ram_index;
 uint8_t eeprom_num_write;
 uint8_t eeprom_num_read;
 uint16_t eeprom_base;
@@ -95,7 +84,7 @@ uint16_t eeprom_base;
 //  I2C_read_byte(...) 1 byte or 64 bytes
 //  I2C_stop()
 
-void I2C_control(uint8_t control_byte)
+uint8_t I2C_control(uint8_t control_byte)
 {
   // The Control Byte addresses a device and provides the Read/Write bit to
   // the device
@@ -122,29 +111,12 @@ void I2C_control(uint8_t control_byte)
   I2C_transmit_byte(control_byte);
   
   // Read NACK/ACK from slave
+  I2C_failcode = 0;
   if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_CONTROL_BYTE;
+  
+  return I2C_failcode;
 }
 
-
-/*
-void I2C_byte_address(uint16_t byte_address)
-{
-  // Send address to the I2C EEPROM where a byte read or write is to
-  // occur, or a sequential read/write stream is to occur.
-  
-  // Output Byte Address bit 15 to 8
-  I2C_transmit_byte((uint8_t)(byte_address >> 8));
-  
-  // Read NACK/ACK from slave
-  if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_BYTE_ADDRESS1;
-  
-  // Output Byte Address bit 7 to 0
-  I2C_transmit_byte((uint8_t)(byte_address & 0x00ff));
-  
-  // Read NACK/ACK from slave
-  if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_BYTE_ADDRESS2;
-}
-*/
 
 void I2C_byte_address(uint16_t byte_address, uint8_t addr_size)
 {
@@ -168,7 +140,6 @@ void I2C_byte_address(uint16_t byte_address, uint8_t addr_size)
   }
   
   // Output Byte Address bit 7 to 0
-//  I2C_transmit_byte((uint8_t)(byte_address & 0x00ff));
   I2C_transmit_byte((uint8_t)(byte_address));
   
   // Read NACK/ACK from slave
@@ -508,15 +479,37 @@ void eeprom_copy_to_flash(void)
   
   // Lock the Flash
   FLASH_IAPSR &= (uint8_t)(~0x02);
-  
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("Reboot after Copy RAM to Flash\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // Not sure if WWDG (Window Watchdog) or IWDG (Independent Watchdog) is the
+  // better choice here.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // Set the Window Watchdog to reboot the module
   WWDG_WR = (uint8_t)0x7f;     // Window register reset
   WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
   WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
                                // much as we plan to reset
+  // Wait here for WWDG to reset the module.
+  while(1);
+
+/*
+  // Change the setting of the IDWG to cause a Reboot in about 63ms.
+  IWDG_KR  = 0xcc;  // Enable the IWDG
+  IWDG_KR  = 0x55;  // Unlock the configuration registers
+  IWDG_PR  = 0x02;  // Divide clock by 16
+  IWDG_RLR = 0xff;  // Countdown reload value. The /2 prescaler plus the
+                    // Divisor plus the Countdown value create the 63ms
+		    // timeout interval
+  IWDG_KR  = 0xaa;  // Start the IWDG.
 
   // Wait here for WWDG to reset the module.
   while(1);
+*/
+
 }
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -575,8 +568,9 @@ void copy_ram_to_flash(void)
 void I2C_write_byte(uint8_t I2C_write_data)
 {
   // Write a single data byte on the I2C bus.  This function is not included
-  // in the (flash_update) segment because it is never called again once the
-  // eeprom_copy_to_flash() function is called.
+  // in the flash_update segment because it is never called again once the
+  // eeprom_copy_to_flash() function is called. This helps make the flash
+  // update segment smaller.
   
   // Write Data bit 7 to 0
   I2C_transmit_byte(I2C_write_data);

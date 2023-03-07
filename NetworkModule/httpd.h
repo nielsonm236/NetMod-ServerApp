@@ -67,6 +67,45 @@
 #define FILETYPE_PROGRAM	1
 #define FILETYPE_STRING		2
 
+// These defines locate the webpage content and webpage sizes stored in the
+// Strings region of the I2C EEPROM (EEPROM Region 2). In order to allow a
+// String File to be read using the same code used for reading Program Files
+// the code expects addresses starting at 0x8000, however in the I2C EEPROM
+// itself the base address for Strings is 0x0000.
+#define MQTT_WEBPAGE_IOCONTROL_ADDRESS_LOCATION				0x0040
+#define MQTT_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION			0x0042
+#define BROWSER_ONLY_WEBPAGE_IOCONTROL_ADDRESS_LOCATION			0x0044
+#define BROWSER_ONLY_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION		0x0046
+#define MQTT_WEBPAGE_PCF8574_IOCONTROL_ADDRESS_LOCATION			0x0048
+#define MQTT_WEBPAGE_PCF8574_CONFIGURATION_ADDRESS_LOCATION		0x004a
+#define BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_ADDRESS_LOCATION		0x004c
+#define BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_ADDRESS_LOCATION	0x004e
+#define WEBPAGE_LOADUPLOADER_ADDRESS_LOCATION				0x0050
+
+#define MQTT_WEBPAGE_IOCONTROL_SIZE_LOCATION				0x0080
+#define MQTT_WEBPAGE_CONFIGURATION_SIZE_LOCATION			0x0082
+#define BROWSER_ONLY_WEBPAGE_IOCONTROL_SIZE_LOCATION			0x0084
+#define BROWSER_ONLY_WEBPAGE_CONFIGURATION_SIZE_LOCATION		0x0086
+#define MQTT_WEBPAGE_PCF8574_IOCONTROL_SIZE_LOCATION			0x0088
+#define MQTT_WEBPAGE_PCF8574_CONFIGURATION_SIZE_LOCATION		0x008a
+#define BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_SIZE_LOCATION		0x008c
+#define BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_SIZE_LOCATION	0x008e
+#define WEBPAGE_LOADUPLOADER_SIZE_LOCATION				0x0090
+
+// The MQTT_WEBPAGE_IOCONTROL webpage is the first webpage string stored in
+// I2C EEPROM (EEPROM Region 2) and starts at 0x0100. The .sx file that
+// provides the strings to be stored in EEPROM Region 2 has the strings
+// start with SREC address 0x8100 rather than 0x0100. This is so that the
+// code in httpd.c that uploads Firmware .sx files can be the same code that
+// uploads String .sx files. As each string is stored the next string starts
+// at the next 128 byte address in EEPROM 2. The current map allows ADDRESS
+// and SIZE pointers for 32 strings (32 webpages).
+// Note: In addition to the "webpage strings" stored in I2C EEPROM Region 2
+// some other variables associated implementation of the PCF8574 IO pin
+// expander are also stored in I2C EEPROM Region 2. Those variables define
+// the IO Names, IO Timers, and pin_control valies for the PCF8574 IO pins.
+// See the main.h file for more information.
+
 
 struct tHttpD
 {
@@ -119,7 +158,7 @@ void httpd_diagnostic(void);
 void HttpDStringInit(void);
 void init_off_board_string_pointers(struct tHttpD* pSocket);
 uint16_t read_two_bytes(void);
-void read_eight_bytes(void);
+void read_httpd_diagnostic_bytes(void);
 uint16_t adjust_template_size(struct tHttpD* pSocket);
 
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen);

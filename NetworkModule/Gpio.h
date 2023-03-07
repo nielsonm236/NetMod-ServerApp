@@ -51,7 +51,6 @@ extern const struct io_mapping io_map[16];
 #endif // PINOUT_OPTION_SUPPORT == 0
 
 #if PINOUT_OPTION_SUPPORT == 1
-extern int8_t io_map_offset;
 extern const struct io_mapping io_map[48];
 #endif PINOUT_OPTION_SUPPORT == 1
 

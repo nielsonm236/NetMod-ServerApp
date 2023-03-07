@@ -47,12 +47,6 @@
 // All includes are in main.h
 #include "main.h"
 
-// #include "Spi.h"
-// #include "timer.h"
-// #include "iostm8s005.h"
-// #include "stm8s-005.h"
-// #include "uip.h"
-// #include "uipopt.h"
 
 void spi_init(void)
 {

@@ -30,9 +30,13 @@ Feature Comparison of the MQTT and Browser builds:
 |Network Statistics           |       |    x    |             |       x      |             |
 |I2C Support                  |       |         |      x      |       x      |      x      |
 |Upgradeable over Ethernet  * |       |         |      x      |       x      |      x      |
+|PCF8574 Support              |       |         |      x      |       x      |             |
+|Alternative Pinout Support   |   x   |    x    |             |              |             |
 * "Upgradeable over Ethernet" requires additonal hardware - see Manual
 
 Short summary of recent history:
+
+March 5, 2023 - Addressed Issue #115 (added PCF8574 support), Addressed Issue #120 (Alternative Pinout Support)
 
 January 25, 2023 - Addressed Issue #132 “Linked pins Output states not correct after reboot” and Issue #93 “Add BME280 Temperature Humidity Pressure sensor”
 

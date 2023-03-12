@@ -30,6 +30,7 @@ Feature Comparison of the MQTT and Browser builds:
 |Network Statistics           |       |    x    |             |       x      |             |
 |I2C Support                  |       |         |      x      |       x      |      x      |
 |Upgradeable over Ethernet  * |       |         |      x      |       x      |      x      |
+|Linked Pin Support           |   x   |    x    |      x      |       x      |             |
 |PCF8574 Support              |       |         |      x      |       x      |             |
 |Alternative Pinout Support   |   x   |    x    |             |              |             |
 * "Upgradeable over Ethernet" requires additonal hardware - see Manual
@@ -58,6 +59,7 @@ Videos: See the video links in the Wiki
 
 Many thanks to Carlos Ladeira and Jevgeni Kiski for their many hours of work in the 2021 releases. Their collaboration greatly improved the code for everyone.
 
+I haven't updated the "Tested with" section in awhile. Suffice it to say that the firmware has continued to work without issues resulting from external application  updates.
 Tested with:
 - Windows 10 Firefox 104.0.2 (64-bit)
 - Windows 10 Chrome 105.0.5195.102 (64-bit)

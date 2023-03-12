@@ -36,7 +36,7 @@ Feature Comparison of the MQTT and Browser builds:
 
 Short summary of recent history:
 
-March 5, 2023 - Addressed Issue #115 (added PCF8574 support), Addressed Issue #120 (Alternative Pinout Support)
+March 12, 2023 - Addressed Issue #115 (added PCF8574 support), Addressed Issue #120 (Alternative Pinout Support), Addressed Issue #152 (Added Short Form Option)
 
 January 25, 2023 - Addressed Issue #132 “Linked pins Output states not correct after reboot” and Issue #93 “Add BME280 Temperature Humidity Pressure sensor”
 

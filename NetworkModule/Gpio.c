@@ -32,7 +32,7 @@
 // extern uint8_t stored_magic1;		// LSB Magic Number
 extern uint8_t stored_pin_control[16];  // STM8 per pin control settings
                                         // stored in EEPROM
-extern uint8_t stored_hardware_options; // Hardware options stored in EEPROM
+extern uint8_t stored_options1;         // Additional options stored in EEPROM
 
 // io_map_offset defines the user selected IO pinout map.
 // io_map_offset = 0 for the first 16 io_map definitions
@@ -199,9 +199,9 @@ void gpio_init(void)
   // If an alternate Pinout Option is selected it must be selected before any
   // GPIO settings are applied.
   //
-  // (stored_hardware_options & 0x07) = 1 for the first 16 io_map definitions
-  // (stored_hardware_options & 0x07) = 2 for the second 16 io_map definitions
-  // (stored_hardware_options & 0x07) = 3 for the third 16 io_map definitions
+  // (stored_options1 & 0x07) = 1 for the first 16 io_map definitions
+  // (stored_options1 & 0x07) = 2 for the second 16 io_map definitions
+  // (stored_options1 & 0x07) = 3 for the third 16 io_map definitions
   // io_map_offset defines the user selected IO pinout map.
   // io_map_offset = 0 for the first 16 io_map definitions
   // io_map_offset = 16 for the second 16 io_map definitions
@@ -217,18 +217,18 @@ void gpio_init(void)
     // If ISC_SUPPORT is enabled then Option 1 must be used. Set a flag.
     i = 1;
 #endif I2C_SUPPORT == 1
-    j = (uint8_t)(stored_hardware_options & 0x07);
+    j = (uint8_t)(stored_options1 & 0x07);
     if (j > 0 && j < 4 && i == 0) {
-      // If stored_hardware_options is valid update io_map_offset
-      io_map_offset = (uint8_t)(((stored_hardware_options & 0x07) - 1) * 16);
+      // If stored_options1 is valid update io_map_offset
+      io_map_offset = (uint8_t)(((stored_options1 & 0x07) - 1) * 16);
     }
     else {
       // Else use Option 1
       io_map_offset = 0;
-      j = (uint8_t)(stored_hardware_options & 0xf8);
+      j = (uint8_t)(stored_options1 & 0xf8);
       j |= 0x01;
       unlock_eeprom();
-      stored_hardware_options = j;
+      stored_options1 = j;
       lock_eeprom();
     }
   }

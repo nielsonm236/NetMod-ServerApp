@@ -155,7 +155,8 @@ extern uint8_t stored_devicename[20];     // Device name stored in EEPROM
 
 extern uint8_t stored_config_settings;    // Config settings stored in EEPROM
 
-extern uint8_t stored_hardware_options;   // Hardware options stored in EEPROM
+extern uint8_t stored_options1;           // Additional options stored in
+                                          // EEPROM
 
 extern char mac_string[13];		  // MAC Address in string format
 
@@ -568,6 +569,7 @@ static const char g_HtmlPageIOControl[] = " ";
 
 const m = (data => {
     const doc = document,
+        loc = location,
         selector = doc.querySelector.bind(doc),
         form = selector('form'),
         get_entries = Object.entries,
@@ -597,12 +599,15 @@ const m = (data => {
         common_attributes = {required: true};
         
         if (features_data & 0x10) {
-          cfg_page = () => location.href = '/60';
+          cfg_page = () => loc.href = '/60';
+          cfg_page_pcf = () => loc.href = '/60';
         } else {
-          cfg_page = () => location.href = '/61';        
+          cfg_page = () => loc.href = '/61';        
+          cfg_page_pcf = () => loc.href = '/63';        
         }
 
-        reload_page = () => location.href = '/60',
+        ioc_page_pcf = () => loc.href = '/62',
+        reload_page = () => loc.href = '/60',
         submit_form = (event) => {
         	event.preventDefault();
 
@@ -626,13 +631,12 @@ const m = (data => {
     document_write(`<tr><th></th><th></th>${outputs.length > 0 ? '<th class=c>SET</th>' : ''}</tr>`);
     document_write(outputs.join(''));
     
-    return {s: submit_form, l:reload_page, c:cfg_page}
+    return {s: submit_form, l:reload_page, c:cfg_page, j:ioc_page_pcf}
 })
 ({
   h00: '00010305070b0f131781018303000000',
   g00: '14',
 });
-
 
 */
 #endif // BUILD_SUPPORT == MQTT_BUILD
@@ -919,7 +923,8 @@ const m = (data => {
           request.open(method, url, false);
           request.send(data);
         },
-        iocontrol_page = () => location.href = '/60',
+        ioc_page = () => loc.href = '/60',
+        cfg_page_pcf = () => loc.href = '/63',
         reload_page = () => loc.href = '/61',
         wait_reboot = () => {
           doc.body.innerText = "Wait 5s...";
@@ -958,9 +963,8 @@ const m = (data => {
     	get_entries(features),
       ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join("</br>"
     );
-    
-    
-    return {r:reboot, s: submitForm, l:reload_page, c:iocontrol_page};
+        
+    return {r:reboot, s: submitForm, l:reload_page, i:ioc_page, p:cfg_page_pcf};
 })
 ({
     b00: "c0a80004",
@@ -1102,6 +1106,7 @@ static const char g_HtmlPageIOControl[] = " ";
 
 const m = (data => {
     const doc = document,
+        loc = location,
         selector = doc.querySelector.bind(doc),
         form = selector('form'),
         get_entries = Object.entries,
@@ -1131,12 +1136,15 @@ const m = (data => {
         common_attributes = {required: true};
         
         if (features_data & 0x10) {
-          cfg_page = () => location.href = '/60';
+          cfg_page = () => loc.href = '/60';
+          cfg_page_pcf = () => loc.href = '/60';
         } else {
-          cfg_page = () => location.href = '/61';        
+          cfg_page = () => loc.href = '/61';        
+          cfg_page_pcf = () => loc.href = '/63';        
         }
 
-        reload_page = () => location.href = '/60',
+        ioc_page_pcf = () => loc.href = '/62',
+        reload_page = () => loc.href = '/60',
         submit_form = (event) => {
         	event.preventDefault();
 
@@ -1161,7 +1169,7 @@ const m = (data => {
     document_write(`<tr><th></th><th></th>${outputs.length > 0 ? '<th class=c>SET</th>' : ''}</tr>`);
     document_write(outputs.join(''));
     
-    return {s: submit_form, l:reload_page, c:cfg_page}
+    return {s: submit_form, l:reload_page, c:cfg_page, j:ioc_page_pcf}
 })
 ({
   h00: '01010305070b0f131781018303000000',
@@ -1472,7 +1480,8 @@ const m = (data => {
           request.open(method, url, false);
           request.send(data);
         },
-        iocontrol_page = () => location.href = '/60',
+        ioc_page = () => location.href = '/60',
+        cfg_page_pcf = () => loc.href = '/63',
         reload_page = () => loc.href='/61',
         wait_reboot = () => {
           doc.body.innerText = "Wait 5s...";
@@ -1512,7 +1521,7 @@ const m = (data => {
     
     selector(".f").innerHTML = Array.from(get_entries(features),([name, bit]) => make_checkbox('g00', bit, features_data, name)).join("</br>");
     
-    return {r:reboot, s: submitForm, l:reload_page, c:iocontrol_page};
+    return {r:reboot, s: submitForm, l:reload_page, i:ioc_page,  p:cfg_page_pcf};
 })
 ({
     b00: "c0a80004",
@@ -1561,37 +1570,13 @@ const m = (data => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+// Following are the webpages for the PCF8574 Configuration and IOControl
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 
 
 
@@ -1649,7 +1634,7 @@ static const char g_HtmlPagePCFIOControl[] =
       "<title>%A00: PCF8574 IO Control</title>"
    "</head>"
    "<body>"
-      "<h1>PCF8574 IO Control MQTT</h1>"
+      "<h1>PCF8574 IO Control</h1>"
       "<form onsubmit='return m.s(event);return false'>"
          "<table>"
             "<tr>"
@@ -1728,12 +1713,76 @@ static const char g_HtmlPagePCFIOControl[] = " ";
 //    removed from the minified script.
 
 const m = (data => {
+    const doc = document,
+        loc = location,
+        selector = doc.querySelector.bind(doc),
+        form = selector('form'),
+        get_entries = Object.entries,
+        parse_int = parseInt,
+        document_write = text => doc.write(text),
+        pad_hex = (s, l) => parse_int(s).toString(16).padStart(l, '0'),
+        convert_to_hex = v => v.map(p => pad_hex(p, 2)).join(''),
+        convert_from_hex = v => v.match(/.{2}/g).map(p => parse_int(p, 16)),
+        encode = v => encodeURIComponent(v),
+        inputs = [],
+        outputs = [],
+        make_radio_input = (type, id, checked_type) => {
+            var type_str = type ? 'on' : 'off';
+            return `<label><input type=radio name=o${id} value=${type} ${checked_type == type ? 'checked' : ''}/>${type_str.toUpperCase()}</label>`;
+        },
+        get_form_data = () => {
+            const form_data = new FormData(form);
+            form_data.set('H00', convert_to_hex(convert_from_hex(data.H00).map((_, i) => {
+                const name = 'o' + i,
+                    result = form_data.get(name) << 7;
+                form_data.delete(name);
+                return result;
+            })));
+            return form_data;
+        },
+        features_data = convert_from_hex(data.g00)[0],
+        common_attributes = {required: true};
+        
+        if (features_data & 0x10) {
+          cfg_page = () => loc.href = '/62';
+          cfg_page_pcf = () => loc.href = '/62';
+        } else {
+          cfg_page = () => loc.href = '/61';        
+          cfg_page_pcf = () => loc.href = '/63';        
+        }
+
+        ioc_page = () => loc.href = '/60',
+
+        reload_page = () => loc.href = '/62',
+        submit_form = (event) => {
+        	event.preventDefault();
+
+          const request = new XMLHttpRequest(),
+              string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
+          request.open('POST', '/', false);
+          request.send(string_data + '&z00=0');
+          reload_page();
+        };
+        
+
+    convert_from_hex(data.H00).forEach((cfg, i) => {
+        if ((cfg & 3) == 3) { //output
+            outputs.push(`<tr><td>Output #${i + 17}</td><td class='s${cfg >> 7} t3'></td><td class=c>${make_radio_input(1, i, cfg >> 7)}${make_radio_input(0, i, cfg >> 7)}</td></tr>`);
+        } else if ((cfg & 3) == 1) { // input
+            inputs.push(`<tr><td>Input #${i + 17}</td><td class='s${cfg >> 7} t3'></td><td/></tr>`);
+        }
+    });
+
+    document_write(inputs.join(''));
+    document_write(`<tr><th></th><th></th>${outputs.length > 0 ? '<th class=c>SET</th>' : ''}</tr>`);
+    document_write(outputs.join(''));
+    
+    return {s: submit_form, l:reload_page, c:cfg_page, p:cfg_page_pcf, i:ioc_page}
 })
 ({
-  h00: '00010305070b0f131781018303000000',
+  H00: '01010305070b0f13',
   g00: '14',
 });
-
 
 */
 #endif // BUILD_SUPPORT == MQTT_BUILD
@@ -1788,7 +1837,7 @@ static const char g_HtmlPagePCFConfiguration[] =
       "<title>%A00: PCF8574 Configuration</title>"
    "</head>"
    "<body>"
-      "<h1>PCF8574 Configuration MQTT</h1>"
+      "<h1>PCF8574 Configuration</h1>"
       "<form onsubmit='return m.s(event);return false'>"
          "<table>"
             "<tr>"
@@ -1878,10 +1927,77 @@ static const char g_HtmlPagePCFConfiguration[] = " ";
 //    removed from the minified script.
 
 const m = (data => {
+    const
+        pin_types = { "disabled": 0, "input": 1, "output": 3, "linked": 2 },
+        boot_state = { "retain": 8, "on": 16, "off": 0 },
+        doc=document,
+        loc=location,
+        selector=doc.querySelector.bind(doc),
+        form=selector('form'),
+        get_entries=Object.entries,
+        parse_int = parseInt,
+        document_write = text => doc.write(text),
+        pad_hex = (s, l) => parse_int(s).toString(16).padStart(l, '0'),
+        convert_to_hex = v => v.map(p => pad_hex(p, 2)).join(''),
+        convert_from_hex = v => v.match(/.{2}/g).map(p => parse_int(p, 16)),
+        encode = v => encodeURIComponent(v),
+        make_options = (o, v) => get_entries(o).map((o) => `<option value=${o[1]} ${o[1] == v ? 'selected' : ''}>${o[0]}</option>`).join(''),
+        make_checkbox = (name, bit, value, title='') => `<input type="checkbox" name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
+        get_form_data = () => {
+            const form_data = new FormData(form),
+            	collect_bits = (name) => form_data.getAll(name).map(v => parse_int(v)).reduce((a, b) => a | b, 0);
+              
+            form_data.set('H00', convert_to_hex(convert_from_hex(data.H00).map((_, i) => {
+                const name = 'p' + i,
+                    result = collect_bits(name);
+                form_data.delete(name);
+                return result;
+            })));
+            
+            return form_data;
+        },
+        send_request = (method, url, data) => {
+        	const request = new XMLHttpRequest();
+          request.open(method, url, false);
+          request.send(data);
+        },
+        
+        ioc_page = () => loc.href = '/60',
+        cfg_page = () => loc.href = '/61',
+        ioc_page_pcf = () => loc.href = '/62',
+        reload_page = () => loc.href = '/63',
+        
+        wait_reboot = () => {
+          doc.body.innerText = "Wait 5s...";
+          setTimeout(reload_page, 5000);
+        },
+        
+        reboot = () => {
+          send_request("GET", "/91");
+          wait_reboot();
+        },
+        
+        submitForm = (event) => {
+        	event.preventDefault();
+          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join("&");
+          send_request("POST", "/", string_data + '&z00=0');
+          wait_reboot();
+        },
+        
+        common_attributes = {required: true};
+
+    convert_from_hex(data.H00).forEach((n, i) => {
+        const
+            invert_checkbox = (n & 3) != 0 ? make_checkbox('p'+i, 4, n) : '',
+            make_select = (n & 3) == 3 || ((n & 3) == 2 && i > 3) ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '',
+            debug_column = (loc.hash == '#d'?`<td>${n}</td>`:'');
+        document_write(`<tr><td>#${i + 17}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${invert_checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
+    });
+    
+    return {r:reboot, s: submitForm, l:reload_page, c:cfg_page, i:ioc_page, j:ioc_page_pcf};
 })
 ({
-    h00: "00020305070b0f131617000000000000",
-    g00: "04",
+    H00: "00020305070b0f13",
 });
 
 */
@@ -1940,7 +2056,7 @@ static const char g_HtmlPagePCFIOControl[] =
       "<title>%A00: PCF8574 IO Control</title>"
    "</head>"
    "<body>"
-      "<h1>PCF8574 IO Control Browser</h1>"
+      "<h1>PCF8574 IO Control</h1>"
       "<form onsubmit='return m.s(event);return false'>"
          "<table>"
             "<tr>"
@@ -2018,26 +2134,84 @@ static const char g_HtmlPagePCFIOControl[] = " ";
 //    removed from the minified script.
 
 const m = (data => {
+    const doc = document,
+        loc = location,
+        selector = doc.querySelector.bind(doc),
+        form = selector('form'),
+        get_entries = Object.entries,
+        parse_int = parseInt,
+        document_write = text => doc.write(text),
+        pad_hex = (s, l) => parse_int(s).toString(16).padStart(l, '0'),
+        convert_to_hex = v => v.map(p => pad_hex(p, 2)).join(''),
+        convert_from_hex = v => v.match(/.{2}/g).map(p => parse_int(p, 16)),
+        encode = v => encodeURIComponent(v),
+        inputs = [],
+        outputs = [],
+        make_radio_input = (type, id, checked_type) => {
+            var type_str = type ? 'on' : 'off';
+            return `<label><input type=radio name=o${id} value=${type} ${checked_type == type ? 'checked' : ''}/>${type_str.toUpperCase()}</label>`;
+        },
+        get_form_data = () => {
+            const form_data = new FormData(form);
+            form_data.set('H00', convert_to_hex(convert_from_hex(data.H00).map((_, i) => {
+                const name = 'o' + i,
+                    result = form_data.get(name) << 7;
+                form_data.delete(name);
+                return result;
+            })));
+            return form_data;
+        },
+        features_data = convert_from_hex(data.g00)[0],
+        common_attributes = {required: true};
+        
+        if (features_data & 0x10) {
+          cfg_page = () => loc.href = '/62';
+          cfg_page_pcf = () => loc.href = '/62';
+        } else {
+          cfg_page = () => loc.href = '/61';        
+          cfg_page_pcf = () => loc.href = '/63';        
+        }
+
+        ioc_page = () => loc.href = '/60',
+
+        reload_page = () => loc.href = '/62',
+        submit_form = (event) => {
+        	event.preventDefault();
+
+          const request = new XMLHttpRequest(),
+              string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
+          request.open('POST', '/', false);
+          request.send(string_data + '&z00=0');
+          reload_page();
+        };
+        
+
+    convert_from_hex(data.H00).forEach((cfg, i) => {
+    		var name = data['J'+(16+i+'').padStart(2, '0')];
+        if ((cfg & 3) == 3) { //output
+            outputs.push(`<tr><td>${name}</td><td class='s${cfg >> 7} t3'></td><td class=c>${make_radio_input(1, i, cfg >> 7)}${make_radio_input(0, i, cfg >> 7)}</td></tr>`);
+        } else if ((cfg & 3) == 1) { // input
+            inputs.push(`<tr><td>${name}</td><td class='s${cfg >> 7} t3'></td><td/></tr>`);
+        }
+    });
+
+    document_write(inputs.join(''));
+    document_write(`<tr><th></th><th></th>${outputs.length > 0 ? '<th class=c>SET</th>' : ''}</tr>`);
+    document_write(outputs.join(''));
+    
+    return {s: submit_form, l:reload_page, c:cfg_page, p:cfg_page_pcf, i:ioc_page}
 })
 ({
-  h00: '01010305070b0f131781018303000000',
+  H00: '01010305070b0f13',
   g00: '14',
-  j00: 'LivingRoom12345',
-  j01: 'LivingRoom67890',
-  j02: 'IO_3',
-  j03: 'IO_4',
-  j04: 'IO_5',
-  j05: 'IO_6',
-  j06: 'IO_7',
-  j07: 'IO_8',
-  j08: 'IO_9',
-  j09: 'IO_10',
-  j10: 'IO_11',
-  j11: 'IO_12',
-  j12: 'IO_13',
-  j13: 'IO_14',
-  j14: 'Driveway_01',
-  j15: 'Garden-01',
+  J16: 'LivingRoom12345',
+  J17: 'LivingRoom67890',
+  J18: 'IO_19',
+  J19: 'IO_20',
+  J20: 'IO_21',
+  J21: 'IO_22',
+  J22: 'IO_23',
+  J23: 'IO_24',
 });
 
 */
@@ -2113,7 +2287,7 @@ static const char g_HtmlPagePCFConfiguration[] =
       "<title>%A00: PCF8574 Configuration</title>"
    "</head>"
    "<body>"
-      "<h1>PCF8574 Configuration Browser</h1>"
+      "<h1>PCF8574 Configuration</h1>"
       "<form onsubmit='return m.s(event);return false'>"
          "<table>"
             "<tr>"
@@ -2211,26 +2385,98 @@ static const char g_HtmlPagePCFConfiguration[] = " ";
 //    removed from the minified script.
 
 const m = (data => {
+    const
+        pin_types = { "disabled": 0, "input": 1, "output": 3, "linked": 2 },
+        boot_state = { "retain": 8, "on": 16, "off": 0 },
+        timer_unit = { "0.1s": 0, "1s": 0x4000, "1m": 0x8000, "1h": 0xc000 },
+        doc=document,
+        loc=location,
+        selector=doc.querySelector.bind(doc),
+        form=selector('form'),
+        get_entries=Object.entries,
+        parse_int = parseInt,
+        document_write = text => doc.write(text),
+        pad_hex = (s, l) => parse_int(s).toString(16).padStart(l, '0'),
+        convert_to_hex = v => v.map(p => pad_hex(p, 2)).join(''),
+        convert_from_hex = v => v.match(/.{2}/g).map(p => parse_int(p, 16)),
+        encode = v => encodeURIComponent(v),
+        make_options = (o, v) => get_entries(o).map((o) => `<option value=${o[1]} ${o[1] == v ? 'selected' : ''}>${o[0]}</option>`).join(''),
+        make_checkbox = (name, bit, value, title='') => `<input type="checkbox" name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
+        get_form_data = () => {
+            const form_data = new FormData(form),
+            	collect_bits = (name) => form_data.getAll(name).map(v => parse_int(v)).reduce((a, b) => a | b, 0);
+              
+            form_data.set('H00', convert_to_hex(convert_from_hex(data.H00).map((_, i) => {
+                const name = 'p' + i,
+                    result = collect_bits(name);
+                form_data.delete(name);
+                return result;
+            })));
+            for (let i=16;i<24;i++) {
+              let input_nr = (''+i).padStart(2, '0');
+            	form_data.set('I'+input_nr, pad_hex(collect_bits('I'+input_nr) & 0xffff, 4));
+            }
+            
+            return form_data;
+        },
+        send_request = (method, url, data) => {
+        	const request = new XMLHttpRequest();
+          request.open(method, url, false);
+          request.send(data);
+        },
+        ioc_page = () => loc.href = '/60',
+        cfg_page = () => loc.href = '/61',
+        ioc_page_pcf = () => loc.href = '/62',
+        reload_page = () => loc.href = '/63',
+        wait_reboot = () => {
+          doc.body.innerText = "Wait 5s...";
+          setTimeout(reload_page, 5000);
+        },
+        reboot = () => {
+          send_request("GET", "/91");
+          wait_reboot();
+        },
+        submitForm = (event) => {
+        	event.preventDefault();
+          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join("&");
+          send_request("POST", "/", string_data + '&z00=0');
+          wait_reboot();
+        },
+        common_attributes = {required: true};
+
+    convert_from_hex(data.H00).forEach((n, i) => {
+        const
+            j = i + 16,
+            invert_checkbox = (n & 3) != 0 ? make_checkbox('p'+i, 4, n) : '',
+            if_output = (a,b) => (n & 3) == 3 || ((n & 3) == 2 && i > 3) ? a: b,
+        		input_nr = (''+j).padStart(2, '0'),
+            timer_int_value = if_output(convert_from_hex(data['I'+input_nr]).reduce((prev, cur)=>(prev<<8)+cur), 0),
+            boot_state_select = if_output(`<select name='p${i}'>${make_options(boot_state, n & 24)}</select>`,''),
+            debug_column = (loc.hash == '#d'?`<td>${n}</td>`:''),
+            timer_column = if_output(`<input type=number class=t8 name='I${input_nr}' value='${timer_int_value & 0x3fff}' min=0 max=16383><select name='I${input_nr}'>${make_options(timer_unit, timer_int_value & 0xc000)}</select>`,'');
+        document_write(`<tr><td>#${j+1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td><input name='J${input_nr}' value='${data['J'+input_nr]}' pattern='[0-9a-zA-Z_*.-]{1,15}' required title='1 to 15 letters, numbers, and -*_. no spaces' maxlength=15/></td><td>${invert_checkbox}</td><td>${boot_state_select}</td><td>${timer_column}</td>${debug_column}</tr>`);
+    });
+    
+    return {r:reboot, s: submitForm, l:reload_page, c:cfg_page, i:ioc_page, j:ioc_page_pcf};
 })
 ({
-    h00: "00020305070b0f131617010000000000",
-    g00: "04",
-    j00: "LivingRoom12345",
-    j01: "LivingRoom67890",
-    j02: "IO_3",
-    j03: "IO_4",
-    j04: "IO_5",
-    j05: "IO_6",
-    j06: "IO_7",
-    j07: "IO_8",
-    i00: "0000",
-    i01: "0000",
-    i02: "0000",
-    i03: "0000",
-    i04: "30ff",
-    i05: "7f0f",
-    i06: "bff0",
-    i07: "ffff",
+    H00: "00020305070b0f13",
+    J16: "LivingRoom12345",
+    J17: "LivingRoom67890",
+    J18: "IO_19",
+    J19: "IO_20",
+    J20: "IO_21",
+    J21: "IO_22",
+    J22: "IO_23",
+    J23: "IO_24",
+    I16: "0000",
+    I17: "0000",
+    I18: "0000",
+    I19: "0000",
+    I20: "30ff",
+    I21: "7f0f",
+    I22: "bff0",
+    I23: "ffff",
 });
 
 */
@@ -3289,7 +3535,8 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // them  each time we display the web page.
     {
       int i;
-      for (i=0; i<15; i++) {
+//      for (i=0; i<15; i++) {
+      for (i=0; i<16; i++) {
         size = size + (strlen(IO_NAME[i]) - 4);
       }
     }
@@ -3498,7 +3745,8 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // them  each time we display the web page.
     {
       int i;
-      for (i=0; i<15; i++) {
+//      for (i=0; i<15; i++) {
+      for (i=0; i<16; i++) {
         size = size + (strlen(IO_NAME[i]) - 4);
       }
     }
@@ -3763,17 +4011,17 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // Even though PCF8574 support may be enabled there may not be a device
     // physically present. Return 16 pins if no PCF8574, otherwise return
     // 24 pins.
-    // If no PCF8574 is present
-    // size = size + (value size - marker_field_size)
-    // size = size + (16 - 4);
     // If PCF8574 is present
     // size = size + (value size - marker_field_size)
     // size = size + (24 - 4);
-    if (!(stored_hardware_options & 0x08)) {
-      size = size + 12;
+    // If PCF8574 is NOT present
+    // size = size + (value size - marker_field_size)
+    // size = size + (16 - 4);
+    if (stored_options1 & 0x08) {
+      size = size + 20;
     }
     else {
-      size = size + 20;
+      size = size + 12;
     }
 #endif // PCF8574_SUPPORT == 1
   }
@@ -4703,27 +4951,36 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 
 
         else if (nParsedMode == 'f') {
-	  // Display the pin state information in the format used by the "98" and
-	  // "99" command. "99" is the command used in the original Network Module.
+	  // Display the pin state information in the format used by the "98"
+	  // and "99" command. "99" is the command used in the original
+	  // Network Module.
 	  // For output pins display the state in the pin_control byte.
-	  // For input pins if the Invert bit is set the ON_OFF state needs to be
-	  // inverted before displaying.
+	  // For input pins if the Invert bit is set the ON_OFF state needs to
+	  // be inverted before displaying.
 	  // Bits are output for Pin 16 first and Pin 1 last
-	  // If PCF8574 is implemented bits are output for Pin 24 first and Pin 1
-	  // last.
+	  // If PCF8574 is implemented bits are output for Pin 24 first and
+	  // Pin 1 last.
+	  // If stored_options1 bit 0x10 is set then any Disabled pin must be
+	  // shown as '-'. Otherwise the last known pin state is displayed.
+
 #if PCF8574_SUPPORT == 0
 	  i = 15;
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-          if (stored_hardware_options & 0x08) i = 23;
+          if (stored_options1 & 0x08) i = 23;
           else i = 15;
 #endif // PCF8574_SUPPORT == 1
-	  while( 1 ) {
+
+          while( 1 ) {
+	    if (((pin_control[i] & 0x03) == 0x00) && ((stored_options1 & 0x10) == 0x10)) {
+	      // This is a Disabled pin and Option is set to display a '-'
+	      *pBuffer++ = '-';
+	    }
 #if LINKED_SUPPORT == 0
-	    if (pin_control[i] & 0x02) {
+	    else if (pin_control[i] & 0x02) {
 #endif // LINKED_SUPPORT == 0
 #if LINKED_SUPPORT == 1
-            if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+            else if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
 #endif // LINKED_SUPPORT == 1
 	      // This is an output
 	      if (pin_control[i] & 0x80) {
@@ -4731,16 +4988,11 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 		*pBuffer++ = '1';
 	      }
 	      else {
-		// Output is OFF
+	        // Output is OFF
 		*pBuffer++ = '0';
 	      }
             }
-// #if LINKED_SUPPORT == 0
             else {
-// #endif // LINKED_SUPPORT == 0
-// #if LINKED_SUPPORT == 1
-//            if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
-// #endif // LINKED_SUPPORT == 1
 	      // This is an input
 	      if (pin_control[i] & 0x80) {
 	        // Input is ON, invert if needed
@@ -4754,10 +5006,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 		else *pBuffer = '0';
                 pBuffer++;
 	      }
-	    }
+            }
 	    if (i == 0) break;
 	    i--;
-          }
+	  }
 	}
 	
 
@@ -5193,7 +5445,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  
 	  if (nParsedNum == 1) {
 	    // Show the Pinout Option (1, 2, or 3 as stored in the EEPROM)
-	    *pBuffer = (uint8_t)((stored_hardware_options & 0x07) + 0x30);
+	    *pBuffer = (uint8_t)((stored_options1 & 0x07) + 0x30);
 	    pBuffer++;
 	  }
 	  
@@ -6347,6 +6599,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/81  Altitude entry
 	  // http://IP/82  User entered Pinout Option
 	  // http://IP/83  User entered PCF8574 output byte (deprecated)
+	  // http://IP/84  Short Form Option
 	  // http://IP/91  Reboot
 	  // http://IP/98  Show Very Short Form IO States page
 	  // http://IP/99  Show Short Form IO States page
@@ -6569,7 +6822,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 #if PCF8574_SUPPORT == 1
 	    case 62: // Show PCF8574 IO Control page
-	      if (stored_hardware_options & 0x08) {
+	      if (stored_options1 & 0x08) {
 	        pSocket->current_webpage = WEBPAGE_PCF8574_IOCONTROL;
                 pSocket->pData = g_HtmlPagePCFIOControl;
                 pSocket->nDataLeft = HtmlPagePCFIOControl_size;
@@ -6579,7 +6832,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 	      
 	    case 63: // Show PCF8574 Configuration page
-	      if (stored_hardware_options & 0x08) {
+	      if (stored_options1 & 0x08) {
 	        pSocket->current_webpage = WEBPAGE_PCF8574_CONFIGURATION;
                 pSocket->pData = g_HtmlPagePCFConfiguration;
                 pSocket->nDataLeft = HtmlPagePCFConfiguration_size;
@@ -6905,10 +7158,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		  pinout_select = 1;
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 		  if ((pinout_select > 0) && (pinout_select < 4)){
-		    j = (uint8_t)(stored_hardware_options & 0xf8);
+		    j = (uint8_t)(stored_options1 & 0xf8);
 		    j |= pinout_select;
 		    unlock_eeprom();
-		    stored_hardware_options = j;
+		    stored_options1 = j;
 		    lock_eeprom();
 	            user_reboot_request = 1;
 		  }
@@ -6957,7 +7210,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		    // Both characters are hex. Convert to an uint8_t
                     byte = two_hex2int(hex_num[0], hex_num[1]);
 		    // If the hardware is present write to PCF8574
-		    if (stored_hardware_options & 0x08) {
+		    if (stored_options1 & 0x08) {
 		      PCF8574_write(byte);
 		    }
 		  }
@@ -6973,6 +7226,51 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #endif // PCF8574_SUPPORT == 1
 */
 
+            case 84:
+	      // User entered Short Form Option.
+	      // User may enter '+' or '-' to select how Disabled pins are
+	      // displayed in the Short Form Status page.
+	      // - The Default is for all pins to display 0 or 1 depending
+	      //   on the last state of the pin.
+	      // - If the user enters URL command /84- then Disabled pins will
+	      //   display with a '-' character.
+	      // - If the user enters URL command /84+ then Disabled pins will
+	      //   display a 0 or 1 depending on the last state of the pin.
+	      // - If a syntax error the command is ignored.
+	      // Note: The '+' command is only supplied so that the user can
+	      // reverse a '-' selection.
+	      //
+	      // Example URL command
+              //   192.168.1.182/84-
+              //   The above example selects the Short Form option which will
+	      //   display a '-' for Disabled pin.
+
+	      {
+	        uint8_t i;
+		uint8_t j;
+		j = 0xff;
+		// Accept the first character as the Short Form option
+		if (*pBuffer == '-') j = 0x10;
+		if (*pBuffer == '+') j = 0x00;
+		if (j != 0xff) {
+		  i = stored_options1;
+		  // mask out current Short Form setting
+		  i &= 0xef;
+		  // add new Short Form setting
+		  i |= j;
+		  unlock_eeprom();
+		  stored_options1 = i;
+		  lock_eeprom();
+		}
+              }
+
+              // Show Short Form IO state page
+	      pSocket->current_webpage = WEBPAGE_SSTATE;
+              pSocket->pData = g_HtmlPageSstate;
+              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
+              break;
+              
+              
 	    case 91: // Reboot
 	      user_reboot_request = 1;
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
@@ -8701,15 +8999,21 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
               }
             }
             if (amp_found) {
-              // We must reduce nParseLeft here because it is based on the PARESEBYTES_
-              // value which assumes num_chars bytes for the string field. If the
-              // POSTed string field is less than num_chars bytes then nParseLeft is
-              // too big by the number of characters omitted and must be corrected
-              // here. When we exit the loop the buffer index is left pointing at the
-              // '&' which starts the next field.
+              // We must reduce nParseLeft here because it is based on the
+	      // PARESEBYTES_ value which assumes num_chars bytes for the
+	      // string field. If the POSTed string field is less than
+	      // num_chars bytes then nParseLeft is too big by the number of
+	      // characters omitted and must be corrected here. When we exit
+	      // the loop the buffer index is left pointing at the '&' which
+	      // starts the next field.
               pSocket->nParseLeft--;
             }
           }
+	  
+	  // Increment num_chars once for the case where the full string
+	  // length is used. This will assure a NULL character in the last
+	  // byte of the Pending_ string.
+	  num_chars++;
   
           switch (pSocket->ParseCmd)
 	  {

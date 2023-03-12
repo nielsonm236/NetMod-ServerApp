@@ -36,7 +36,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20230305 1816"; // Normal Release Revision
+const char code_revision[] = "20230312 1441"; // Normal Release Revision
 // const char code_revision[] = "20210529 1999"; // Browser Only test build
 // const char code_revision[] = "20210529 2999"; // MQTT test build
 // const char code_revision[] = "20210531 CU01"; // Code Uploader test build
@@ -140,11 +140,15 @@ uint8_t stack_limit2;
 @eeprom uint8_t stored_uip_ethaddr_oct[6]; // Bytes 24-29 MAC MSB
 @eeprom uint8_t stored_EEPROM_revision2;   // Byte 23 EEPROM revision
 @eeprom uint8_t stored_EEPROM_revision1;   // Byte 22 EEPROM revision
-@eeprom uint8_t stored_hardware_options;   // Byte 21 Hardware Options
+@eeprom uint8_t stored_options1;           // Byte 21 Additional Options
                                            // Bit 7: Undefined, 0 only
                                            // Bit 6: Undefined, 0 only
                                            // Bit 5: Undefined, 0 only
-                                           // Bit 4: Undefined, 0 only
+                                           // Bit 4: Short Form Option
+					   //   0 = Original format all '0'
+					   //       and '1'
+					   //   1 = Show '-' for Disabled
+					   //       pins
                                            // Bit 3: PCF8574 present
 					   //   0 = No PCF8574 detected or
 					   //       PCF8574 not supported
@@ -772,7 +776,7 @@ STM8_display_pin_control();
   if (I2C_PCF8574_1_WRITE_CMD) {
     // A PCF8574 or PCF8574A was found as indicated by a non-zero value in
     // variable I2C_PCF8574_1_WRITE_CMD after running PCF8574_init().
-    // Update the stored_hardware_options byte in EEPROM.
+    // Update the stored_options1 byte in EEPROM.
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 // UARTPrintf("Main - Found PCF8574 at ");
@@ -783,11 +787,11 @@ STM8_display_pin_control();
 
     {
       uint8_t j;
-      j = stored_hardware_options;
+      j = stored_options1;
       if ((j & 0x08) != 0x08) {
         j |= 0x08;
         unlock_eeprom();
-        stored_hardware_options = j;
+        stored_options1 = j;
         lock_eeprom();
       }
     }
@@ -798,11 +802,11 @@ STM8_display_pin_control();
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
     {
       uint8_t j;
-      j = stored_hardware_options;
+      j = stored_options1;
       if ((j & 0x08) == 0x08) {
         j &= (uint8_t)(~0x08);
         unlock_eeprom();
-        stored_hardware_options = j;
+        stored_options1 = j;
         lock_eeprom();
       }
     }
@@ -813,11 +817,11 @@ STM8_display_pin_control();
   // PCF8574 not supported. Make sure the hardware option is off.
   {
     uint8_t j;
-    j = stored_hardware_options;
+    j = stored_options1;
     if ((j & 0x08) == 0x08) {
       j &= (uint8_t)~0x08;
       unlock_eeprom();
-      stored_hardware_options = j;
+      stored_options1 = j;
       lock_eeprom();
     }
   }  
@@ -2082,9 +2086,8 @@ void mqtt_startup(void)
 	    if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-//	    if (pin_ptr == 24) {
-	    if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
-	     || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+	    if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
+	     || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	      pin_ptr = 1;
               auto_discovery = DEFINE_OUTPUTS;
@@ -2101,9 +2104,8 @@ void mqtt_startup(void)
 	  if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-//	  if (pin_ptr == 24) {
-	  if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
-	   || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+	  if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
+	   || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	    pin_ptr = 1;
             auto_discovery = DEFINE_OUTPUTS;
@@ -2136,9 +2138,8 @@ void mqtt_startup(void)
 	    if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-//	    if (pin_ptr == 24) {
-	    if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
-	     || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+	    if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
+	     || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	      pin_ptr = 1;
               auto_discovery = DEFINE_DISABLED;
@@ -2153,9 +2154,8 @@ void mqtt_startup(void)
 	  if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-//	  if (pin_ptr == 24) {
-	  if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
-	   || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+	  if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
+	   || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	    pin_ptr = 1;
             auto_discovery = DEFINE_DISABLED;
@@ -2182,9 +2182,8 @@ void mqtt_startup(void)
 	    if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-//	    if (pin_ptr == 24) {
-	    if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
-	     || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+	    if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
+	     || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
               auto_discovery = DEFINE_TEMP_SENSORS;
 	    }
@@ -2199,9 +2198,8 @@ void mqtt_startup(void)
 	  if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-//	  if (pin_ptr == 24) {
-	  if ((!(stored_hardware_options & 0x08) && (pin_ptr == 16))
-	   || ((stored_hardware_options & 0x08) && (pin_ptr == 24))) {
+	  if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
+	   || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	    auto_discovery = DEFINE_TEMP_SENSORS;
 	  }
@@ -2863,9 +2861,8 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
 	for (i=0; i<16; i++) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-//        for (i=0; i<24; i++) {
-	if (!(stored_hardware_options & 0x08)) k = 16;
-	else k = 24;
+	if ((stored_options1 & 0x08)) k = 24;
+	else k = 16;
         for (i=0; i<k; i++) {
 #endif // PCF8574_SUPPORT == 1
 #if LINKED_SUPPORT == 0
@@ -2885,9 +2882,8 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
 	for (i=0; i<16; i++) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-//        for (i=0; i<24; i++) {
-	if (!(stored_hardware_options & 0x08)) k = 16;
-	else k = 24;
+	if ((stored_options1 & 0x08)) k = 24;
+	else k = 16;
         for (i=0; i<k; i++) {
 #endif // PCF8574_SUPPORT == 1
 #if LINKED_SUPPORT == 0
@@ -2976,19 +2972,17 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
     // "state-req" detected
     // Format is:
     //   state-req
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // WARNING: To save flash space I don't check every sub-topic character.
+    // But I also don't clear the uip_buf. So, I could pick up on stuff left
+    // by a prevous message if not careful. In this limited application I can
+    // get away with it, but this can trip me up in the future if more
+    // messages are added.
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     pBuffer += 8;
     if (*pBuffer == 'q') {
       *pBuffer = '0'; // Destroy 'q' in buffer so subsequent "state"
                       // messages won't be misinterpreted
-		      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-		      // WARNING: To save flash space I don't check every
-		      // sub-topic character. But I also don't clear the
-		      // uip_buf. So, I could pick up on stuff left by a
-		      // prevous message if not careful. In this limited
-		      // application I can get away with it, but this can
-		      // trip me up in the future if more messages are
-		      // added.
-		      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       state_request = STATE_REQUEST_RCVD;
     }
   }
@@ -3078,7 +3072,7 @@ void publish_outbound(void)
     j = 0x8000;
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-    if (stored_hardware_options & 0x08) {
+    if (stored_options1 & 0x08) {
       i = 23;
       j = 0x00800000;
     }
@@ -3316,7 +3310,7 @@ void publish_pinstate_all(void)
   for (i=0; i<16; i++) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-  if (stored_hardware_options & 0x08) m = 24;
+  if (stored_options1 & 0x08) m = 24;
   else m = 16;
   for (i=0; i<m; i++) {
 #endif // PCF8574_SUPPORT == 1
@@ -3751,7 +3745,7 @@ void check_eeprom_settings(void)
     } // 20 bytes
     
     // 1 byte stored hardware options
-    stored_hardware_options = 0;
+    stored_options1 = 0;
     
     // Skip 2 bytes (the EEPROM revision bytes)
 
@@ -4554,7 +4548,7 @@ void check_runtime_changes(void)
     // User has requested that DS18B20 functionality be enabled, or DS18B20
     // was already enabled in the config settings. DS18B20 is only allowed if
     // pinout Option 1 is being used.
-    if ((stored_hardware_options & 0x07) > 1) {
+    if ((stored_options1 & 0x07) > 1) {
       Pending_config_settings &= (uint8_t)~0x08;
       // If DS18B20 is enabled in the stored_config_settings it will be
       // disabled in code further below.
@@ -4564,7 +4558,7 @@ void check_runtime_changes(void)
     // User has requested that BME280 functionality be enabled, or BME280
     // was already enabled in the config settings. BME280 is only allowed if
     // pinout Option 1 is being used.
-    if ((stored_hardware_options & 0x07) > 1) {
+    if ((stored_options1 & 0x07) > 1) {
       Pending_config_settings &= (uint8_t)~0x20;
       // If DS18B20 is enabled in the stored_config_settings it will be
       // disabled in code further below.

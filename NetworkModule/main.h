@@ -152,20 +152,22 @@
 #define MQTT_START_VERIFY_ARP		2
 #define MQTT_START_VERIFY_TCP		3
 #define MQTT_START_MQTT_INIT		4
-#define MQTT_START_QUEUE_CONNECT	5
-#define MQTT_START_VERIFY_CONNACK	6
-#define MQTT_START_QUEUE_SUBSCRIBE1	7
-#define MQTT_START_VERIFY_SUBSCRIBE1    8
-#define MQTT_START_QUEUE_SUBSCRIBE2	9
-#define MQTT_START_VERIFY_SUBSCRIBE2    10
-#define MQTT_START_QUEUE_SUBSCRIBE3	11
-#define MQTT_START_VERIFY_SUBSCRIBE3    12
-#define MQTT_START_QUEUE_SUBSCRIBE4	13
-#define MQTT_START_VERIFY_SUBSCRIBE4    14
-#define MQTT_START_QUEUE_PUBLISH_ON	15
-#define MQTT_START_QUEUE_PUBLISH_AUTO   16
-#define MQTT_START_QUEUE_PUBLISH_PINS	17
-#define MQTT_START_COMPLETE		20
+#define MQTT_START_UIP_CONNECT_CLEANUP1 5
+#define MQTT_START_UIP_CONNECT_CLEANUP2 6
+#define MQTT_START_QUEUE_CONNECT	10
+#define MQTT_START_VERIFY_CONNACK	11
+#define MQTT_START_QUEUE_SUBSCRIBE1	20
+#define MQTT_START_VERIFY_SUBSCRIBE1    21
+#define MQTT_START_QUEUE_SUBSCRIBE2	22
+#define MQTT_START_VERIFY_SUBSCRIBE2    23
+#define MQTT_START_QUEUE_SUBSCRIBE3	24
+#define MQTT_START_VERIFY_SUBSCRIBE3    25
+// #define MQTT_START_QUEUE_SUBSCRIBE4	26
+// #define MQTT_START_VERIFY_SUBSCRIBE4    27
+ #define MQTT_START_QUEUE_PUBLISH_ON	30
+#define MQTT_START_QUEUE_PUBLISH_AUTO   31
+#define MQTT_START_QUEUE_PUBLISH_PINS	32
+#define MQTT_START_COMPLETE		40
 
 // MQTT Start Status
 #define MQTT_START_NOT_STARTED		0x00
@@ -215,6 +217,7 @@
 // MQTT State message control
 #define STATE_REQUEST_IDLE		0
 #define STATE_REQUEST_RCVD		1
+#define STATE_REQUEST_RCVD24		2
 
 // Restart State Machine Controls
 #define RESTART_REBOOT_IDLE		0
@@ -280,7 +283,7 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t m
 void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t mask);
 #endif // PCF8574_SUPPORT == 1
 
-void publish_pinstate_all(void);
+void publish_pinstate_all(uint8_t type);
 void publish_temperature(uint8_t sensor);
 void publish_BME280(int8_t sensor);
 

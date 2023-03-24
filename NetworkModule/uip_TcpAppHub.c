@@ -95,8 +95,22 @@ void uip_TcpAppHubCall(void)
       // to the UIP code. Note that the uip_TcpAppHubCall() function can only
       // be called if in the ESTABLISHED state - so a uip_close() is a valid
       // reply.
-      if (mqtt_close_tcp) uip_close();
+//      if (mqtt_close_tcp == 1) {
+//        UARTPrintf("mqt_close request1\r\n");
+//	mqtt_close_tcp = 0;
+//        uip_close();
+//      }
     }
+    if (mqtt_close_tcp == 1) {
+//      UARTPrintf("mqt_close request2 close\r\n");
+      mqtt_close_tcp = 0;
+      uip_close();
+    }
+//    if (mqtt_close_tcp == 2) {
+//      UARTPrintf("mqt_close request2 abort\r\n");
+//      mqtt_close_tcp = 0;
+//      uip_abort();
+//    }
   }
 #endif // BUILD_SUPPORT == MQTT_BUILD
 }

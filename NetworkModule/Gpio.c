@@ -383,7 +383,7 @@ void gpio_init(void)
   for (i=0; i<16; i++) {
     // Determine setting from stored_pin_control byte
 #if LINKED_SUPPORT == 0
-    if (stored_pin_control[i] & 0x03) {
+    if ((stored_pin_control[i] & 0x03) == 0x03) {
 #endif // LINKED_SUPPORT == 0
 #if LINKED_SUPPORT == 1
     if (chk_iotype(stored_pin_control[i], i, 0x03) == 0x03) {
@@ -397,7 +397,7 @@ void gpio_init(void)
       j = (int8_t)(i + io_map_offset);
       io_reg[ io_map[j].port ].ddr |= io_map[j].bit;
 #endif // PINOUT_OPTION_SUPPORT == 1
-   }
+    }
   }
 }
 

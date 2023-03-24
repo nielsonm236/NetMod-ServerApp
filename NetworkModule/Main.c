@@ -36,10 +36,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20230312 1441"; // Normal Release Revision
-// const char code_revision[] = "20210529 1999"; // Browser Only test build
-// const char code_revision[] = "20210529 2999"; // MQTT test build
-// const char code_revision[] = "20210531 CU01"; // Code Uploader test build
+const char code_revision[] = "20230324 1435"; // Normal Release Revision
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -365,6 +362,8 @@ uint8_t mqtt_start_ctr1;              // Tracks time for the MQTT startup
 uint8_t verify_count;                 // Used to limit the number of ARP and
                                       // TCP verify attempts
 uint8_t mqtt_sanity_ctr;              // Tracks time for the MQTT sanity steps
+// uint8_t publish_outbound_throttle;    // A counter used to throttle the rate
+                                      // at which MQYY messages are sent.
 
 extern uint8_t mqtt_sendbuf[MQTT_SENDBUF_SIZE]; // Buffer to contain MQTT
                                       // transmit queue and data.
@@ -563,6 +562,8 @@ int main(void)
                                          // steps
   mqtt_sanity_ctr = 0;			 // Tracks time for the MQTT sanity
                                          // steps
+//  publish_outbound_throttle = 0;         // Counter used to throttle the rate
+                                         // of MQTT publish_outbound requests.
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
   state_request = STATE_REQUEST_IDLE;    // Set the state request received to
                                          // idle
@@ -636,11 +637,15 @@ int main(void)
   // Initialize the UART for debug output
   // Note: gpio_init() must be called prior to this call
   InitializeUART();
+  UARTPrintf("\r\n\r\n\r\n\r\n\r\nBooting Rev ");
+  UARTPrintf(code_revision);
+  UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
+
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-UARTPrintf("STM8 pin_control[] after initialize UART\r\n");
-STM8_display_pin_control();
+// UARTPrintf("STM8 pin_control[] after initialize UART\r\n");
+// STM8_display_pin_control();
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
@@ -700,7 +705,7 @@ STM8_display_pin_control();
   read_input_pins(1);
 #endif // LINKED_SUPPORT == 1
 
-
+/*
 #if DS18B20_SUPPORT == 0
   // If DS18B20_SUPPORT is disabled in the build configuration then force the
   // DS18B20 Enable bit off. This will help reduce confusion on the part of
@@ -723,7 +728,7 @@ STM8_display_pin_control();
   // This will cause any change to the Pending_config_settings to update the
   // EEPROM if needed.
 #endif // BME280_SUPPORT == 0
-
+*/
 
 #if DS18B20_SUPPORT == 1
   init_DS18B20();          // Initialize DS18B20 sensors
@@ -813,6 +818,7 @@ STM8_display_pin_control();
   }
 #endif // PCF8574_SUPPORT == 1
 
+/*
 #if PCF8574_SUPPORT == 0
   // PCF8574 not supported. Make sure the hardware option is off.
   {
@@ -826,7 +832,7 @@ STM8_display_pin_control();
     }
   }  
 #endif // PCF8574_SUPPORT == 0
-
+*/
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -851,12 +857,6 @@ STM8_display_pin_control();
     if (RST_SR & 0x01) debug[9] = (uint8_t)(debug[9] + 1);
     update_debug_storage1();
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
-  }
-
-  {
-  UARTPrintf("\r\nBooting Rev ");
-  UARTPrintf(code_revision);
-  UARTPrintf("\r\n");
   }
 
 
@@ -1106,10 +1106,12 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
     // b) Not already at start complete
     // c) Not currently performing the restart steps
     // d) Not currently performing restart_reboot
-    if (mqtt_enabled
+    // e) A user requested reboot is not pending
+    if (mqtt_enabled == 1
      && mqtt_start != MQTT_START_COMPLETE
      && mqtt_restart_step == MQTT_RESTART_IDLE
-     && restart_reboot_step == RESTART_REBOOT_IDLE) {
+     && restart_reboot_step == RESTART_REBOOT_IDLE
+     && user_reboot_request == 0) {
       mqtt_startup();
     }
     
@@ -1117,9 +1119,11 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
     // a) MQTT is enabled
     // b) Not currently performing MQTT startup
     // c) Not currently performing restart_reboot
-    if (mqtt_enabled
+    // d) A user requested reboot is not pending
+    if (mqtt_enabled == 1
      && mqtt_start == MQTT_START_COMPLETE
-     && restart_reboot_step == RESTART_REBOOT_IDLE) {
+     && restart_reboot_step == RESTART_REBOOT_IDLE
+     && user_reboot_request == 0) {
       mqtt_sanity_check(&mqttclient);
     }
 #endif // BUILD_SUPPORT == MQTT_BUILD
@@ -1134,8 +1138,8 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
     //     Then check for pin state change messages that need to be
     //     published
     // Note that publish_outbound only places the message in the mqtt_sendbuf
-    // queue, then uip_periodic() will cause the actual transmission at 20ms
-    // intervals.
+    // queue, then uip_periodic() will cause the actual transmission at X ms
+    // intervals - see timer.c
     // Also
     //   Increment the MQTT timers every 50ms
     if (mqtt_timer_expired()) {
@@ -1143,10 +1147,13 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
         if (mqtt_start == MQTT_START_COMPLETE) {
 	  // publish_outbound() is called to send pin_control state change
 	  // PUBLISH messages.
+//        if (mqtt_start == MQTT_START_COMPLETE && user_reboot_request == 0) {
+//	  // publish_outbound() is called to send pin_control state change
+//	  // PUBLISH messages unless a user_reboot_request is pending.
 	  publish_outbound();
 	  // Call the periodic_service() function to clear out the MQTT
 	  // traffic just now placed in the uip_buf. Even though there is
-	  // a period9ic_service() call in the main loop we don't want to
+	  // a periodic_service() call in the main loop we don't want to
 	  // wait for its timer to expire for MQTT service.
 	  periodic_service();
 	}
@@ -1161,7 +1168,7 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
 			   //     HA Auto Discovery messaging is placed in
 			   //     the transmit queue.
 			   // Note that uip_periodic() drives actual message
-			   // transmission at 20ms intervals.
+			   // transmission at X ms intervals - see timer.c.
         mqtt_sanity_ctr++; // Increment the MQTT sanity loop timer. This is
                            // used to provide timing for the MQTT Sanity
                            // Check function.			   
@@ -1170,7 +1177,7 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
     if (periodic_timer_expired()) {
-      // The periodic timer expires every 20ms.
+      // The periodic timer expires every X ms (see timer.c).
       // Call the periodic_service() function
       periodic_service();
     }
@@ -1294,7 +1301,7 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
         check_BME280_ctr = second_counter;
         stream_sensor_data_forced_mode(&dev, &comp_data);
 #if BUILD_SUPPORT == MQTT_BUILD
-        send_mqtt_BME280 = 2; // Indicates that all 5 temperature sensors
+        send_mqtt_BME280 = 2; // Indicates that the BME280 sensors
                               // need to be transmitted via MQTT.
 #endif // BUILD_SUPPORT == MQTT_BUILD
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
@@ -1323,20 +1330,20 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
 
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-debug_main_loop_end = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
+// debug_main_loop_end = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
 //
 // UARTPrintf("Main Loop Time = ");
 // emb_itoa((uint16_t)(debug_main_loop_end - debug_main_loop_start), OctetArray, 10, 8);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
 //
-if ((debug_main_loop_end - debug_main_loop_start) > 80) {
-UARTPrintf("Main Loop Time = ");
-emb_itoa((uint16_t)(debug_main_loop_end - debug_main_loop_start), OctetArray, 10, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
-UARTPrintf("EXCESSIVE TIME IN LOOP XXXXXXXXXXXXXXXXXXXXXX\r\n");
-}
+// if ((debug_main_loop_end - debug_main_loop_start) > 80) {
+//   UARTPrintf("Main Loop Time = ");
+//   emb_itoa((uint16_t)(debug_main_loop_end - debug_main_loop_start), OctetArray, 10, 8);
+//   UARTPrintf(OctetArray);
+//   UARTPrintf("\r\n");
+//   UARTPrintf("EXCESSIVE TIME IN LOOP XXXXXXXXXXXXXXXXXXXXXX\r\n");
+// }
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
   }
@@ -1351,17 +1358,23 @@ void periodic_service(void)
   for(i = 0; i < UIP_CONNS; i++) {
     uip_periodic(i);
     // uip_periodic() calls uip_process(UIP_TIMER) for each connection.
-    // Every connection is checked in this loop one time.
-    // uip_process(UIP_TIMER) will check the HTTP and MQTT connections
-    // for any unserviced outbound traffic one packet at a time.
+    // Every connection is checked in this loop one time. With each pass
+    // only one connection (one HTTP or one MQTT) will transmit unserviced
+    // outbound traffic one packet at a time.
+    //
     //   HTTP connections (the webbrowser) will generate and place its
     //   data in the uip_buf via a call to HttpDCall(). HTTP connections
     //   can have pending transmissions which are continuations of a
     //   series of packets because the web pages can be broken into
     //   several packets.
+    //
     //   MQTT will always use this function to transmit packets. MQTT
     //   will have placed its outbound packets in the mqtt_sendbuf. MQTT
     //   connections will consist of a complete message in one packet.
+    //
+    //   Additionally, there will be TCP handshake transactions such as SYN,
+    //   SYNACK, ACK and FIN that are processed as a result of a
+    //   uip_process(UIP_TIMER).
     //
     // If uip_periodic() resulted in data that should be sent out on
     // the network the global variable uip_len will have been set to a
@@ -1650,8 +1663,31 @@ void mqtt_startup(void)
 			   // MAC (12 bytes) and
 			   // terminator (1 byte)
 			   // for a total of 26 bytes.
-  unsigned char topic_base[55];
-  
+  unsigned char topic_base[55]; // Used for building connect, subscribe,
+                                // and publish topic strings.
+				// Publish string content:
+                                //  NetworkModule/DeviceName123456789/input/xx
+                                //  NetworkModule/DeviceName123456789/output/xx
+                                //  NetworkModule/DeviceName123456789/temp/xxxxxxxxxxxx
+                                //  NetworkModule/DeviceName123456789/temp/BME280-0xxxx
+                                //  NetworkModule/DeviceName123456789/state
+                                //  NetworkModule/DeviceName123456789/state24
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Subscribe string content:
+                                //  NetworkModule/DeviceName123456789/output/+/set
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Last Will string content:
+				//  NetworkModule/DeviceName123456789/availability
+				// Home Assistant config string content:
+				//  homeassistant/switch/macaddressxx/xx/config
+				//  homeassistant/binary_sensor/macaddressxx/xx/config
+				//  homeassistant/sensor/macaddressxx/yyyyyyyyyyyy/config
+				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
+
   i = 0;
   // This function walks through the steps needed to get MQTT initialized and
   // a connection made to the MQTT Server and Broker
@@ -1669,18 +1705,15 @@ void mqtt_startup(void)
   //   - Initializes communication with the MQTT Broker.
   // - Once the above is completed the Home Assistant Auto Discovery messages
   //   are published (if Auto Discovery is enabled).
- 
+
   switch(mqtt_start)
   {
   case MQTT_START_TCP_CONNECT:
+//    if (mqtt_start_ctr1 > 20) { // wait 1 second before starting this process
+//    if (mqtt_start_ctr1 > 200) { // wait 10 seconds before starting this process
+    
     // When first powering up or on a reboot we need to initialize the MQTT
     // processes.
-    //
-    // A brand new device won't have a MQTT Server IP Address defined (as
-    // indicated by an all zeroes address). So these steps won't be executed
-    // unless a non-zero MQTT Server address is found. The user can input a
-    // MQTT Server IP Address and Port number via the GUI. A restart will
-    // automatically take place when the values are submitted in the GUI.
     //
     // The first step is to create a TCP Connection Request to the MQTT
     // Server. This is done with uip_connect(). uip_connect() doesn't
@@ -1692,6 +1725,9 @@ void mqtt_startup(void)
     mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, Port_Mqttd);
     
     if (mqtt_conn != NULL) {
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+UARTPrintf("Good mqtt_conn status\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       verify_count = 0; // Clear the ARP verify count
       mqtt_start_status = MQTT_START_CONNECTIONS_GOOD;
@@ -1700,14 +1736,26 @@ void mqtt_startup(void)
     else {
       mqtt_start_status |= MQTT_START_CONNECTIONS_ERROR;
     }
+//    }
     break;
       
   case MQTT_START_VERIFY_ARP:
-     if (mqtt_start_ctr1 > 6) {
+    if (mqtt_start_ctr1 > 6) {
       // mqtt_start_ctr1 causes us to wait 300ms before checking to see if the
       // ARP request completed.
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       verify_count++; // Increment the ARP verify count
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("VERIFY_ARP mqtt_start_ctr1 = ");
+// emb_itoa(mqtt_start_ctr1, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   VERIFY_ARP verify_count (max 50) = ");
+// emb_itoa(verify_count, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
       // ARP Request and TCP Connection request were sent to the MQTT Server
       // as a result of the uip_connect() in the prior step. Now we loop and
       // check that the ARP request was successful.
@@ -1717,6 +1765,9 @@ void mqtt_startup(void)
 	verify_count = 0;
         mqtt_start_status |= MQTT_START_ARP_REQUEST_GOOD;
         mqtt_start = MQTT_START_VERIFY_TCP;
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+UARTPrintf("MQTT ARP Verified\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       }
       if (verify_count > 50) {
         // mqtt_start_ctr1 allows us to wait up to 15 seconds for the ARP
@@ -1734,6 +1785,17 @@ void mqtt_startup(void)
     if (mqtt_start_ctr1 > 6) {
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       verify_count++; // Increment the TCP verify count
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("VERIFY_TCP mqtt_start_ctr1 = ");
+// emb_itoa(mqtt_start_ctr1, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("VERIFY_TCP verify_count (max 16) = ");
+// emb_itoa(verify_count, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
       // Loop to make sure the TCP connection request was successful. We're
       // waiting for the SYNACK/ACK process to complete (checking each 300ms).
       // uip_periodic() runs frequently (each time the periodic_timer expires).
@@ -1744,17 +1806,69 @@ void mqtt_startup(void)
         mqtt_start_ctr1 = 0; // Clear 50ms counter
         mqtt_start_status |= MQTT_START_TCP_CONNECT_GOOD;
         mqtt_start = MQTT_START_MQTT_INIT;
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+UARTPrintf("MQTT TCP Verified\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       }
-      if (verify_count > 16) {
+//      if (verify_count > 16) { // 4.8 seconds
+      if (verify_count > 32) { // 9.6 seconds. This needs to be longer than the
+                               // RTO timeout in the uip.c code which is
+			       // (48 + 24 + 12 + 6 + 3) x uip_periodic_expired()
+//      if (verify_count > 50) { // 15 seconds
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+UARTPrintf("MQTT TCP wait timed out\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
         // Wait up to 4.8 seconds for the TCP connection to complete. If not
         // completed we probably have a network problem.  Try again with a
         // new uip_connect().
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX	
+	// I WONDER IF SOMETHING NEEDS TO BE DONE HERE TO CLEAN UP THE
+	// ATTEMPTED CONNECTION WITH THE BROKER. FORCE A RESET? Or abort?
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         mqtt_start = MQTT_START_TCP_CONNECT;
+//        mqtt_start_ctr1 = 0; // Clear 50ms counter
+//        mqtt_start = MQTT_START_UIP_CONNECT_CLEANUP1;
         // Clear the error indicator flags
-        mqtt_start_status = MQTT_START_NOT_STARTED; 
+        mqtt_start_status = MQTT_START_NOT_STARTED;
       }
     }
     break;
+
+
+
+
+
+/*
+    case MQTT_START_UIP_CONNECT_CLEANUP1:
+      if (mqtt_start_ctr1 > 3) { // Wait at least 200ms
+        // Disconnect the MQTT client - NOT SURE IF THIS CAN BE DONE AS
+	// MQTT CONNECT HASN'T RUN.
+        mqtt_disconnect(&mqttclient);
+
+        mqtt_start_ctr1 = 0; // Clear 50ms counter
+        mqtt_start = MQTT_START_UIP_CONNECT_CLEANUP2;
+      }
+      break;
+
+    case MQTT_START_UIP_CONNECT_CLEANUP2:
+      if (mqtt_start_ctr1 > 3) { // Wait at least 200ms
+        // Signal uip_TcpAppHubCall() to close the MQTT TCP connection
+        mqtt_close_tcp = 2;
+        mqtt_start_ctr1 = 0; // Clear 50ms counter
+        mqtt_start = MQTT_START_TCP_CONNECT;
+      }
+      break;
+*/
+
+
+
+
+
+
 
 
   case MQTT_START_MQTT_INIT:
@@ -1842,6 +1956,10 @@ void mqtt_startup(void)
 
     if (mqtt_start_ctr1 < 200) {
       // Allow up to 10 seconds for CONNACK
+// UARTPrintf("VERIFY_CONNACK mqtt_start_ctr1 = ");
+// emb_itoa(mqtt_start_ctr1, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
       if (connack_received) {
         mqtt_start_ctr1 = 0; // Clear 50ms counter
         mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
@@ -1851,10 +1969,11 @@ void mqtt_startup(void)
     else {
       mqtt_start = MQTT_START_TCP_CONNECT;
       // Clear the error indicator flags
-      mqtt_start_status = MQTT_START_NOT_STARTED; 
+      mqtt_start_status = MQTT_START_NOT_STARTED;
     }
     break;
 
+/*
   case MQTT_START_QUEUE_SUBSCRIBE1:
     if (mqtt_start_ctr1 > 4) {
       // Subscribe to the output control messages
@@ -1955,13 +2074,113 @@ void mqtt_startup(void)
       mqtt_start_status = MQTT_START_NOT_STARTED; 
     }
     break;
+*/
+
+  case MQTT_START_QUEUE_SUBSCRIBE1:
+  case MQTT_START_QUEUE_SUBSCRIBE2:
+  case MQTT_START_QUEUE_SUBSCRIBE3:
+    if (mqtt_start_ctr1 > 4) {
+      // Queue the mqtt_subscribe messages for transmission to the MQTT
+      // Broker.
+      // Wait 200ms before queueing first Subscribe msg.
+      //
+      // The mqtt_subscribe function will create the message and put it in
+      // the mqtt_sendbuf queue. uip_periodic() will start the process that
+      // will call mqtt_sync to transfer the message from the mqtt_sendbuf
+      // to the uip_buf.
+      //
+      // Note: Timing is managed here to prevent placing multiple SUBSCRIBE
+      // messages in the mqtt_sendbuf as that buffer is very small.
+      //
+      // SUBSCRIBE is run three times:
+      //   case MQTT_START_QUEUE_SUBSCRIBE1:
+      //   Subscribe to the output control messages
+      //
+      //   case MQTT_START_QUEUE_SUBSCRIBE2:
+      //   Subscribe to the state-req messages
+      //
+      //   case MQTT_START_QUEUE_SUBSCRIBE3:
+      //   Subscribe to the state-req24 messages
+      //
+	
+      suback_received = 0;
+      strcpy(topic_base, devicetype);
+      strcat(topic_base, stored_devicename);
+      
+      if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE1) strcat(topic_base, "/output/+/set");
+      if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE2) strcat(topic_base, "/state-req");
+      if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE3) strcat(topic_base, "/state-req24");
+      
+      // In the mqtt_subscribe call the maximum QOS level spedified (0 in this
+      // case) is the max QOS level supported for the topic messages being
+      // subcribed to. The SUBSCRIBE itself has no QOS level as a special
+      // SUBACK message must be returned to verify the SUBSCRIBE transaction.
+      mqtt_subscribe(&mqttclient, topic_base, 0);
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
+      
+      if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE1) mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
+      if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE2) mqtt_start = MQTT_START_VERIFY_SUBSCRIBE2;
+      if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE3) mqtt_start = MQTT_START_VERIFY_SUBSCRIBE3;
+    }
+    break;
+
+
+  case MQTT_START_VERIFY_SUBSCRIBE1:
+  case MQTT_START_VERIFY_SUBSCRIBE2:
+  case MQTT_START_VERIFY_SUBSCRIBE3:
+    // Verify that the SUBSCRIBE SUBACK was received.
+    // When a SUBSCRIBE is sent to the broker it should respond with a SUBACK.
+    // The SUBACK will occur very quickly but we will allow up to 10 seconds
+    // before assuming an error has occurred.
+    // A workaround is implemented with the global variable suback_received so
+    // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
+    // was received.
+    //
+    // VERIFY_SUBSCRIBE is run three times
+
+    if (mqtt_start_ctr1 < 200) {
+      // Allow up to 10 seconds for SUBACK
+// UARTPrintf("VERIFY_SUBSCRIBE mqtt_start_ctr1 = ");
+// emb_itoa(mqtt_start_ctr1, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+      if (suback_received == 1) {
+        mqtt_start_ctr1 = 0; // Clear 50ms counter
+        if (mqtt_start == MQTT_START_VERIFY_SUBSCRIBE1) mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
+        if (mqtt_start == MQTT_START_VERIFY_SUBSCRIBE2) mqtt_start = MQTT_START_QUEUE_SUBSCRIBE3;
+        if (mqtt_start == MQTT_START_VERIFY_SUBSCRIBE3) {
+          if (stored_config_settings & 0x02) {
+            // Home Assistant Auto Discovery enabled
+            mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
+            auto_discovery = DEFINE_INPUTS;
+            auto_discovery_step = SEND_OUTPUT_DELETE;
+            pin_ptr = 1;
+            sensor_number = 0;
+          }
+          else {
+            mqtt_start_ctr1 = 0; // Clear 50ms counter
+            mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+          }
+	}
+      }
+    }
+    else {
+      mqtt_start = MQTT_START_TCP_CONNECT;
+      // Clear the error indicator flags
+      mqtt_start_status = MQTT_START_NOT_STARTED; 
+    }
+    break;
+
 
   case MQTT_START_QUEUE_PUBLISH_AUTO:
     if (mqtt_start_ctr1 > 2) {
+#if DEBUG_SUPPORT != 11
+UARTPrintf("Auto Disc\r\n");
+#endif // DEBUG_SUPPORT != 11
       // Publish Home Assistant Auto Discovery messages
       // This part of the state machine runs only if Home Assistant Auto
       // Discovery is enabled.
-      // This step of the state machine is executed every 150 ms and is
+      // This step of the state machine is executed every 100 to 200 ms and is
       // entered multiple times until all Home Assistant Auto Discovery
       // Config PUBLISH messages are sent.
       //
@@ -2264,6 +2483,9 @@ void mqtt_startup(void)
       ON_OFF_word_sent = (uint32_t)(~ON_OFF_word);
 #endif // PCF8574_SUPPORT == 1
       // Indicate succesful completion
+#if DEBUG_SUPPORT != 11
+UARTPrintf("MQTT Startup Complete\r\n");
+#endif // DEBUG_SUPPORT != 11
       mqtt_start = MQTT_START_COMPLETE;
     }
     break;
@@ -2299,6 +2521,10 @@ void define_temp_sensors(void)
   // a Config message).
   // If there is at least one sensor detetected numROMs will be zero or
   // greater. In that case send the sensor definition as a Config message.
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("define_temp_sensors\r\n");
+#endif // DEBUG_SUPPORT != 11
 
   if (stored_config_settings & 0x08) {
     if (sensor_number <= (numROMs)) {
@@ -2398,7 +2624,30 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 				 //   sensor ID allowing app_message to be
 				 //   used in creating the topic part of the
 				 //   message.
-  unsigned char topic_base[55];
+  unsigned char topic_base[55]; // Used for building connect, subscribe,
+                                // and publish topic strings.
+				// Publish string content:
+                                //  NetworkModule/DeviceName123456789/input/xx
+                                //  NetworkModule/DeviceName123456789/output/xx
+                                //  NetworkModule/DeviceName123456789/temp/xxxxxxxxxxxx
+                                //  NetworkModule/DeviceName123456789/temp/BME280-0xxxx
+                                //  NetworkModule/DeviceName123456789/state
+                                //  NetworkModule/DeviceName123456789/state24
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Subscribe string content:
+                                //  NetworkModule/DeviceName123456789/output/+/set
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Last Will string content:
+				//  NetworkModule/DeviceName123456789/availability
+				// Home Assistant config string content:
+				//  homeassistant/switch/macaddressxx/xx/config
+				//  homeassistant/binary_sensor/macaddressxx/xx/config
+				//  homeassistant/sensor/macaddressxx/yyyyyyyyyyyy/config
+				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
 
   // Create the % marker in the payload template
   app_message[0] = '%';
@@ -2634,7 +2883,8 @@ void mqtt_sanity_check(struct mqtt_client *client)
     // enough time for it to happen. That is probably very fast, but I will
     // allow 2 seconds.
     if (mqtt_sanity_ctr > 40) {
-      mqtt_close_tcp = 0; // Clear 50ms counter
+      mqtt_close_tcp = 0;
+      mqtt_sanity_ctr = 0; // Clear 50ms counter
       mqtt_restart_step = MQTT_RESTART_SIGNAL_STARTUP;
     }
     break;
@@ -2783,6 +3033,11 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
 #if PCF8574_SUPPORT == 1
   uint32_t j;
 #endif // PCF8574_SUPPORT == 1
+
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("publish_callback\r\n");
+#endif // DEBUG_SUPPORT != 11
 
   pin_value = 0;
   ParseNum = 0;
@@ -2979,11 +3234,58 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
     // get away with it, but this can trip me up in the future if more
     // messages are added.
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+/*
     pBuffer += 8;
     if (*pBuffer == 'q') {
       *pBuffer = '0'; // Destroy 'q' in buffer so subsequent "state"
                       // messages won't be misinterpreted
       state_request = STATE_REQUEST_RCVD;
+    }
+*/
+
+    // Capture the state-req command in OctetArray.
+    for (i=0; i<11; i++) {
+      OctetArray[i] = *pBuffer;
+      pBuffer++;
+    }
+    OctetArray[11] = 0;
+    
+    if (OctetArray[8] == 'q') {
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("publish_callback OctetArray = ");
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+      // Confirmed this is a state-req command
+      // Now figure out if the state-req is requesting a 16 pin output or a
+      // 24 pin output. "state-req" is for 16 pins. "state-req24" is for 24
+      // pins.
+      // Assume this is for 16 pins for the moment.
+      state_request = STATE_REQUEST_RCVD;
+      // Move the pBuffer pointer back to the end of the state-req command
+      pBuffer -= 2;
+      // Destroy 'q' in buffer so subsequent "state" messages won't be
+      // misinterpreted
+      *pBuffer = '0';
+      if ((OctetArray[9] == '2') && (OctetArray[10] == '4')) {
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("publish_callback OctetArray = ");
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+        // This is a state-req24 command
+        state_request = STATE_REQUEST_RCVD24;
+        // Destroy '2' and '4' in buffer so subsequent "state" messages won't
+	// be misinterpreted
+	pBuffer++;
+        *pBuffer = '0';
+	pBuffer++;
+        *pBuffer = '0';
+      }
     }
   }
   // Note: if none of the above matched the parsing we just exit without
@@ -3037,6 +3339,12 @@ void publish_outbound(void)
   int signal_break;
 
   signal_break = 0;
+
+  // Don't execute this function if a user_reboot_request is pending.
+//  if (user_reboot_request == 1) return;
+//  publish_outbound_throttle++;
+//  if (publish_outbound_throttle < 10) return;
+//  publish_outbound_throttle = 0;
 
   // Check the mqtt_sendbuf to make sure it is emptied before PUBLISHing a
   // pin_state message. This is to prevent overflow of the mqtt_sendbuf when
@@ -3185,11 +3493,17 @@ void publish_outbound(void)
     }
   }
 
-  // Check for a state_request
+  // Check for a state_request for 16 pins
   if (state_request == STATE_REQUEST_RCVD) {
     // Publish all pin states
     state_request = STATE_REQUEST_IDLE;
-    publish_pinstate_all();
+    publish_pinstate_all(STATE_REQUEST_RCVD);
+  }
+  // Check for a state_request for 24 pins
+  if (state_request == STATE_REQUEST_RCVD24) {
+    // Publish all pin states
+    state_request = STATE_REQUEST_IDLE;
+    publish_pinstate_all(STATE_REQUEST_RCVD24);
   }
 }
 #endif // BUILD_SUPPORT == MQTT_BUILD
@@ -3210,8 +3524,36 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
   unsigned char app_message[4];       // Stores the application message (the
                                       // payload) that will be sent in an
 				      // MQTT message.
-  unsigned char topic_base[55];
+  unsigned char topic_base[55]; // Used for building connect, subscribe,
+                                // and publish topic strings.
+				// Publish string content:
+                                //  NetworkModule/DeviceName123456789/input/xx
+                                //  NetworkModule/DeviceName123456789/output/xx
+                                //  NetworkModule/DeviceName123456789/temp/xxxxxxxxxxxx
+                                //  NetworkModule/DeviceName123456789/temp/BME280-0xxxx
+                                //  NetworkModule/DeviceName123456789/state
+                                //  NetworkModule/DeviceName123456789/state24
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Subscribe string content:
+                                //  NetworkModule/DeviceName123456789/output/+/set
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Last Will string content:
+				//  NetworkModule/DeviceName123456789/availability
+				// Home Assistant config string content:
+				//  homeassistant/switch/macaddressxx/xx/config
+				//  homeassistant/binary_sensor/macaddressxx/xx/config
+				//  homeassistant/sensor/macaddressxx/yyyyyyyyyyyy/config
+				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
   
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("publish_pinstate\r\n");
+#endif // DEBUG_SUPPORT != 11
+
   app_message[0] = '\0';
   
   strcpy(topic_base, devicetype);
@@ -3265,7 +3607,7 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
-void publish_pinstate_all(void)
+void publish_pinstate_all(uint8_t type)
 {
   // This function transmits the state of all pins (outputs and sense inputs)
   // in response to a state-req PUBLISH from the Client. The pin states are
@@ -3274,47 +3616,68 @@ void publish_pinstate_all(void)
   // Input pins need to be inverted per the Invert_word.
   // Output pins were already inverted elsewhere so they stay unchanged in
   // this function.
-  // The first byte of the Payload contains the ON/OFF state for IO 16 in the
-  // msb of the byte. The ON/OFF state for IO 9 is in the lsb.
-  // The second byte of the Payload contains the ON/OFF state for IO 8 in the
-  // msb of the byte. The ON/OFF state for IO 1 is in the lsb.
+  // Disable pins will be sent with the last know state of the pin.
+  // If publishing for 16 pins:
+  //   The first byte of the Payload contains the ON/OFF state for IO 16 in
+  //   the msb of the byte. The ON/OFF state for IO 9 is in the lsb.
+  //   The second byte of the Payload contains the ON/OFF state for IO 8 in
+  //   the msb of the byte. The ON/OFF state for IO 1 is in the lsb.
+  // If publishing for 24 pins (when a PCF8574 is present:
+  //   The first byte of the Payload contains the ON/OFF state for IO 24 in
+  //   the msb of the byte. The ON/OFF state for IO 17 is in the lsb.
+  //   The second byte of the Payload contains the ON/OFF state for IO 16 in
+  //   the msb of the byte. The ON/OFF state for IO 9 is in the lsb.
+  //   The third byte of the Payload contains the ON/OFF state for IO 8 in
+  //   the msb of the byte. The ON/OFF state for IO 1 is in the lsb.
   
   int i;
   int m;
-  uint16_t j;
-  uint16_t k;
-  unsigned char app_message[3];       // Stores the application message (the
+  uint32_t j;
+  uint32_t k;
+  uint8_t k2;
+  uint8_t k1;
+  uint8_t k0;
+  uint16_t msg_size;
+  unsigned char app_message[4];       // Stores the application message (the
                                       // payload) that will be sent in an
 				      // MQTT message.
-  unsigned char topic_base[55];
+  unsigned char topic_base[55]; // Used for building connect, subscribe,
+                                // and publish topic strings.
+				// Publish string content:
+                                //  NetworkModule/DeviceName123456789/input/xx
+                                //  NetworkModule/DeviceName123456789/output/xx
+                                //  NetworkModule/DeviceName123456789/temp/xxxxxxxxxxxx
+                                //  NetworkModule/DeviceName123456789/temp/BME280-0xxxx
+                                //  NetworkModule/DeviceName123456789/state
+                                //  NetworkModule/DeviceName123456789/state24
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Subscribe string content:
+                                //  NetworkModule/DeviceName123456789/output/+/set
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Last Will string content:
+				//  NetworkModule/DeviceName123456789/availability
+				// Home Assistant config string content:
+				//  homeassistant/switch/macaddressxx/xx/config
+				//  homeassistant/binary_sensor/macaddressxx/xx/config
+				//  homeassistant/sensor/macaddressxx/yyyyyyyyyyyy/config
+				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
   
-  j = 0x0001;
-  k = 0x0000;
+  j = 1;
+  k = 0;
   
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// PROBLEM: Before adding the PCF8574 this function published two bytes for
-// the state of the 16 pins on the STM8. NOW there is the need to publish 24
-// pins (3 bytes). Should there be a separate state-req for the added pins?
-// Or should the code send a 2 byte payload when the PCH8574 is not present
-// and a 3 byte payload when the PCF8574 is present.
-// Comment: In the REST commands /98 /99 show 16 bits if no PCF8574 and 24
-// bits if there is a PCF8574.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  for (i=0; i<16; i++) {
 /*
 #if PCF8574_SUPPORT == 0
   for (i=0; i<16; i++) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-  if (stored_options1 & 0x08) m = 24;
-  else m = 16;
+  if (type == STATE_REQUEST_RCVD) m = 16;
+  else m = 24;
   for (i=0; i<m; i++) {
 #endif // PCF8574_SUPPORT == 1
-*/
 
     // Check for input/output
 #if LINKED_SUPPORT == 0
@@ -3349,26 +3712,66 @@ void publish_pinstate_all(void)
     }
     j = j<<1;
   }
+*/
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// Doesn't the above create the same thing that is in the ON_OFF_word? So
+// perhaps all we need to do is to copy the ON_OFF_word into k? And the only
+// reason we copy it into k is to be sure we are working with a 32 bit word
+// for the rest of the logic.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   k = ON_OFF_word;
 
-  // The above created a word with all the pin states
-  // Need to split it into two bytes for transmission
-  j = (uint8_t)(k & 0x00ff);
-  k = (uint16_t)k >> 8;
-  
-  app_message[0] = (uint8_t)k;
-  app_message[1] = (uint8_t)j;
-  app_message[2] = '\0';
+  // The above created a word in variable k with all the pin states.
+  // If sending 16 bits need to split it into two bytes for transmission.
+  // If sending 24 bits need to split it into three bytes for transmission.
+  k0 = (uint8_t)k;
+  k1 = (uint8_t)(k >> 8);
+  k2 = (uint8_t)(k >> 16);
+
+  msg_size = 2;
+  if (type == STATE_REQUEST_RCVD) {
+    app_message[0] = (uint8_t)k1;
+    app_message[1] = (uint8_t)k0;
+    app_message[2] = '\0';
+  }
+#if PCF8574_SUPPORT == 1
+  if (type == STATE_REQUEST_RCVD24) {
+    app_message[0] = (uint8_t)k2;
+    app_message[1] = (uint8_t)k1;
+    app_message[2] = (uint8_t)k0;
+    app_message[3] = '\0';
+    msg_size = 3;
+  }
+#endif // PCF8574_SUPPORT == 1
 
   strcpy(topic_base, devicetype);
   strcat(topic_base, stored_devicename);
-  strcat(topic_base, "/state");
+  
+  if (type == STATE_REQUEST_RCVD) {
+    strcat(topic_base, "/state");
+  }
+#if PCF8574_SUPPORT == 1
+  if (type == STATE_REQUEST_RCVD24) {
+    strcat(topic_base, "/state24");
+  }
+#endif // PCF8574_SUPPORT == 1
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("publish_pinstate_all topic_base = ");
+// UARTPrintf(topic_base);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
   // Queue publish message
   // This message is always published with QOS 0
   mqtt_publish(&mqttclient,
                topic_base,
 	       app_message,
-	       2,
+	       msg_size,
 	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
 #endif // BUILD_SUPPORT == MQTT_BUILD
@@ -3381,7 +3784,30 @@ void publish_temperature(uint8_t sensor)
   // This function is called to Publish a temperature value collected from
   // a DS18B20 connected to IO 16.
   
-  unsigned char topic_base[55];
+  unsigned char topic_base[55]; // Used for building connect, subscribe,
+                                // and publish topic strings.
+				// Publish string content:
+                                //  NetworkModule/DeviceName123456789/input/xx
+                                //  NetworkModule/DeviceName123456789/output/xx
+                                //  NetworkModule/DeviceName123456789/temp/xxxxxxxxxxxx
+                                //  NetworkModule/DeviceName123456789/temp/BME280-0xxxx
+                                //  NetworkModule/DeviceName123456789/state
+                                //  NetworkModule/DeviceName123456789/state24
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Subscribe string content:
+                                //  NetworkModule/DeviceName123456789/output/+/set
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Last Will string content:
+				//  NetworkModule/DeviceName123456789/availability
+				// Home Assistant config string content:
+				//  homeassistant/switch/macaddressxx/xx/config
+				//  homeassistant/binary_sensor/macaddressxx/xx/config
+				//  homeassistant/sensor/macaddressxx/yyyyyyyyyyyy/config
+				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
   
   if (sensor <= numROMs) {
     // Only Publish if the sensor number is one of the sensors found by
@@ -3436,7 +3862,30 @@ void publish_BME280(int8_t sensor)
   // This function is called to Publish the sensor values collected from
   // a BME280 temperature, pressure, humidity sensor.
   
-  unsigned char topic_base[55];
+  unsigned char topic_base[55]; // Used for building connect, subscribe,
+                                // and publish topic strings.
+				// Publish string content:
+                                //  NetworkModule/DeviceName123456789/input/xx
+                                //  NetworkModule/DeviceName123456789/output/xx
+                                //  NetworkModule/DeviceName123456789/temp/xxxxxxxxxxxx
+                                //  NetworkModule/DeviceName123456789/temp/BME280-0xxxx
+                                //  NetworkModule/DeviceName123456789/state
+                                //  NetworkModule/DeviceName123456789/state24
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Subscribe string content:
+                                //  NetworkModule/DeviceName123456789/output/+/set
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Last Will string content:
+				//  NetworkModule/DeviceName123456789/availability
+				// Home Assistant config string content:
+				//  homeassistant/switch/macaddressxx/xx/config
+				//  homeassistant/binary_sensor/macaddressxx/xx/config
+				//  homeassistant/sensor/macaddressxx/yyyyyyyyyyyy/config
+				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
 
   
   if (BME280_found == 1) {
@@ -4057,6 +4506,97 @@ void check_eeprom_settings(void)
   
   memcpy(&Pending_devicename[0], &stored_devicename[0], 20);
 
+  // ---------------------------------------------------------------------- //
+  // Verify that the stored_config_settings and stored_options are
+  // compatible with the build selected. The reason for this is that a new
+  // code load can be applied and the previous code load may have used
+  // config_settings or options that are incompatible with the new code load.
+  // For instance, suppose that a standard MQTT build is used and Pinout
+  // Option 2 is selected. Then an upgradeable MQTT build is applied. Pinout
+  // Option 1 is the only Pinout Option allowed with an upgradeable MQTT
+  // build.
+  // ---------------------------------------------------------------------- //
+  
+#if BUILD_TYPE_MQTT_STANDARD == 1
+  {
+    uint8_t i;
+    unlock_eeprom();
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xdf; // Turn off BME280
+    if (stored_config_settings != i) stored_config_settings = i;
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf7; // Turn off PCF8574
+    if (stored_options1 != i) stored_options1 = i;
+    lock_eeprom();
+  }
+#endif // BUILD_TYPE_MQTT_STANDARD == 1
+
+#if BUILD_TYPE_BROWSER_STANDARD == 1
+  {
+    uint8_t i;
+    unlock_eeprom();
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xd9; // Turn off BME280, Turn off MQTT, Turn off HA
+    if (stored_config_settings != i) stored_config_settings = i;
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf7; // Turn off PCF8574
+    if (stored_options1 != i) stored_options1 = i;
+    lock_eeprom();
+  }
+#endif // BUILD_TYPE_BROWSER_STANDARD == 1
+
+#if BUILD_TYPE_MQTT_UPGRADEABLE	== 1
+  {
+    uint8_t i;
+    unlock_eeprom();
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xdf; // Turn off BME280
+    if (stored_config_settings != i) stored_config_settings = i;
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf1; // Turn off PCF8574, Force to Pinout Option 1
+    if (stored_options1 != i) stored_options1 = i;
+    lock_eeprom();
+  }
+#endif // BUILD_TYPE_MQTT_UPGRADEABLE == 1
+
+#if BUILD_TYPE_BROWSER_UPGRADEABLE == 1
+  {
+    uint8_t i;
+    unlock_eeprom();
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xd9; // Turn off BME280, Turn off MQTT, Turn off HA
+    if (stored_config_settings != i) stored_config_settings = i;
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf1; // Turn off PCF8574, Force to Pinout Option 1
+    if (stored_options1 != i) stored_options1 = i;
+    lock_eeprom();
+  }
+#endif // BUILD_TYPE_BROWSER_UPGRADEABLE == 1
+
+#if BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
+  {
+    uint8_t i;
+    unlock_eeprom();
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xf7; // Turn off DS18B20
+    if (stored_config_settings != i) stored_config_settings = i;
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf1; // Turn off PCF8574, Force to Pinout Option 1
+    if (stored_options1 != i) stored_options1 = i;
+    lock_eeprom();
+  }
+#endif // BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
+
   Pending_config_settings = stored_config_settings;
 
   memcpy(&Pending_uip_ethaddr_oct[0], &stored_uip_ethaddr_oct[0], 6);
@@ -4393,10 +4933,6 @@ void apply_PCF8574_pin_settings(void)
 }
 
 
-
-
-
-
 uint8_t is_allowed_char(uint8_t character)
 {
   // Checks that a character is permissible in a specific string.
@@ -4560,7 +5096,7 @@ void check_runtime_changes(void)
     // pinout Option 1 is being used.
     if ((stored_options1 & 0x07) > 1) {
       Pending_config_settings &= (uint8_t)~0x20;
-      // If DS18B20 is enabled in the stored_config_settings it will be
+      // If BME280 is enabled in the stored_config_settings it will be
       // disabled in code further below.
     }
   }
@@ -5795,7 +6331,30 @@ void check_restart_reboot(void)
   // from the main loop and returns to the main loop so that the periodic()
   // function can run.
   
-  unsigned char topic_base[55];
+  unsigned char topic_base[55]; // Used for building connect, subscribe,
+                                // and publish topic strings.
+				// Publish string content:
+                                //  NetworkModule/DeviceName123456789/input/xx
+                                //  NetworkModule/DeviceName123456789/output/xx
+                                //  NetworkModule/DeviceName123456789/temp/xxxxxxxxxxxx
+                                //  NetworkModule/DeviceName123456789/temp/BME280-0xxxx
+                                //  NetworkModule/DeviceName123456789/state
+                                //  NetworkModule/DeviceName123456789/state24
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Subscribe string content:
+                                //  NetworkModule/DeviceName123456789/output/+/set
+				//  NetworkModule/DeviceName123456789/state-req
+				//  NetworkModule/DeviceName123456789/state-req24
+				// Last Will string content:
+				//  NetworkModule/DeviceName123456789/availability
+				// Home Assistant config string content:
+				//  homeassistant/switch/macaddressxx/xx/config
+				//  homeassistant/binary_sensor/macaddressxx/xx/config
+				//  homeassistant/sensor/macaddressxx/yyyyyyyyyyyy/config
+				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
+				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
 
   if (restart_request || reboot_request) {
     // A restart or reboot has been requested. The restart and reboot
@@ -5832,10 +6391,11 @@ void check_restart_reboot(void)
 
 #if BUILD_SUPPORT == MQTT_BUILD
     case RESTART_REBOOT_ARM2:
-      // Wait 1 second for anything in the process of being transmitted
-      // to fully buffer. Refresh of a page after POST can take a few
-      // seconds.
+      // Wait 1 second for anything in the process of being transmitted to
+      // complete, including all handshakes. Refresh of a page after POST can
+      // take a few seconds.
       if (t100ms_ctr1 > 9) {
+//      if (t100ms_ctr1 > 99) {
         if (mqtt_enabled) restart_reboot_step = RESTART_REBOOT_SENDOFFLINE;
 	else restart_reboot_step = RESTART_REBOOT_FINISH;
         // Clear 100ms timer to delay the next step
@@ -5844,7 +6404,8 @@ void check_restart_reboot(void)
       break;
 
     case RESTART_REBOOT_SENDOFFLINE:
-      if (t100ms_ctr1 > 1) {
+//      if (t100ms_ctr1 > 1) {
+      if (t100ms_ctr1 > 2) {
        // We can only get here if mqtt_enabled == 1
        // Wait at least 100 ms before publishing availability message
        // This message is always published with QOS 0
@@ -5866,7 +6427,8 @@ void check_restart_reboot(void)
       break;
     
     case RESTART_REBOOT_DISCONNECT:
-      if (t100ms_ctr1 > 2) {
+//      if (t100ms_ctr1 > 2) {
+      if (t100ms_ctr1 > 3) {
         // We can only get here if mqtt_enabled == 1
         // The offline publish is given up to 200 ms to be communicated
         // before performing mqtt_disconnect
@@ -5881,7 +6443,8 @@ void check_restart_reboot(void)
       break;
     
     case RESTART_REBOOT_TCPCLOSE:
-      if (t100ms_ctr1 > 2) {
+//      if (t100ms_ctr1 > 2) {
+      if (t100ms_ctr1 > 3) {
         // We can only get here if mqtt_enabled == 1
         // The mqtt_disconnect() is given up to 200 ms to be communicated
         // before starting TCP close
@@ -5928,7 +6491,7 @@ void check_restart_reboot(void)
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      if (t100ms_ctr1 > 5) {
+      if (t100ms_ctr1 > 6) {
 	mqtt_close_tcp = 0;
         restart_reboot_step = RESTART_REBOOT_FINISH;
       }
@@ -6019,7 +6582,7 @@ void reboot(void)
   LEDcontrol(0);  // turn LED off
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Reboot in reboot() function\r\n");
+UARTPrintf("Hardware reboot in reboot()\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -7005,6 +7568,7 @@ void PCF8574_display_pin_control(void)
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 */
 
+/*
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 void STM8_display_pin_control(void)
 {
@@ -7042,4 +7606,4 @@ void STM8_display_pin_control(void)
   UARTPrintf("\r\n");
 }
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
+*/

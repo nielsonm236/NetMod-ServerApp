@@ -382,8 +382,10 @@ void timer_update(void)
 uint8_t periodic_timer_expired(void)
 {
   // This function indicates expiration of the periodic timer at a count
-  // indicating that 20ms have passed. If expired the function resets the
-  // periodic_timer counter to zero so that it can repeat its uptick.
+  // indicating that X ms have passed. "X" is determined by the statement
+  // below "periodic_timer > X" where X indicates a value in milliseconds.
+  // If expired the function resets the periodic_timer counter to zero so
+  // that it can repeat its uptick.
 //  if (periodic_timer > 19) { // Produces HTML re-xmit errors and webpage
                                // corruption.
 //  if (periodic_timer > 39) { // Produces fewer HTML re-xmit errors

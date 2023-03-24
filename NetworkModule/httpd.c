@@ -63,9 +63,9 @@
 #define STATE_NULL		127     // Inactive state
 
 #define PARSE_CMD		0       // Parsing the command byte in a POST
-#define PARSE_NUM10		1       // Parsing the most sig digit of POST
+#define PARSE_NUMMSD		1       // Parsing the most sig digit of POST
                                         // cmd
-#define PARSE_NUM1		2       // Parsing the least sig digit of a
+#define PARSE_NUMLSD		2       // Parsing the least sig digit of a
                                         // POST cmd
 #define PARSE_EQUAL		3       // Parsing the equal sign of a POST
                                         // cmd
@@ -4281,7 +4281,8 @@ void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad)
 
 int hex2int(char ch)
 {
-  // Convert a single hex character to an integer (a nibble)
+  // Convert a single hex character to an integer (a nibble) with a value
+  // of 0x00 to 0x0f (0 to 15 decimal).
   // If the character is not hex -1 is returned
   if (ch >= '0' && ch <= '9') return ch - '0';
   if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
@@ -6374,6 +6375,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
       // Now I will just throw the request away if it doesn't exactly match an
       // expected request. The only exception will be if I get a "/" or "/ "
       // then I will send the default web page.
+      //
+      // Digit Parsing note: All digits that make up the two digit URL Command
+      // (ex: /55) are interpreted as hex digits. Thus, commands can be /00 to
+      // /ff.
 
       while (nBytes != 0) {
         if (pSocket->ParseState == PARSE_SLASH1) {
@@ -6382,7 +6387,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
           pSocket->ParseCmd = *pBuffer;
           pBuffer++;
 	  if (pSocket->ParseCmd == (uint8_t)0x2f) { // Compare to '/'
-	    pSocket->ParseState = PARSE_NUM10;
+	    pSocket->ParseState = PARSE_NUMMSD;
 	  }
           else {
             // Didn't find '/' - send default page
@@ -6398,7 +6403,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // To convert the code to allow two hex digits for URL commands the following
 // can be done:
-// - Collect the "PARSE_NUM10" and "PARSE_NUM1" characters as a string.
+// - Collect the "PARSE_NUMMSD" and "PARSE_NUMLSD" characters as a string.
 // - Validate that the two character string consists of hex digits.
 // - Use two_hex2int() to convert the characters to a uint8_t byte.
 //
@@ -6414,14 +6419,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 // The above only skips 6 x 4 = 24 possible commands. But in the range above
 // these values we can go ahead and create commands with the full hex values.
 //   
-// "PARSE_NUM10" and "PARSE_NUM1" now become anachronisms and should probably
-// be renamed "PARSE_MSHEX" and "PARSE_LSHEX" respectively.
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-
-        else if (pSocket->ParseState == PARSE_NUM10) {
+/*
+        else if (pSocket->ParseState == PARSE_NUMMSD) {
 	  // It's possible we got here because the user did not request a
 	  // filename (ie, the user entered "192.168.1.4:8080/". In this case
 	  // there will be a space here instead of a digit, and we should just
@@ -6436,9 +6439,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  else if (isdigit(*pBuffer)) { // Check for user entry error
             // Still good - parse number
             pSocket->ParseNum = (uint8_t)((*pBuffer - '0') * 10);
-	    pSocket->ParseState = PARSE_NUM1;
+	    pSocket->ParseState = PARSE_NUMLSD;
             pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
-	                             // while() loop yet. PARSE_NUM1 will be
+	                             // while() loop yet. PARSE_NUMLSD will be
 				     // called.
             pBuffer++;
 	  }
@@ -6452,7 +6455,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         }
 	
 	// Parse second ParseNum digit
-        else if (pSocket->ParseState == PARSE_NUM1) {
+        else if (pSocket->ParseState == PARSE_NUMLSD) {
 	  if (isdigit(*pBuffer)) { // Check for user entry error
             // Still good - parse number
             pSocket->ParseNum += (uint8_t)(*pBuffer - '0');
@@ -6468,7 +6471,65 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             pSocket->ParseState = PARSE_FAIL;
 	  }
 	}
+*/
+
+
+
+
+
+
+
+        else if (pSocket->ParseState == PARSE_NUMMSD) {
+	  {
+	    int i;
+	    // Parse and validate first ParseNum digit.
+	    i = hex2int(*pBuffer);
+	    if (i >= 0) { // Hex nibble?
+              // Still good - parse number
+              pSocket->ParseNum = (uint8_t)(i << 4);
+	      pSocket->ParseState = PARSE_NUMLSD;
+              pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
+	                               // while() loop yet. PARSE_NUMLSD will be
+                                       // called.
+              pBuffer++;
+	    }
+	    else {
+	      // Something out of sync or invalid - exit while() loop but do
+	      // not change the current_webpage
+              pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
+	                               // SENDHEADER
+              pSocket->ParseState = PARSE_FAIL;
+            }
+	  }
+        }
 	
+	// Parse second ParseNum digit
+        if (pSocket->ParseState == PARSE_NUMLSD) {
+	  i = hex2int(*pBuffer);
+	  if (i >= 0) { // Hex nibble?
+            // Still good - parse number
+            pSocket->ParseNum |= (uint8_t)(i);
+            pSocket->ParseState = PARSE_VAL;
+            pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
+	                             // while() loop yet. PARSE_VAL will be
+	                             // called.
+            pBuffer++;
+	  }
+	  else {
+	    // Something out of sync or invalid - exit while() via the
+	    // PARSE_FAIL logic.
+            pSocket->ParseState = PARSE_FAIL;
+	  }
+	}
+	
+
+
+
+
+
+
+
+
         else if (pSocket->ParseState == PARSE_VAL) {
 	  // ParseNum should now contain a two digit "filename". The filename
 	  // is used to command specific action by the webserver. Following
@@ -6616,7 +6677,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
           switch(pSocket->ParseNum)
 	  {
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-	    case 55:
+	    case 0x55:
 	      // Turn all outputs ON. Verify that each pin is an output
 	      // and that it is enabled.
 #if PCF8574_SUPPORT == 0
@@ -6641,7 +6702,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      GET_response_type = 204; // No return webpage
 	      break;
 	      
-	    case 56:
+	    case 0x56:
 	      // Turn all outputs OFF. Verify that each pin is an output
 	      // and that it is enabled.
 #if PCF8574_SUPPORT == 0
@@ -6669,9 +6730,9 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-            case 50: // Mask and Output Pin settings, returns no webpage
-            case 80: // Mask and Output Pin settings, returns no webpage
-	    case 51: // Mask and Output Pin settings plus returns Very Short
+            case 0x50: // Mask and Output Pin settings, returns no webpage
+            case 0x80: // Mask and Output Pin settings, returns no webpage
+	    case 0x51: // Mask and Output Pin settings plus returns Very Short
 	             // Form IO States page
               // This is similar to case 55 and case 56, except a 4 hex char
 	      // Mask and a 4 hex char Pin State value hould also be in the
@@ -6803,14 +6864,14 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-	    case 60: // Show IO Control page
+	    case 0x60: // Show IO Control page
 	      // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
 	      // will accomplish what we want which is to display the
 	      // IO_Control page.
 	      pSocket->ParseState = PARSE_FAIL;
 	      break;
 	      
-	    case 61: // Show Configuration page
+	    case 0x61: // Show Configuration page
 	      pSocket->current_webpage = WEBPAGE_CONFIGURATION;
               pSocket->pData = g_HtmlPageConfiguration;
               pSocket->nDataLeft = HtmlPageConfiguration_size;
@@ -6821,7 +6882,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
 #if PCF8574_SUPPORT == 1
-	    case 62: // Show PCF8574 IO Control page
+	    case 0x62: // Show PCF8574 IO Control page
 	      if (stored_options1 & 0x08) {
 	        pSocket->current_webpage = WEBPAGE_PCF8574_IOCONTROL;
                 pSocket->pData = g_HtmlPagePCFIOControl;
@@ -6831,7 +6892,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      else pSocket->ParseState = PARSE_FAIL;
 	      break;
 	      
-	    case 63: // Show PCF8574 Configuration page
+	    case 0x63: // Show PCF8574 Configuration page
 	      if (stored_options1 & 0x08) {
 	        pSocket->current_webpage = WEBPAGE_PCF8574_CONFIGURATION;
                 pSocket->pData = g_HtmlPagePCFConfiguration;
@@ -6843,7 +6904,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #endif // PCF8574_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
-	    case 65: // Flash LED for diagnostics
+	    case 0x65: // Flash LED for diagnostics
 	      debugflash();
 	      debugflash();
 	      debugflash();
@@ -6856,13 +6917,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 
 #if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-            case 66: // Show Link Error Statistics page
+            case 0x66: // Show Link Error Statistics page
 	      pSocket->current_webpage = WEBPAGE_STATS2;
               pSocket->pData = g_HtmlPageStats2;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
 	      break;
 	      
-            case 67: // Clear Link Error Statistics
+            case 0x67: // Clear Link Error Statistics
 	      // Clear the the Link Error Statistics bytes and Stack Overflow
 	      debug[2] = (uint8_t)(debug[2] & 0x7f); // Clear the Stack Overflow bit
 	      debug[3] = 0; // Clear TXERIF counter
@@ -6880,13 +6941,13 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #endif // DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
 
 #if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
-            case 68: // Show Network Statistics page
+            case 0x68: // Show Network Statistics page
 	      pSocket->current_webpage = WEBPAGE_STATS1;
               pSocket->pData = g_HtmlPageStats1;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
 	      break;
 	      
-            case 69: // Clear Network Statistics and refresh page
+            case 0x69: // Clear Network Statistics and refresh page
 	      uip_init_stats();
 	      pSocket->current_webpage = WEBPAGE_STATS1;
               pSocket->pData = g_HtmlPageStats1;
@@ -6894,7 +6955,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 #endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-            case 70: // Clear the "Reset Status Register" counters
+            case 0x70: // Clear the "Reset Status Register" counters
 	      // Clear the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
 	      // These only display via the UART
 	      for (i = 5; i < 10; i++) debug[i] = 0;
@@ -6907,7 +6968,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      break;
 
 #if DEBUG_SENSOR_SERIAL == 1
-            case 71: // Display the Temperature Sensor Serial Numbers
+            case 0x71: // Display the Temperature Sensor Serial Numbers
 	      pSocket->current_webpage = WEBPAGE_SENSOR_SERIAL;
               pSocket->pData = g_HtmlPageTmpSerialNum;
               pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
@@ -6916,7 +6977,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 #if OB_EEPROM_SUPPORT == 1
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-            case 72: // Load Code Uploader
+            case 0x72: // Load Code Uploader
 	      // Re-Check that the I2C EEPROM exists, and if it does then load
 	      // the Code Uploader from I2C EEPROM1, display the Loading Code
 	      // Uploader webpage, then reboot.
@@ -6939,7 +7000,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 	      
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-            case 73: // Reload firmware existing image
+            case 0x73: // Reload firmware existing image
 	      // Load the existing firmware image from I2C EEPROM0,
 	      // display the Loading Existing Image webpage, then reboot.
 	      pSocket->current_webpage = WEBPAGE_EXISTING_IMAGE;
@@ -6952,7 +7013,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             // case 74 commented out since it is only useful during
 	    // development and could be very disruptive to a regular
 	    // user.
-            case 74: // Erase entire I2C EEPROM
+            case 0x74: // Erase entire I2C EEPROM
               // Erase I2C EEPROM regions 0, 1, 2, and 3 to provide a clean
 	      // slate. Useful mostly during development for code debug.
 	      {
@@ -6986,7 +7047,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
 #if BME280_SUPPORT == 1
-            case 81:
+            case 0x81:
 	      // Altitude setting for the BME280 Temperature / Pressure / 
 	      // Humidity sensor.
               // This command allows the user to input the altitude of the
@@ -7128,7 +7189,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 
 #if PINOUT_OPTION_SUPPORT == 1
-            case 82:
+            case 0x82:
 	      // User entered Pinout Option.
 	      // Allowed to enter one digit (0 to 9) to select the pinout map
 	      // for the IO pins.
@@ -7167,15 +7228,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 		  }
 	          // Set parse_complete for the check_runtime_changes() process
                   parse_complete = 1;
-		  break;
 		}
-                // Else something out of sync or invalid user entry. Indicate
-                // parse failure.
+                // Always display the IOControl page even if there is no parse
+		// fail. The PARSE_FAIL state will cause this to happen.
 		pSocket->ParseState = PARSE_FAIL;
-                // If fail detected break out of the switch, but do not
-                // change the current_webpage. This will cause the URL
-                // command to be ignored and the current webpage to be
-                // refreshed.
               }
               break;
 #endif // PINOUT_OPTION_SUPPORT == 1
@@ -7186,7 +7242,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 // but is not needed for production code. The commands /00 through /55 do the
 // same thing and are consistent across STM8 and PCF8574 pins.
 #if PCF8574_SUPPORT == 1
-            case 83:
+            case 0x83:
 	      // User entered output byte for the PCF8574
 	      // Allowed to enter one hex byte (00 to FF)
 	      // 
@@ -7226,7 +7282,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #endif // PCF8574_SUPPORT == 1
 */
 
-            case 84:
+            case 0x84:
 	      // User entered Short Form Option.
 	      // User may enter '+' or '-' to select how Disabled pins are
 	      // displayed in the Short Form Status page.
@@ -7271,7 +7327,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               break;
               
               
-	    case 91: // Reboot
+	    case 0x91: // Reboot
 	      user_reboot_request = 1;
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 UARTPrintf("Received Get 91\r\n");
@@ -7281,8 +7337,8 @@ UARTPrintf("Received Get 91\r\n");
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-            case 98: // Show Very Short Form IO state page
-            case 99: // Show Short Form IO state page
+            case 0x98: // Show Very Short Form IO state page
+            case 0x99: // Show Short Form IO state page
 	      // Normally when a page is transmitted the "current_webpage" is
 	      // updated to reflect the page just transmitted. This is not
 	      // done for this case as the page is very short (only requires
@@ -8855,19 +8911,19 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
     // the while loop.
     if (pSocket->ParseState == PARSE_CMD) {
       pSocket->ParseCmd = (uint8_t)(local_buf[lbi]);
-      pSocket->ParseState = PARSE_NUM10;
+      pSocket->ParseState = PARSE_NUMMSD;
       pSocket->nParseLeft--;
       lbi++;
     }
     
-    else if (pSocket->ParseState == PARSE_NUM10) {
+    else if (pSocket->ParseState == PARSE_NUMMSD) {
       pSocket->ParseNum = (uint8_t)((local_buf[lbi] - '0') * 10);
-      pSocket->ParseState = PARSE_NUM1;
+      pSocket->ParseState = PARSE_NUMLSD;
       pSocket->nParseLeft--;
       lbi++;
     }
     
-    else if (pSocket->ParseState == PARSE_NUM1) {
+    else if (pSocket->ParseState == PARSE_NUMLSD) {
       pSocket->ParseNum += (uint8_t)(local_buf[lbi] - '0');
       pSocket->ParseState = PARSE_EQUAL;
       pSocket->nParseLeft--;
@@ -8882,7 +8938,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
     
     else if (pSocket->ParseState == PARSE_VAL) {
       // 'a' and 'A' is POST data for the Device Name
-      // 'b'         is POST data for the IP/Gateway/Netmask
+      // 'b'         is POST data for the IP/Gateway/Netmask/MQTT Host IP address
       // 'c'         is POST data for the Port number
       // 'd'         is POST data for the MAC
       // 'g'         is POST data for the Config settings string

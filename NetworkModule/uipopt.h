@@ -121,11 +121,12 @@
 
 
 // The initial retransmission timeout counted in timer pulses. The "timer
-// pulses" are defined by the periodic timer calls, thus are equivalen to the
+// pulses" are defined by the periodic timer calls, thus are equivalent to the
 // periodic timer period (search on periodic_timer_expired for more
 // information.
 // This should not be changed.
 #define UIP_RTO         3
+// #define UIP_RTO         10
 
 
 // The maximum number of times a segment should be retransmitted before the
@@ -275,8 +276,8 @@
 // Enable ONLY ONE of the following to select the build type
 #define BUILD_TYPE_MQTT_STANDARD			0
 #define BUILD_TYPE_BROWSER_STANDARD			0
-#define BUILD_TYPE_MQTT_UPGRADEABLE			0
-#define BUILD_TYPE_BROWSER_UPGRADEABLE			1
+#define BUILD_TYPE_MQTT_UPGRADEABLE			1
+#define BUILD_TYPE_BROWSER_UPGRADEABLE			0
 #define BUILD_TYPE_MQTT_UPGRADEABLE_BME280		0
 #define BUILD_TYPE_CODE_UPLOADER			0
 
@@ -408,6 +409,9 @@
 //
 //   #undef HTTPD_DIAGNOSTIC_SUPPORT
 //   #define HTTPD_DIAGNOSTIC_SUPPORT 1
+//
+//    #undef TEMP_DEBUG_EXCLUDE
+//    #define TEMP_DEBUG_EXCLUDE		1
 
   // The following describes the various #defines used in the above #define
   // tables.

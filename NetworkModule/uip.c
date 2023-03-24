@@ -346,7 +346,12 @@ struct uip_conn *
 uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
 {
   register struct uip_conn *conn, *cconn;
-  
+
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("Called uip_connect\r\n");
+#endif // DEBUG_SUPPORT != 11
+
   // Find an empty connection table entry to use. An "empty connection" is
   // essentially just a connection that is "closed".
   conn = 0;
@@ -364,7 +369,9 @@ uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
     }
   }
 
-  if(conn == 0) return 0;
+  if (conn == 0) {
+    return 0;
+  }
   
   conn->tcpstateflags = UIP_SYN_SENT;
 
@@ -378,6 +385,7 @@ uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
   conn->len = 1;   /* TCP length of the SYN is one. */
   conn->nrtx = 0;
   conn->timer = 1; /* Send the SYN next time around. */
+//  conn->timer = 4; /* Delay sending the SYN a little. */
   conn->rto = UIP_RTO;
   conn->sa = 0;
   conn->sv = 16;   /* Initial value of the RTT variance. */
@@ -513,26 +521,42 @@ void uip_process(uint8_t flag)
     // connection to time out. If so, we increase the connection's timer and
     // remove the connection if it times out.
     if (uip_connr->tcpstateflags == UIP_TIME_WAIT || uip_connr->tcpstateflags == UIP_FIN_WAIT_2) {
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("  uip.c: periodic APPCALL waiting for timeout\r\n");
-// #endif // DEBUG_SUPPORT != 11
       ++(uip_connr->timer);
       if (uip_connr->timer == UIP_TIME_WAIT_TIMEOUT) {
         uip_connr->tcpstateflags = UIP_CLOSED;
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: close due to timeout1\r\n");
+#endif // DEBUG_SUPPORT != 11
       }
     }
     else if (uip_connr->tcpstateflags != UIP_CLOSED) {
-// UARTPrintf("  uip.c: periodic APPCALL awaiting outstanding data\r\n");
       // If the connection has outstanding data, we increase the connection's
       // timer and see if it has reached the RTO value in which case we
       // retransmit.
       if (uip_outstanding(uip_connr)) {
         if (uip_connr->timer-- == 0) {
           if (uip_connr->nrtx == UIP_MAXRTX
-	    || ((uip_connr->tcpstateflags == UIP_SYN_SENT
+	    || ((uip_connr->tcpstateflags == UIP_SYN_SENT 
             || uip_connr->tcpstateflags == UIP_SYN_RCVD)
             && uip_connr->nrtx == UIP_MAXSYNRTX)) {
+	    // MAXRTX = 8, MAXSYNRTX = 5
             uip_connr->tcpstateflags = UIP_CLOSED;
+#if DEBUG_SUPPORT != 11
+UARTPrintf("uip.c: close due to timeout2");
+UARTPrintf("   nrtx = ");
+emb_itoa(uip_connr->nrtx, OctetArray, 10, 1);
+UARTPrintf(OctetArray);
+UARTPrintf("   tcpstateflags = ");
+emb_itoa(uip_connr->tcpstateflags, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("   lport = ");
+emb_itoa(uip_connr->lport, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("   rport = ");
+emb_itoa(uip_connr->rport, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
             // We call UIP_APPCALL() with uip_flags set to UIP_TIMEDOUT to
 	    // inform the application that the connection has timed out.
             uip_flags = UIP_TIMEDOUT;
@@ -543,9 +567,27 @@ void uip_process(uint8_t flag)
             goto tcp_send_nodata;
           }
 
-          // Exponential backoff.
+          // Exponential backoff. The timer got to zero, but the exponential
+	  // backoff will cause it to take longer to get to zero if another
+	  // retransmit will be needed.
+//	  uip_connr->timer = (uint8_t)(UIP_RTO << (uip_connr->nrtx > 4? 4: uip_connr->nrtx));
 	  if (uip_connr->nrtx > 4) uip_connr->nrtx = 4;
 	  uip_connr->timer = (uint8_t)(UIP_RTO << uip_connr->nrtx);
+
+#if DEBUG_SUPPORT != 11
+UARTPrintf("uip_connr->timer = ");
+emb_itoa(uip_connr->timer, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("   nrtx = ");
+emb_itoa(uip_connr->nrtx, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
+
+// Resend SYN seems to happen too rapidly. Looking for a way to slow that down for MQTT
+// But this did not work.
+//	  if (uip_connr->timer < 0x1f) uip_connr->timer = 0x1f;
+	  
 	  ++(uip_connr->nrtx);
 
           // Ok, so we need to retransmit. We do this differently depending on
@@ -558,12 +600,24 @@ void uip_process(uint8_t flag)
           switch (uip_connr->tcpstateflags & UIP_TS_MASK) {
             case UIP_SYN_RCVD:
               // In the SYN_RCVD state, we should retransmit our SYNACK.
+#if DEBUG_SUPPORT != 11
+UARTPrintf("case UIP_SYN_RCVD - resend SYNACK   lport = ");
+emb_itoa(uip_connr->lport, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
               goto tcp_send_synack;
 
 	    case UIP_SYN_SENT:
 	      // In the SYN_SENT state, we retransmit the SYN. Required for
 	      // MQTT.
 	      BUF->flags = 0;
+#if DEBUG_SUPPORT != 11
+UARTPrintf("case UIP_SYN_SENT - resend SYN   lport = ");
+emb_itoa(uip_connr->lport, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
 	      goto tcp_send_syn;
 
             case UIP_ESTABLISHED:
@@ -573,11 +627,20 @@ void uip_process(uint8_t flag)
               uip_flags = UIP_REXMIT;
               UIP_APPCALL(); // Call to get old data for retransmit.  uip_len
 	                     // was cleared above.
+#if DEBUG_SUPPORT != 11
+UARTPrintf("case UIP_ESTABLISHED - resend data   lport = ");
+emb_itoa(uip_connr->lport, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
               goto apprexmit;
 
             case UIP_FIN_WAIT_1:
             case UIP_CLOSING:
             case UIP_LAST_ACK:
+#if DEBUG_SUPPORT != 11
+UARTPrintf("case case UIP_FIN_WAIT_1 or UIP_CLOSING or UIP_LAST_ACK - resend FINACK\r\n");
+#endif // DEBUG_SUPPORT != 11
               // In all these states we should retransmit a FINACK.
               goto tcp_send_finack;
 
@@ -834,6 +897,8 @@ void uip_process(uint8_t flag)
 
   // Fill in the necessary fields for the new connection.
   uip_connr->rto = uip_connr->timer = UIP_RTO;
+//  uip_connr->rto = UIP_RTO;
+//  uip_connr->timer = 0x0f;
   uip_connr->sa = 0;
   uip_connr->sv = 4;
   uip_connr->nrtx = 0;
@@ -946,6 +1011,9 @@ void uip_process(uint8_t flag)
   // of this reset is wihtin our advertised window before we accept the reset.
   if (BUF->flags & TCP_RST) {
     uip_connr->tcpstateflags = UIP_CLOSED;
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: close due to TCP_RST\r\n");
+#endif // DEBUG_SUPPORT != 11
     uip_flags = UIP_ABORT;
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     // We are doing a reset here. Why would we do a UIP_APPCALL? The
@@ -1187,7 +1255,9 @@ void uip_process(uint8_t flag)
           uip_add_rcv_nxt(uip_len);
         }
         uip_slen = 0;
-// UARTPrintf("  uip.c: APPCALL due to SYN_RCVD\r\n");
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: APPCALL due to SYN_RCVD\r\n");
+#endif // DEBUG_SUPPORT != 11
         UIP_APPCALL(); // We may have received data with the SYN
         goto appsend;
       }
@@ -1195,6 +1265,9 @@ void uip_process(uint8_t flag)
 
 
     case UIP_SYN_SENT:
+#if DEBUG_SUPPORT != 11
+UARTPrintf("Testing case UIP_SYN_SENT\r\n");
+#endif // DEBUG_SUPPORT != 11
       // In SYN_SENT, we wait for a SYNACK that is sent in response to our
       // SYN. The rcv_nxt is set to sequence number in the SYNACK plus one,
       // and we send an ACK. We move into the ESTABLISHED state.
@@ -1202,6 +1275,12 @@ void uip_process(uint8_t flag)
         (BUF->flags & TCP_CTL) == (TCP_SYN | TCP_ACK)) {
         // Parse the TCP MSS option, if present. This is a received SYN, so we
 	// are capturing the MSS of the host.
+
+// This is the host response to our SYN. Display the value.
+#if DEBUG_SUPPORT != 11
+UARTPrintf("case UIP_SYN_SENT - Incoming SYNACK\r\n");
+#endif // DEBUG_SUPPORT != 11
+
         if((BUF->tcpoffset & 0xf0) > 0x50) {
 	  for(c = 0; c < ((BUF->tcpoffset >> 4) - 5) << 2 ;) {
 	    opt = uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN + c];
@@ -1218,15 +1297,6 @@ void uip_process(uint8_t flag)
 	      // An MSS option with the right option length
 	      tmp16 = (uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 2 + c] << 8) |
 	        uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 3 + c];
-
-// This is the host response to our SYN. Display the value.
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("case UIP_SYN_SENT - Incoming SYNACK: Incoming MSS = ");
-// emb_itoa(tmp16, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-// #endif // DEBUG_SUPPORT != 11
-
 	      // MODIFICATION FOR THIS APPLICATION: The original uip.c code
 	      // would set the receive MSS and transmit MSS to be the same. So
 	      // the smaller of the advertised MSS from the host or the
@@ -1280,10 +1350,15 @@ void uip_process(uint8_t flag)
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       // In this case the applications don't do anything with this information.
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// UARTPrintf("  uip.c: APPCALL due to ABORT\r\n");
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: APPCALL due to ABORT\r\n");
+#endif // DEBUG_SUPPORT != 11
       UIP_APPCALL(); // ???
       // The connection is closed after we send the RST
       uip_conn->tcpstateflags = UIP_CLOSED;
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: close due to reset\r\n");
+#endif // DEBUG_SUPPORT != 11
       goto reset;
 
 
@@ -1304,6 +1379,16 @@ void uip_process(uint8_t flag)
         }
         uip_add_rcv_nxt(1 + uip_len);
         uip_flags |= UIP_CLOSE;
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: close due to FIN");
+UARTPrintf("   lport = ");
+emb_itoa(uip_connr->lport, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("   rport = ");
+emb_itoa(uip_connr->rport, OctetArray, 16, 4);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
         if (uip_len > 0) {
           uip_flags |= UIP_NEWDATA;
         }
@@ -1389,6 +1474,9 @@ void uip_process(uint8_t flag)
         if (uip_flags & UIP_ABORT) {
           uip_slen = 0;
           uip_connr->tcpstateflags = UIP_CLOSED;
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: close due to ABORT\r\n");
+#endif // DEBUG_SUPPORT != 11
           BUF->flags = TCP_RST | TCP_ACK;
           goto tcp_send_nodata;
         }
@@ -1476,6 +1564,9 @@ void uip_process(uint8_t flag)
       // We can close this connection if the peer has acknowledged our FIN.
       // This is indicated by the UIP_ACKDATA flag.
       if (uip_flags & UIP_ACKDATA) {
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: close in UIP_LAST_ACK\r\n");
+#endif // DEBUG_SUPPORT != 11
         uip_connr->tcpstateflags = UIP_CLOSED;
 	uip_flags = UIP_CLOSE;
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1505,6 +1596,9 @@ void uip_process(uint8_t flag)
         }
         uip_add_rcv_nxt(1);
         uip_flags = UIP_CLOSE;
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: close due to FIN from the other side\r\n");
+#endif // DEBUG_SUPPORT != 11
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         // Not sure why there is an APPCALL here as we are closing the
 	// connection.
@@ -1532,6 +1626,9 @@ void uip_process(uint8_t flag)
 	uip_connr->timer = 0;
 	uip_add_rcv_nxt(1);
 	uip_flags = UIP_CLOSE;
+#if DEBUG_SUPPORT != 11
+UARTPrintf("  uip.c: close due to TCP_FIN\r\n");
+#endif // DEBUG_SUPPORT != 11
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         // Not sure why there is an APPCALL here as we are closing the
 	// connection.

@@ -15,7 +15,6 @@
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
-
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  
@@ -7353,20 +7352,63 @@ UARTPrintf("Received Get 91\r\n");
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 	    default:
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 #if PCF8574_SUPPORT == 0
-	      if (pSocket->ParseNum < 32) {
-                // Output-01..16 OFF/ON
+	      if (pSocket->ParseNum < 0x32) {
+                 // Output-01..16 OFF/ON
+                {
+                  // The logic here converts hex values to the original decimal
+                  // values for IO pins. It is assumed the following cmds are
+                  // not used:
+                  // 0x0a to 0x0f
+                  // 0x1a to 0x1f
+                  // 0x2a to 0x2f
+                  // 0x3a to 0x3f
+                  uint8_t cmd_num;
+		  cmd_num = 0;
+                  if ((pSocket->ParseNum & 0x0f) < 0x0a) {
+		    // The above "if" eliminates invalid hex values
+		    // Covert the remaining values to decimal
+                    if (pSocket->ParseNum < 0x0a) cmd_num = (uint8_t)(pSocket->ParseNum);
+                    else if (pSocket->ParseNum < 0x1a) cmd_num = (uint8_t)(pSocket->ParseNum - 6);
+                    else if (pSocket->ParseNum < 0x2a) cmd_num = (uint8_t)(pSocket->ParseNum - 12);
+                    else if (pSocket->ParseNum < 0x32) cmd_num = (uint8_t)(pSocket->ParseNum - 18);
+		    
+                    update_ON_OFF((uint8_t)(cmd_num/2), (uint8_t)(cmd_num%2));
+	            GET_response_type = 204; // No return webpage
+                  }
+                }
+	      }
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-	      if (pSocket->ParseNum < 48) {
-                // Output-01..24 OFF/ON
+	      if (pSocket->ParseNum < 0x48) {
+                 // Output-01..24 OFF/ON
+                {
+                  // The logic here converts hex values to the original decimal
+                  // values for IO pins. It is assumed the following cmds are
+                  // not used:
+                  // 0x0a to 0x0f
+                  // 0x1a to 0x1f
+                  // 0x2a to 0x2f
+                  // 0x3a to 0x3f
+                  uint8_t cmd_num;
+		  cmd_num = 0;
+                  if ((pSocket->ParseNum & 0x0f) < 0x0a) {
+                    if (pSocket->ParseNum < 0x0a) cmd_num = (uint8_t)(pSocket->ParseNum);
+                    else if (pSocket->ParseNum < 0x1a) cmd_num = (uint8_t)(pSocket->ParseNum - 6);
+                    else if (pSocket->ParseNum < 0x2a) cmd_num = (uint8_t)(pSocket->ParseNum - 12);
+                    else if (pSocket->ParseNum < 0x3a) cmd_num = (uint8_t)(pSocket->ParseNum - 18);
+                    else if (pSocket->ParseNum < 0x48) cmd_num = (uint8_t)(pSocket->ParseNum - 24);
+		    
+                    update_ON_OFF((uint8_t)(cmd_num/2), (uint8_t)(cmd_num%2));
+	            GET_response_type = 204; // No return webpage
+                  }
+                }
+	      }
 #endif // PCF8574_SUPPORT == 1
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-                update_ON_OFF((uint8_t)(pSocket->ParseNum/2), (uint8_t)(pSocket->ParseNum%2));
-	        GET_response_type = 204; // No return webpage
+              else
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-              }
-              else {
+              {
 	        // Show default page
 		// While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
 		// will accomplish what we want.

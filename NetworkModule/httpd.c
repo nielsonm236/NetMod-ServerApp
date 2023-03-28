@@ -6850,7 +6850,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               }
 	      // Set parse_complete for the check_runtime_changes() process
               parse_complete = 1;
-	      if (pSocket->ParseNum == 51) {
+	      if (pSocket->ParseNum == 0x51) {
                 // Return IOPin status page
                 pSocket->current_webpage = WEBPAGE_SSTATE;
                 pSocket->pData = g_HtmlPageSstate;

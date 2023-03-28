@@ -1,5 +1,5 @@
 REM       COMMAND FILE BUILT BY IDEA 
-REM       Fri Mar 24 19:57:07 2023
+REM       Mon Mar 27 20:12:25 2023
 REM
 cxstm8 -v -l +strict +debug +modsl0 +split +warn "networkmodule_vector.c"
 cxstm8 -v -l +strict +debug +modsl0 +split +warn "bme280.c" "ds18b20.c" "enc28j60.c" "gpio.c" "httpd.c" "i2c.c" "main.c" "mqtt.c" "mqtt_pal.c" "pcf8574.c" "spi.c" "timer.c" "uart.c" "uip.c" "uip_arp.c" "uip_tcpapphub.c"

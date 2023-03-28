@@ -36,7 +36,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20230325 0137"; // Normal Release Revision
+const char code_revision[] = "20230326 0200"; // Normal Release Revision
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -678,21 +678,6 @@ int main(void)
   HttpDStringInit();       // Initialize HttpD string sizes
 
 
-#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("\r\n\r\n\r\nStarting Uploader code\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-#if BUILD_SUPPORT == MQTT_BUILD
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("\r\n\r\n\r\nStarting MQTT code\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-#endif // BUILD_SUPPORT == MQTT_BUILD
-
-
-
-
-
 #if LINKED_SUPPORT == 1
   linked_edge = 0;	   // Used for indicating Input pin edge detection
 			   // when using Linked pins. Must be cleared when
@@ -705,30 +690,6 @@ int main(void)
   read_input_pins(1);
 #endif // LINKED_SUPPORT == 1
 
-/*
-#if DS18B20_SUPPORT == 0
-  // If DS18B20_SUPPORT is disabled in the build configuration then force the
-  // DS18B20 Enable bit off. This will help reduce confusion on the part of
-  // the user that may think they can enable DS18B20 support on te Config
-  // Page.
-  Pending_config_settings &= (uint8_t)(~0x08);
-  // Note: parse_complete was set to 1 duriing main variable initialization.
-  // This will cause any change to the Pending_config_settings to update the
-  // EEPROM if needed.
-#endif // DS18B20_SUPPORT == 0
-
-
-#if BME280_SUPPORT == 0
-  // If BME280_SUPPORT is disabled in the build configuration then force the
-  // BME280 Enable bit off. This will help reduce confusion on the part of
-  // the user that may think they can enable BME280 support on the Config
-  // Page.
-  Pending_config_settings &= (uint8_t)(~0x20);
-  // Note: parse_complete was set to 1 duriing main variable initialization.
-  // This will cause any change to the Pending_config_settings to update the
-  // EEPROM if needed.
-#endif // BME280_SUPPORT == 0
-*/
 
 #if DS18B20_SUPPORT == 1
   init_DS18B20();          // Initialize DS18B20 sensors
@@ -818,22 +779,6 @@ int main(void)
   }
 #endif // PCF8574_SUPPORT == 1
 
-/*
-#if PCF8574_SUPPORT == 0
-  // PCF8574 not supported. Make sure the hardware option is off.
-  {
-    uint8_t j;
-    j = stored_options1;
-    if ((j & 0x08) == 0x08) {
-      j &= (uint8_t)~0x08;
-      unlock_eeprom();
-      stored_options1 = j;
-      lock_eeprom();
-    }
-  }  
-#endif // PCF8574_SUPPORT == 0
-*/
-
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
   // there is a stack overflow (wherein the stack will over write this preset
@@ -899,17 +844,7 @@ int main(void)
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
   // If a Code Uploader Build copy Flash to EEPROM1.
   if (eeprom_detect == 1) {
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Copying Code Uploader to EEPROM1\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
     copy_code_uploader_to_EEPROM1();
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Finished Copy\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
   }
   // Flicker LED for 1 second to indicate I2C EEPROM write completion
   fastflash();
@@ -928,17 +863,7 @@ int main(void)
   //
   // Copy Flash to I2C EEPROM0.
   if (eeprom_detect == 1) {
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Copying Flash to EEPROM0\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
     copy_flash_to_EEPROM0();
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Finished Copy\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-    
   }
   // Flicker LED for 1 second to indicate I2C EEPROM write completion
   fastflash();
@@ -1147,9 +1072,6 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
         if (mqtt_start == MQTT_START_COMPLETE) {
 	  // publish_outbound() is called to send pin_control state change
 	  // PUBLISH messages.
-//        if (mqtt_start == MQTT_START_COMPLETE && user_reboot_request == 0) {
-//	  // publish_outbound() is called to send pin_control state change
-//	  // PUBLISH messages unless a user_reboot_request is pending.
 	  publish_outbound();
 	  // Call the periodic_service() function to clear out the MQTT
 	  // traffic just now placed in the uip_buf. Even though there is
@@ -1973,108 +1895,6 @@ UARTPrintf("MQTT TCP wait timed out\r\n");
     }
     break;
 
-/*
-  case MQTT_START_QUEUE_SUBSCRIBE1:
-    if (mqtt_start_ctr1 > 4) {
-      // Subscribe to the output control messages
-      //
-      // Queue the mqtt_subscribe messages for transmission to the MQTT Broker.
-      // Wait 200ms before queueing first Subscribe msg.
-      //
-      // The mqtt_subscribe function will create the message and put it in the
-      // mqtt_sendbuf queue. uip_periodic() will start the process that will
-      // call mqtt_sync to put the message in the uip_buf.
-      //
-      // Note: Timing is managed here to prevent placing multiple SUBSCRIBE
-      // messages in the mqtt_sendbuf as that buffer is very small.
-	
-      suback_received = 0;
-      strcpy(topic_base, devicetype);
-      strcat(topic_base, stored_devicename);
-      strcat(topic_base, "/output/+/set");
-      // In the mqtt_subscribe call the maximum QOS level spedified (0 in this
-      // case) is the max QOS level supported for the topic messages being
-      // subcribed to. The SUBSCRIBE itself has no QOS level as a special
-      // SUBACK message must be returned to verify the SUBSCRIBE transaction.
-      mqtt_subscribe(&mqttclient, topic_base, 0);
-      mqtt_start_ctr1 = 0; // Clear 50ms counter
-      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
-    }
-    break;
-    
-  case MQTT_START_VERIFY_SUBSCRIBE1:
-    // Verify that the SUBSCRIBE SUBACK was received.
-    // When a SUBSCRIBE is sent to the broker it should respond with a SUBACK.
-    // The SUBACK will occur very quickly but we will allow up to 10 seconds
-    // before assuming an error has occurred.
-    // A workaround is implemented with the global variable suback_received so
-    // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
-    // was received.
-
-    if (mqtt_start_ctr1 < 200) {
-      // Allow up to 10 seconds for SUBACK
-      if (suback_received == 1) {
-        mqtt_start_ctr1 = 0; // Clear 50ms counter
-        mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
-      }
-    }
-    else {
-      mqtt_start = MQTT_START_TCP_CONNECT;
-      // Clear the error indicator flags
-      mqtt_start_status = MQTT_START_NOT_STARTED; 
-    }
-    break;
-
-  case MQTT_START_QUEUE_SUBSCRIBE2:
-    if (mqtt_start_ctr1 > 4) {
-      // Subscribe to the state-req message
-      // The QOS is 0 for this topic subscription
-      //
-      // Wait 200ms before queuing the Subscribe message 
-      suback_received = 0;
-      strcpy(topic_base, devicetype);
-      strcat(topic_base, stored_devicename);
-      strcat(topic_base, "/state-req");
-      mqtt_subscribe(&mqttclient, topic_base, 0);
-      mqtt_start_ctr1 = 0; // Clear 50ms counter
-      mqtt_start = MQTT_START_VERIFY_SUBSCRIBE2;
-    }
-    break;
-
-  case MQTT_START_VERIFY_SUBSCRIBE2:
-    // Verify that the SUBSCRIBE SUBACK was received.
-    // When a SUBSCRIBE is sent to the broker it should respond with a SUBACK.
-    // The SUBACK will occur very quickly but we will allow up to 10 seconds
-    // before assuming an error has occurred.
-    // A workaround is implemented with the global variable suback_received so
-    // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
-    // was received.
-
-    if (mqtt_start_ctr1 < 200) {
-      // Allow up to 10 seconds for SUBACK
-      if (suback_received == 1) {
-        mqtt_start_ctr1 = 0; // Clear 50ms counter
-        if (stored_config_settings & 0x02) {
-          // Home Assistant Auto Discovery enabled
-          mqtt_start = MQTT_START_QUEUE_PUBLISH_AUTO;
-          auto_discovery = DEFINE_INPUTS;
-          auto_discovery_step = SEND_OUTPUT_DELETE;
-          pin_ptr = 1;
-          sensor_number = 0;
-        }
-        else {
-          mqtt_start_ctr1 = 0; // Clear 50ms counter
-          mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
-        }
-      }
-    }
-    else {
-      mqtt_start = MQTT_START_TCP_CONNECT;
-      // Clear the error indicator flags
-      mqtt_start_status = MQTT_START_NOT_STARTED; 
-    }
-    break;
-*/
 
   case MQTT_START_QUEUE_SUBSCRIBE1:
   case MQTT_START_QUEUE_SUBSCRIBE2:
@@ -3234,14 +3054,6 @@ UARTPrintf("publish_callback\r\n");
     // get away with it, but this can trip me up in the future if more
     // messages are added.
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-/*
-    pBuffer += 8;
-    if (*pBuffer == 'q') {
-      *pBuffer = '0'; // Destroy 'q' in buffer so subsequent "state"
-                      // messages won't be misinterpreted
-      state_request = STATE_REQUEST_RCVD;
-    }
-*/
 
     // Capture the state-req command in OctetArray.
     for (i=0; i<11; i++) {
@@ -3251,13 +3063,6 @@ UARTPrintf("publish_callback\r\n");
     OctetArray[11] = 0;
     
     if (OctetArray[8] == 'q') {
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("publish_callback OctetArray = ");
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
       // Confirmed this is a state-req command
       // Now figure out if the state-req is requesting a 16 pin output or a
       // 24 pin output. "state-req" is for 16 pins. "state-req24" is for 24
@@ -3270,13 +3075,6 @@ UARTPrintf("publish_callback\r\n");
       // misinterpreted
       *pBuffer = '0';
       if ((OctetArray[9] == '2') && (OctetArray[10] == '4')) {
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("publish_callback OctetArray = ");
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
         // This is a state-req24 command
         state_request = STATE_REQUEST_RCVD24;
         // Destroy '2' and '4' in buffer so subsequent "state" messages won't
@@ -3630,9 +3428,6 @@ void publish_pinstate_all(uint8_t type)
   //   The third byte of the Payload contains the ON/OFF state for IO 8 in
   //   the msb of the byte. The ON/OFF state for IO 1 is in the lsb.
   
-  int i;
-  int m;
-  uint32_t j;
   uint32_t k;
   uint8_t k2;
   uint8_t k1;
@@ -3666,66 +3461,9 @@ void publish_pinstate_all(uint8_t type)
 				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
   
-  j = 1;
-  k = 0;
-  
-/*
-#if PCF8574_SUPPORT == 0
-  for (i=0; i<16; i++) {
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
-  if (type == STATE_REQUEST_RCVD) m = 16;
-  else m = 24;
-  for (i=0; i<m; i++) {
-#endif // PCF8574_SUPPORT == 1
-
-    // Check for input/output
-#if LINKED_SUPPORT == 0
-    if ((pin_control[i] & 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 0
-#if LINKED_SUPPORT == 1
-    if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 1
-
-      // Pin is an output, transmit as-is
-      if (pin_control[i] & 0x80) k |= j;
-    }
-    
-#if LINKED_SUPPORT == 0
-    else if ((pin_control[i] & 0x03) == 0x01) {
-#endif // LINKED_SUPPORT == 0
-#if LINKED_SUPPORT == 1
-    if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
-#endif // LINKED_SUPPORT == 1
-
-      // Pin is an input, invert if needed
-      if (pin_control[i] & 0x04) {
-        // Invert required
-	if (pin_control[i] & 0x80) k &= ~j;
-	else k |= j;
-      }
-      else {
-        // No invert
-	if (pin_control[i] & 0x80) k |= j;
-	else k &= ~j;
-      }
-    }
-    j = j<<1;
-  }
-*/
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// Doesn't the above create the same thing that is in the ON_OFF_word? So
-// perhaps all we need to do is to copy the ON_OFF_word into k? And the only
-// reason we copy it into k is to be sure we are working with a 32 bit word
-// for the rest of the logic.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-   k = ON_OFF_word;
-
-  // The above created a word in variable k with all the pin states.
+  // Copy mthe ON_OFF_word into variable k so it will contain all the pin
+  // states.
+  k = ON_OFF_word;
   // If sending 16 bits need to split it into two bytes for transmission.
   // If sending 24 bits need to split it into three bytes for transmission.
   k0 = (uint8_t)k;
@@ -3759,12 +3497,6 @@ void publish_pinstate_all(uint8_t type)
     strcat(topic_base, "/state24");
   }
 #endif // PCF8574_SUPPORT == 1
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("publish_pinstate_all topic_base = ");
-// UARTPrintf(topic_base);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
   // Queue publish message
   // This message is always published with QOS 0
@@ -4823,11 +4555,6 @@ void apply_PCF8574_pin_settings(void)
       if (((byte_1 & 0x03) == 0x02) || ((byte_2 & 0x03) == 0x02)) {
         // At least one pin is defined as Linked
         if ((byte_1 & 0x03) != (byte_2 & 0x03)) {
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("One PCF pin of a pair is Linked\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
           // One of the pins is not defined as Linked. Set both pins to Disabled.
           // Pin is linked. Change it to Disabled.
           I2C_control(I2C_EEPROM2_WRITE);
@@ -5035,34 +4762,6 @@ void check_runtime_changes(void)
   read_input_pins(0);
 
 
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// if (parse_complete == 1) {
-// UARTPrintf("start of runtime_changes stored_config_settings = ");
-// emb_itoa(stored_config_settings, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   Pending_config_settings = ");
-// emb_itoa(Pending_config_settings, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-// }
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-#if PCF8574_SUPPORT == 1
-// UARTPrintf("PCF8574 pin_control[] at start of check_runtime_changes\r\n");
-// PCF8574_display_pin_control();
-#endif // PCF8574_SUPPORT == 1
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-#if PCF8574_SUPPORT == 1
-// if (parse_complete == 1) UARTPrintf("parse_complete detected\r\n");
-// if (mqtt_parse_complete == 1) UARTPrintf("mqtt_parse_complete detected\r\n");
-#endif // PCF8574_SUPPORT == 1
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
-
 #if PINOUT_OPTION_SUPPORT == 1
   // Only pinout Option 1 is allowed if any reserved pins are in use. There
   // can be a bit of a chicken-and-egg problem here as the user might already
@@ -5153,14 +4852,6 @@ void check_runtime_changes(void)
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
 
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// Should the following only run if "parse_complete"? I don't think it matters
-// because Linking changes MUST be made synchronously.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #if LINKED_SUPPORT == 1
   {
     int i;
@@ -5192,11 +4883,6 @@ void check_runtime_changes(void)
       for (i=16; i<20; i++) {
         if (((Pending_pin_control[i] & 0x03) == 0x02) || ((Pending_pin_control[i+4] & 0x03) == 0x02)) {
           // At least one pin is in the process of being defined as Linked
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("At least one PCF pin of a pair is Pending Linked\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
           if ((Pending_pin_control[i] & 0x03) != (Pending_pin_control[i+4] & 0x03)) {
             // One of the pins is not defined as Linked. Revert the 
 	    // Pending_pin_control back to the value in the existing pin_control.
@@ -5248,9 +4934,6 @@ void check_runtime_changes(void)
     //    any effort into resolving such a case.
     
     if (linked_edge & 0x0fff) {
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("linked_edge detected\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       // There is an edge on at least one pin
       // Check the STM8 pins
       for (i=0, mask=1; i<8; i++, mask<<=1) {
@@ -5286,11 +4969,6 @@ void check_runtime_changes(void)
         // Sweep through the first 4 pins
         if (mask & linked_edge) {
 	  // Found an edge
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Linked Edge found on PCF pin\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
 	  linked_edge &= (uint8_t)(~mask); // Clear the linked_edge bit
           if ((Pending_pin_control[i] & 0x03) == 0x02) {
 	    // Verify that the pin is a Linked pin. The Pending_pin_control
@@ -5598,13 +5276,6 @@ void check_runtime_changes(void)
 	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
         IO_timer_value = read_two_bytes();
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Pin 21 Timer = ");
-// emb_itoa(pin_timer[20], OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
         if (((IO_timer_value & 0x3fff) != 0) && ((pin_timer[i] & 0x3fff) == 0)) {
           // Pin has a non-zero TIMER value AND the timer countdown is zero
@@ -5923,11 +5594,6 @@ void check_runtime_changes(void)
 	    // requires a hardware reboot as the IO hardware needs to be
 	    // reconfigured.
             user_reboot_request = 1;
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("User reboot request due to change in Input/Output\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
 	  }
 
           // Check for change in Invert
@@ -6016,11 +5682,6 @@ void check_runtime_changes(void)
 	          I2C_byte_address(byte_address, 2);
 	          I2C_write_byte(pin_control[i]);
 	          I2C_stop();
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Updating pin_control in I2C EEPROM\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
                   wait_timer(5000); // Wait 5ms
 	        }
 	      }
@@ -6031,13 +5692,6 @@ void check_runtime_changes(void)
         }
       }
     }
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-#if PCF8574_SUPPORT == 1
-// UARTPrintf("PCF8574 pin_control[] after check pin_control\r\n");
-// PCF8574_display_pin_control();
-#endif // PCF8574_SUPPORT == 1
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
     // Update the 16 bit registers with the changed Output pin states
     encode_16bit_registers(0);
@@ -6072,22 +5726,6 @@ void check_runtime_changes(void)
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
       user_reboot_request = 1;
-
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("end of runtime_changes stored_config_settings = ");
-// emb_itoa(stored_config_settings, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   Pending_config_settings = ");
-// emb_itoa(Pending_config_settings, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-//
-// PCF8574_display_pin_control();
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
-
-
       // If any bit of the config_settings changed write to EEPROM
       stored_config_settings = Pending_config_settings;
     }
@@ -6216,12 +5854,6 @@ void check_runtime_changes(void)
       user_reboot_request = 0;
       reboot_request = 1;
     }
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-#if PCF8574_SUPPORT == 1
-// UARTPrintf("PCF8574 pin_control[] at end of check_runtime_changes\r\n");
-// PCF8574_display_pin_control();
-#endif // PCF8574_SUPPORT == 1
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
   }
   
   
@@ -6585,31 +6217,16 @@ void reboot(void)
 UARTPrintf("Hardware reboot in reboot()\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // Not sure if WWDG (Window Watchdog) or IWDG (Independent Watchdog) is the
-  // better choice here.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // Set the Window Watchdog to reboot the module
+  // WWDG is used here instead of the IWDG so that the cause of a reset can be
+  // differentiated. WWDG is used for a deliberate reset. IWDG is used to
+  // protect agains unintentional code or processor upsets.
   WWDG_WR = (uint8_t)0x7f;     // Window register reset
   WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
   WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
                                // much as we plan to reset
 				 
   while(1);                    // Wait for watchdog to generate reset
-
-/*
-  // Change the setting of the IDWG to cause a Reboot in about 63ms.
-  IWDG_KR  = 0xcc;  // Enable the IWDG
-  IWDG_KR  = 0x55;  // Unlock the configuration registers
-  IWDG_PR  = 0x02;  // Divide clock by 16
-  IWDG_RLR = 0xff;  // Countdown reload value. The /2 prescaler plus the
-                    // Divisor plus the Countdown value create the 63ms
-		    // timeout interval
-  IWDG_KR  = 0xaa;  // Start the IWDG.
-
-  // Wait here for WWDG to reset the module.
-  while(1);
-*/
-
 }
 
 
@@ -7420,30 +7037,16 @@ void check_reset_button(void)
 // UARTPrintf("Reboot in check_reset_button() function\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // Not sure if WWDG (Window Watchdog) or IWDG (Independent Watchdog) is
-    // the better choice here.
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // Set the Window Watchdog to reboot the module
+    // WWDG is used here instead of the IWDG so that the cause of a reset can be
+    // differentiated. WWDG is used for a deliberate reset. IWDG is used to
+    // protect agains unintentional code or processor upsets.
     WWDG_WR = (uint8_t)0x7f;       // Window register reset
     WWDG_CR = (uint8_t)0xff;       // Set watchdog to timeout in 49ms
     WWDG_WR = (uint8_t)0x60;       // Window register value - doesn't matter
                                    // much as we plan to reset
 				 
     while(1);                      // Wait for watchdog to generate reset
-
-/*
-    // Change the setting of the IDWG to cause a Reboot in about 63ms.
-    IWDG_KR  = 0xcc;  // Enable the IWDG
-    IWDG_KR  = 0x55;  // Unlock the configuration registers
-    IWDG_PR  = 0x02;  // Divide clock by 16
-    IWDG_RLR = 0xff;  // Countdown reload value. The /2 prescaler plus the
-                      // Divisor plus the Countdown value create the 63ms
-		      // timeout interval
-    IWDG_KR  = 0xaa;  // Start the IWDG.
-
-    // Wait here for WWDG to reset the module.
-    while(1);
-*/
 
   }
 }

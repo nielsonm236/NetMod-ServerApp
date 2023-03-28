@@ -484,31 +484,16 @@ void eeprom_copy_to_flash(void)
 // UARTPrintf("Reboot after Copy RAM to Flash\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // Not sure if WWDG (Window Watchdog) or IWDG (Independent Watchdog) is the
-  // better choice here.
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // Set the Window Watchdog to reboot the module
+  // WWDG is used here instead of the IWDG so that the cause of a reset can be
+  // differentiated. WWDG is used for a deliberate reset. IWDG is used to
+  // protect agains unintentional code or processor upsets.
   WWDG_WR = (uint8_t)0x7f;     // Window register reset
   WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
   WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
                                // much as we plan to reset
   // Wait here for WWDG to reset the module.
   while(1);
-
-/*
-  // Change the setting of the IDWG to cause a Reboot in about 63ms.
-  IWDG_KR  = 0xcc;  // Enable the IWDG
-  IWDG_KR  = 0x55;  // Unlock the configuration registers
-  IWDG_PR  = 0x02;  // Divide clock by 16
-  IWDG_RLR = 0xff;  // Countdown reload value. The /2 prescaler plus the
-                    // Divisor plus the Countdown value create the 63ms
-		    // timeout interval
-  IWDG_KR  = 0xaa;  // Start the IWDG.
-
-  // Wait here for WWDG to reset the module.
-  while(1);
-*/
 
 }
 #endif // OB_EEPROM_SUPPORT == 1

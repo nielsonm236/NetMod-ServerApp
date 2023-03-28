@@ -37,6 +37,8 @@ Feature Comparison of the MQTT and Browser builds:
 
 Short summary of recent history:
 
+March 28, 2023 - Addressed Issue #164 "When setting multiple outputs with /51, no status is sent back"
+
 March 25, 2023 - Addressed Issue #161 "URL ON/OFF Cmds not working right in Release 20230324 1435"
 
 March 24, 2023 - Addressed Issue #147 "Question for team: How to handle the MQTT state-req message with PCF8574", Addressed Issue #158 "BME280 build - all pins are outputs even if defined as an input"

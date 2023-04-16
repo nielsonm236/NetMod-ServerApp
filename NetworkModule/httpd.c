@@ -270,14 +270,15 @@ uint16_t HtmlPagePCFConfiguration_size; // Size of the PCF8574 Configuration tem
 // and Browser Only versions.
 extern uint8_t mqtt_enabled;              // Signals if MQTT has been enabled
 extern uint8_t stored_mqttserveraddr[4];  // mqttserveraddr stored in EEPROM
-extern uint16_t stored_mqttport;	  // MQTT Port number  stored in
+extern uint16_t stored_mqttport;	  // MQTT Host Port number stored in
                                           // EEPROM
 extern char stored_mqtt_username[11];     // MQTT Username  stored in EEPROM
 extern char stored_mqtt_password[11];     // MQTT Password  stored in EEPROM
 
 extern uint8_t Pending_mqttserveraddr[4]; // Temp storage for new MQTT IP
                                           // Address
-extern uint16_t Pending_mqttport;	  // Temp storage for new MQTT Port
+extern uint16_t Pending_mqttport;	  // Temp storage for new MQTT Host
+                                          // Port
 extern char Pending_mqtt_username[11];    // Temp storage for new MQTT
                                           // Username
 extern char Pending_mqtt_password[11];    // Temp storage for new MQTT
@@ -2482,44 +2483,8 @@ const m = (data => {
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if UIP_STATISTICS == 1
-// Statistics page Template
+// Network Statistics page Template
 // Browser Only builds
 // URL /68
 #define WEBPAGE_STATS1		6
@@ -2578,6 +2543,7 @@ static const char g_HtmlPageStats2[] =
   "<tr><td>31 %e31</td></tr>"
   "<tr><td>32 %e32</td></tr>"
   "<tr><td>33 %e33</td></tr>"
+  "<tr><td>34 %e34</td></tr>"
   "<tr><td>35 %e35</td></tr>"
   "</table>"
   "<br>"
@@ -2600,6 +2566,8 @@ static const char g_HtmlPageStats2[] =
   "32 %e32"
   "<br>"
   "33 %e33"
+  "<br>"
+  "34 %e34"
   "<br>"
   "35 %e35";
 #endif // DEBUG_SUPPORT
@@ -2701,6 +2669,7 @@ static const char g_HtmlPageLoadUploader[] =
   "</body>"
   "</html>";
 #endif // OB_EEPROM_SUPPORT == 2
+
 
 #if OB_EEPROM_SUPPORT == 1
 // Declared short static const here so that common code can be used for Flash
@@ -3622,13 +3591,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
         }
         temp_byte[15] = I2C_read_byte(1);
         size = size + (strlen(temp_byte) - 4);
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf(temp_byte);
-// UARTPrintf("  ");
-// emb_itoa(size, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       }
     }
     // Account for IO Timer field %I16 to %I23
@@ -3744,7 +3706,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // them  each time we display the web page.
     {
       int i;
-//      for (i=0; i<15; i++) {
       for (i=0; i<16; i++) {
         size = size + (strlen(IO_NAME[i]) - 4);
       }
@@ -3874,13 +3835,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
         }
         temp_byte[15] = I2C_read_byte(1);
         size = size + (strlen(temp_byte) - 4);
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf(temp_byte);
-// UARTPrintf("  ");
-// emb_itoa(size, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       }
     }
     // Account for IO Timer field %I16 to %I23
@@ -3900,7 +3854,8 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
-  // Adjust the size reported by the WEBPAGE_STATS1 template
+  // Adjust the size reported by the WEBPAGE_STATS1 template (Network
+  // Statistics)
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
@@ -3932,7 +3887,8 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
-  // Adjust the size reported by the WEBPAGE_STATS2 template
+  // Adjust the size reported by the WEBPAGE_STATS2 template (Link Error
+  // Statistics)
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
@@ -3950,12 +3906,12 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // each time we display the web page.
     size = size + strlen_devicename_adjusted;
 
-    // Account for Statistics fields %e31, %e32, %e33, %e35
-    // There are 4 instances of these fields
+    // Account for Statistics fields %e31, %e32, %e33, %e34, %e35
+    // There are 5 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (4 x (10 - 4));
-    // size = size + (4 x (6));
-    size = size + 24;
+    // size = size + (5 x (10 - 4));
+    // size = size + (5 x (6));
+    size = size + 30;
   }
 #endif // DEBUG_SUPPORT
 
@@ -4815,7 +4771,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	
         else if (nParsedMode == 'c') {
 	  // If nParsedNum == 0 this is the HTML Port number (5 characters)
-	  // If nParsedNum == 1 this is the MQTT Port number (5 characters)
+	  // If nParsedNum == 1 this is the MQTT Host Port number (5 characters)
 	  // In both cases we need to get a single 16 bit integer from storage
 	  // but put it in the transmission buffer as 5 alpha characters in
 	  // hex format.
@@ -4910,6 +4866,12 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  }
           else if (nParsedNum == 33) {
 	    for (i=0; i<5; i++) {
+              int2hex(stored_debug[i]);
+              pBuffer = stpcpy(pBuffer, OctetArray);
+	    }
+	  }
+          else if (nParsedNum == 34) {
+	    for (i=5; i<10; i++) {
               int2hex(stored_debug[i]);
               pBuffer = stpcpy(pBuffer, OctetArray);
 	    }
@@ -5847,8 +5809,6 @@ void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
   }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
-// UARTPrintf("init_tHttpd_struct\r\n");
-
   pSocket->nState = STATE_NULL;
   pSocket->ParseState = PARSE_NULL;
   pSocket->nNewlines = 0;
@@ -5885,7 +5845,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     //Initialize this connection
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// rexmit_count = 0; // Used only for sending the rexmit count via UART
+rexmit_count = 0; // Used only for sending the rexmit count via UART
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
 
@@ -6397,86 +6357,28 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
         }
 
 
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// To convert the code to allow two hex digits for URL commands the following
-// can be done:
-// - Collect the "PARSE_NUMMSD" and "PARSE_NUMLSD" characters as a string.
-// - Validate that the two character string consists of hex digits.
-// - Use two_hex2int() to convert the characters to a uint8_t byte.
-//
-// The existing commands use decimal values in the case statements and that
-// can continue. But the user entries will be in hex, even if they don't know
-// they are in hex. This means that a number of potential URL entries have
-// been skipped and should probably continue to be skipped to keep things
-// simple for the user. For instance, don't use the folloing for now:
-//     0a to 0f
-//     1a to 1f
-//     2a to 2f
-//     3a to 3f
-// The above only skips 6 x 4 = 24 possible commands. But in the range above
-// these values we can go ahead and create commands with the full hex values.
-//   
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-/*
-        else if (pSocket->ParseState == PARSE_NUMMSD) {
-	  // It's possible we got here because the user did not request a
-	  // filename (ie, the user entered "192.168.1.4:8080/". In this case
-	  // there will be a space here instead of a digit, and we should just
-	  // exit the while() loop and send the default page.
-	  if (*pBuffer == ' ') {
-	    // While this is not a PARSE_FAIL, going through the PARSE_FAIL
-	    // logic will accomplish what we want (paint the default page).
-            pSocket->ParseState = PARSE_FAIL;
-	  }
-	  // Parse first ParseNum digit. Looks like the user did input a
-	  // filename digit, so collect it here.
-	  else if (isdigit(*pBuffer)) { // Check for user entry error
-            // Still good - parse number
-            pSocket->ParseNum = (uint8_t)((*pBuffer - '0') * 10);
-	    pSocket->ParseState = PARSE_NUMLSD;
-            pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
-	                             // while() loop yet. PARSE_NUMLSD will be
-				     // called.
-            pBuffer++;
-	  }
-	  else {
-	    // Something out of sync or invalid filename - exit while() loop
-	    // but do not change the current_webpage
-            pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
-	                             // SENDHEADER
-            pSocket->ParseState = PARSE_FAIL;
-	  }
-        }
-	
-	// Parse second ParseNum digit
-        else if (pSocket->ParseState == PARSE_NUMLSD) {
-	  if (isdigit(*pBuffer)) { // Check for user entry error
-            // Still good - parse number
-            pSocket->ParseNum += (uint8_t)(*pBuffer - '0');
-            pSocket->ParseState = PARSE_VAL;
-            pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
-	                             // while() loop yet. PARSE_VA: will be
-				     // called.
-            pBuffer++;
-	  }
-	  else {
-	    // Something out of sync or invalid filename - exit while() via
-	    // the PARSE_FAIL logic.
-            pSocket->ParseState = PARSE_FAIL;
-	  }
-	}
-*/
-
-
-
-
-
-
+	// ---------------------------------------------------------------- //
+        // Converted the code to allow two hex digits for URL commands instead
+	// of two decimal digits.
+	// - Collect the "PARSE_NUMMSD" and "PARSE_NUMLSD" characters as a
+	//   string.
+	// - Validate that the two character string consists of hex digits.
+	// - Use two_hex2int() to convert the characters to a uint8_t byte.
+	//
+	// Previously the URL commands used decimal values in the case
+	// statements and that can continue. But the user entries will
+	// actually be in hex, even if the user doesn't know they are in hex.
+	// This means that a number of potential URL entries have been skipped
+	// and should probably continue to be skipped to keep things simple
+	// for the user. For instance, don't use the folloing for now:
+	//     0a to 0f
+	//     1a to 1f
+	//     2a to 2f
+	//     3a to 3f
+	// The above only skips 6 x 4 = 24 possible commands. But in the range
+	// above these values we can go ahead and create commands with the
+	// full hex values.
+	// ---------------------------------------------------------------- //
 
         else if (pSocket->ParseState == PARSE_NUMMSD) {
 	  {
@@ -6520,15 +6422,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             pSocket->ParseState = PARSE_FAIL;
 	  }
 	}
-	
-
-
-
-
-
-
-
-
         else if (pSocket->ParseState == PARSE_VAL) {
 	  // ParseNum should now contain a two digit "filename". The filename
 	  // is used to command specific action by the webserver. Following
@@ -6660,17 +6553,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	  // http://IP/82  User entered Pinout Option
 	  // http://IP/83  User entered PCF8574 output byte (deprecated)
 	  // http://IP/84  Short Form Option
+	  // http://IP/85  Force HA Delete Msgs for PCF8574 pins
 	  // http://IP/91  Reboot
 	  // http://IP/98  Show Very Short Form IO States page
 	  // http://IP/99  Show Short Form IO States page
 	  //
-	      
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-//  UARTPrintf("GET ParseNum = ");
-//  emb_itoa(pSocket->ParseNum, OctetArray, 10, 2);
-//  UARTPrintf(OctetArray);
-//  UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 	      
           GET_response_type = 200; // Default response type
           switch(pSocket->ParseNum)
@@ -6730,7 +6617,7 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
             case 0x50: // Mask and Output Pin settings, returns no webpage
-            case 0x80: // Mask and Output Pin settings, returns no webpage
+//            case 0x80: // Mask and Output Pin settings, returns no webpage
 	    case 0x51: // Mask and Output Pin settings plus returns Very Short
 	             // Form IO States page
               // This is similar to case 55 and case 56, except a 4 hex char
@@ -6927,6 +6814,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 	      debug[2] = (uint8_t)(debug[2] & 0x7f); // Clear the Stack Overflow bit
 	      debug[3] = 0; // Clear TXERIF counter
 	      debug[4] = 0; // Clear RXERIF counter
+	      debug[5] = 0; // Clear EMCF counter
+	      debug[6] = 0; // Clear SWIMF counter
+	      debug[7] = 0; // Clear ILLOPF counter
+	      debug[8] = 0; // Clear IWDGF counter
+	      debug[9] = 0; // Clear WWDGF counter
 	      update_debug_storage1();
 	      TRANSMIT_counter = 0;
 	      MQTT_resp_tout_counter = 0;
@@ -6957,7 +6849,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
             case 0x70: // Clear the "Reset Status Register" counters
 	      // Clear the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
 	      // These only display via the UART
-	      for (i = 5; i < 10; i++) debug[i] = 0;
+	      debug[5] = 0; // Clear EMCF counter
+	      debug[6] = 0; // Clear SWIMF counter
+	      debug[7] = 0; // Clear ILLOPF counter
+	      debug[8] = 0; // Clear IWDGF counter
+	      debug[9] = 0; // Clear WWDGF counter
 	      update_debug_storage1();
 	      // Show default page
 	      // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
@@ -7236,51 +7132,6 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
 #endif // PINOUT_OPTION_SUPPORT == 1
 
 
-/*
-// Deleting this command. This was used during development of the PCF8574 code
-// but is not needed for production code. The commands /00 through /55 do the
-// same thing and are consistent across STM8 and PCF8574 pins.
-#if PCF8574_SUPPORT == 1
-            case 0x83:
-	      // User entered output byte for the PCF8574
-	      // Allowed to enter one hex byte (00 to FF)
-	      // 
-              // Example URL command
-              //   192.168.1.182/8300 to write byte 00
-              //   192.168.1.182/83FF to write byte FF
-	      // An entry error will result discard of the command
-	      //
-
-// UARTPrintf("case 83\r\n");
-
-              {
-                uint8_t byte;
-		char hex_num[2];
-		// First character must be a hex digit
-		hex_num[0] = *pBuffer;
-		if (hex2int(*pBuffer) >= 0) {
-		  pBuffer++;
-		  hex_num[1] = *pBuffer;
-		  if (hex2int(*pBuffer) >= 0) {
-		    // Both characters are hex. Convert to an uint8_t
-                    byte = two_hex2int(hex_num[0], hex_num[1]);
-		    // If the hardware is present write to PCF8574
-		    if (stored_options1 & 0x08) {
-		      PCF8574_write(byte);
-		    }
-		  }
-		}
-	      }
-	      // Didn't break so far so parse was successful. Show IOControl
-	      // page.
-	      // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
-	      // will accomplish what we want which is to display the
-	      // IO_Control page.
-	      pSocket->ParseState = PARSE_FAIL;
-              break;
-#endif // PCF8574_SUPPORT == 1
-*/
-
             case 0x84:
 	      // User entered Short Form Option.
 	      // User may enter '+' or '-' to select how Disabled pins are
@@ -7326,11 +7177,57 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
               break;
               
               
+#if PCF8574_SUPPORT == 1
+	    case 0x85: // Force PCF8574 Pin Delete Msgs. Causes a reboot so
+	               // that the Home Assistant Auto Discovery processes
+		       // will run to generate the appropriate delete
+		       // messages over MQTT to Home Assistant.
+	      {
+	        uint8_t j;
+		int i;
+	        j = stored_options1;
+	        j |= 0x20;
+	        unlock_eeprom();
+	        stored_options1 = j;
+	        lock_eeprom();
+		
+                // Set all PCF8574 pins to Disabled
+		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+		// Note for future testing: I don't think it is necessary to
+		// set the Pending_pin_control and pin_control bytes here -
+		// it is only necessary to set the I2C_EEPROM bytes. Why?
+		// Because this command should only be run by the user when
+		// the PCF8574 has been removed. Code in main.c will not
+		// process the Pending_pin_control and pin_control bytes if
+		// the PCF8574 is absent. But a user_reboot_request is made
+		// here, and when the reboot is performed the code in main.c
+		// will update the Pending_pin_control and pin_control bytes
+		// with the content of the I2C_EEPROM.
+		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+                for (i = 16; i < 24; i++) {
+                  Pending_pin_control[i] &= 0xfc;
+                  pin_control[i] = Pending_pin_control[i];
+                }
+                I2C_control(I2C_EEPROM2_WRITE);
+                I2C_byte_address(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE, 2);
+                for (i=16; i<24; i++) {
+                  I2C_write_byte(pin_control[i]);
+                }
+                I2C_stop(); // Start the EEPROM internal write cycle
+                wait_timer(5000); // Wait 5ms
+	        user_reboot_request = 1;
+                GET_response_type = 204; // No return webpage
+	        break;
+	      }
+#endif // PCF8574_SUPPORT == 1
+              
+              
 	    case 0x91: // Reboot
 	      user_reboot_request = 1;
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-UARTPrintf("Received Get 91\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
               GET_response_type = 204; // No return webpage
 	      break;
 
@@ -8510,9 +8407,6 @@ UARTPrintf("Received Get 91\r\n");
 
 
     if (pSocket->nState == STATE_SENDHEADER200) {
-
-// UARTPrintf("HttpDCall: SENDHEADER200\r\n");
-
       // This step is usually entered after GET processing is complete in
       // order to send an appropriate web page in response to the GET request.
       // In the uip_send() call we provide the CopyHttpHeader function with
@@ -8526,9 +8420,6 @@ UARTPrintf("Received Get 91\r\n");
     }
       
     if (pSocket->nState == STATE_SENDHEADER204) {
-
-// UARTPrintf("HttpDCall: SENDHEADER204\r\n");
-
       // This step is entered after POST is complete.
       // This step is also entered after GET processing is complete if no
       // webpage reply is required.
@@ -8591,14 +8482,12 @@ UARTPrintf("Received Get 91\r\n");
   else if (uip_rexmit()) {
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// if (rexmit_count == 0) {
-// UARTPrintf("\r\n");
-// }
-// rexmit_count++;
-// UARTPrintf("Re-xmit count = ");
-// emb_itoa(rexmit_count, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
+if (rexmit_count == 0) UARTPrintf("\r\n");
+rexmit_count++;
+UARTPrintf("Re-xmit count = ");
+emb_itoa(rexmit_count, OctetArray, 10, 5);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
     if (pSocket->nPrevBytes == 0xFFFF) {
@@ -8765,18 +8654,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
   char local_buf[300];
   uint16_t local_buf_index_max;
 
-// UARTPrintf("parse_post: current_webpage = ");
-// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
   local_buf_index_max = 290;
-
-// UARTPrintf("\r\n");
-// UARTPrintf("pSocket->nState == STATE_PARSEPOST Parsing");
-// UARTPrintf("\r\n");
-// UARTPrintf("Parsing normal POST");
-// UARTPrintf("\r\n");
 
   // If we are continuing data collection due to a TCP Fragment parse_tail
   // will have any fragment of the previous POST in it. Otherwise
@@ -8806,14 +8684,6 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
         // If this is also the end of the POST (as indicated by parse_tail
         // equal to "&z00=0") then send the entire local_buf to parsing.
         // Parse the local_buf
-
-// UARTPrintf("parse_tail chk1: \r\n");
-// UARTPrintf(parse_tail);
-// UARTPrintf("\r\n");
-// UARTPrintf("End of POST: \r\n");
-// UARTPrintf(local_buf);
-// UARTPrintf("\r\n");
-
         parse_local_buf(pSocket, local_buf, strlen(local_buf));
         break;
       }
@@ -8846,14 +8716,6 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
           pSocket->nParseLeft--;
           
           // Parse the local_buf
-
-// UARTPrintf("parse_tail chk2: \r\n");
-// UARTPrintf(parse_tail);
-// UARTPrintf("\r\n");
-// UARTPrintf("local_buf: \r\n");
-// UARTPrintf(local_buf);
-// UARTPrintf("\r\n");
-
           parse_local_buf(pSocket, local_buf, strlen(local_buf));
           
           // Shift the content of parse_tail to eliminate the '&'
@@ -8881,14 +8743,6 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
       pSocket->nParseLeft--;
       
       // Parse the local_buf
-
-// UARTPrintf("parse_tail chk3: \r\n");
-// UARTPrintf(parse_tail);
-// UARTPrintf("\r\n");
-// UARTPrintf("local_buf: \r\n");
-// UARTPrintf(local_buf);
-// UARTPrintf("\r\n");
-
       parse_local_buf(pSocket, local_buf, strlen(local_buf));
       
       // Shift the content of parse_tail to eliminate the '&'
@@ -8924,11 +8778,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 {
   uint16_t lbi; // Local buffer index
   
-// UARTPrintf("parse_local_buf: current_webpage = ");
-// emb_itoa(pSocket->current_webpage, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-
   // This function will parse a POST sent by the user (usually when they
   // click on the "submit" button on a webpage). POST data will consist
   // of:
@@ -9015,10 +8864,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	//    a "H" if a IOControl for the PCF8574. If current_webpage is
 	//    WEBPAGE_NULL we set the current_webpage to WEBPAGE_IOCONTROL
 	//    if a 'h' value, OR WEBPAGE_PCF8574_IOCONTROL if a 'H' value.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	// c) The Configuration page starts with a 'a' value if a top level
 	//    Configuration page, OR it starts with a "A" value if a
 	//    Configuration for the PCF8574. Since the IOControl pages never
@@ -9039,14 +8884,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
           pSocket->nParseLeft = PARSEBYTES_PCF8574_CONFIGURATION;
 	}
 #endif // PCF8574_SUPPORT == 1
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("pSocket->current_webpage = ");
-// emb_itoa(pSocket->current_webpage, OctetArray, 10, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
 
         {
           int i;
@@ -9118,21 +8955,12 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	    case 'a':
 	    case 'A':
 	      memcpy(Pending_devicename, tmp_Pending, num_chars);
-// UARTPrintf("Pending_devicename: \r\n");
-// UARTPrintf(Pending_devicename);
-// UARTPrintf("\r\n");
 	      break;
 	    case 'l':
 	      memcpy(Pending_mqtt_username, tmp_Pending, num_chars);
-// UARTPrintf("Pending_mqtt_username: \r\n");
-// UARTPrintf(Pending_mqtt_username);
-// UARTPrintf("\r\n");
 	      break;
 	    case 'm':
 	      memcpy(Pending_mqtt_password, tmp_Pending, num_chars);
-// UARTPrintf("Pending_mqtt_password: \r\n");
-// UARTPrintf(Pending_mqtt_password);
-// UARTPrintf("\r\n");
 	      break;
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 	    case 'j':
@@ -9166,18 +8994,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
                   temp_byte[i] = I2C_read_byte(0);
                 }
                 temp_byte[15] = I2C_read_byte(1);
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("pSocket->ParseNum = ");
-// emb_itoa(pSocket->ParseNum, OctetArray, 10, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("  tmp_Pending = ");
-// UARTPrintf(tmp_Pending);
-// UARTPrintf("  temp_byte = ");
-// UARTPrintf(temp_byte);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
 	        if (strcmp(temp_byte, tmp_Pending) != 0) {
 	          // Name is not the same. Write the Pending name to the I2C
 		  // EEPROM.
@@ -9329,12 +9145,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	  Pending_config_settings = two_hex2int(local_buf[lbi], local_buf[lbi+1]);
 	  lbi +=2;
           pSocket->nParseLeft -= 2;
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf(">>>>>>>>>>>>>> parse POST Pending_config_settings = ");
-// emb_itoa(Pending_config_settings, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
         }
       }
 
@@ -9380,14 +9190,12 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	    }
 	    
             if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
-// UARTPrintf("Received Config Data\r\n");
               // Keep the ON/OFF bit as-is
               Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x80);
               // Mask out the ON/OFF bit in the temp variable
               k = (uint8_t)(k & 0x7f);
             }
             else {
-// UARTPrintf("Received IOControl Data\r\n");
               // current_webpage is WEBPAGE_IOCONTROL
               // Keep the configuration bits as-is
               Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x7f);
@@ -9445,28 +9253,14 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
               pSocket->current_webpage = WEBPAGE_PCF8574_IOCONTROL;
 	      pSocket->nParseLeft = PARSEBYTES_PCF8574_IOCONTROL;
 	    }
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("H pSocket->current_webpage = ");
-// emb_itoa(pSocket->current_webpage, OctetArray, 10, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
 	    
             if (pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION) {
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Received Config Data\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
               // Keep the ON/OFF bit as-is
               Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x80);
               // Mask out the ON/OFF bit in the temp variable
               k = (uint8_t)(k & 0x7f);
             }
             else {
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Received IOControl Data\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
               // current_webpage is WEBPAGE_IOCONTROL
               // Keep the configuration bits as-is
               Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x7f);
@@ -9477,10 +9271,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] | k);
             j++;
           }
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("H Pending_pin_control values received from Browser\r\n");
-// PCF8574_display_pin_control();
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
         }
       }
 #endif // PCF8574_SUPPORT == 1
@@ -9522,14 +9312,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
           pSocket->nParseLeft -= 2;
 	  // Store in Pending_IO_TIMER array
 	  Pending_IO_TIMER[pSocket->ParseNum] = temp;
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Pending_IO_TIMER = ");
-// emb_itoa(Pending_IO_TIMER[pSocket->ParseNum], OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
         }
       }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
@@ -9601,10 +9383,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
     parse_complete = 1;
     // Set nState to close the connection
     pSocket->nState = STATE_SENDHEADER204;
-// UARTPrintf("Pending_devicename = ");
-// UARTPrintf(Pending_devicename);
-// UARTPrintf("\r\n");
-// UARTPrintf("nParseLeft == 0. nState = STATE_SENDHEADER204.\r\n");
   }
 
   else {
@@ -9624,10 +9402,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
     // nParseLeft = 0.
     //
     uip_len = 0;
-// UARTPrintf("Pending_devicename = ");
-// UARTPrintf(Pending_devicename);
-// UARTPrintf("\r\n");
-// UARTPrintf("nParseLeft > 0. Continue parsing.\r\n");
   }
 }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD

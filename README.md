@@ -37,6 +37,8 @@ Feature Comparison of the MQTT and Browser builds:
 
 Short summary of recent history:
 
+April 16, 2023 - Addressed Issue #159 "Boot issue: Sometimes taking 60 to 120 seconds to stabilize the MQTT connection", Addressed Issue #167 "UIP Code Retransmission Timeout problem"
+
 March 28, 2023 - Addressed Issue #164 "When setting multiple outputs with /51, no status is sent back"
 
 March 25, 2023 - Addressed Issue #161 "URL ON/OFF Cmds not working right in Release 20230324 1435"

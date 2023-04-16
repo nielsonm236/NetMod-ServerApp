@@ -36,6 +36,8 @@ uint8_t t100ms_timer;         // MQTT_timer counter
 uint16_t second_toggle;       // MQTT timing: Used in developing a 1 second counter
 uint32_t second_counter;      // MQTT timing: 1 second counter
 
+uint16_t ms_counter;          // Free running ms counter
+
 void clock_init(void)
 {
   // Initialize clock speeds and timers
@@ -167,31 +169,21 @@ void clock_init(void)
   // The TIM4 counter can have a pre-scale value of 2 to the X power,
   // where X is 0 to 7.
 
+
   // Configure TIM1
   // TIM1 is being used as a simple counter, so most of its registers
-  // are not used. This will configure TIM1 to increment at ~1MHz and
-  // the counter will repeat every 1000 ticks, yielding a period of
-  // ~1ms.
-  //  TIM1_CR1 = 0x00;                      // Make sure TIM1 is disabled
-  //  TIM1_RCR = 0x00;                      // Make sure Repeat counter value is zero
-  //  TIM1_IER = 0x00;                      // Make sure interupts are disabled
-  //  TIM1_CNTRH=0;                         // Make sure timer is zero
-  //  TIM1_CNTRL=0;                         // Make sure timer is zero
-  
-//  TIM1_ARRH = (uint8_t)(0x03);  // Timing 1ms; Count to decimal
-//  TIM1_ARRL = (uint8_t)(0xE8);  //   1000 (0x03E8)
-//  TIM1_ARRH = (uint8_t)(0xFA);  // Timing 64ms; Count to decimal
-//  TIM1_ARRL = (uint8_t)(0x00);  //   64000 (0xFA00)
+  // are not used. This will configure TIM1 to increment at ~100KHz. The
+  // timer is stopped, reloaded, and restarted in the timer_update()
+  // function.
   TIM1_ARRH = (uint8_t)(0xFA);  // Timing 640ms; Count to decimal
   TIM1_ARRL = (uint8_t)(0x00);  //   64000 (0xFA00)
-//  TIM1_PSCRH = (uint8_t)(0x00); // 16MHz / (1+15) = 1MHz
-//  TIM1_PSCRL = (uint8_t)(0x0F); //   1us period
   TIM1_PSCRH = (uint8_t)(0x00); // 16MHz / (1+159) = 100KHz
   TIM1_PSCRL = (uint8_t)(0x9F); //   10us period
   TIM1_EGR = (uint8_t)0x01;     // Set UG bit to load the PSCR. The
                                 // bit is auto-cleared by hardware.
   TIM1_SR1 = (uint8_t)(~0x01);  // Clear the UIF (update interrupt flag)
   TIM1_CR1 |= 0x01;             // Enable the counter
+
 
   // Configure TIM2
   // Configure TIM2 to increment at 16MHz / 16384, yielding a 1.024 KHz
@@ -202,9 +194,6 @@ void clock_init(void)
   // account for that roll over.  
   TIM2_PSCR = (uint8_t)0x0e;	// Pre-scale divider is 2^14 = divide by 16384
                                 //   to provide an approximately 1ms period
-  // TIM2_PSCR = (uint8_t)0x04;	// Pre-scale divider is 2^4 = divide by 16 to
-                                //   provide an approximately 1us period
-  
   TIM2_CNTRH = (uint8_t)0x00;	// Clear counter High
   TIM2_CNTRL = (uint8_t)0x00;	// Clear counter Low
   // Enable TIM2
@@ -223,67 +212,23 @@ void clock_init(void)
   // Configure TIM3
   // Configure TIM3 to increment at close to 1,000,000 ticks per second
   // (1us per tick). The below will divide 16MHz by 16, yielding a 1MHz
-  // clock with a period of 1 us. See the wait_timer function.
-  TIM3_PSCR = (uint8_t)0x04; // Pre-scale divider is 2^4 = divide by 16
-  // Enable TIM3
-  TIM3_CR1 = (uint8_t)0x01;
-  // Set UG bit to load the PSCR. The bit is auto-cleared by hardware.
-  TIM3_EGR = (uint8_t)0x01;
-
-  periodic_timer = 0;      // Initialize periodic timer
-  mqtt_timer = 0;          // Initialize mqtt timer
-  t100ms_timer = 0;        // Initialize 100ms timer
-  arp_timer = 0;           // Initialize arp timer
-  second_toggle = 0;       // Initialize toggle for seconds counter
-  second_counter = 0;      // Initialize seconds counter
-}
-
-
-/*
-void timer_update(void)
-{
-  // This function is called by the main loop to maintain timers. This
-  // function increments timer counters as follows:
-  //   periodic_timer        increments once per 1ms
-  //   mqtt_timer            increments once per 1ms
-  //   arp_timer             increments once per 1ms
-  //   second_counter        increments once per second
-  // Functions using these timers will call the following functions to
-  // determine if the designated timeout has occurred:
-  //   periodic_timer_expired
-  //   mqtt_timer_expired
-  //   arp_timer_expired
-  // If an expiration has occurred the called function will reset the
-  // appropriate timer counter to start the next cycle. The second_timer runs
-  // 'forever' and tracking elapsed time is the responsibility of the external
-  // function using the counter.
-  //
-  // The timers use TIM1 to track time. TIM1 increments at 1MHz, and is
-  // configured to provide a UIF flag every 1ms.
+  // clock with a period of 1 us.
+  // Used as an inline wait function (see the wait_timer() function).
   
-  if (TIM1_SR1 & 0x01) {                // Signals the passage of 1 ms
-    TIM1_SR1 = (uint8_t)(~0x01);        // Clear the UIF (update interrupt flag)
-    
-    // Increment the timers every 1ms. Their respective "_expired"
-    // function calls will determine their timeout points.
-    periodic_timer++;
-    mqtt_timer++;
-    arp_timer++;
-    t100ms_timer++;
-    
-    // Update the second_counter. The second_counter is a 32 bit unsigned
-    // integer, so its lifetime is about 136 years if never power cycled - 
-    // essentially forever in this application.
-    if (second_toggle < 1000) {
-      second_toggle++;			// Increment second_toggle every 1ms
-    }
-    else {
-      second_toggle = 0;
-      second_counter++;			// Increment second_counter every 1 sec
-    }
-  }
+  TIM3_PSCR = (uint8_t)0x04; // Pre-scale divider is 2^4 = divide by 16
+  TIM3_CR1 = (uint8_t)0x01;  // Enable TIM3
+  TIM3_EGR = (uint8_t)0x01;  // Set UG bit to load the PSCR.
+  
+  periodic_timer = 0;        // Initialize periodic timer
+  mqtt_timer = 0;            // Initialize mqtt timer
+  t100ms_timer = 0;          // Initialize 100ms timer
+  arp_timer = 0;             // Initialize arp timer
+  second_toggle = 0;         // Initialize toggle for seconds counter
+  second_counter = 0;        // Initialize seconds counter
+  ms_counter = 0;            // Initialize free running ms counter
 }
-*/
+
+
 void timer_update(void)
 {
   // This function is called by the main loop to maintain timers. This
@@ -365,7 +310,14 @@ void timer_update(void)
   mqtt_timer = (uint8_t)(mqtt_timer + time_ms);
   arp_timer = (uint16_t)(arp_timer + time_ms);
   t100ms_timer = (uint8_t)(t100ms_timer + time_ms);
-    
+  
+  // Update the free running millisecond counter. This counter counts time in
+  // milliseconds and rolls over at 65535. Note that since timer_update() is
+  // not called every millisecond the content of the ms_counter can leap ahead,
+  // but the total count remains accurate.
+  ms_counter = (uint16_t)(ms_counter + time_ms);
+  
+  
   // Update the second_counter. The second_counter is a 32 bit unsigned
   // integer, so its lifetime is about 136 years if never power cycled - 
   // essentially forever in this application.
@@ -386,11 +338,12 @@ uint8_t periodic_timer_expired(void)
   // below "periodic_timer > X" where X indicates a value in milliseconds.
   // If expired the function resets the periodic_timer counter to zero so
   // that it can repeat its uptick.
-//  if (periodic_timer > 19) { // Produces HTML re-xmit errors and webpage
-                               // corruption.
-//  if (periodic_timer > 39) { // Produces fewer HTML re-xmit errors
-//  if (periodic_timer > 59) { // Produces fewer HTML re-xmit errors
-  if (periodic_timer > 79) { // Produces almost no HTML re-xmit errors
+  // Here the periodic_timer is set to expire at 20ms intervals. This was
+  // done to improve MQTT performance as much as possible, but it is
+  // consuming a lot of the processing bandwidth and may need to be
+  // slowed if problems are seen.
+  if (periodic_timer > 19) { // Produces HTML re-xmit errors and webpage
+                               // occasional corruption.
     periodic_timer = 0;
     return(1);
   }

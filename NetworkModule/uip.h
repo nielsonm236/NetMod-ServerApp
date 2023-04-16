@@ -881,6 +881,8 @@ struct uip_conn {
   uint8_t rto;           // Retransmission time-out.
   uint8_t tcpstateflags; // TCP state and flags.
   uint8_t timer;         // The retransmission timer.
+  uint16_t ms_tracker;   // Tracks time in milliseconds to service the retrans-
+                         // nmission timer.
   uint8_t nrtx;          // The number of retransmissions for the last segment sent.
 
   /** The application state. */
@@ -993,6 +995,15 @@ extern uint8_t uip_flags;
 
 #define UIP_TIMEDOUT  128
 /* The connection has been aborted due to too many retransmissions. */
+
+
+/* uint8_t timer_check(uint16_t ms_tracker)
+*
+* Determines if 1 second has passed for a given connection.
+*
+*/
+uint8_t timer_check(uint16_t ms_tracker);
+
 
 /* uip_process(flag):
  *

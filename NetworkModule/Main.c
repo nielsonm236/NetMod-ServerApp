@@ -36,7 +36,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20230326 0200"; // Normal Release Revision
+const char code_revision[] = "20230416 1116"; // Normal Release Revision
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -99,7 +99,7 @@ uint8_t stack_limit2;
 
 // 98 bytes used below
 @eeprom uint8_t stored_pin_control[16];    // Byte 83-98 Config settings for
-                                           // each IO pin
+                                           // each STM8 IO pin
 @eeprom uint8_t stored_config_settings;    // Byte 82
                                            // Bit 7: Undefined, 0 only
                                            // Bit 6: Undefined, 0 only
@@ -121,11 +121,13 @@ uint8_t stack_limit2;
 @eeprom uint8_t stored_unused5;            // Byte 79 unused
 @eeprom uint8_t stored_unused4;            // Byte 78 unused
 @eeprom uint8_t stored_unused3;            // Byte 77 unused
-@eeprom uint8_t stored_unused2;            // Byte 76 unused
-@eeprom char stored_mqtt_password[11];     // Byte 65 MQTT Password
-@eeprom char stored_mqtt_username[11];     // Byte 54 MQTT Username
+@eeprom uint8_t stored_rotation_ptr;       // Byte 76 rotation_ptr is used to
+                                           // select an alternate local MQTT
+					   // port number on successive boots
+@eeprom char stored_mqtt_password[11];     // Byte 65-75 MQTT Password
+@eeprom char stored_mqtt_username[11];     // Byte 54-64 MQTT Username
 @eeprom uint8_t stored_mqttserveraddr[4];  // Bytes 50-53 mqttserveraddr
-@eeprom uint16_t stored_mqttport;	   // Bytes 48-49 MQTT Port number
+@eeprom uint16_t stored_mqttport;	   // Bytes 48-49 MQTT Host Port number
 @eeprom uint8_t stored_magic4;	           // Byte 47 MSB Magic Number
 @eeprom uint8_t stored_magic3;             // Byte 46
 @eeprom uint8_t stored_magic2;             // Byte 45
@@ -140,7 +142,10 @@ uint8_t stack_limit2;
 @eeprom uint8_t stored_options1;           // Byte 21 Additional Options
                                            // Bit 7: Undefined, 0 only
                                            // Bit 6: Undefined, 0 only
-                                           // Bit 5: Undefined, 0 only
+                                           // Bit 5: Force PCF8574 pin
+					   //   delete messages
+					   //   0 = No action
+					   //   1 = Delete Pins
                                            // Bit 4: Short Form Option
 					   //   0 = Original format all '0'
 					   //       and '1'
@@ -352,18 +357,12 @@ uint16_t mqtt_keep_alive;             // Ping interval
 struct mqtt_client mqttclient;        // Declare pointer to the MQTT client
                                       // structure
 const char* client_id;                // MQTT Client ID
-// char client_id_text[26];              // Client ID comprised of text
-                                      // "NetworkModule" (13 bytes) and MAC
-				      // (12 bytes) and terminator (1 byte)
-				      // for a total of 26 bytes.
 uint8_t mqtt_start;                   // Tracks the MQTT startup steps
 uint8_t mqtt_start_ctr1;              // Tracks time for the MQTT startup
                                       // steps
 uint8_t verify_count;                 // Used to limit the number of ARP and
                                       // TCP verify attempts
 uint8_t mqtt_sanity_ctr;              // Tracks time for the MQTT sanity steps
-// uint8_t publish_outbound_throttle;    // A counter used to throttle the rate
-                                      // at which MQYY messages are sent.
 
 extern uint8_t mqtt_sendbuf[MQTT_SENDBUF_SIZE]; // Buffer to contain MQTT
                                       // transmit queue and data.
@@ -378,14 +377,6 @@ uint8_t mqtt_restart_step;            // Step tracker for restarting MQTT
 
 static const unsigned char devicetype[] = "NetworkModule/"; // Used in
                                       // building topic and client id names
-// unsigned char topic_base[55];         // Used for building connect, subscribe,
-                                      // and publish topic strings.
-				      // Longest string content:
-				      // NetworkModule/DeviceName123456789/availability
-				      // NetworkModule/DeviceName123456789/output/+/set
-				      // NetworkModule/DeviceName123456789/temp/xxxxxxxxxxxx
-				      // homeassistant/binary_sensor/macaddressxx/01/config
-				      // homeassistant/sensor/macaddressxx/xxxxxxxxxxxx/config
 uint8_t auto_discovery;               // Used in the Auto Discovery state machine
 uint8_t auto_discovery_step;          // Used in the Auto Discovery state machine
 uint8_t pin_ptr;                      // Used in the Auto Discovery state machine
@@ -406,12 +397,13 @@ uint8_t mqtt_start_status;            // Error (or success) status for startup
 uint8_t MQTT_error_status;            // For MQTT error status display in GUI
 uint8_t Pending_mqttserveraddr[4];    // Holds a new user entered MQTT Server
                                       // IP address
-uint16_t Pending_mqttport;            // Holds a new user entered MQTT Port
+uint16_t Pending_mqttport;            // Holds a new user entered MQTT Host Port
                                       // number
 char Pending_mqtt_username[11];       // Holds a new user entered MQTT username
 char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
-uint16_t mqttport;             	      // MQTT port number
-uint16_t Port_Mqttd;                  // In use MQTT port number
+uint16_t mqttport;             	      // MQTT host port number
+uint16_t mqtt_local_port;             // MQTT local port number
+uint16_t Port_Mqttd;                  // In use MQTT host port number
 
 
 
@@ -507,16 +499,6 @@ extern uint8_t I2C_PCF8574_1_WRITE_CMD; // Used to store the write command for
 				 // indicates no PCF devices were discovered.
 #endif // PCF8574_SUPPORT == 1
 
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-uint16_t debug_main_loop_start;
-uint16_t debug_main_loop_end;
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  
-
 
 //---------------------------------------------------------------------------//
 int main(void)
@@ -552,7 +534,7 @@ int main(void)
 #endif // IWDG_ENABLE
   
 #if BUILD_SUPPORT == MQTT_BUILD
-// Initialize MQTT variables
+  // Initialize MQTT variables
   mqtt_parse_complete = 0;
   mqtt_close_tcp = 0;
   mqtt_enabled = 0;                      // Initialized to 'disabled'
@@ -562,11 +544,20 @@ int main(void)
                                          // steps
   mqtt_sanity_ctr = 0;			 // Tracks time for the MQTT sanity
                                          // steps
-//  publish_outbound_throttle = 0;         // Counter used to throttle the rate
-                                         // of MQTT publish_outbound requests.
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
   state_request = STATE_REQUEST_IDLE;    // Set the state request received to
                                          // idle
+  // Increment the stored_rotation_ptr to be sure that we won't encounter the
+  // TCP connection TIME_WAIT issue in the MQTT server when reboot occurs.
+  {
+    uint8_t i;
+    unlock_eeprom();
+    i = stored_rotation_ptr;
+    if (i < 4) i++;
+    else i = 0;
+    stored_rotation_ptr = i;
+    lock_eeprom();
+  }
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
   // The following variables are only used for tracking MQTT startup status,
@@ -639,28 +630,16 @@ int main(void)
   InitializeUART();
   UARTPrintf("\r\n\r\n\r\n\r\n\r\nBooting Rev ");
   UARTPrintf(code_revision);
-  UARTPrintf("\r\n");
+  
+#if BUILD_TYPE_MQTT_STANDARD == 1 || BUILD_TYPE_BROWSER_STANDARD == 1 || BUILD_TYPE_MQTT_UPGRADEABLE == 1 || BUILD_TYPE_BROWSER_UPGRADEABLE == 1
+  UARTPrintf("   MQTT or BROWSER\r\n");
+#endif // BUILD_TYPE_MQTT_STANDARD == 1 || BUILD_TYPE_BROWSER_STANDARD == 1 || BUILD_TYPE_MQTT_UPGRADEABLE == 1 || BUILD_TYPE_BROWSER_UPGRADEABLE == 1
+
+#if BUILD_TYPE_CODE_UPLOADER == 1
+  UARTPrintf("   Code Uploader\r\n");
+#endif // BUILD_TYPE_CODE_UPLOADER == 1
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("STM8 pin_control[] after initialize UART\r\n");
-// STM8_display_pin_control();
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-#if PCF8574_SUPPORT == 1
-// UARTPrintf("PCF8574 pin_control[] after initialize UART\r\n");
-// PCF8574_display_pin_control();
-#endif // PCF8574_SUPPORT == 1
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Configuration byte at boot time = ");
-// emb_itoa(stored_config_settings, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
   spi_init();              // Initialize the SPI bit bang interface to the
                            // ENC28J60 and perform hardware reset on ENC28J60
@@ -743,14 +722,6 @@ int main(void)
     // A PCF8574 or PCF8574A was found as indicated by a non-zero value in
     // variable I2C_PCF8574_1_WRITE_CMD after running PCF8574_init().
     // Update the stored_options1 byte in EEPROM.
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Main - Found PCF8574 at ");
-// emb_itoa(I2C_PCF8574_1_WRITE_CMD, OctetArray, 16, 2);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
     {
       uint8_t j;
       j = stored_options1;
@@ -763,11 +734,10 @@ int main(void)
     }
   }
   else {
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("Main - DID NOT FIND PCF8574\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+    // No PCF8574 was found
     {
       uint8_t j;
+      int i;
       j = stored_options1;
       if ((j & 0x08) == 0x08) {
         j &= (uint8_t)(~0x08);
@@ -834,6 +804,14 @@ int main(void)
 #endif // TEMP_DEBUG_EXCLUDE == 0
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
+#if DEBUG_SUPPORT != 11
+UARTPrintf("stored_options1 at boot = ");
+emb_itoa(stored_options1, OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
+
+
 
 #if OB_EEPROM_SUPPORT == 1
   // Verify that I2C EEPROM(s) exist.
@@ -874,7 +852,7 @@ int main(void)
 // Call the httpd_diagnotic() to verify that the content of the String file
 // is correct. The UART must be enabled for this to work.
 #if HTTPD_DIAGNOSTIC_SUPPORT == 1
-httpd_diagnostic();
+  httpd_diagnostic();
 #endif // HTTPD_DIAGNOSTIC_SUPPORT == 1
 
 
@@ -977,18 +955,6 @@ httpd_diagnostic();
     // occupies processing and buffer memory in addition to the genuine
     // application traffic of interest.
 
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("second_counter = ");
-// emb_itoa(second_counter, OctetArray, 10, 8);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
     uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
 
     if (uip_len > 0) {
@@ -1062,21 +1028,23 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
     //   And MQTT startup is complete
     //     Then check for pin state change messages that need to be
     //     published
-    // Note that publish_outbound only places the message in the mqtt_sendbuf
-    // queue, then uip_periodic() will cause the actual transmission at X ms
-    // intervals - see timer.c
     // Also
     //   Increment the MQTT timers every 50ms
     if (mqtt_timer_expired()) {
       if (mqtt_enabled) {
         if (mqtt_start == MQTT_START_COMPLETE) {
-	  // publish_outbound() is called to send pin_control state change
-	  // PUBLISH messages.
+	  // publish_outbound() is called to check for any pending pin or
+	  // temperature state changes that need to be PUBLISHed via MQTT.
+	  // publish_outbound will place PUBLISH messages in the MQTT sendbuf
+	  // one per call, and only if the sendbuf is empty.
 	  publish_outbound();
 	  // Call the periodic_service() function to clear out the MQTT
 	  // traffic just now placed in the uip_buf. Even though there is
 	  // a periodic_service() call in the main loop we don't want to
-	  // wait for its timer to expire for MQTT service.
+	  // wait for its timer to expire for MQTT service. Experience has
+	  // shown that failing to do the periodic_serivce() call here
+	  // causes loss of MQTT messages and in some cases MQTT errors
+	  // and TCP resets.
 	  periodic_service();
 	}
         mqtt_start_ctr1++; // Increment the MQTT start loop timer 1. This is
@@ -1122,15 +1090,13 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
     // user specified file after the file is copied to the I2C EEPROM.
     // The request is also generated if the user presses the Restore button
     // (generating a /73 command) while in the Uploader GUI.
-    // Block the request if no I2C EEPROM was detected or if an error occurred
-    // during SREC download.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_WAIT;
       check_I2C_EEPROM_ctr = t100ms_ctr1;
     }
-    // Give main loop 500ms for browser update
+    // Give main loop 1000ms for browser update
     if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_WAIT) &&
-        (t100ms_ctr1 > (check_I2C_EEPROM_ctr + 5))) {
+        (t100ms_ctr1 > (check_I2C_EEPROM_ctr + 10))) {
       unlock_flash();
       // eeprom_copy_to_flash will cause a reboot on completion of the
       // function.
@@ -1163,14 +1129,13 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
     // Check for a request to copy the I2C EEPROM1 to Flash. The request
     // is generated when the user inputs a /72 command to start the Code
     // Uploader.
-    // Block the request if no I2C EEPROM was detected.
     if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_REQUEST) {
       eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_WAIT;
       check_I2C_EEPROM_ctr = t100ms_ctr1;
     }
-    // Give main loop 500ms for browser update
+    // Give main loop 1000ms for browser update
     if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_WAIT) &&
-        (t100ms_ctr1 > (check_I2C_EEPROM_ctr + 5))) {
+        (t100ms_ctr1 > (check_I2C_EEPROM_ctr + 10))) {
       unlock_flash();
       // eeprom_copy_to_flash will cause a reboot on completion of the
       // function.
@@ -1249,27 +1214,7 @@ debug_main_loop_start = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
     // reset button or generated by the user making changes in the GUI that
     // require a restart or reboot.
     check_restart_reboot();
-
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// debug_main_loop_end = ((uint16_t)TIM2_CNTRH << 8) | (uint8_t)TIM2_CNTRL;
-//
-// UARTPrintf("Main Loop Time = ");
-// emb_itoa((uint16_t)(debug_main_loop_end - debug_main_loop_start), OctetArray, 10, 8);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-//
-// if ((debug_main_loop_end - debug_main_loop_start) > 80) {
-//   UARTPrintf("Main Loop Time = ");
-//   emb_itoa((uint16_t)(debug_main_loop_end - debug_main_loop_start), OctetArray, 10, 8);
-//   UARTPrintf(OctetArray);
-//   UARTPrintf("\r\n");
-//   UARTPrintf("EXCESSIVE TIME IN LOOP XXXXXXXXXXXXXXXXXXXXXX\r\n");
-// }
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
   }
-
   return 0;
 }
 
@@ -1310,13 +1255,7 @@ void periodic_service(void)
     // find that an ARP request is needed. The SYN will be replaced with
     // an ARP request, and on a future cycle through this routine the
     // SYN will be sent IF the ARP request was successful.
-    // 
-    // Note: From time to time I see a lot of re-xmit attempts with the
-    // Browser interface. This doesn't seem to hurt anything so far, but
-    // it does slow down painting of a Browser page. I suspect the
-    // timeout for uip_periodic() may be too short. On the otherhand,
-    // shorter is better for servicing MQTT. So, it is a compromise but
-    // might need examination in the future it it become problematic.
+    
     if (uip_len > 0) {
       uip_arp_out(); // Verifies arp entry in the ARP table and builds
                      // the LLH
@@ -1456,33 +1395,6 @@ void copy_code_uploader_to_EEPROM1(void)
     }
     I2C_stop();
     wait_timer(5000); // Wait 5ms
-    
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // So ... I copy the Code Uploader to I2C EEPROM1. But then in the code
-    // below, while the comment says "validate data", all that happens is
-    // the I2C EEPROM is read. No compare, and no means of notifying the
-    // user if there is a problem.
-    // For now I will comment out the read code below, but leave it here in
-    // case it can be utilized somehow to provide a real validation and
-    // notification to the user.
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-/*
-    // Validate data in I2C EEPROM
-    flash_ptr -= 128;
-    prep_read(I2C_EEPROM1_WRITE, I2C_EEPROM1_READ, address_index, 2);
-    I2C_last_flag = 0;
-    for (i=0; i<128; i++) {
-      if (i == 127) I2C_last_flag = 1;
-      temp_byte = I2C_read_byte(I2C_last_flag);
-      flash_ptr++;
-    }
-*/
-
     address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
@@ -1519,33 +1431,6 @@ void copy_flash_to_EEPROM0(void)
     }
     I2C_stop();
     wait_timer(5000); // Wait 5 ms
-    
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // So ... I copy the Runtime code to I2C EEPROM0. But then in the code
-    // below, while the comment says "validate data", all that happens is
-    // the I2C EEPROM is read. No compare, and no means of notifying the
-    // user if there is a problem.
-    // For now I will comment out the read code below, but leave it here in
-    // case it can be utilized somehow to provide a real validation and
-    // notification to the user.
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-/*
-    // Validate data in I2C EEPROM
-    flash_ptr -= 128;
-    prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, address_index, 2);
-    I2C_last_flag = 0;
-    for (i=0; i<128; i++) {
-      if (i == 127) I2C_last_flag = 1;
-      temp_byte = I2C_read_byte(I2C_last_flag);
-      flash_ptr++;
-    }
-*/
-    
     address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
@@ -1631,9 +1516,6 @@ void mqtt_startup(void)
   switch(mqtt_start)
   {
   case MQTT_START_TCP_CONNECT:
-//    if (mqtt_start_ctr1 > 20) { // wait 1 second before starting this process
-//    if (mqtt_start_ctr1 > 200) { // wait 10 seconds before starting this process
-    
     // When first powering up or on a reboot we need to initialize the MQTT
     // processes.
     //
@@ -1644,11 +1526,56 @@ void mqtt_startup(void)
     // uip_periodic will determine that the connection request is queued,
     // will perform an ARP request to determine the MAC of the MQTT server,
     // and will then send the SYN to start the connection process.
-    mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, Port_Mqttd);
+    //
+    // This is the uip_connect() call when the code used the same MQTT port
+    // number for the host port and the local port. This appeared to be
+    // causing problems when reboots occurred, particularly if multiple
+    // Reboot or Save calls were needed for MQTT settings.
+    //    mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, Port_Mqttd);
     
+    // Following is a fix applied to perform a rotation through multiple
+    // port numbers for the MQTT local port:
+    // This is the only place that uip_connect() is called.
+    // uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
+    // Here the local port is rotated with each boot to avoid the TIME_WAIT
+    // process in the MQTT server that can delay a TCP reconnect by up to
+    // 4 minutes (typically 2 minutes in Windows and 1 minute in Linux). This
+    // rotation is transparent to users but important for Developers to be
+    // aware of. The local MQTT port numbers are all from the IANA unreserved
+    // range of ports. There could still be in a conflict in the network with
+    // some other application using a selected port number. If that happens
+    // an MQTT error should result (detected in mqtt_sanity_check()), which in
+    // turn should cause a restart of the MQTT functions and selection of a
+    // new alternate port.
+    // The IANA non-reserved (aka Dynamic or Private) port rande is 49152 -
+    // 65535. Any port in this range should be useable for this application,
+    // but it may make some sense to select ports that have some distance
+    // between them to avoid encountering some other application that utilizes
+    // a cluster of ports. The selections made here are arbitraty and can be
+    // changed in the future as needed.
+    // Use the stored_rotation_ptr to select a local MQTT port.
+    {
+      mqtt_local_port = 49193;
+      switch (stored_rotation_ptr)
+      {
+	case 0: mqtt_local_port = ALTERNATE_PORT00; break;
+	case 1: mqtt_local_port = ALTERNATE_PORT01; break;
+	case 2: mqtt_local_port = ALTERNATE_PORT02; break;
+	case 3: mqtt_local_port = ALTERNATE_PORT03; break;
+	case 4: mqtt_local_port = ALTERNATE_PORT04; break;
+      }
+      mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, mqtt_local_port);
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+UARTPrintf("mqtt_local_port = ");
+emb_itoa(mqtt_local_port, OctetArray, 10, 5);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+    }
+
     if (mqtt_conn != NULL) {
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-UARTPrintf("Good mqtt_conn status\r\n");
+// UARTPrintf("Good mqtt_conn status\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       verify_count = 0; // Clear the ARP verify count
@@ -1658,7 +1585,6 @@ UARTPrintf("Good mqtt_conn status\r\n");
     else {
       mqtt_start_status |= MQTT_START_CONNECTIONS_ERROR;
     }
-//    }
     break;
       
   case MQTT_START_VERIFY_ARP:
@@ -1667,16 +1593,6 @@ UARTPrintf("Good mqtt_conn status\r\n");
       // ARP request completed.
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       verify_count++; // Increment the ARP verify count
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("VERIFY_ARP mqtt_start_ctr1 = ");
-// emb_itoa(mqtt_start_ctr1, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   VERIFY_ARP verify_count (max 50) = ");
-// emb_itoa(verify_count, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
       // ARP Request and TCP Connection request were sent to the MQTT Server
       // as a result of the uip_connect() in the prior step. Now we loop and
@@ -1706,17 +1622,7 @@ UARTPrintf("MQTT ARP Verified\r\n");
   case MQTT_START_VERIFY_TCP:
     if (mqtt_start_ctr1 > 6) {
       mqtt_start_ctr1 = 0; // Clear 50ms counter
-      verify_count++; // Increment the TCP verify count
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("VERIFY_TCP mqtt_start_ctr1 = ");
-// emb_itoa(mqtt_start_ctr1, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("VERIFY_TCP verify_count (max 16) = ");
-// emb_itoa(verify_count, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+      verify_count++; // Increment the TCP verify count every 300ms
 
       // Loop to make sure the TCP connection request was successful. We're
       // waiting for the SYNACK/ACK process to complete (checking each 300ms).
@@ -1724,6 +1630,7 @@ UARTPrintf("MQTT ARP Verified\r\n");
       // When uip_periodic() runs it calls the uip_process() to receive the
       // SYNACK and then send the ACK. We will know the ACK was sent when we
       // see the UIP_ESTABLISHED state for the mqtt connection.
+      
       if ((mqtt_conn->tcpstateflags & UIP_TS_MASK) == UIP_ESTABLISHED) {
         mqtt_start_ctr1 = 0; // Clear 50ms counter
         mqtt_start_status |= MQTT_START_TCP_CONNECT_GOOD;
@@ -1732,65 +1639,18 @@ UARTPrintf("MQTT ARP Verified\r\n");
 UARTPrintf("MQTT TCP Verified\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       }
-//      if (verify_count > 16) { // 4.8 seconds
-      if (verify_count > 32) { // 9.6 seconds. This needs to be longer than the
-                               // RTO timeout in the uip.c code which is
-			       // (48 + 24 + 12 + 6 + 3) x uip_periodic_expired()
-//      if (verify_count > 50) { // 15 seconds
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-UARTPrintf("MQTT TCP wait timed out\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-        // Wait up to 4.8 seconds for the TCP connection to complete. If not
-        // completed we probably have a network problem.  Try again with a
-        // new uip_connect().
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX	
-	// I WONDER IF SOMETHING NEEDS TO BE DONE HERE TO CLEAN UP THE
-	// ATTEMPTED CONNECTION WITH THE BROKER. FORCE A RESET? Or abort?
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      if (verify_count > 166) { // 50 seconds.
+        // This needs to be longer than the RTO timeout in the uip.c code
+	// which is initially 3 seconds but can gradually increase to 48
+	// seconds before a connection abort occurs.
+        // If the connection does not complete we probably have a network
+	// problem.  Try again with a new uip_connect().
         mqtt_start = MQTT_START_TCP_CONNECT;
-//        mqtt_start_ctr1 = 0; // Clear 50ms counter
-//        mqtt_start = MQTT_START_UIP_CONNECT_CLEANUP1;
         // Clear the error indicator flags
         mqtt_start_status = MQTT_START_NOT_STARTED;
       }
     }
     break;
-
-
-
-
-
-/*
-    case MQTT_START_UIP_CONNECT_CLEANUP1:
-      if (mqtt_start_ctr1 > 3) { // Wait at least 200ms
-        // Disconnect the MQTT client - NOT SURE IF THIS CAN BE DONE AS
-	// MQTT CONNECT HASN'T RUN.
-        mqtt_disconnect(&mqttclient);
-
-        mqtt_start_ctr1 = 0; // Clear 50ms counter
-        mqtt_start = MQTT_START_UIP_CONNECT_CLEANUP2;
-      }
-      break;
-
-    case MQTT_START_UIP_CONNECT_CLEANUP2:
-      if (mqtt_start_ctr1 > 3) { // Wait at least 200ms
-        // Signal uip_TcpAppHubCall() to close the MQTT TCP connection
-        mqtt_close_tcp = 2;
-        mqtt_start_ctr1 = 0; // Clear 50ms counter
-        mqtt_start = MQTT_START_TCP_CONNECT;
-      }
-      break;
-*/
-
-
-
-
-
-
 
 
   case MQTT_START_MQTT_INIT:
@@ -1865,23 +1725,9 @@ UARTPrintf("MQTT TCP wait timed out\r\n");
     // A workaround is implemented with the global variable connack_received so
     // that the mqtt.c code can tell the main.c code that the CONNECT CONNACK
     // was received.
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    // On reboot I sometimes see that we get to this point, a Connack is
-    // sent to us, but we don't get a connack_received from the mqtt code.
-    // I suspect the problem is that I'm not shutting down the mqtt code
-    // properly, and the process steps here are seen as an error of some
-    // kind. When this happens a timeout occurs below, and the next pass is
-    // always successful. There must be a better solution. NEED TO COME BACK
-    // TO THIS. Maybe look more closely at the state of mqtt variables on
-    // a clean start vs a reboot.
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
     if (mqtt_start_ctr1 < 200) {
       // Allow up to 10 seconds for CONNACK
-// UARTPrintf("VERIFY_CONNACK mqtt_start_ctr1 = ");
-// emb_itoa(mqtt_start_ctr1, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
       if (connack_received) {
         mqtt_start_ctr1 = 0; // Clear 50ms counter
         mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
@@ -1900,6 +1746,7 @@ UARTPrintf("MQTT TCP wait timed out\r\n");
   case MQTT_START_QUEUE_SUBSCRIBE2:
   case MQTT_START_QUEUE_SUBSCRIBE3:
     if (mqtt_start_ctr1 > 4) {
+//    if (mqtt_start_ctr1 > 2) {
       // Queue the mqtt_subscribe messages for transmission to the MQTT
       // Broker.
       // Wait 200ms before queueing first Subscribe msg.
@@ -1960,10 +1807,6 @@ UARTPrintf("MQTT TCP wait timed out\r\n");
 
     if (mqtt_start_ctr1 < 200) {
       // Allow up to 10 seconds for SUBACK
-// UARTPrintf("VERIFY_SUBSCRIBE mqtt_start_ctr1 = ");
-// emb_itoa(mqtt_start_ctr1, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
       if (suback_received == 1) {
         mqtt_start_ctr1 = 0; // Clear 50ms counter
         if (mqtt_start == MQTT_START_VERIFY_SUBSCRIBE1) mqtt_start = MQTT_START_QUEUE_SUBSCRIBE2;
@@ -1994,9 +1837,6 @@ UARTPrintf("MQTT TCP wait timed out\r\n");
 
   case MQTT_START_QUEUE_PUBLISH_AUTO:
     if (mqtt_start_ctr1 > 2) {
-#if DEBUG_SUPPORT != 11
-UARTPrintf("Auto Disc\r\n");
-#endif // DEBUG_SUPPORT != 11
       // Publish Home Assistant Auto Discovery messages
       // This part of the state machine runs only if Home Assistant Auto
       // Discovery is enabled.
@@ -2125,8 +1965,10 @@ UARTPrintf("Auto Disc\r\n");
 	    if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-	    if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
-	     || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
+            // if no PCF8574 exit the loop when pin_ptr == 16
+	    // if PCF8574 is present exit the loop when pin_ptr ==24
+	    if ((((stored_options1 & 0x08) == 0x00) && (pin_ptr == 16))
+	     || (((stored_options1 & 0x08) == 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	      pin_ptr = 1;
               auto_discovery = DEFINE_OUTPUTS;
@@ -2143,8 +1985,10 @@ UARTPrintf("Auto Disc\r\n");
 	  if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-	  if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
-	   || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
+          // if no PCF8574 exit the loop when pin_ptr == 16
+	  // if PCF8574 is present exit the loop when pin_ptr ==24
+	  if ((((stored_options1 & 0x08) == 0x00) && (pin_ptr == 16))
+	   || (((stored_options1 & 0x08) == 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	    pin_ptr = 1;
             auto_discovery = DEFINE_OUTPUTS;
@@ -2177,8 +2021,10 @@ UARTPrintf("Auto Disc\r\n");
 	    if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-	    if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
-	     || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
+            // if no PCF8574 exit the loop when pin_ptr == 16
+	    // if PCF8574 is present exit the loop when pin_ptr ==24
+	    if ((((stored_options1 & 0x08) == 0x00) && (pin_ptr == 16))
+	     || (((stored_options1 & 0x08) == 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	      pin_ptr = 1;
               auto_discovery = DEFINE_DISABLED;
@@ -2193,8 +2039,10 @@ UARTPrintf("Auto Disc\r\n");
 	  if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-	  if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
-	   || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
+          // if no PCF8574 exit the loop when pin_ptr == 16
+	  // if PCF8574 is present exit the loop when pin_ptr ==24
+	  if ((((stored_options1 & 0x08) == 0x00) && (pin_ptr == 16))
+	   || (((stored_options1 & 0x08) == 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	    pin_ptr = 1;
             auto_discovery = DEFINE_DISABLED;
@@ -2207,6 +2055,15 @@ UARTPrintf("Auto Disc\r\n");
       else if (auto_discovery == DEFINE_DISABLED) {
         if ((pin_control[pin_ptr - 1] & 0x03) == 0x00) {
 	  // Pin is Disabled
+#if DEBUG_SUPPORT != 11
+UARTPrintf("DEFINE_DISABLED - pin is disabled - pin = ");
+emb_itoa(pin_ptr, OctetArray, 10, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("   stored_options1 = ");
+emb_itoa(stored_options1, OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT != 11
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
             send_IOT_msg(pin_ptr, INPUTMSG, DELETE_IOT);
@@ -2221,8 +2078,29 @@ UARTPrintf("Auto Disc\r\n");
 	    if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-	    if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
-	     || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
+            // A special case is needed here when the user requests that
+	    // PCF8574 pins be deleted during Home Assistant Auto
+	    // Discovery. If PCF8574 hardware was being used but then is
+	    // removed the code will think it is a 16 pin system, and since
+	    // the firmware has no memory that a PCF8547 ever existed it
+	    // does not send pin delete messages for the now missing PCF8574.
+	    // The user may want it to work that way because the user might
+	    // be planning to reconnect the PCF8574. Howerver, if the user
+	    // does not plan to reconnect the PCF8574 they can use the URL
+	    // /85 command to force the code to send pin delete messages to
+	    // Home Assistant to clean up the HA GUI. If the user uses the
+	    // URL /85 command bit 0x20 in stored_options1 will be set and a
+	    // reboot is executed. If the code below finds the bit set it will
+	    // cause the delete messages to be generated, then the bit is
+	    // cleared.
+	    
+            // if no PCF8574 exit the loop when pin_ptr == 16
+	    // if PCF8574 is present exit the loop when pin_ptr ==24
+	    // if the "force PCF8574 pin disable" bit is set exit the loop
+	    //   when pin_ptr == 24
+	    if ((((stored_options1 & 0x28) == 0x00) && (pin_ptr == 16))
+	     || (((stored_options1 & 0x08) == 0x08) && (pin_ptr == 24))
+	     || (((stored_options1 & 0x20) == 0x20) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
               auto_discovery = DEFINE_TEMP_SENSORS;
 	    }
@@ -2237,8 +2115,13 @@ UARTPrintf("Auto Disc\r\n");
 	  if (pin_ptr == 16) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-	  if ((!(stored_options1 & 0x08) && (pin_ptr == 16))
-	   || ((stored_options1 & 0x08) && (pin_ptr == 24))) {
+          // if no PCF8574 exit the loop when pin_ptr == 16
+	  // if PCF8574 is present exit the loop when pin_ptr ==24
+	  // if the "force PCF8574 pin disable" bit is set exit the loop when
+	  //   pin_ptr == 24
+	  if ((((stored_options1 & 0x28) == 0x00) && (pin_ptr == 16))
+	   || (((stored_options1 & 0x08) == 0x08) && (pin_ptr == 24))
+	   || (((stored_options1 & 0x20) == 0x20) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
 	    auto_discovery = DEFINE_TEMP_SENSORS;
 	  }
@@ -2265,8 +2148,17 @@ UARTPrintf("Auto Disc\r\n");
 
       mqtt_start_ctr1 = 0; // Clear the 50ms counter
       if (auto_discovery == AUTO_COMPLETE) {
+        uint8_t j;
         auto_discovery_step = STEP_NULL;
         mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+	// Clear the PCF8574 "force pin delete" indicator if it is set
+	if ((stored_options1 & 0x20) == 0x20) {
+	  j = stored_options1;
+	  j &= 0xdf; // 11011111
+	  unlock_eeprom();
+	  stored_options1 = j;
+	  lock_eeprom();
+	}
       }
     }
     break;
@@ -2342,10 +2234,6 @@ void define_temp_sensors(void)
   // If there is at least one sensor detetected numROMs will be zero or
   // greater. In that case send the sensor definition as a Config message.
 
-#if DEBUG_SUPPORT != 11
-UARTPrintf("define_temp_sensors\r\n");
-#endif // DEBUG_SUPPORT != 11
-
   if (stored_config_settings & 0x08) {
     if (sensor_number <= (numROMs)) {
       // If the test is true Temperature Sensors are enabled and a sensor is
@@ -2371,22 +2259,21 @@ void define_BME280_sensors(void)
 {
   // This function is called from the mqtt_startup function when
   //   auto_discovery == DEFINE_BME280_SENSORS
-  // This function is part of the state machine contained within the
-  // mqtt_startup and will manipulate the following state machine controls:
+  // This function is part of the state machine contained within mqtt_startup
+  // and will manipulate the following state machine controls:
   //   auto_discovery_step = SEND_TEMP_SENSOR_DEFINE  
   // When complete this function will set
   //   auto_discovery = AUTO_COMPLETE
   //
-  // Unlike the DS18B20 sensors (which are connected to IO Pin 16), the
-  // BME280 sensors are connected via I2C. The BME280 sensor provides a
-  // temperature, pressure, and humidity value.
+  // Unlike the DS18B20 sensors (which are connected to IO Pin 16), the BME280
+  // sensors are connected via I2C. The BME280 sensor provides a temperature,
+  // pressure, and humidity value.
   //
   // If BME280 sensors are enabled, this routine will send a separate define
   // msg for the temperature, pressure, and humidity sensor in the BME280.
-  // Note that the
-  // send_IOT_msg() routine which is called from this routine will abort
-  // sending a msg if the Sensor ID is 000000 (which
-  // indicates no sensor is present).
+  // Note that the send_IOT_msg() routine which is called from this routine
+  // will abort sending a msg if the Sensor ID is 000000 (which indicates no
+  // sensor is present).
   
   // Create temperature sensor define msg.
   // If temp sensors are not enabled we will not create a Config message.
@@ -2595,9 +2482,9 @@ void mqtt_sanity_check(struct mqtt_client *client)
       client->number_of_timeouts = 0;
       MQTT_resp_tout_counter++;
 
-// #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 // UARTPrintf("mqtt_sanity_check Response Timeout\r\n");
-// #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -2611,9 +2498,9 @@ void mqtt_sanity_check(struct mqtt_client *client)
      && mqtt_conn->tcpstateflags == UIP_CLOSED) {
       MQTT_broker_dis_counter++;
 
-// #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 // UARTPrintf("mqtt_sanity_check Broker Disconnect\r\n");
-// #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -2721,122 +2608,120 @@ void mqtt_sanity_check(struct mqtt_client *client)
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
-//---------------------------------------------------------------------------//
-  // Note that the original LiamBindle MQTT-C code relied on Linux or
-  // Microsoft OS processes to provide Link Level, IP, and TCP processing of
-  // received and transmitted packets (via a Socket). In this bare metal
-  // application the UIP code provides that processing.
-  //
-  // Before making an mqtt connection we need the equivalent of an OS "open a
-  // socket" to the MQTT Server. This is essentially an ARP request
-  // associating the MQTT Server IP Address (which we got from GUI input)
-  // with the MQTT Server MAC Address, followed by creating a TCP Connection
-  // (via uip_connect()).
-  //
-  // For reference: In the HTTP IO process "opening a socket" occurs in the
-  // uip_input and uip_arpin functions. HTTP has the notion that a browser
-  // makes a request, and the web server replies to that request, always in a
-  // one-to-one relationship. When a browser on a remote host makes a request
-  // to our IP address the remote host performs an ARP request (which we
-  // process via the uip_arp_arpin() function). Net result is that this
-  // establishes the equivalent of a "socket" with the web server on our
-  // device. Subsequent browser requests cause the uip_input() function to
-  // extract the IP Addresses and Port Numbers for the HTTP transaction
-  // source and destination and uses those to form the needed IP and TCP
-  // headers for any transmission that needs to occur. Next the uip_arp_out
-  // function is called to form a LLH header (containing the source and
-  // destination MAC addresses) for the packet to be transmitted.
-  // 
-  // The bare metal UIP application uses the same buffer for receive and
-  // transmit data (the uip_buf). But the original LiamBindle MQTT-C
-  // application expects an independent transmit buffer where it maintains
-  // transmit queueing information AND its transmit data. The MQTT transmit
-  // buffer (mqtt_sendbuf) retains transmitted messages (queue info + data)
-  // for a short time in case error recovery needs to re-transmit it. When it
-  // is time to actually transmit data from the mqtt_sendbuf the data is
-  // copied to the uip_buf, uip_len is set > 0, and the UIP code will perform
-  // the transmission as part of the uip_periodic function.
-  //
-  // The only messages that must be retained in the mqtt_sendbuf are the
-  // CONNECT, SUBSCRIBE, and PINGREQ messages.
-  // Since the CONNECT and SUBSCRIBE messages are only sent by the mqtt_startup
-  // state machine we can carefully manage that state machine to make sure the
-  // ACK for each of those messages is received before continuing the state
-  // machine. This means that the only messages that will be retained in the
-  // mqtt_sendbuf during normal operation are the PINGREQ messages. PINGREQ
-  // messages are only two bytes long. So, we can minimize the size of the
-  // mqtt_sendbuf to the point that only a 2 byte message and the longest of
-  // any other MQTT transmit message will fit.
-  //
-  // The mqtt_sendbuf always starts with a 12 byte Message Queue structure.
-  // 
-  // PINGREQ Msg (in the mqtt_sendbuf)
-  //   Fixed Header 2 bytes
-  //   Queued Message Header 11 bytes
-  //   Total: 13 bytes
-  //
-  // Output PUBLISH Msg (in the mqtt_sendbuf)
-  //   Fixed Header 2 bytes
-  //   Variable Header 47 bytes
-  //     Topic NetworkModule/DeviceName012345678/output/xx 43 bytes
-  //     Topic Length 2 bytes
-  //     Packet ID 2 bytes
-  //   Queued Message Header 11 bytes
-  //   Total: 60 bytes
-  //
-  // Temperature PUBLISH Msg (in the mqtt_sendbuf)
-  //   Fixed Header 2 bytes
-  //   Variable Header 51 bytes
-  //     Topic NetworkModule/DeviceName012345678/temp/xx-000.0 47 bytes
-  //     Topic Length 2 bytes
-  //     Packet ID 2 bytes
-  //   Queued Message Header 11 bytes
-  //   Total: 64 bytes
-  //
-  // Status PUBLISH Msg (in the mqtt_sendbuf)
-  //   Fixed Header 2 bytes
-  //   Variable Header 57 bytes
-  //     Topic NetworkModule/DeviceName123456789/availabilityoffline 53 bytes
-  //     Topic Length 2 bytes
-  //     Packet ID 2 bytes
-  //   Queued Message Header 11 bytes
-  //   Total: 70 bytes
-  //   
-  // The implication of the above is that in normal operation the mqtt_sendbuf
-  // needs to be as large as the Message Queue (12 bytes) plus one PINGREQ
-  // message (13 bytes) plus the longest Publish message (70 bytes), or 108
-  // bytes.
-  //
-  // However, during MQTT startup the CONNECT message is even larger as
-  // follows:
-  // CONNECT Msg (in the mqtt_sendbuf)
-  //   Fixed Header 2 bytes
-  //   Variable Header 10 bytes
-  //     Length of protocol name 2 bytes
-  //     Protocol name 4 bytes
-  //     Protocol level 1 byte
-  //     Connect flags 1 byte
-  //     Keep Alive 2 bytes
-  //   Payload
-  //     Client ID Length 2 bytes
-  //     Client ID 25 bytes
-  //     Will Topic Length 2 bytes
-  //     Will Topic 14+19+13 46 bytes
-  //     Will Message Length 2 bytes
-  //     Will Message 7 bytes
-  //     Username Length 2 bytes
-  //     Username 10 bytes
-  //     Passwoard Length 2 bytes
-  //     Password 10 bytes
-  //   Queued Message Header 11 bytes
-  // Total 131 bytes
-  // Thus the CONNECT message can be up to up to 131 bytes in length. Add the
-  // Message Queue (12 bytes) and the mqtt_sendbuf needs to be a minimum of 
-  // 143 bytes. Note that no PINGREQ can occur during the MQTT Startup
-  // process, so the CONNECT message will occupy the mqtt_sendbuf alone. This
-  // sets the required size of the mqtt_sendbuf at 143 bytes ... will make it
-  // 150 to provide a little buffer.
-//---------------------------------------------------------------------------//
+//--------------------------------------------------------------------------//
+// Note that the original LiamBindle MQTT-C code relied on Linux or Microsoft
+// OS processes to provide Link Level, IP, and TCP processing of received and
+// transmitted packets (via a Socket). In this bare metal application the UIP
+// code provides that processing.
+//
+// Before making an mqtt connection we need the equivalent of an OS "open a
+// socket" to the MQTT Server. This is essentially an ARP request associating
+// the MQTT Server IP Address (which we got from GUI input) with the MQTT
+// Server MAC Address, followed by creating a TCP Connection via
+// uip_connect().
+//
+// For reference: In the HTTP IO process "opening a socket" occurs in the
+// uip_input and uip_arpin functions. HTTP has the notion that a browser makes
+// a request, and the web server replies to that request, always in a
+// one-to-one relationship. When a browser on a remote host makes a request to
+// our IP address the remote host performs an ARP request (which we process
+// via the uip_arp_arpin() function). Net result is that this establishes the
+// equivalent of a "socket" with the web server on our device. Subsequent
+// browser requests cause the uip_input() function to extract the IP Addresses
+// and Port Numbers for the HTTP transaction source and destination and uses
+// those to form the needed IP and TCP headers for any transmission that needs
+// to occur. Next the uip_arp_out function is called to form a LLH header
+// (containing the source and destination MAC addresses) for the packet to be
+// transmitted.
+// 
+// The bare metal UIP application uses the same buffer for receive and
+// transmit data (the uip_buf). But the original LiamBindle MQTT-C application
+// expects an independent transmit buffer where it maintains transmit queueing
+// information AND its transmit data. The MQTT transmit buffer (mqtt_sendbuf)
+// retains transmitted messages (queue info + data) for a short time in case
+// error recovery needs to re-transmit it. When it is time to actually
+// transmit data from the mqtt_sendbuf the data is copied to the uip_buf,
+// uip_len is set > 0, and the UIP code will perform the transmission as part
+// of the uip_periodic function.
+//
+// The only messages that must be retained in the mqtt_sendbuf are the
+// CONNECT, SUBSCRIBE, and PINGREQ messages. Since the CONNECT and SUBSCRIBE
+// messages are only sent by the mqtt_startup state machine we can carefully
+// manage that state machine to make sure the ACK for each of those messages
+// is received before continuing the state machine. This means that the only
+// messages that will be retained in the mqtt_sendbuf during normal operation
+// are the PINGREQ messages. PINGREQ messages are only two bytes long. So, we
+// can minimize the size of the mqtt_sendbuf to the point that only a 2 byte
+// message and the longest of any other MQTT transmit message will fit.
+//
+// The mqtt_sendbuf always starts with a 12 byte Message Queue structure.
+// 
+// PINGREQ Msg (in the mqtt_sendbuf)
+//   Fixed Header 2 bytes
+//   Queued Message Header 11 bytes
+//   Total: 13 bytes
+//
+// Output PUBLISH Msg (in the mqtt_sendbuf)
+//   Fixed Header 2 bytes
+//   Variable Header 47 bytes
+//     Topic NetworkModule/DeviceName012345678/output/xx 43 bytes
+//     Topic Length 2 bytes
+//     Packet ID 2 bytes
+//   Queued Message Header 11 bytes
+//   Total: 60 bytes
+//
+// Temperature PUBLISH Msg (in the mqtt_sendbuf)
+//   Fixed Header 2 bytes
+//   Variable Header 51 bytes
+//     Topic NetworkModule/DeviceName012345678/temp/xx-000.0 47 bytes
+//     Topic Length 2 bytes
+//     Packet ID 2 bytes
+//   Queued Message Header 11 bytes
+//   Total: 64 bytes
+//
+// Status PUBLISH Msg (in the mqtt_sendbuf)
+//   Fixed Header 2 bytes
+//   Variable Header 57 bytes
+//     Topic NetworkModule/DeviceName123456789/availabilityoffline 53 bytes
+//     Topic Length 2 bytes
+//     Packet ID 2 bytes
+//   Queued Message Header 11 bytes
+//   Total: 70 bytes
+//   
+// The implication of the above is that in normal operation the mqtt_sendbuf
+// needs to be as large as the Message Queue (12 bytes) plus one PINGREQ
+// message (13 bytes) plus the longest Publish message (70 bytes), or 108
+// bytes.
+//
+// However, during MQTT startup the CONNECT message is even larger as follows:
+// CONNECT Msg (in the mqtt_sendbuf)
+//   Fixed Header 2 bytes
+//   Variable Header 10 bytes
+//     Length of protocol name 2 bytes
+//     Protocol name 4 bytes
+//     Protocol level 1 byte
+//     Connect flags 1 byte
+//     Keep Alive 2 bytes
+//   Payload
+//     Client ID Length 2 bytes
+//     Client ID 25 bytes
+//     Will Topic Length 2 bytes
+//     Will Topic 14+19+13 46 bytes
+//     Will Message Length 2 bytes
+//     Will Message 7 bytes
+//     Username Length 2 bytes
+//     Username 10 bytes
+//     Passwoard Length 2 bytes
+//     Password 10 bytes
+//   Queued Message Header 11 bytes
+// Total 131 bytes
+// Thus the CONNECT message can be up to up to 131 bytes in length. Add the
+// Message Queue (12 bytes) and the mqtt_sendbuf needs to be a minimum of 143
+// bytes. Note that no PINGREQ can occur during the MQTT Startup process, so
+// the CONNECT message will occupy the mqtt_sendbuf alone. This sets the
+// required size of the mqtt_sendbuf at 143 bytes ... will make it 150 to
+// provide a little extra.
+//--------------------------------------------------------------------------//
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -2853,11 +2738,6 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
 #if PCF8574_SUPPORT == 1
   uint32_t j;
 #endif // PCF8574_SUPPORT == 1
-
-
-#if DEBUG_SUPPORT != 11
-UARTPrintf("publish_callback\r\n");
-#endif // DEBUG_SUPPORT != 11
 
   pin_value = 0;
   ParseNum = 0;
@@ -3041,19 +2921,20 @@ UARTPrintf("publish_callback\r\n");
     mqtt_parse_complete = 1;
   }
   
-  // Determine if the sub-topic is "state-req".
+  // Determine if the sub-topic is "state-req" or "state_req24".
   // This Topic should always be received at QOS 0.
   else if (*pBuffer == 's') {
-    // "state-req" detected
+    // "state-req" or "state-req24" detected
     // Format is:
     //   state-req
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    //   state-req24
+    // -------------------------------------------------------------------- //
     // WARNING: To save flash space I don't check every sub-topic character.
     // But I also don't clear the uip_buf. So, I could pick up on stuff left
     // by a prevous message if not careful. In this limited application I can
     // get away with it, but this can trip me up in the future if more
     // messages are added.
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // -------------------------------------------------------------------- //
 
     // Capture the state-req command in OctetArray.
     for (i=0; i<11; i++) {
@@ -3137,12 +3018,6 @@ void publish_outbound(void)
   int signal_break;
 
   signal_break = 0;
-
-  // Don't execute this function if a user_reboot_request is pending.
-//  if (user_reboot_request == 1) return;
-//  publish_outbound_throttle++;
-//  if (publish_outbound_throttle < 10) return;
-//  publish_outbound_throttle = 0;
 
   // Check the mqtt_sendbuf to make sure it is emptied before PUBLISHing a
   // pin_state message. This is to prevent overflow of the mqtt_sendbuf when
@@ -3347,11 +3222,6 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
 				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
   
-
-#if DEBUG_SUPPORT != 11
-UARTPrintf("publish_pinstate\r\n");
-#endif // DEBUG_SUPPORT != 11
-
   app_message[0] = '\0';
   
   strcpy(topic_base, devicetype);
@@ -3890,7 +3760,7 @@ void check_eeprom_settings(void)
     // Clear the Config settings in EEPROM
     //    stored_config_settings = 0;
     //
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // -------------------------------------------------------------------- //
     // All pins need to default to "input" and "disable" to prevent any
     // conflict with external hardware drivers.
     // pin_control_bytes are set to defaults
@@ -3905,7 +3775,7 @@ void check_eeprom_settings(void)
     //   0 | 00: Disabled  01: Input  10: Linked  11: Output
     // THEN 16 bit registers are initialized
     //   encode_16bit_registers()
-    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // -------------------------------------------------------------------- //
     //
     // Write the default pin_control bytes to EEPROM
     //    for (i=0; i<16; i++) stored_pin_control[i] = 0x00;
@@ -4059,10 +3929,10 @@ void check_eeprom_settings(void)
   uip_setmqttserveraddr(IpAddr);
 
 
-  // Read and use the MQTT Port from EEPROM
+  // Read and use the MQTT Host Port from EEPROM
   Port_Mqttd = stored_mqttport;
 
-  // Read and use the Port from EEPROM
+  // Read and use the HTTP Port from EEPROM
   Port_Httpd = stored_port;
     
   // Read and use the MAC from EEPROM
@@ -4281,7 +4151,7 @@ void check_eeprom_settings(void)
   }
 #endif // BUILD_TYPE_BROWSER_STANDARD == 1
 
-#if BUILD_TYPE_MQTT_UPGRADEABLE	== 1
+#if BUILD_TYPE_MQTT_UPGRADEABLE == 1
   {
     uint8_t i;
     unlock_eeprom();
@@ -4524,7 +4394,7 @@ void apply_PCF8574_pin_settings(void)
     }
     pin_control[23] = I2C_read_byte(1);
   }
-
+  
 
 #if LINKED_SUPPORT == 1
   {
@@ -5072,16 +4942,12 @@ void check_runtime_changes(void)
         if ((pin_control[i] & 0x0b) == 0x03) {
           // Pin is an Output AND Retain is not set
 	  // Read the PCF8574 IO_TIMER value from I2C EEPROM
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // -------------------------------------------------------------- //
 	  // This is a potential timing problem as reading from the I2C EEPROM
 	  // takes so long. I think the problem is mitigated in that this code
-	  // is only applicable to the Browser version of code and will only run
-	  // if parse_complete == 1.
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // is only applicable to the Browser version of code and will only
+	  // run if parse_complete == 1.
+	  // -------------------------------------------------------------- //
           prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
           IO_timer_value = read_two_bytes();
           if (IO_timer_value != Pending_IO_TIMER[i]) {
@@ -5113,16 +4979,12 @@ void check_runtime_changes(void)
         if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
 	  // Pin is an Output and Retain is not set
 	  // Read the PCF8574 IO_TIMER value from I2C EEPROM
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // -------------------------------------------------------------- //
 	  // This is a potential timing problem as reading from the I2C EEPROM
 	  // takes so long. I think the problem is mitigated in that this code
-	  // is only applicable to the Browser version of code and will only run
-	  // if parse_complete == 1.
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // is only applicable to the Browser version of code and will only
+	  // run if parse_complete == 1.
+	  // -------------------------------------------------------------- //
           prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
           IO_timer_value = read_two_bytes();
           if (IO_timer_value != Pending_IO_TIMER[i]) {
@@ -5189,17 +5051,14 @@ void check_runtime_changes(void)
       if ((pin_control[i] & 0x0b) == 0x03) {
         // Pin is an Output and Retain is not set
         // Read the PCF8574 IO_TIMER value from I2C EEPROM
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // This is a potential timing problem as reading from the I2C EEPROM
-	  // takes so long. This code runs on every pass of check_runtime_changes.
-	  // The I2C EEPROM read is only to check if the user entered timer value
-	  // is non-zero. Maybe a byte containing "non-zero" flags could be used
-	  // for the PCF8574 timers.
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// ---------------------------------------------------------------- //
+	// This is a potential timing problem as reading from the I2C EEPROM
+	// takes so long. This code runs on every pass of
+	// check_runtime_changes.
+	// The I2C EEPROM read is only to check if the user entered timer
+	// value is non-zero. Maybe this could be faster if a byte containing
+	// "non-zero" flags could be used for the PCF8574 timers.
+	// ---------------------------------------------------------------- //
         prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
         IO_timer_value = read_two_bytes();
         if (((IO_timer_value & 0x3fff) != 0) && ((pin_timer[i] & 0x3fff) == 0)) {
@@ -5263,17 +5122,14 @@ void check_runtime_changes(void)
       if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
         // Pin is an Output and Retain is not set
         // Read the PCF8574 IO_TIMER value from I2C EEPROM
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // This is a potential timing problem as reading from the I2C EEPROM
-	  // takes so long. This code runs on every pass of check_runtime_changes.
-	  // The I2C EEPROM is only to check if the user entered timer value is
-	  // non-zero. Maybe a byte containing "non-zero" flags could be used
-	  // for the PCF8574 timers.
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// ---------------------------------------------------------------- //
+	// This is a potential timing problem as reading from the I2C EEPROM
+	// takes so long. This code runs on every pass of
+	// check_runtime_changes.
+	// The I2C EEPROM read is only to check if the user entered timer
+	// value is non-zero. Maybe this could be faster if a byte containing
+	// "non-zero" flags could be used for the PCF8574 timers.
+	// ---------------------------------------------------------------- //
         prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
         IO_timer_value = read_two_bytes();
 
@@ -5337,16 +5193,12 @@ void check_runtime_changes(void)
 	// values. Compare 2 bytes at a time. If any miscompare write the
 	// Pending value to I2C EEPROM.
         // Read the PCF8574 IO_TIMER value from I2C EEPROM
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // This is a potential timing problem as reading from the I2C EEPROM
-	  // takes so long. I think the problem is mitigated in that this code
-	  // is only applicable to the Browser version of code and will only run
-	  // if parse_complete == 1.
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// ---------------------------------------------------------------- //
+	// This is a potential timing problem as reading from the I2C EEPROM
+	// takes so long. I think the problem is mitigated in that this code
+	// is only applicable to the Browser version of code and will only
+	// run if parse_complete == 1.
+	// ---------------------------------------------------------------- //
         prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
         IO_timer_value = read_two_bytes();
         if (IO_timer_value != Pending_IO_TIMER[i]) {
@@ -5404,16 +5256,12 @@ void check_runtime_changes(void)
         if ((pin_control[i] & 0x0b) == 0x03) {
           // Pin is an Enabled Output AND Retain is not set
           // Read the PCF8574 IO_TIMER value from I2C EEPROM
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // This is a potential timing problem as reading from the I2C EEPROM
-	  // takes so long. I think the problem is mitigated in that this code
-	  // is only applicable to the Browser version of code and will only run
-	  // if parse_complete == 1.
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // -------------------------------------------------------------- //
+	  // This is a potential timing problem as reading from the I2C
+	  // EEPROM takes so long. I think the problem is mitigated in that
+	  // this code is only applicable to the Browser version of code and
+	  // will only run if parse_complete == 1.
+	  // -------------------------------------------------------------- //
           prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
           IO_timer_value = read_two_bytes();
           if ((IO_timer_value & 0x3fff) != 0) {
@@ -5469,16 +5317,12 @@ void check_runtime_changes(void)
         if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
 	  // Pin is an Output and Retain is not set
           // Read the PCF8574 IO_TIMER value from I2C EEPROM
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // This is a potential timing problem as reading from the I2C EEPROM
-	  // takes so long. I think the problem is mitigated in that this code
-	  // is only applicable to the Browser version of code and will only run
-	  // if parse_complete == 1.
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	  // -------------------------------------------------------------- //
+	  // This is a potential timing problem as reading from the I2C
+	  // EEPROM takes so long. I think the problem is mitigated in that
+	  // this code is only applicable to the Browser version of code and
+	  // will only run if parse_complete == 1.
+	  // -------------------------------------------------------------- //
           prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
           IO_timer_value = read_two_bytes();
           if ((IO_timer_value & 0x3fff) != 0) {
@@ -5666,15 +5510,11 @@ void check_runtime_changes(void)
 	        uint16_t byte_address;
 	        // Read stored_pin_control from I2C EEPROM
                 byte_address = (uint16_t)(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE + i - 16);
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // This is a potential timing problem as reading from the I2C EEPROM
-	  // takes so long. I think the problem is mitigated in that this code
-	  // will only run if parse_complete == 1.
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+		// -------------------------------------------------------- //
+	        // This is a potential timing problem as reading from the I2C
+		// EEPROM takes so long. I think the problem is mitigated in
+		// that this code will only run if parse_complete == 1.
+		// -------------------------------------------------------- //
                 prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, byte_address, 2);
                 if (I2C_read_byte(1) != pin_control[i]) {
                   // Update stored_pin_control in I2C EEPROM.
@@ -5720,10 +5560,6 @@ void check_runtime_changes(void)
       //   MQTT
       //   Home Assistant Auto Discovery
       //   Full Duplex
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("User reboot request due to change in config settings\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
       user_reboot_request = 1;
       // If any bit of the config_settings changed write to EEPROM
@@ -5789,9 +5625,9 @@ void check_runtime_changes(void)
       }
     }
 
-    // Check for changes in the MQTT Port number
+    // Check for changes in the MQTT Host Port number
     if (stored_mqttport != Pending_mqttport) {
-      // Write the new MQTT Port number to the EEPROM
+      // Write the new MQTT Host Port number to the EEPROM
       stored_mqttport = Pending_mqttport;
       // A firmware restart will occur to cause this change to take effect
       restart_request = 1;
@@ -5993,15 +5829,11 @@ void check_restart_reboot(void)
     // requests are set in the check_runtime_changes() function if a restart
     // or reboot is needed.
     // The following needs to occur:
-    // 1) If the pin_delete_register indicates there are pins that
-    //    require an HA Auto Discovery "blank payload" message this
-    //    state machine will be called multiple times to send those
-    //    messages.
-    // 2) If MQTT is enabled run the mqtt_disconnect() function.
-    // 2a) Verify that mqtt disconnect was sent to the MQTT server.
-    // 2b) Call uip_close() for the MQTT TCP connection.
-    // 3) Verify that the close requests completed.
-    // 4) Run either the restart() function or the reboot() function.
+    // 1) If MQTT is enabled run the mqtt_disconnect() function.
+    // 1a) Verify that mqtt disconnect was sent to the MQTT server.
+    // 1b) Call uip_close() for the MQTT TCP connection.
+    // 2) Verify that the close requests completed.
+    // 3) Run either the restart() function or the reboot() function.
     //    Reboot takes precedence over restart.
 
     switch(restart_reboot_step)
@@ -6027,7 +5859,6 @@ void check_restart_reboot(void)
       // complete, including all handshakes. Refresh of a page after POST can
       // take a few seconds.
       if (t100ms_ctr1 > 9) {
-//      if (t100ms_ctr1 > 99) {
         if (mqtt_enabled) restart_reboot_step = RESTART_REBOOT_SENDOFFLINE;
 	else restart_reboot_step = RESTART_REBOOT_FINISH;
         // Clear 100ms timer to delay the next step
@@ -6036,7 +5867,6 @@ void check_restart_reboot(void)
       break;
 
     case RESTART_REBOOT_SENDOFFLINE:
-//      if (t100ms_ctr1 > 1) {
       if (t100ms_ctr1 > 2) {
        // We can only get here if mqtt_enabled == 1
        // Wait at least 100 ms before publishing availability message
@@ -6059,7 +5889,6 @@ void check_restart_reboot(void)
       break;
     
     case RESTART_REBOOT_DISCONNECT:
-//      if (t100ms_ctr1 > 2) {
       if (t100ms_ctr1 > 3) {
         // We can only get here if mqtt_enabled == 1
         // The offline publish is given up to 200 ms to be communicated
@@ -6075,7 +5904,6 @@ void check_restart_reboot(void)
       break;
     
     case RESTART_REBOOT_TCPCLOSE:
-//      if (t100ms_ctr1 > 2) {
       if (t100ms_ctr1 > 3) {
         // We can only get here if mqtt_enabled == 1
         // The mqtt_disconnect() is given up to 200 ms to be communicated
@@ -6109,20 +5937,6 @@ void check_restart_reboot(void)
       // For the moment I'm not sure how to do this, so I will just allow
       // enough time for it to happen. That is probably much faster, but I
       // will allow 500ms.
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // This needs to be investigated. It seems that it takes too long
-      // for the TCP connection to close, so I suspect it is not being done
-      // correctly. If the timeout below is shorter than about 4s then the
-      // mqtt startup function has timeouts, likely due to finding the
-      // connection still open ... but then it closes. If the time below
-      // is set to 4s, then the HTML interface times out.
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       if (t100ms_ctr1 > 6) {
 	mqtt_close_tcp = 0;
         restart_reboot_step = RESTART_REBOOT_FINISH;
@@ -6214,7 +6028,7 @@ void reboot(void)
   LEDcontrol(0);  // turn LED off
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-UARTPrintf("Hardware reboot in reboot()\r\n");
+// UARTPrintf("Hardware reboot in reboot()\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
   // Set the Window Watchdog to reboot the module
@@ -6381,7 +6195,6 @@ void read_input_pins(uint8_t init_flag)
 
   // Read the pin states on the PCF8574
   byte = PCF8574_read();
-//  for (i=16, mask = 0x0100, byte_mask=1; i<24; i++, mask<<=1, byte_mask<<=1) {
   for (i=16, mask = 0x00010000, byte_mask=1; i<24; i++, mask<<=1, byte_mask<<=1) {
     // Is the corresponding bit of the PCF8574 pin set?
     if (byte & byte_mask)
@@ -6471,9 +6284,6 @@ void read_input_pins(uint8_t init_flag)
 	// edge detection.
 	if (((pin_control[i] & 0x03) == 0x02) && (i<8) && (init_flag == 0)) {
           linked_edge |= (uint8_t)(mask);
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("edge detected\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 	}
       }
       
@@ -6564,9 +6374,6 @@ void read_input_pins(uint8_t init_flag)
 	if (((pin_control[i] & 0x03) == 0x02) && (i<8) && (init_flag == 0)) {
 	  // Update linked_edge for the 8 least significant bits.
           linked_edge |= (uint8_t)(mask);
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("edge detected\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 	}
       }
     }
@@ -6600,12 +6407,6 @@ void read_input_pins(uint8_t init_flag)
 	// edge detection.
 	if (((pin_control[i] & 0x03) == 0x02) && i>15 && i<20 && (init_flag == 0)) {
           linked_edge |= linked_mask;
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("edge detected, linked_edge = ");
-// emb_itoa(linked_edge, OctetArray, 16, 4);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 	}
       }
     }

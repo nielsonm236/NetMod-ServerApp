@@ -120,13 +120,9 @@
 #define UIP_LISTENPORTS 4
 
 
-// The initial retransmission timeout counted in timer pulses. The "timer
-// pulses" are defined by the periodic timer calls, thus are equivalent to the
-// periodic timer period (search on periodic_timer_expired for more
-// information.
+// The initial retransmission timeout counted in seconds.
 // This should not be changed.
 #define UIP_RTO         3
-// #define UIP_RTO         10
 
 
 // The maximum number of times a segment should be retransmitted before the
@@ -183,9 +179,23 @@
 #define UIP_RECEIVE_WINDOW UIP_TCP_MSS
 
 
-// How long a connection should stay in the TIME_WAIT state. This configiration
+// How long a connection should stay in the TIME_WAIT state in seconds. This
 // option has no real implication, and it should be left untouched.
 #define UIP_TIME_WAIT_TIMEOUT 120
+
+
+// Alternate MQTT Local Port settings. These port values are used in a
+// rotation when creating TCP connections with the MQTT Broker/Server. This
+// rotation is needed to prevent a connection from being subject to the
+// TIME_WAIT requirement of the server. The port values selected here are all
+// in the Dynamic / Private region of the IANA port definitions. The values
+// selected are relatively random but can be changed to any other Dynamic /
+// Private port value if needed.
+#define ALTERNATE_PORT00	49193
+#define ALTERNATE_PORT01	49230
+#define ALTERNATE_PORT02	49267
+#define ALTERNATE_PORT03	49304
+#define ALTERNATE_PORT04	49341
 
 
 //---------------------------------------------------------------------------//

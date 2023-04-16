@@ -54,6 +54,7 @@
 
 extern uint16_t Port_Httpd;
 extern uint16_t Port_Mqttd;
+extern uint16_t mqtt_local_port;
 
 #if BUILD_SUPPORT == MQTT_BUILD
 extern struct mqtt_client mqttclient; // Pointer to MQTT client declared in main.c
@@ -78,7 +79,7 @@ void uip_TcpAppHubCall(void)
   }
 
 #if BUILD_SUPPORT == MQTT_BUILD
-  else if(uip_conn->lport == htons(Port_Mqttd)) {
+  else if(uip_conn->lport == htons(mqtt_local_port)) {
     // This code is called if incoming traffic is MQTT. mqtt_sync will read
     // the incoming data (if any) from the uip_buf, then create any needed
     // ouptut data and put it in the uip_buf.
@@ -95,22 +96,11 @@ void uip_TcpAppHubCall(void)
       // to the UIP code. Note that the uip_TcpAppHubCall() function can only
       // be called if in the ESTABLISHED state - so a uip_close() is a valid
       // reply.
-//      if (mqtt_close_tcp == 1) {
-//        UARTPrintf("mqt_close request1\r\n");
-//	mqtt_close_tcp = 0;
-//        uip_close();
-//      }
     }
     if (mqtt_close_tcp == 1) {
-//      UARTPrintf("mqt_close request2 close\r\n");
       mqtt_close_tcp = 0;
       uip_close();
     }
-//    if (mqtt_close_tcp == 2) {
-//      UARTPrintf("mqt_close request2 abort\r\n");
-//      mqtt_close_tcp = 0;
-//      uip_abort();
-//    }
   }
 #endif // BUILD_SUPPORT == MQTT_BUILD
 }

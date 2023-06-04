@@ -46,15 +46,29 @@ struct io_mapping {
 
 extern volatile struct io_registers io_reg[ NUM_PORTS ];
 
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following line
+// ************************************************************************ //
 #if PINOUT_OPTION_SUPPORT == 0
 extern const struct io_mapping io_map[16];
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following line
+// ************************************************************************ //
 #endif // PINOUT_OPTION_SUPPORT == 0
 
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following three lines
+// ************************************************************************ //
 #if PINOUT_OPTION_SUPPORT == 1
 extern const struct io_mapping io_map[48];
 #endif PINOUT_OPTION_SUPPORT == 1
 
 void gpio_init(void);
+// ************************************************************************ //
+// Change to support Issue #174
+// ************************************************************************ //
+uint8_t calc_PORT_BIT_index(uint8_t IO_index);
+// ************************************************************************ //
 void LEDcontrol(uint8_t state);
 
 

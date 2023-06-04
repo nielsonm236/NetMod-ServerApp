@@ -846,7 +846,12 @@ void stream_sensor_data_forced_mode(struct bme280_dev *dev, struct bme280_data *
     status_reg_TO = 0;
     while (1) {
       // Comment: The time spent waiting for the measurement to complete is
-      // about 30ms.
+      // about 30ms (determined experimentally). The Bosch spec section 9.1
+      // "Measurement Time" has a formula that indicates the maximum measure-
+      // ment time is 46.1ms with these over-sampling settings:
+      //   dev->settings.osr_h = BME280_OVERSAMPLING_1X;
+      //   dev->settings.osr_p = BME280_OVERSAMPLING_16X;
+      //   dev->settings.osr_t = BME280_OVERSAMPLING_2X;
       wait_timer(2000); // Cause read every 2 ms
       IWDG_KR = 0xaa;   // Prevent the IWDG hardware watchdog from firing.
       status_reg_TO += 2000; // Keep track of wait time

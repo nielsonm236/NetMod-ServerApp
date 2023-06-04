@@ -37,6 +37,8 @@ Feature Comparison of the MQTT and Browser builds:
 
 Short summary of recent history:
 
+June 3, 2023 - Addressed Issue #175 "Save on IOControl page has stopped working on Chrome?", Addressed Issue #176 "Saving PCF8574 Configuration can cause the PCF8574 to disappear"
+
 April 16, 2023 - Addressed Issue #159 "Boot issue: Sometimes taking 60 to 120 seconds to stabilize the MQTT connection", Addressed Issue #167 "UIP Code Retransmission Timeout problem"
 
 March 28, 2023 - Addressed Issue #164 "When setting multiple outputs with /51, no status is sent back"

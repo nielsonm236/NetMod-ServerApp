@@ -32,6 +32,8 @@
 
 #if PCF8574_SUPPORT == 1
 
+extern uint8_t stored_options1;  // Additional options stored in EEPROM
+
 extern uint8_t OctetArray[14];
 
 uint8_t I2C_PCF8574_1_WRITE_CMD; // Used to store the write command for the
@@ -92,6 +94,42 @@ void PCF8574_init()
     else I2C_PCF8574_1_WRITE_CMD += 2;
   }
   if (found == 0) I2C_PCF8574_1_WRITE_CMD = 0x00;
+
+
+  // Now update the stored_options1 byte if needed.
+  {
+    uint8_t j;
+    j = stored_options1;
+    
+    if (I2C_PCF8574_1_WRITE_CMD) {
+      // A PCF8574 or PCF8574A was found as indicated by a non-zero value in
+      // variable I2C_PCF8574_1_WRITE_CMD.
+      j |= 0x08; // Enable PCF8574
+    }
+    else {
+      j &= 0xf7; // Disable PCF8574
+    }
+    
+    // Update the stored_options1 byte in EEPROM. Only perform the eeprom
+    // write if the value changed.
+    if (stored_options1 != j) {
+      unlock_eeprom();
+      stored_options1 = j;
+      lock_eeprom();
+    }
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+//    if ((stored_options1 & 0x08) == 0x08) {
+//      UARTPrintf("\r\n");
+//      UARTPrintf("PCF8574 found\r\n");
+//    }
+//    else {
+//      UARTPrintf("\r\n");
+//      UARTPrintf("PCF8574 not found\r\n");
+//    }
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+  }
 }
 
 

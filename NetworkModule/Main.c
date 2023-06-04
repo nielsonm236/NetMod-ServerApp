@@ -36,7 +36,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20230416 1116"; // Normal Release Revision
+const char code_revision[] = "20230603 2058"; // Normal Release Revision
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -304,6 +304,9 @@ extern uint8_t parse_tail[66];  // >>> Used mostly in POST packet processing
                                 // but also repurposed for buffering data
 				// received in a program update file.
 
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following line
+// ************************************************************************ //
 int8_t io_map_offset;           // Used in pinout options
 
 
@@ -490,15 +493,6 @@ uint8_t eeprom_detect;               // Used in code update routines
 extern uint8_t I2C_failcode;         // Used in monitoring I2C transactions
 #endif // I2C_SUPPORT == 1
 
-#if PCF8574_SUPPORT == 1
-extern uint8_t I2C_PCF8574_1_WRITE_CMD; // Used to store the write command for
-                                 // the first PCF8574 device found. This value
-				 // is initialized to zero, so if it is non-
-				 // zero this also serves as a "found"
-				 // indicator. If it remains at zero this
-				 // indicates no PCF devices were discovered.
-#endif // PCF8574_SUPPORT == 1
-
 
 //---------------------------------------------------------------------------//
 int main(void)
@@ -614,11 +608,11 @@ int main(void)
 			   
   gpio_init();             // Initialize and enable gpio pins
 
-  apply_PCF8574_pin_settings(); // Initialize the PCF8574 settings and pins.
-                                // This must occur after gpio_init() because
-				// the PCF8574 settings are stored in I2C
-				// EEPROM which uses IO pins 14 and 15 to
-				// implement the I2C bus.
+  apply_PCF8574_pin_settings(); // Initialize the PCF8574 settings and pins
+                                // stored in I2C EEPROM. This must occur after
+				// gpio_init() because the PCF8574 settings are
+				// stored in I2C EEPROM which uses IO pins 14
+				// and 15 to implement the I2C bus.
 
   // Restore the saved debug statistics
   restore_eeprom_debug_bytes();
@@ -717,37 +711,11 @@ int main(void)
 
 
 #if PCF8574_SUPPORT == 1
+  // Initialize the PCF8574 and update the stored_options1 byte to reflect the
+  // presence or absence of the PCF8574
   PCF8574_init();
-  if (I2C_PCF8574_1_WRITE_CMD) {
-    // A PCF8574 or PCF8574A was found as indicated by a non-zero value in
-    // variable I2C_PCF8574_1_WRITE_CMD after running PCF8574_init().
-    // Update the stored_options1 byte in EEPROM.
-    {
-      uint8_t j;
-      j = stored_options1;
-      if ((j & 0x08) != 0x08) {
-        j |= 0x08;
-        unlock_eeprom();
-        stored_options1 = j;
-        lock_eeprom();
-      }
-    }
-  }
-  else {
-    // No PCF8574 was found
-    {
-      uint8_t j;
-      int i;
-      j = stored_options1;
-      if ((j & 0x08) == 0x08) {
-        j &= (uint8_t)(~0x08);
-        unlock_eeprom();
-        stored_options1 = j;
-        lock_eeprom();
-      }
-    }
-  }
 #endif // PCF8574_SUPPORT == 1
+
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -805,10 +773,10 @@ int main(void)
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
 #if DEBUG_SUPPORT != 11
-UARTPrintf("stored_options1 at boot = ");
-emb_itoa(stored_options1, OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("stored_options1 at boot = ");
+// emb_itoa(stored_options1, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT != 11
 
 
@@ -1168,9 +1136,9 @@ UARTPrintf("\r\n");
 
 #if DS18B20_SUPPORT == 1
     // Update temperature data
-    // Not sure of the best interval. I will set it at 300 seconds (5 min) for
-    // now since the BME280 is best suited to weather monitoring.
-    if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 300))) {
+    // If a DS18B20 sensor was found and the config_settings show the sensor
+    // is enabled then collect the sensor data every 30 seconds.
+    if ((stored_config_settings & 0x08) && (second_counter > (check_DS18B20_ctr + 30))) {
       check_DS18B20_ctr = second_counter;
       get_temperature();
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -1181,10 +1149,12 @@ UARTPrintf("\r\n");
 #endif // DS18B20_SUPPORT == 1
 
 #if BME280_SUPPORT == 1
+    // If a BME280 sensor was found and the config_settings show the sensor
+    // is enabled then collect the sensor data every 300 seconds. Not sure of
+    // the best interval so 300 seconds (5 min) is used since the BME280 is
+    // best suited to weather monitoring.
     if ((BME280_found == 1) && (stored_config_settings & 0x20)) {
-      // If a BME280 sensor was found and the config_settings show the sensor
-      // is enabled then collect the sensor data every 30 seconds
-      if (second_counter > (check_BME280_ctr + 30)) {
+      if (second_counter > (check_BME280_ctr + 300)) {
         check_BME280_ctr = second_counter;
         stream_sensor_data_forced_mode(&dev, &comp_data);
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -1566,10 +1536,10 @@ void mqtt_startup(void)
       }
       mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, mqtt_local_port);
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-UARTPrintf("mqtt_local_port = ");
-emb_itoa(mqtt_local_port, OctetArray, 10, 5);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("mqtt_local_port = ");
+// emb_itoa(mqtt_local_port, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
     }
 
@@ -1604,7 +1574,7 @@ UARTPrintf("\r\n");
         mqtt_start_status |= MQTT_START_ARP_REQUEST_GOOD;
         mqtt_start = MQTT_START_VERIFY_TCP;
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-UARTPrintf("MQTT ARP Verified\r\n");
+// UARTPrintf("MQTT ARP Verified\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       }
       if (verify_count > 50) {
@@ -1636,7 +1606,7 @@ UARTPrintf("MQTT ARP Verified\r\n");
         mqtt_start_status |= MQTT_START_TCP_CONNECT_GOOD;
         mqtt_start = MQTT_START_MQTT_INIT;
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-UARTPrintf("MQTT TCP Verified\r\n");
+// UARTPrintf("MQTT TCP Verified\r\n");
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
       }
       if (verify_count > 166) { // 50 seconds.
@@ -2056,13 +2026,13 @@ UARTPrintf("MQTT TCP Verified\r\n");
         if ((pin_control[pin_ptr - 1] & 0x03) == 0x00) {
 	  // Pin is Disabled
 #if DEBUG_SUPPORT != 11
-UARTPrintf("DEFINE_DISABLED - pin is disabled - pin = ");
-emb_itoa(pin_ptr, OctetArray, 10, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("   stored_options1 = ");
-emb_itoa(stored_options1, OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("DEFINE_DISABLED - pin is disabled - pin = ");
+// emb_itoa(pin_ptr, OctetArray, 10, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   stored_options1 = ");
+// emb_itoa(stored_options1, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT != 11
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
@@ -2196,7 +2166,7 @@ UARTPrintf("\r\n");
 #endif // PCF8574_SUPPORT == 1
       // Indicate succesful completion
 #if DEBUG_SUPPORT != 11
-UARTPrintf("MQTT Startup Complete\r\n");
+// UARTPrintf("MQTT Startup Complete\r\n");
 #endif // DEBUG_SUPPORT != 11
       mqtt_start = MQTT_START_COMPLETE;
     }
@@ -4161,7 +4131,11 @@ void check_eeprom_settings(void)
     if (stored_config_settings != i) stored_config_settings = i;
     // Validate stored_options
     i = stored_options1;
-    i &= 0xf1; // Turn off PCF8574, Force to Pinout Option 1
+    i &= 0xf9; // Force to Pinout Option 1
+               // Note: Don't touch the PCF8574 enable bit. If already
+	       // enabled it can be left enabled. If not enabled, the
+	       // PCF8574_init() function in startup code will check if it
+	       // should be enabled or disabled.
     if (stored_options1 != i) stored_options1 = i;
     lock_eeprom();
   }
@@ -4177,7 +4151,11 @@ void check_eeprom_settings(void)
     if (stored_config_settings != i) stored_config_settings = i;
     // Validate stored_options
     i = stored_options1;
-    i &= 0xf1; // Turn off PCF8574, Force to Pinout Option 1
+    i &= 0xf9; // Force to Pinout Option 1
+               // Note: Don't touch the PCF8574 enable bit. If already
+	       // enabled it can be left enabled. If not enabled, the
+	       // PCF8574_init() function in startup code will check if it
+	       // should be enabled or disabled.
     if (stored_options1 != i) stored_options1 = i;
     lock_eeprom();
   }
@@ -4223,8 +4201,9 @@ void check_eeprom_settings(void)
 void apply_PCF8574_pin_settings(void)
 {
 #if PCF8574_SUPPORT == 1
-  // Apply PCF8574 pin settings (if PCF8574 is enabled) THEN call funtions
-  // to write the Output pins on the STM8 and PCF8574.
+  // This function updates the PCF8574 pin settings in I2C EEPROM. The
+  // check_runtime_chages() function will be called from the main.c loop to
+  // actually write the Output pins on the STM8 and PCF8574.
   
   // With the exception of a few lines of code at the very end of this
   // function this code is ONLY used when PCF8574_SUPPORT is compiled.
@@ -4304,8 +4283,8 @@ void apply_PCF8574_pin_settings(void)
   }
 
 
-// With the exception of a few items the following code runs regardless of
-// whether a Magic Number was present at boot or not.
+  // With the exception of a few items the following code runs regardless of
+  // whether a Magic Number was present at boot.
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
   if (magic_number_missing_flag == 0) {
@@ -5969,7 +5948,7 @@ void restart(void)
   // We run through the processes to apply IP Address, Gateway Address,
   // Netmask, Port number, MAC, etc, but we don't run the GPIO initialization
   // that would affect the GPIO pin states. This prevents output "chatter"
-  // that a complete hardware reset would cause.
+  // that a complete hardware reset would cause. 
 
   LEDcontrol(0); // Turn LED off
 
@@ -5996,9 +5975,20 @@ void restart(void)
 			   // etc. Needed in a restart to make sure all
 			   // changes made on the Configuration page are
 			   // applied.
-  apply_PCF8574_pin_settings(); // Initialize the PCF8574 settings and pins.
-			   // Needed in a restart to make sure all changes
-			   // made on the Configuration page are applied.
+  apply_PCF8574_pin_settings(); // Initialize the PCF8574 settings and pin
+                           // values stored in I2C EEPROM. This doesn't
+			   // actually write the pins - that will be done
+			   // by check_runtime_changes() called from the
+			   // main.c loop. This update is needed in a restart
+			   // to make sure all changes made on the PCF8574
+			   // Configuration page are applied to non-volatile
+			   // storage.
+#if PCF8574_SUPPORT == 1
+  PCF8574_init();	   // Initialize the PCF8574. This will not change
+                           // the physical pin states. It primarilly verifies
+			   // the presence of a PCF8574 and updates the
+			   // stored_options1 bit accordingly.
+#endif // PCF8574_SUPPORT == 1
   Enc28j60Init();          // Initialize the ENC28J60 ethernet interface.
                            // Needed in a restart to make sure the ENC20J60
 			   // is updated with the correct MAC address.
@@ -6103,7 +6093,14 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit)
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following line
+// ************************************************************************ //
     j = i + io_map_offset;
+// ************************************************************************ //
+// Change to support Issue #174 - insert the following line
+// ************************************************************************ //
+//    j = calc_PORT_BIT_index(i);
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit)
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint16_t)mask;
@@ -6175,7 +6172,14 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit)
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following line
+// ************************************************************************ //
     j = i + io_map_offset;
+// ************************************************************************ //
+// Change to support Issue #174 - insert the following line
+// ************************************************************************ //
+//    j = calc_PORT_BIT_index(i);
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit)
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint32_t)mask;
@@ -6260,7 +6264,14 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following line
+// ************************************************************************ //
     j = i + io_map_offset;
+// ************************************************************************ //
+// Change to support Issue #174 - insert the following line
+// ************************************************************************ //
+//    j = calc_PORT_BIT_index((uint8_t)i);
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint16_t)mask;
@@ -6346,7 +6357,14 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following line
+// ************************************************************************ //
     j = i + io_map_offset;
+// ************************************************************************ //
+// Change to support Issue #174 - insert the following line
+// ************************************************************************ //
+//    j = calc_PORT_BIT_index(i);
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint32_t)mask;
@@ -6585,7 +6603,14 @@ void write_output_pins(void)
 #endif // PINOUT_OPTION_SUPPORT == 0
 
 #if PINOUT_OPTION_SUPPORT == 1
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following line
+// ************************************************************************ //
     j = i + io_map_offset;
+// ************************************************************************ //
+// Change to support Issue #174 - insert the following line
+// ************************************************************************ //
+//    j = calc_PORT_BIT_index((uint8_t)i);
     if (xor_tmp & (1 << i)) {
       io_reg[ io_map[j].port ].odr |= io_map[j].bit;
     }
@@ -6667,7 +6692,14 @@ void write_output_pins(void)
 #endif // PINOUT_OPTION_SUPPORT == 0
 
 #if PINOUT_OPTION_SUPPORT == 1
+// ************************************************************************ //
+// Change to support Issue #174 - comment out the following line
+// ************************************************************************ //
     j = i + io_map_offset;
+// ************************************************************************ //
+// Change to support Issue #174 - insert the following line
+// ************************************************************************ //
+//    j = calc_PORT_BIT_index(i);
     if (xor_tmp & (1 << i)) {
       io_reg[ io_map[j].port ].odr |= io_map[j].bit;
     }

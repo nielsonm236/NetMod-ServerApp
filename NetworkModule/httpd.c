@@ -474,7 +474,7 @@ extern uint16_t Pending_IO_TIMER[24];
 // For 1 of the replies there are 6 bytes per reply
 // The formula in this case is
 //     PARSEBYTES = (1 x 37)
-//                + (1 x 6)
+//                + (1 x 5)
 //     PARSEBYTES = 37
 //                + 5 = 42
 //
@@ -667,8 +667,8 @@ const m = (data => {
 //     where xxxxxxxxxxxx is 12 bytes
 //   PLUS
 //   For 1 of the replies (Config):
-//     example: g00=xxxxxx&
-//     where xxxxxx is 6 bytes
+//     example: g00=xx&
+//     where xx is 2 bytes
 //   PLUS
 //   For 2 of the replies (MQTT Username and Password):
 //     example: m00=xxxxxxxxxx&
@@ -687,7 +687,7 @@ const m = (data => {
 //                + (4 x 13)
 //                + (2 x 9)
 //                + (1 x 17) 
-//                + (1 x 11) 
+//                + (1 x 7) 
 //                + (2 x 15)
 //                + (1 x 37)
 //                + (1 x 5)
@@ -695,13 +695,13 @@ const m = (data => {
 //                + 52
 //                + 18
 //                + 17
-//                + 11
+//                + 7
 //                + 30
 //                + 37
-//                + 5 = 194
+//                + 5 = 190
 //
 #define WEBPAGE_CONFIGURATION			2
-#define PARSEBYTES_CONFIGURATION		194
+#define PARSEBYTES_CONFIGURATION		190
 #define MQTT_WEBPAGE_CONFIGURATION_BEGIN	91
 // The MQTT_WEBPAGE_CONFIGURATION_BEGIN define is used only by the "prepsx"
 // strings pre-processor program. The define is used by the prepsx program as
@@ -1606,7 +1606,7 @@ const m = (data => {
 //     Note; No trailing parse delimiter
 // THUS
 // For 1 of the replies there are 37 bytes in the reply
-// For 1 of the replies there are 6 bytes per reply
+// For 1 of the replies there are 5 bytes per reply
 // The formula in this case is
 //     PARSEBYTES = (1 x 21)
 //                + (1 x 5)
@@ -5406,7 +5406,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
           }
 	  
 	  if (nParsedNum == 1) {
-	    // Show the Pinout Option (1, 2, or 3 as stored in the EEPROM)
+	    // Show the Pinout Option as stored in the EEPROM)
 	    *pBuffer = (uint8_t)((stored_options1 & 0x07) + 0x30);
 	    pBuffer++;
 	  }
@@ -6120,11 +6120,13 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 	  // Initialize parse_tail for first pass of parsing
 	  parse_tail[0] = '\0';
 
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
 // UARTPrintf("Beginning of POST found. parse_tail set to NULL. nBytes = ");
 // emb_itoa(nBytes, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
 
 
           // Start parsing
@@ -6301,6 +6303,15 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     if (pSocket->nState == STATE_PARSEPOST) {
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Calling STATE_PARSEPOST. nBytes = ");
+// emb_itoa(nBytes, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
       // This code parses data the user entered in the GUI.
       parsepost(pSocket, pBuffer, nBytes);
     }
@@ -7113,7 +7124,7 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
                   // Force Pinout Option 1 if UART enabled
 		  pinout_select = 1;
 #endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-		  if ((pinout_select > 0) && (pinout_select < 4)){
+		  if ((pinout_select > 0) && (pinout_select < 5)){
 		    j = (uint8_t)(stored_options1 & 0xf8);
 		    j |= pinout_select;
 		    unlock_eeprom();
@@ -7229,6 +7240,12 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 	    case 0x91: // Reboot
 	      user_reboot_request = 1;
               GET_response_type = 204; // No return webpage
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("case 0x91 Reboot requested\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
 	      break;
 
 
@@ -8482,6 +8499,9 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
   else if (uip_rexmit()) {
 
 #if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// Debug notes:
+// This debug needs to be kept for looking into problems with delays in
+// browser updates and browser lockups.
 if (rexmit_count == 0) UARTPrintf("\r\n");
 rexmit_count++;
 UARTPrintf("Re-xmit count = ");
@@ -8651,6 +8671,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
 
   uint16_t i;
   uint16_t j;
+  char temp_char;
   char local_buf[300];
   uint16_t local_buf_index_max;
 
@@ -8669,22 +8690,62 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
     // that before this routine was called we already detected the \r\n\r\n
     // sequence in the packet, so we're only copying data starting at the
     // point that POST data begins.
+    // Some operating notes:
+    // a) The local_buf will only contain COMPLETE POST components. No
+    //    partials or fragments.
+    // b) Any time the local_buf is sent for parsing the first POST component
+    //    in the local_buf will never have an & at the start of the component.
+    //    All other components in the local_buf that follow the first one
+    //    always start with an &.
+    // c) When data is copied from the uip_buf to the parse_tail the & is
+    //    also copied into the parse_tail so that we will know we've started
+    //    copying a new POST component. But at the end of the loop the & is
+    //    removed.
     local_buf[i] = *pBuffer;
     local_buf[i+1] = '\0';
     parse_tail[j] = *pBuffer;
     parse_tail[j+1] = '\0';
+    temp_char = *pBuffer;
     pBuffer++;
     nBytes--;
     i++;
     j++;
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// Debug notes:
+// Turn on this debug to see the character by character parsing of the incom-
+// ing packet into the local_buf and parse_tail.
+// IWDG_KR = 0xaa;   // Prevent the IWDG hardware watchdog from firing.
+// UARTPrintf("\r\n");
+// UARTPrintf("local_buf = ");
+// UARTPrintf(local_buf);
+// UARTPrintf("   parse_tail = ");
+// UARTPrintf(parse_tail);
+// UARTPrintf("   nBytes = ");
+// emb_itoa(nBytes, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
     
     if (nBytes == 0) {
-      // Hit end of packet
-      if (strcmp(parse_tail, "&z00=0") == 0) {
-        // If this is also the end of the POST (as indicated by parse_tail
-        // equal to "&z00=0") then send the entire local_buf to parsing.
-        // Parse the local_buf
-        parse_local_buf(pSocket, local_buf, strlen(local_buf));
+      // We just added a character from the incoming stream to both parse_tail
+      // and the local_buf, AND nBytes = zero indicating we hit end of packet.
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Hit end of packet with nBytes zero\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+      if (strcmp(parse_tail, "z00=0") == 0) {
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("This is also end of the POST z00 detected\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+        // If this is the end of the POST (as indicated by parse_tail equal to
+	// "z00=0") then send the entire local_buf to parsing.
+	parse_local_buf(pSocket, local_buf, strlen(local_buf));
         break;
       }
       
@@ -8692,34 +8753,90 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
         // We don't have all the POST data - it will be arriving in
         // subsequent packets
         //
-        // There can be two cases at this point:
-        //   1) We received a part of the first POST component, in which
-        //      case the partial POST component in the parse_tail will not
-        //      start with a & symbol, and there is no useful data in the
-        //      local_buf
-        //   2) We received a part of a POST component after the first
-        //      POST component, in which case the partial POST component
-        //      in the parse_tail will start with a & symbol, and there is
-        //      data in the local_buf that must be parsed
-        
-        // Handle the case where parse_tail does not start with &
-        if (parse_tail[0] != '&') break;
-        
-        // Handle the case where parse tail DOES start with &
+        // There can be one of four cases at this point:
+        //   1) Case 1: We encountered an end of packet after receiving only a
+	//      part of the first POST component (didn't get the '&' at the
+	//      end of the POST component yet). This can be detected by find-
+	//      ing that the first character of local_buf is not a '&' AND
+	//      the length of the local_buf and parse_tail are the same. In
+	//      this case we simply break out of the while() loop without
+	//      parsing the local_buf, as there is no complete POST component
+	//      in the local_buf. Breaking out of the while() loop causes the
+	//      partial POST component to be saved in parse_tail for restor-
+	//      ation when more data is received.
+	//   2) Case 2: We have at least one complete POST component stored in
+	//      the local_buf, but encountered an end of packet part way
+	//      through a subsequent POST component. In that case the partial
+	//      POST component is saved in the parse_tail, the local_buf
+	//      terminator is positioned at the end of the last complete POST
+	//      component received, the completely received POST components in
+	//      the local_buf are sent to parsing, and we break out of the
+	//      while() loop so that more POST data can be received. Note that
+	//      this process eliminates one '&' from parsing, so the
+	//      nParseLeft value must be decremented by one to account for the
+	//      eliminated '&'.
+	//   3) Case 3: Similar to case 2, we have at least one complete POST
+	//      component stored in the local_buf, but encountered an end of
+	//      packet concurrent with the '&' that starts the next POST
+	//      component. In that case the parse_tail will be set to zero
+	//      length, the local_buf terminator is positioned at the end of
+	//      the last complete POST component received, the completely
+	//      received POST components in the local_buf sent to parsing, and
+	//      we break out of the while() loop so that more POST data can be
+	//      received. Note that this process eliminates one '&' from pars-
+	//      ing, so the nParseLeft value must be decremented by one to
+	//      account for the eliminated '&'. The same code processes case 2
+	//      and 3.
+	//   4) Case 4: An end of packet is encountered on the character that
+	//      preceeds a '&'. The implication is that the next packet will
+	//      begin with an '&' character. In this case the POST component
+	//      being received will be treated as if it were incomplete just
+	//      like Case 2. This is processed by the same code that handles
+	//      Case 2 and 3.
+
+        // Handle case 1
+	if ((local_buf[0] != '&') && (strlen(local_buf) == strlen(parse_tail))) {
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Handle case 1\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+	  break;
+	}
+	
+	// Handle case 2, 3, and 4
         else {
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Handle case 2, 3, 4\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
           // Back up the NULL terminator in the local_buf to the point where
-          // the last POST component ended. Note that this will eliminate
-          // one delimiter search in POST parsing so we need to decrement
-          // the nParseLeft value by one for this case.
+          // the last POST component ended, leaving the '&' that starts the
+	  // next POST component in the local_buf. This is necessary because
+	  // POST parsing needs the '&' to find the end of a POST component.
+	  // Also, if the parse_tail only contains a & the parse_tail length
+	  // becomes zero.
           i = i - strlen(parse_tail);
           local_buf[i] = '\0';
-          pSocket->nParseLeft--;
           
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// Debug notes:
+// Turn on this debug to verify that the local_buf is terminated after a '&'
+// delimiter, and that the parse_tail contains part of the next POST compon-
+// ent.
+// UARTPrintf("\r\n");
+// UARTPrintf("End case 2, 3, 4. local_buf = ");
+// UARTPrintf(local_buf);
+// UARTPrintf("   Parse tail = ");
+// UARTPrintf(parse_tail);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
           // Parse the local_buf
           parse_local_buf(pSocket, local_buf, strlen(local_buf));
-          
-          // Shift the content of parse_tail to eliminate the '&'
-          strcpy(parse_tail, &parse_tail[1]);
           break;
         }
       }
@@ -8730,23 +8847,35 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
       // We don't yet have all the data from this packet but need to
       // parse what we have so far.
       // The local_buf only contains POST data, and we can't hit the
-      // end of the local_buf unless multiple posts have been collected,
-      // so, no need to handle special cases like receiving a partial
-      // first POST component.
+      // end of the local_buf unless multiple POST components have been
+      // collected, so no need to handle special cases like receiving a
+      // partial first POST component.
       //
       // Back up the NULL terminator in the local_buf to the point where
-      // the last POST component ended. Note that this will eliminate
-      // one delimiter search in POST parsing so we need to decrement
-      // the nParseLeft value by one for this case.
+      // the last POST component ended, leaving the '&' that starts the
+      // next POST component in the local_buf. This is necessary because
+      // POST parsing needs the '&' to find the end of a POST component.
+      // Also, if the parse_tail only contains a & the parse_tail length
+      // becomes zero.
+
       i = i - strlen(parse_tail);
       local_buf[i] = '\0';
-      pSocket->nParseLeft--;
       
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// Debug notes:
+// Turn on this debug to verify that the local_buf is terminated after a '&'
+// delimiter, and that the parse_tail contains part of the next POST compon-
+// ent.
+// UARTPrintf("\r\n");
+// UARTPrintf("Hit local_buf_index_max. local_buf = ");
+// UARTPrintf(local_buf);
+// UARTPrintf("   Parse tail = ");
+// UARTPrintf(parse_tail);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
       // Parse the local_buf
       parse_local_buf(pSocket, local_buf, strlen(local_buf));
-      
-      // Shift the content of parse_tail to eliminate the '&'
-      strcpy(parse_tail, &parse_tail[1]);
       
       // There is still more POST data in the uip_buf. Restore the
       // partial POST component to the local_buf and reset the index
@@ -8759,9 +8888,11 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
       continue;
     }
     
-    if (*pBuffer == '&') {
+    if (temp_char == '&') {
       // Starting a new POST component collection.
-      // Reset j so the parse_tail will fill with the new POST component.
+      // Reset j so the parse_tail will fill with the new POST component (less
+      // the & ). The previous POST component (including the & if it had one)
+      // is stored as received in the local_buf.
       j = 0;
       parse_tail[0] = '\0';
       continue;
@@ -8776,7 +8907,8 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 {
-  uint16_t lbi; // Local buffer index
+  uint16_t lbi;        // Local buffer index
+  uint8_t parse_error; // Parsing Error indicator
   
   // This function will parse a POST sent by the user (usually when they
   // click on the "submit" button on a webpage). POST data will consist
@@ -8792,11 +8924,37 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
   // in the local_buf. This routine will parse that data and will seek
   // the end of the data as indicated by finding the &z00=0 POST
   // component.
+    
+  // There is a chicken and egg problem with regard to knowing apriori what
+  // value to set the pSocket->nParseLeft to in order to know how many 
+  // characters in total are to be parsed in the incoming POST. nParseLeft
+  // should be set to the one of these values:
+  //   PARSEBYTES_CONFIGURATION
+  //   PARSEBYTES_PCF8574_CONFIGURATION
+  //   PARSEBYTES_IOCONTROL
+  //   or PARSEBYTES_PCF8574_IOCONTROL
+  // However, on first entering the POST parsing process it is not known what
+  // webpage sent the POST that is being received. The code can determine the
+  // source of the POST by examining the first four characters received which
+  // consist of the first CMD, NUMMSD, NUMLSD, and EQUAL sign characters. By
+  // design the POSTs start with known character sequences as follows:
+  //   a00= inidcates we should use PARSEBYTES_CONFIGURATION to set nParseLeft
+  //   A00= indicates we should use PARSEBYTES_PCF8574_CONFIGURATION
+  //   h00= indicates we should use PARSEBYTES_IOCONTROL
+  //   H00= indicates we should use PARSEBYTES_PCF8574_IOCONTROL
+  // Parsing the first four characters before setting nParseLeft means we have
+  // to subtract 4 from the PARSEBYTES_xxx value when nParseLeft is set.
+  // All other CMD, NUMMSD, NUMLSD, EQUAL sequences arrive after nParseLeft
+  // has been set so the appropriate number of characters will be subtracted
+  // as are parsed. Just be aware that the nParseLeft value is deliberately
+  // modified on receipt of a00=, A00=, h00=, or H00=.
 
   // When we parse the local_buf we always start in state PARSE_CMD
   pSocket->ParseState = PARSE_CMD;
 
-  lbi = 0; // local buf index
+  lbi = 0;         // local_buf index
+  parse_error = 0; // Clear the Parsing Error indicator
+  
   while (1) {
     // When appropriate conditions are met a break will occur to leave
     // the while loop.
@@ -8870,18 +9028,20 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	//    return a 'a' or 'A' value we are assured the we are at the start
 	//    of receiving a POST from a Configuration page.
 #if PCF8574_SUPPORT == 0
-        pSocket->current_webpage = WEBPAGE_CONFIGURATION;
-        pSocket->nParseLeft = PARSEBYTES_CONFIGURATION;
+        if (pSocket->ParseCmd == 'a') {
+          pSocket->current_webpage = WEBPAGE_CONFIGURATION;
+          pSocket->nParseLeft = PARSEBYTES_CONFIGURATION - 4;
+	}
 #endif // PCF8574_SUPPORT == 0
 
 #if PCF8574_SUPPORT == 1
         if (pSocket->ParseCmd == 'a') {
           pSocket->current_webpage = WEBPAGE_CONFIGURATION;
-          pSocket->nParseLeft = PARSEBYTES_CONFIGURATION;
+          pSocket->nParseLeft = PARSEBYTES_CONFIGURATION - 4;
 	}
         if (pSocket->ParseCmd == 'A') {
           pSocket->current_webpage = WEBPAGE_PCF8574_CONFIGURATION;
-          pSocket->nParseLeft = PARSEBYTES_PCF8574_CONFIGURATION;
+          pSocket->nParseLeft = PARSEBYTES_PCF8574_CONFIGURATION - 4;
 	}
 #endif // PCF8574_SUPPORT == 1
 
@@ -8922,18 +9082,23 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
           memset(tmp_Pending, '\0', 20);
 
           for (i = 0; i < num_chars; i++) {
-            // Collect characters until num_chars are collected or '&' is found.
+            // Collect characters until num_chars are collected or '&' is
+	    // found.
             if (amp_found == 0) {
-              // Collect a byte of the devicename from the local_buf until the '&' is
-              // found.
-              if (local_buf[lbi] == '&') amp_found = 1;
+              // Collect a byte of the devicename from the local_buf until the
+	      // '&' is found.
+              if (local_buf[lbi] == '&') {
+	        amp_found = 1;
+		// Don't increment lbi within this "If" ... that will be done
+		// within the PARSE_DELIM state.
+	      }
               else {
                 tmp_Pending[i] = local_buf[lbi];
                 pSocket->nParseLeft--;
                 lbi++;
               }
             }
-            if (amp_found) {
+            if (amp_found == 1) {
               // We must reduce nParseLeft here because it is based on the
 	      // PARESEBYTES_ value which assumes num_chars bytes for the
 	      // string field. If the POSTed string field is less than
@@ -9143,7 +9308,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	  //
           // Convert hex nibbles to a byte and store in Config settings
 	  Pending_config_settings = two_hex2int(local_buf[lbi], local_buf[lbi+1]);
-	  lbi +=2;
+	  lbi += 2;
           pSocket->nParseLeft -= 2;
         }
       }
@@ -9154,6 +9319,15 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
         // This code sets the Pending_pin_control bytes based on the
         // information in the 32 character string sent in the h00 field.
         //
+	// Notes on the "current_webpage" logic.
+	// If we got to this point and current_webpage == WEBPAGE_NULL
+	// then we know we did not encounter a POST from a 
+	// Configuration page so this must be a POST from an IOControl page.
+	if (pSocket->current_webpage == WEBPAGE_NULL) {
+          pSocket->current_webpage = WEBPAGE_IOCONTROL;
+	  pSocket->nParseLeft = PARSEBYTES_IOCONTROL - 4;
+	}
+	
         // There are always 32 characters in the string in 16 pairs of
         // hex encoded nibbles, each pair representing a hex encoded pin
         // control byte. The character pairs are extracted one set at a
@@ -9176,19 +9350,10 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             // two characters at a time. "k" will contain the byte
             // after conversion.
             k = two_hex2int(local_buf[lbi], local_buf[lbi+1]);
-	    lbi +=2;
+	    lbi += 2;
             pSocket->nParseLeft -= 2;
 	    i += 2;
-	    
-	    // Notes on the "current_webpage" logic.
-	    // If we got to this point and current_webpage == WEBPAGE_NULL
-	    // then we know we did not encounter a POST from a 
-	    // Configuration page so this must be a POST from aIOControl page.
-	    if (pSocket->current_webpage == WEBPAGE_NULL) {
-              pSocket->current_webpage = WEBPAGE_IOCONTROL;
-	      pSocket->nParseLeft = PARSEBYTES_IOCONTROL;
-	    }
-	    
+
             if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
               // Keep the ON/OFF bit as-is
               Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x80);
@@ -9207,6 +9372,19 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             j++;
           }
         }
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// Debug notes:
+// Turn on these debug statements to verify that the "h00=" POST component is
+// being detected properly. This is an important check to verify that the
+// nParseLeft variable is being set properly.
+// UARTPrintf("\r\n");
+// UARTPrintf("Parsed h command. nParseLeft = ");
+// emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
       }
 
 
@@ -9216,6 +9394,16 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
         // This code sets the PCF8574 Pending_pin_control bytes based on the
         // information in the 16 character string POSTed in the H00 field.
         //
+	// Notes on the "current_webpage" logic.
+	// If we got to this point and current_webpage == WEBPAGE_NULL
+	// then we know we did not encounter a POST from a 
+	// Configuration page so this must be a POST from an IOControl
+	// page.
+	if (pSocket->current_webpage == WEBPAGE_NULL) {
+          pSocket->current_webpage = WEBPAGE_PCF8574_IOCONTROL;
+	  pSocket->nParseLeft = PARSEBYTES_PCF8574_IOCONTROL - 4;
+	}
+	
         // There are always 16 characters in the string in 16 pairs of
         // hex encoded nibbles, each pair representing a hex encoded pin
         // control byte. The character pairs are extracted one set at a
@@ -9244,16 +9432,6 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             pSocket->nParseLeft -= 2;
 	    i += 2;
 
-	    // Notes on the "current_webpage" logic.
-	    // If we got to this point and current_webpage == WEBPAGE_NULL
-	    // then we know we did not encounter a POST from a 
-	    // Configuration page so this must be a POST from an IOControl
-	    // page.
-	    if (pSocket->current_webpage == WEBPAGE_NULL) {
-              pSocket->current_webpage = WEBPAGE_PCF8574_IOCONTROL;
-	      pSocket->nParseLeft = PARSEBYTES_PCF8574_IOCONTROL;
-	    }
-	    
             if (pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION) {
               // Keep the ON/OFF bit as-is
               Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x80);
@@ -9272,6 +9450,19 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             j++;
           }
         }
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// Debug notes:
+// Turn on these debug statements to verify that the "H00=" POST component is
+// being detected properly. This is an important check to verify that the
+// nParseLeft variable is being set properly.
+// UARTPrintf("\r\n");
+// UARTPrintf("Parsed h command. nParseLeft = ");
+// emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
       }
 #endif // PCF8574_SUPPORT == 1
 
@@ -9289,7 +9480,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	// variables so that the mainc.c functions will write them to
 	// Flash.
         // The value following the 'ixx=' ParseCmd & ParseNum consists of
-	// 2 bytes represented as hex encoded strings (4 nibbles).
+	// 4 characters representing hex encoded strings (4 nibbles).
 	// Upper 2 bits are units
 	// Lower 14 bits are value
 	// The bytes are converted from the hex encoded string to a 16
@@ -9319,11 +9510,46 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 
       // Parse 'z' ------------------------------------------------------//
       else if (pSocket->ParseCmd == 'z') {
-        // This code signals that the "hidden" post was received. This
-        // is an indicaor that the entire POST was received.
+        // This POST value signals that the "hidden" post was received. This
+        // is an indicaor that the entire POST was received. There is no '&'
+	// delimiter after this POST value.
         //
-        // There is no '&' delimiter after this POST value.
-        //
+	// If all has executed properly pSocket->nParseLeft will be equal to
+	// one as there is one byte of 'z' data left to parse. Since we
+	// received a 'z' we know this is the last POST component, so we'll
+	// just zero out nParseLeft and terminate the POST processing. Zero-
+	// ing out nParseLeft also allows some backup protection in case there
+	// is a math error somewhere, but enabling the debug statements here
+	// has shown this is working properly. It is good idea to recheck if
+	// any changes are made to the POST logic or content.
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// Debug notes:
+// If the UARTprintf statements below are enabled and POST parsing is working
+// successfully the following should be seen in the UART output:
+//   Parsing z command. nParseleft = 1   lbi = xxx   lbi_max = yyy
+// where xxx is one less than yyy
+UARTPrintf("\r\n");
+UARTPrintf("Parsing z command.");
+UARTPrintf(" nParseLeft = ");
+emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("   lbi = ");
+emb_itoa(lbi, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("   lbi_max = ");
+emb_itoa(lbi_max, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+
+if (pSocket->nParseLeft == 1 && (lbi_max - lbi) == 1) {
+  UARTPrintf("POST Parsing terminated normally\r\n");
+}
+else {
+  UARTPrintf("POST Parsing DID NOT TERMINATE NORMALLY\r\n");
+}
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
         pSocket->nParseLeft = 0;
         break; // Break out of the while loop. We're done with POST.
       }
@@ -9331,38 +9557,114 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
       // If we got to this point one of the "if/else if" above should have
       // executed leaving the pointers pointing at the "&" delimiter in
       // the POST data as the next character to be processed. So we set
-      // the ParseState to PARSE_DELM and let the while() do its next pass.
+      // the ParseState to PARSE_DELIM and let the while() do its next pass.
       //
       pSocket->ParseState = PARSE_DELIM;
     }
 	
     else if (pSocket->ParseState == PARSE_DELIM) {
       if ((pSocket->nParseLeft > 0) && (lbi < lbi_max)) {
-        // Parse the next character, which must be a '&' delimiter. From
-        // here we go parse the next command byte.
+        // The "if ((pSocket->nParseLeft > 0) && (lbi < lbi_max)) {" is the
+	// normal processing path for PARSE_DELIM. Between every POST compon-
+	// ent a '&' delimiter marks the end of one POST component and the
+	// start of the next POST component. The parsing logic knows how long
+	// each POST component is, so when that logic reaches the end of a
+	// POST component the PARSE_DELIM logic is run and the first test is
+	// to assure that a '&' is in the right place. If is, then we simply
+	// move past the '&' delimeter and move on to parsing the next POST
+	// component in the local_buf, unless of course we are at the end of
+        // the local_buf, in which case we break out of the while() loop and
+	// await the next data packet.
+	// Note that the very last POST component (the "z00=0" component) does
+	// not end with a '&' delimiter. But because of the way the parsing is
+	// designed detection of "z00=" will end parsing and the PARSE_DELIM
+	// logic is not called.
+	
+	if (local_buf[lbi] != '&') {
+	  // Parse failed. Abort the POST.
+	  parse_error = 1;
+          pSocket->nParseLeft = 0;
+	  break; // Break out of thw while() loop
+	}
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// Debug notes:
+// This debug can be a little confusing in the UART display but it will show
+// progress through the parsing of the local_buf.
+// UARTPrintf("\r\n");
+// UARTPrintf("PARSE_DELIM, lbi < lbi_max. nParseLeft = ");
+// emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   lbi = ");
+// emb_itoa(lbi, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   lbi_max = ");
+// emb_itoa(lbi_max, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+	// Advance the pointers in case we are to go parse the next command
+	// byte.
         pSocket->ParseState = PARSE_CMD;
         pSocket->nParseLeft--;
         lbi++;
+	
+        // Check if we've reached the end of the local_buf. If yes we should
+	// break out of the while() loop.
+	if (lbi == lbi_max) {
+	  break;
+	}
       }
-      else if ((pSocket->nParseLeft > 0) && (lbi >= lbi_max)) {
-        // We hit the end of the data in the local_buf but there is still
-	// more POST data. Break out of the while(1) loop so we'll return
-	// to collect more data from the uip_buf.
-	break; // Exit parsing
+      else if (lbi >= lbi_max) {
+        // We somehow advanced past the end of the local_buf. This is a
+	// parsing error and should abort the POST.
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("PARSE_DELIM, Parse Error, lbi >= lbi_max. nParseLeft = ");
+// emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   lbi = ");
+// emb_itoa(lbi, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   lbi_max = ");
+// emb_itoa(lbi_max, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+	parse_error = 1;
+        pSocket->nParseLeft = 0;
+	break; // Break out of thw while() loop
       }
       else {
-        // If we came to PARSE_DELIM and there was nothing left to parse
-        // in this or any subsequent packet (the normal exit state for
-        // POST data) then we just make sure nParseLeft is zero (not
-        // negative) and go on to exit.
-        pSocket->nParseLeft = 0; // End the parsing
-        break; // Exit parsing
+        // If we came to PARSE_DELIM and there was nothing left to parse in
+        // this or any subsequent packet (the normal exit state for POST data)
+	// then we should just make sure nParseLeft is zero and go on to exit.
+	// This logic should never get executed due to the way this applica-
+	// tion has structured the POSTs with the use of the z00=0 POST
+	// component to end parsing. Since this part of PARSE_DELIM should
+	// never happen this will be considered a parsing error.
+
+#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("PARSE_DELIM, Parse Error, No z00=0. nParseLeft = ");
+// emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+
+	parse_error = 1;
+        pSocket->nParseLeft = 0;
+	break; // Break out of thw while() loop
       }
     }
   }  // end of "while(1)" loop
       
-  // If nParseLeft == 0 we should enter STATE_SENDHEADER204, but we
-  // clean up the fragment tracking pointers first.
+  // If no parse_error and if nParseLeft == 0 we should enter
+  // STATE_SENDHEADER204, but we clean up the fragment tracking pointers
+  // first.
   //
   // If nParseLeft is > 0 we haven't received the whole POST yet. In that
   // case we should not enter STATE_SENDHEADER204 until we finish
@@ -9378,9 +9680,33 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 
   if (pSocket->nParseLeft == 0) {
     // Finished parsing
-	
-    // Signal the main.c processes that parsing is complete
-    parse_complete = 1;
+    if (parse_error == 0) {
+      // Signal the main.c processes that parsing is complete
+      parse_complete = 1;
+    }
+    else {
+      // Else we don't set parse_complete so that Pending values won't be
+      // processed in the main.c code. Effectively all the changes are
+      // ignored.
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // Hmmm ... a subsequent Save of any kind could cause miscellaneous
+      // Pending values to be used in main.c. I'm not sure that is a problem,
+      // but it could be confusing to the user to see some of their changes
+      // take effect, and some not take effect. It should be apparent in the
+      // GUI, so maybe the user just has to update the changes in the GUI
+      // again and try another Save.
+      // Maybe forcing a reset? But that would also zero the IOControl states
+      // which is probably not a good idea.
+      // Maybe call a function that returns all Pending values to their current
+      // values? This is also done in the eeprom start up so it might not add
+      // much code if it is a shared function.
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      parse_error = 0; // Clear parse_error for the next Save
+    }
     // Set nState to close the connection
     pSocket->nState = STATE_SENDHEADER204;
   }

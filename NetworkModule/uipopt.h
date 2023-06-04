@@ -286,10 +286,10 @@
 // Enable ONLY ONE of the following to select the build type
 #define BUILD_TYPE_MQTT_STANDARD			0
 #define BUILD_TYPE_BROWSER_STANDARD			0
-#define BUILD_TYPE_MQTT_UPGRADEABLE			1
+#define BUILD_TYPE_MQTT_UPGRADEABLE			0
 #define BUILD_TYPE_BROWSER_UPGRADEABLE			0
 #define BUILD_TYPE_MQTT_UPGRADEABLE_BME280		0
-#define BUILD_TYPE_CODE_UPLOADER			0
+#define BUILD_TYPE_CODE_UPLOADER			1
 
 // The following #defines specify the code parts that need to be included in
 // the various BUILE_TYPEs. You shouldn't need to change any of these.
@@ -410,18 +410,28 @@
 // tables you should use #undef / #define statements to temporarily over-ride
 // specific #defines from above. Comment out these additional #undef / #define
 // statements when doing actual production builds.
-//   DEBUG_SUPPORT over-ride: Normally DEBUG_SUPPORT should be "11" for a
-//   production build, but a developer may choose 7 or 15 to provide debug
-//   help during code test and debug.
-//
-//    #undef DEBUG_SUPPORT
-//    #define DEBUG_SUPPORT 15
+//   DEBUG_SUPPORT over-ride:
+//     Normally DEBUG_SUPPORT should be "11" for a production build, but a
+//     developer may choose 7 or 15 to provide debug help during code test and
+//     debug.
+//   HTTPD_DIAGNOSTIC_SUPPORT over-ride:
+//     Enables diagnostic display of the size and address information for the
+//     webpages stored in I2C EEPROM. This is only needed in development of
+//     new webpages for upgradeable code where those webpages are stored in
+//     the I2C EEPROM.
+//   TEMP_DEBUG_EXCLUDE over-ride:
+//     This will free up a small amount of Flash space. It is useful parti-
+//     cularly in the "very tight for space" non-upgradeable MQTT builds to
+//     make room for debug.
+// 
+//   #undef DEBUG_SUPPORT
+//   #define DEBUG_SUPPORT 15
 //
 //   #undef HTTPD_DIAGNOSTIC_SUPPORT
 //   #define HTTPD_DIAGNOSTIC_SUPPORT 1
 //
-//    #undef TEMP_DEBUG_EXCLUDE
-//    #define TEMP_DEBUG_EXCLUDE		1
+//   #undef TEMP_DEBUG_EXCLUDE
+//   #define TEMP_DEBUG_EXCLUDE	1
 
   // The following describes the various #defines used in the above #define
   // tables.

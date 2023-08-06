@@ -218,12 +218,12 @@ static uint16_t tmp16;
 #define FBUF ((struct uip_tcpip_hdr *)&uip_reassbuf[0])
 #define ICMPBUF ((struct uip_icmpip_hdr *)&uip_buf[UIP_LLH_LEN])
 
-#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#if NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 struct uip_stats uip_stat;
 #define UIP_STAT(s) s
 #else
 #define UIP_STAT(s)
-#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#endif // NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 #if ! UIP_ARCH_ADD32
 void uip_add32(uint8_t *op32, uint16_t op16)
@@ -339,10 +339,10 @@ void uip_init(void)
   for (c = 0; c < UIP_CONNS; ++c) uip_conns[c].tcpstateflags = UIP_CLOSED;
   /* IPv4 initialization. */
   
-#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#if NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
   // Initialize statistics
   uip_init_stats();
-#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#endif // NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 }
 
 
@@ -358,9 +358,9 @@ uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
   register struct uip_conn *conn, *cconn;
 
 
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Called uip_connect\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 
   // Find an empty connection table entry to use. An "empty connection" is
   // essentially just a connection that is "closed".
@@ -409,7 +409,7 @@ uip_connect(uip_ipaddr_t *ripaddr, uint16_t rport, uint16_t lport)
 //---------------------------------------------------------------------------//
 void uip_init_stats(void)
 {
-#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#if NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
   // Initialize statistics
   uip_stat.ip.drop = 0;
   uip_stat.ip.recv = 0;
@@ -433,7 +433,7 @@ void uip_init_stats(void)
   uip_stat.tcp.rexmit = 0;
   uip_stat.tcp.syndrop = 0;
   uip_stat.tcp.synrst = 0;
-#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#endif // NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 }
 
 
@@ -553,9 +553,9 @@ void uip_process(uint8_t flag)
       }
       if (uip_connr->timer == UIP_TIME_WAIT_TIMEOUT) {
         uip_connr->tcpstateflags = UIP_CLOSED;
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("  uip.c: close due to timeout1\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
       }
     }
     else if (uip_connr->tcpstateflags != UIP_CLOSED) {
@@ -603,7 +603,7 @@ void uip_process(uint8_t flag)
 	  if (uip_connr->nrtx > 4) uip_connr->nrtx = 4;
 	  uip_connr->timer = (uint8_t)(UIP_RTO << uip_connr->nrtx);
 
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("uip_connr->timer = ");
 // emb_itoa(uip_connr->timer, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
@@ -611,7 +611,7 @@ void uip_process(uint8_t flag)
 // emb_itoa(uip_connr->nrtx, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 
 	  ++(uip_connr->nrtx);
 	  
@@ -626,12 +626,12 @@ void uip_process(uint8_t flag)
             case UIP_SYN_RCVD:
               // In the SYN_RCVD state, we should retransmit our SYNACK.
 
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("case UIP_SYN_RCVD - resend SYNACK   lport = ");
 // emb_itoa(uip_connr->lport, OctetArray, 16, 4);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 
               goto tcp_send_synack;
 
@@ -640,12 +640,12 @@ void uip_process(uint8_t flag)
 	      // MQTT.
 	      BUF->flags = 0;
 
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("case UIP_SYN_SENT - resend SYN   lport = ");
 // emb_itoa(uip_connr->lport, OctetArray, 16, 4);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 
 	      goto tcp_send_syn;
 
@@ -656,20 +656,20 @@ void uip_process(uint8_t flag)
               uip_flags = UIP_REXMIT;
               UIP_APPCALL(); // Call to get old data for retransmit.  uip_len
 	                     // was cleared above.
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
  UARTPrintf("case UIP_ESTABLISHED - resend data   lport = ");
  emb_itoa(uip_connr->lport, OctetArray, 16, 4);
  UARTPrintf(OctetArray);
  UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
               goto apprexmit;
 
             case UIP_FIN_WAIT_1:
             case UIP_CLOSING:
             case UIP_LAST_ACK:
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("case case UIP_FIN_WAIT_1 or UIP_CLOSING or UIP_LAST_ACK - resend FINACK\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
               // In all these states we should retransmit a FINACK.
               goto tcp_send_finack;
 
@@ -972,16 +972,6 @@ void uip_process(uint8_t flag)
         tmp16 = ((uint16_t)uip_buf[UIP_TCPIP_HLEN + UIP_LLH_LEN + 2 + c] << 8)
 	        | (uint16_t)uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN + 3 + c];
 		
-// The host should never send a SYN by itself ... as the host doesn't set up
-// connections with the application. Still, if it does send one display the
-// value.
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("found_listen: Incoming MSS = ");
-// emb_itoa(tmp16, OctetArray, 10, 5);
-// UARTPrintf(OctetArray);
-// UARTPrintf("\r\n");
-// #endif // DEBUG_SUPPORT != 11
-
 	// MODIFICATION FOR THIS APPLICATION: The original uip.c code would
 	// set the receive MSS and transmit MSS to be the same. So the smaller
 	// of the advertised MSS from the host or the UIP_TCP_MSS would get
@@ -1041,9 +1031,9 @@ void uip_process(uint8_t flag)
   // of this reset is wihtin our advertised window before we accept the reset.
   if (BUF->flags & TCP_RST) {
     uip_connr->tcpstateflags = UIP_CLOSED;
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("  uip.c: close due to TCP_RST\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
     uip_flags = UIP_ABORT;
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     // We are doing a reset here. Why would we do a UIP_APPCALL? The
@@ -1057,7 +1047,7 @@ void uip_process(uint8_t flag)
 
 
 /*
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 {
   // Display the first 20 bytes of the app_data
   int q;
@@ -1111,7 +1101,7 @@ void uip_process(uint8_t flag)
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
 
-/*
+
   // Display the content of the uip_buf
   qBuffer = uip_appdata;
   UARTPrintf("uip_process - uip_appdata hex row1  = ");
@@ -1190,7 +1180,7 @@ void uip_process(uint8_t flag)
   }
   UARTPrintf("\r\n");
 }
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 */
 
 
@@ -1222,9 +1212,9 @@ void uip_process(uint8_t flag)
       || BUF->seqno[1] != uip_connr->rcv_nxt[1]
       || BUF->seqno[2] != uip_connr->rcv_nxt[2]
       || BUF->seqno[3] != uip_connr->rcv_nxt[3])) {
-// #if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("uip_process - Unexpected sequence number - sending ACK\r\n");
-// #endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
       goto tcp_send_ack;
     }
   }
@@ -1274,6 +1264,9 @@ void uip_process(uint8_t flag)
     // since we force the application to close when the peer sends a FIN
     // (hence the application goes directly from ESTABLISHED to LAST_ACK).
     case UIP_SYN_RCVD:
+#if DEBUG_SUPPORT == 15
+UARTPrintf("\r\n\r\n  uip.c: UIP_SYN_RCVD\r\n");
+#endif // DEBUG_SUPPORT == 15
       // In SYN_RCVD we have sent out a SYNACK in response to a SYN, and we
       // are waiting for an ACK that acknowledges the data we sent out the
       // last time. Therefore, we want to have the UIP_ACKDATA flag set. If
@@ -1287,9 +1280,6 @@ void uip_process(uint8_t flag)
           uip_add_rcv_nxt(uip_len);
         }
         uip_slen = 0;
-#if DEBUG_SUPPORT != 11
-// UARTPrintf("  uip.c: APPCALL due to SYN_RCVD\r\n");
-#endif // DEBUG_SUPPORT != 11
         UIP_APPCALL(); // We may have received data with the SYN
         goto appsend;
       }
@@ -1297,9 +1287,9 @@ void uip_process(uint8_t flag)
 
 
     case UIP_SYN_SENT:
-#if DEBUG_SUPPORT != 11
-// UARTPrintf("Testing case UIP_SYN_SENT\r\n");
-#endif // DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: UIP_SYN_SENT\r\n");
+#endif // DEBUG_SUPPORT == 15
       // In SYN_SENT, we wait for a SYNACK that is sent in response to our
       // SYN. The rcv_nxt is set to sequence number in the SYNACK plus one,
       // and we send an ACK. We move into the ESTABLISHED state.
@@ -1307,11 +1297,6 @@ void uip_process(uint8_t flag)
         (BUF->flags & TCP_CTL) == (TCP_SYN | TCP_ACK)) {
         // Parse the TCP MSS option, if present. This is a received SYN, so we
 	// are capturing the MSS of the host.
-
-// This is the host response to our SYN. Display the value.
-#if DEBUG_SUPPORT != 11
-// UARTPrintf("case UIP_SYN_SENT - Incoming SYNACK\r\n");
-#endif // DEBUG_SUPPORT != 11
 
         if((BUF->tcpoffset & 0xf0) > 0x50) {
 	  for(c = 0; c < ((BUF->tcpoffset >> 4) - 5) << 2 ;) {
@@ -1382,19 +1367,23 @@ void uip_process(uint8_t flag)
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       // In this case the applications don't do anything with this information.
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("  uip.c: APPCALL due to ABORT\r\n");
-#endif // DEBUG_SUPPORT != 11
-      UIP_APPCALL(); // ???
+#endif // DEBUG_SUPPORT == 15
+      UIP_APPCALL(); // ? Maybe this is done in case the app needs to do
+                     // something before the actual CLOSE occurs.
       // The connection is closed after we send the RST
       uip_conn->tcpstateflags = UIP_CLOSED;
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("  uip.c: close due to reset\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
       goto reset;
 
 
     case UIP_ESTABLISHED:
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: UIP_ESTABLISHED\r\n");
+#endif // DEBUG_SUPPORT == 15
       // In the ESTABLISHED state, we call upon the application to feed data
       // into the uip_buf. If the UIP_ACKDATA flag is set, the application
       // should put new data into the buffer, otherwise we are retransmitting
@@ -1411,7 +1400,7 @@ void uip_process(uint8_t flag)
         }
         uip_add_rcv_nxt(1 + uip_len);
         uip_flags |= UIP_CLOSE;
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("  uip.c: close due to FIN");
 // UARTPrintf("   lport = ");
 // emb_itoa(uip_connr->lport, OctetArray, 16, 4);
@@ -1420,7 +1409,7 @@ void uip_process(uint8_t flag)
 // emb_itoa(uip_connr->rport, OctetArray, 16, 4);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
         if (uip_len > 0) {
           uip_flags |= UIP_NEWDATA;
         }
@@ -1506,9 +1495,9 @@ void uip_process(uint8_t flag)
         if (uip_flags & UIP_ABORT) {
           uip_slen = 0;
           uip_connr->tcpstateflags = UIP_CLOSED;
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("  uip.c: close due to ABORT\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
           BUF->flags = TCP_RST | TCP_ACK;
           goto tcp_send_nodata;
         }
@@ -1524,9 +1513,9 @@ void uip_process(uint8_t flag)
 
         // If uip_slen > 0, the application has data to be sent.
         if (uip_slen > 0) {
-// #if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("uip.c uip_slen > 0\r\n");
-// #endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
           // If the connection has acknowledged data, the contents of the
 	  // ->len variable should be discarded.
 	  if ((uip_flags & UIP_ACKDATA) != 0) {
@@ -1548,7 +1537,8 @@ void uip_process(uint8_t flag)
 	    // because this application uses such a small transmit buffer,
 	    // and hosts always have large buffers. Here the original code is
 	    // commented out and an assumption made that the host can receive
-	    // the small transmit we are making.
+	    // the small transmit we are making. This is done mostly for code
+	    // size savings.
 //	    if (uip_slen > uip_connr->mss) {
 //	      uip_slen = uip_connr->mss;
 //	    }
@@ -1593,17 +1583,21 @@ void uip_process(uint8_t flag)
       goto drop;
       
     case UIP_LAST_ACK:
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: UIP_LAST_ACK\r\n");
+#endif // DEBUG_SUPPORT == 15
       // We can close this connection if the peer has acknowledged our FIN.
       // This is indicated by the UIP_ACKDATA flag.
       if (uip_flags & UIP_ACKDATA) {
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("  uip.c: close in UIP_LAST_ACK\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
         uip_connr->tcpstateflags = UIP_CLOSED;
 	uip_flags = UIP_CLOSE;
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         // Not sure why there is an APPCALL here as we are closing the
-	// connection.
+	// connection. Maybe this is done in case the app needs to do
+	// something before the actual CLOSE occurs.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // UARTPrintf("  uip.c: APPCALL due to UIP_LAST_ACK\r\n");
 	UIP_APPCALL(); // ???
@@ -1611,6 +1605,9 @@ void uip_process(uint8_t flag)
       break;
       
     case UIP_FIN_WAIT_1:
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: UIP_FIN_WAIT_1\r\n");
+#endif // DEBUG_SUPPORT == 15
       // The application has closed the connection, but the remote host hasn't
       // closed its end yet. Thus we do nothing but wait for a FIN from the
       // other side.
@@ -1628,12 +1625,13 @@ void uip_process(uint8_t flag)
         }
         uip_add_rcv_nxt(1);
         uip_flags = UIP_CLOSE;
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("  uip.c: close due to FIN from the other side\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         // Not sure why there is an APPCALL here as we are closing the
-	// connection.
+	// connection. Maybe this is done in case the app needs to do
+	// something before the actual CLOSE occurs.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // UARTPrintf("  uip.c: APPCALL due to FIN_WAIT\r\n");
         UIP_APPCALL(); // ???
@@ -1647,9 +1645,15 @@ void uip_process(uint8_t flag)
       if (uip_len > 0) {
         goto tcp_send_ack;
       }
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: goto drop\r\n");
+#endif // DEBUG_SUPPORT == 15
       goto drop;
 
     case UIP_FIN_WAIT_2:
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: UIP_FIN_WAIT_2\r\n");
+#endif // DEBUG_SUPPORT == 15
       if (uip_len > 0) {
 	uip_add_rcv_nxt(uip_len);
       }
@@ -1658,12 +1662,13 @@ void uip_process(uint8_t flag)
 	uip_connr->timer = 0;
 	uip_add_rcv_nxt(1);
 	uip_flags = UIP_CLOSE;
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("  uip.c: close due to TCP_FIN\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         // Not sure why there is an APPCALL here as we are closing the
-	// connection.
+	// connection. Maybe this is done in case the app needs to do
+	// something before the actual CLOSE occurs.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // UARTPrintf("  uip.c: APPCALL due to FIN_WAIT2\r\n");
 	UIP_APPCALL(); // ???
@@ -1672,17 +1677,29 @@ void uip_process(uint8_t flag)
       if (uip_len > 0) {
 	goto tcp_send_ack;
       }
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: goto drop\r\n");
+#endif // DEBUG_SUPPORT == 15
       goto drop;
 
     case UIP_TIME_WAIT:
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: UIP_TIME_WAIT\r\n");
+#endif // DEBUG_SUPPORT == 15
       goto tcp_send_ack;
 
     case UIP_CLOSING:
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: UIP_CLOSING\r\n");
+#endif // DEBUG_SUPPORT == 15
       if (uip_flags & UIP_ACKDATA) {
 	uip_connr->tcpstateflags = UIP_TIME_WAIT;
 	uip_connr->timer = 0;
-    }
-  }
+      }
+  } // end of switch
+#if DEBUG_SUPPORT == 15
+UARTPrintf("  uip.c: goto drop after switch\r\n");
+#endif // DEBUG_SUPPORT == 15
   goto drop;
 
 

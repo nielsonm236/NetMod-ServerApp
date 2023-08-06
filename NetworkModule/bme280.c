@@ -683,7 +683,7 @@ void user_i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len)
 
 
 /*
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 void print_sensor_data(struct bme280_data *comp_data)
 {
   // KEEP THIS CODE FOR FUTURE DEVELOPMENT
@@ -724,7 +724,6 @@ void print_sensor_data(struct bme280_data *comp_data)
   UARTPrintf(OctetArray);
     
   // Pressure range is 300 to 1100 hPa.
-//  press_whole = altitude_adjustment(comp_data);
   press_whole = altitude_adjustment();
   UARTPrintf(" P ");
   emb_itoa(press_whole, OctetArray, 10, 5);
@@ -748,7 +747,7 @@ void print_sensor_data(struct bme280_data *comp_data)
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");    
 }
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 */
 
 

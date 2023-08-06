@@ -721,7 +721,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
   }
 
 /*
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // KEEP THIS DEBUG CODE AS IT WILL LIKELY BE NEEDED IN THE FUTURE
 // Debug to print to the UART the MQTT packet contained in the uip_buf
 // Non-printable bytes are replaced with "-"
@@ -739,7 +739,7 @@ for (i = 0; i < uip_slen; i++) {
   IWDG_KR = 0xaa;   // Prevent the IWDG hardware watchdog from firing.
 }
 UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 */
 
   // Regardless of whether this was an Auto Discovery packet or not the MQTT

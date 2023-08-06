@@ -23,10 +23,11 @@ Feature Comparison of the MQTT and Browser builds:
 |Browser IO Control           |   x   |    x    |      x      |       x      |      x      |
 |Browser Configuration        |   x   |    x    |      x      |       x      |      x      |
 |Full/Half Duplex             |   x   |    x    |      x      |       x      |      x      |
-|Link Error Statistics        |   x   |    x    |      x      |       x      |             |
 |DS18B20 Temp Sensor          |   x   |    x    |      x      |       x      |             |
+|BME280 Sensor                |       |         |             |              |      x      |
 |IO Naming                    |       |    x    |             |       x      |             |
 |IO Timers                    |       |    x    |             |       x      |             |
+|Link Error Statistics        |   x   |    x    |      x      |       x      |             |
 |Network Statistics           |       |    x    |             |       x      |             |
 |I2C Support                  |       |         |      x      |       x      |      x      |
 |Upgradeable over Ethernet  * |       |         |      x      |       x      |      x      |
@@ -36,6 +37,8 @@ Feature Comparison of the MQTT and Browser builds:
 * "Upgradeable over Ethernet" requires additonal hardware - see Manual
 
 Short summary of recent history:
+
+August 3, 2023 - Addressed numerous issues, most relatively small. See the change log in the manual for full descriptions of Issues #172, #174, #179, #180, #181, #183, #184, #185, #187, #188, #189, #190, and #191.
 
 June 3, 2023 - Addressed Issue #175 "Save on IOControl page has stopped working on Chrome?", Addressed Issue #176 "Saving PCF8574 Configuration can cause the PCF8574 to disappear"
 
@@ -58,8 +61,6 @@ October 9, 2022 - Fixed Issue #94: “ENC28J60 Revision not always reported in L
 August 31,2022 - Added useability enhancement "Make ON/OFF labels clickable"
 
 August 17, 2022 - Fixed "MQTT state-req returning all zeroes".
-
-February 5, 2022 - Fixed "IOControl Save causes loss of Configuration".
 
 Help is available via a link in the Configuration page that will take you to the GitHub Wiki page. All functionality is described in detail in the "Network Module Manual". I suggest you take a look.
 

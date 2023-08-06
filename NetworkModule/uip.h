@@ -907,7 +907,7 @@ extern uint8_t uip_acc32[4];
 
 /**
  * The structure holding the TCP/IP statistics that are gathered if
- * UIP_STATISTICS is set to 1.
+ * NETWORK_STATISTICS is set to 1.
  */
 struct uip_stats {
   struct {

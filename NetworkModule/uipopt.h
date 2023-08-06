@@ -263,7 +263,7 @@
 //                                                  Upgrade  BME280
 //
 // BUILD_SUPPORT            *     **       *        **       *        ***
-// UIP_STATISTICS           0     1        0        1        0        0
+// NETWORK_STATISTICS       0     1        0        1        0        0
 // DEBUG_SUPPORT            11    11       11       11       11       11
 // IWDG_ENABLE              1     1        1        1        1        1
 // I2C_SUPPORT              0     0        1        1        1        1
@@ -284,12 +284,14 @@
 // Be sure to put the appropriate revision (date/time) in the main.c file
 
 // Enable ONLY ONE of the following to select the build type
-#define BUILD_TYPE_MQTT_STANDARD			0
+#define BUILD_TYPE_MQTT_STANDARD			1
 #define BUILD_TYPE_BROWSER_STANDARD			0
 #define BUILD_TYPE_MQTT_UPGRADEABLE			0
 #define BUILD_TYPE_BROWSER_UPGRADEABLE			0
 #define BUILD_TYPE_MQTT_UPGRADEABLE_BME280		0
-#define BUILD_TYPE_CODE_UPLOADER			1
+#define BUILD_TYPE_BROWSER_STANDARD_RFA			0
+#define BUILD_TYPE_BROWSER_UPGRADEABLE_RFA		0
+#define BUILD_TYPE_CODE_UPLOADER			0
 
 // The following #defines specify the code parts that need to be included in
 // the various BUILE_TYPEs. You shouldn't need to change any of these.
@@ -298,11 +300,12 @@
 #define MQTT_BUILD		1
 #define CODE_UPLOADER_BUILD	2
 
-// MQTT (standard)
+// MQTT Standard
 #if BUILD_TYPE_MQTT_STANDARD == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
-  #define UIP_STATISTICS		0
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		0
   #define IWDG_ENABLE			1
   #define I2C_SUPPORT			0
   #define OB_EEPROM_SUPPORT		0
@@ -314,13 +317,18 @@
   #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		1
   #define PCF8574_SUPPORT               0
-#endif
+  #define RF_ATTEN_SUPPORT              0
+  #define RESPONSE_LOCK_SUPPORT         0
+  #define INA226_SUPPORT                0
+  #define SDR_POWER_RELAY_SUPPORT       0
+#endif // BUILD_TYPE_MQTT_STANDARD == 1
 
-// Browser (standard)
+// Browser Standard
 #if BUILD_TYPE_BROWSER_STANDARD == 1
   #define BUILD_SUPPORT			BROWSER_ONLY_BUILD
   #define DEBUG_SUPPORT			11
-  #define UIP_STATISTICS		1
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		1
   #define IWDG_ENABLE			1
   #define I2C_SUPPORT			0
   #define OB_EEPROM_SUPPORT		0
@@ -332,13 +340,18 @@
   #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		1
   #define PCF8574_SUPPORT               0
+  #define RF_ATTEN_SUPPORT              0
+  #define RESPONSE_LOCK_SUPPORT         1
+  #define INA226_SUPPORT                0
+  #define SDR_POWER_RELAY_SUPPORT       0
 #endif
 
 // MQTT Upgradeable
 #if BUILD_TYPE_MQTT_UPGRADEABLE == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
-  #define UIP_STATISTICS		0
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		0
   #define IWDG_ENABLE			1
   #define I2C_SUPPORT			1
   #define OB_EEPROM_SUPPORT		1
@@ -350,13 +363,18 @@
   #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		0
   #define PCF8574_SUPPORT               1
+  #define RF_ATTEN_SUPPORT              0
+  #define RESPONSE_LOCK_SUPPORT         1
+  #define INA226_SUPPORT                0
+  #define SDR_POWER_RELAY_SUPPORT       0
 #endif
 
 // Browser Upgradeable
 #if BUILD_TYPE_BROWSER_UPGRADEABLE == 1
   #define BUILD_SUPPORT			BROWSER_ONLY_BUILD
   #define DEBUG_SUPPORT			11
-  #define UIP_STATISTICS		1
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		1
   #define IWDG_ENABLE			1
   #define I2C_SUPPORT			1
   #define OB_EEPROM_SUPPORT		1
@@ -368,13 +386,18 @@
   #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		0
   #define PCF8574_SUPPORT               1
+  #define RF_ATTEN_SUPPORT              0
+  #define RESPONSE_LOCK_SUPPORT         1
+  #define INA226_SUPPORT                0
+  #define SDR_POWER_RELAY_SUPPORT       0
 #endif
 
 // MQTT Upgradeable w/ BME280
 #if BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
-  #define UIP_STATISTICS		0
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		0
   #define IWDG_ENABLE			1
   #define I2C_SUPPORT			1
   #define OB_EEPROM_SUPPORT		1
@@ -386,13 +409,18 @@
   #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		0
   #define PCF8574_SUPPORT               0
+  #define RF_ATTEN_SUPPORT              0
+  #define RESPONSE_LOCK_SUPPORT         1
+  #define INA226_SUPPORT                0
+  #define SDR_POWER_RELAY_SUPPORT       0
 #endif
 
 // Code Uploader
 #if BUILD_TYPE_CODE_UPLOADER == 1
   #define BUILD_SUPPORT			CODE_UPLOADER_BUILD
   #define DEBUG_SUPPORT			11
-  #define UIP_STATISTICS		1
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		1
   #define IWDG_ENABLE			1
   #define I2C_SUPPORT			1
   #define OB_EEPROM_SUPPORT		1
@@ -404,7 +432,79 @@
   #define HTTPD_DIAGNOSTIC_SUPPORT	0
   #define PINOUT_OPTION_SUPPORT		0
   #define PCF8574_SUPPORT               0
+  #define RF_ATTEN_SUPPORT              0
+  #define RESPONSE_LOCK_SUPPORT         0
+  #define INA226_SUPPORT                0
+  #define SDR_POWER_RELAY_SUPPORT       0
 #endif
+
+// Browser (standard) with RF Attenuator
+#if BUILD_TYPE_BROWSER_STANDARD_RFA == 1
+  #define BUILD_SUPPORT			BROWSER_ONLY_BUILD
+  #define DEBUG_SUPPORT			11
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		1
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			1
+  #define OB_EEPROM_SUPPORT		0
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		0
+  #define DS18B20_SUPPORT		0
+  #define BME280_SUPPORT		0
+  #define TEMP_DEBUG_EXCLUDE		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
+  #define PINOUT_OPTION_SUPPORT		0
+  #define PCF8574_SUPPORT               0
+  #define RF_ATTEN_SUPPORT              1
+  #define RESPONSE_LOCK_SUPPORT         1
+  #define INA226_SUPPORT                1
+  #define SDR_POWER_RELAY_SUPPORT       1
+#endif
+
+// Browser Upgradeable with RF Attenuator
+#if BUILD_TYPE_BROWSER_UPGRADEABLE_RFA == 1
+  #define BUILD_SUPPORT			BROWSER_ONLY_BUILD
+  #define DEBUG_SUPPORT			11
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		1
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			1
+  #define OB_EEPROM_SUPPORT		1
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		0
+  #define DS18B20_SUPPORT		0
+  #define BME280_SUPPORT		0
+  #define TEMP_DEBUG_EXCLUDE		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
+  #define PINOUT_OPTION_SUPPORT		0
+  #define PCF8574_SUPPORT               0
+  #define RF_ATTEN_SUPPORT              1
+  #define RESPONSE_LOCK_SUPPORT         1
+  #define INA226_SUPPORT                1
+  #define SDR_POWER_RELAY_SUPPORT       1
+#endif
+
+
+// APPROXIMATE sizes of various build options
+//  LINK_STATISTICS		
+//  NETWORK_STATISTICS		3122 bytes
+//  IWDG_ENABLE			
+//  I2C_SUPPORT			
+//  OB_EEPROM_SUPPORT		
+//  DEBUG_SENSOR_SERIAL		
+//  LINKED_SUPPORT		646 bytes
+//  DS18B20_SUPPORT		1645 bytes
+//  BME280_SUPPORT		6223 bytes
+//  TEMP_DEBUG_EXCLUDE		411 bytes
+//  HTTPD_DIAGNOSTIC_SUPPORT	
+//  PINOUT_OPTION_SUPPORT	262 bytes
+//  PCF8574_SUPPORT             2442 bytes
+//  RF_ATTEN_SUPPORT            961 bytes
+//  RESPONSE_LOCK_SUPPORT       214 bytes
+//  INA226_SUPPORT              2517 bytes + 20 RAM
+//  SDR_POWER_RELAY_SUPPORT     2554 bytes
+
+
 
 // DEVELOPERS: Rather than change anything in the above BUILD_TYPE define
 // tables you should use #undef / #define statements to temporarily over-ride
@@ -432,6 +532,15 @@
 //
 //   #undef TEMP_DEBUG_EXCLUDE
 //   #define TEMP_DEBUG_EXCLUDE	1
+//
+//   #undef PINOUT_OPTION_SUPPORT
+//   #define PINOUT_OPTION_SUPPORT 0
+//
+
+// Temporary #define to experiment with code change for Issue #174
+// This is the algorithmic pinout code
+#define SUPPORT_174 1
+
 
   // The following describes the various #defines used in the above #define
   // tables.
@@ -440,7 +549,7 @@
   // Determines the type of code build to create:
   // MQTT_BUILD includes MQTT support and Home Assistant support, but excludes
   //   the Browser Only IO Names and IO Timers. This build selection will
-  //   over-ride the UIP_STATISTICS setting forcing it to be disabled.
+  //   over-ride the NETWORK_STATISTICS setting forcing it to be disabled.
   // BROWSER_ONLY_BUILD excludes MQTT support but includes the extra Browser
   //   only features like IO Names and IO Timers.
   // CODE_UPLOADER_BUILD excludes all Browser Only and MQTT features. It
@@ -461,25 +570,16 @@
   // Half Duplex. For this reason DEBUG_SUPPORT 11 should be the default
   // setting for production code.
   //
-  // 7 =  10 bytes of debug[] allocated to specific debug data*
-  //      UART TX enabled on IO pin 11
-  //      No Link Error Stats browser page
-  //      USAGE: Useful mode for displaying most in-development debug without
-  //      the overhead of the Link Error Stats web page.
   // 11 = USE FOR PRODUCTION BUILDS.
   //      10 bytes of debug allocated to specific debug data*
   //      No UART
-  //      Link Error Stats browser page enabled
-  //      USAGE: provides the user with the Link Error Stats in a web page
-  //      without the overhead of the UART functionality.
   // 15 = 10 bytes of debug allocated to specific debug data*
   //      UART TX enabled on IO pin 11
-  //      Link Error Stats browser page enabled
   //      USAGE: Provides the most run time error data and UART display.
   // * Specific debug data: Reset Status Register counters, TXERIF counter,
   //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
 
-  // UIP_STATISTICS
+  // NETWORK_STATISTICS
   // Determines if Network Statistics support should be compiled in. Network
   // Statistics are useful for debugging Network related problems. If you are
   // modifying the project and need more program space eliminating the Network
@@ -487,9 +587,9 @@
   // Note that Network Statistics will not fit in the memory when an MQTT
   // build is created. It will only fit if a Browser Only build is created.
   // So,
-  //    UIP_STATISTICS == 1 will be ignored
+  //    NETWORK_STATISTICS == 1 will be ignored
   //    unless BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  // Generally UIP_STATISTICS is alway set to 1 and the build controls will
+  // Generally NETWORK_STATISTICS is alway set to 1 and the build controls will
   // manage it.
   // 0 = disabled
   // 1 = included
@@ -590,7 +690,7 @@
   // PINOUT_OPTION_SUPPORT
   // Determines if alternative pinouts can be defined by the user. Even if
   // supported this will only function if no "reserved pins" are in use, such
-  // as DS18B20, any I2C functions, or the UART. Essentially it is mant to
+  // as DS18B20, any I2C functions, or the UART. Essentially it is meant to
   // allow a user that is using the module ONLY to drive relays, and the
   // user wants to match the IO pinout to certain relay hardware that has
   // relays mapped differently on the IO pins. See the manual or other 
@@ -607,6 +707,16 @@
   // 0 = No support
   // 1 = Supported
 
+  // RF_ATTEN_SUPPORT
+  // Enables code for special builds of the Browser Only code (standard and
+  // upgradeable). The special build was requested to support sending a
+  // webpage that translated IO bits 6 to 2 into a decimal value representing
+  // the decibel settings on an RF attenuator. The page also displays buttons
+  // that allow the selection of a new decibel setting.
+  // I normally don't support "special builds" but was intrigued by this
+  // particular project. The build is not public.
+  // 0 = No support
+  // 1 = Supported
 
 
 

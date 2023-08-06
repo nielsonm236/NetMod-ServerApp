@@ -36,7 +36,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20230603 2058"; // Normal Release Revision
+const char code_revision[] = "20230803 1943"; // Normal Release Revision
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -120,7 +120,11 @@ uint8_t stack_limit2;
 @eeprom uint8_t stored_unused6;            // Byte 80 unused
 @eeprom uint8_t stored_unused5;            // Byte 79 unused
 @eeprom uint8_t stored_unused4;            // Byte 78 unused
-@eeprom uint8_t stored_unused3;            // Byte 77 unused
+@eeprom uint8_t stored_latching_relay_state; // Byte 77 latching_relay_state
+                                           // is used to store the last known
+					   // state that latching relays were
+					   // set to in the Software Defined
+					   // Radio builds.
 @eeprom uint8_t stored_rotation_ptr;       // Byte 76 rotation_ptr is used to
                                            // select an alternate local MQTT
 					   // port number on successive boots
@@ -140,8 +144,13 @@ uint8_t stack_limit2;
 @eeprom uint8_t stored_EEPROM_revision2;   // Byte 23 EEPROM revision
 @eeprom uint8_t stored_EEPROM_revision1;   // Byte 22 EEPROM revision
 @eeprom uint8_t stored_options1;           // Byte 21 Additional Options
-                                           // Bit 7: Undefined, 0 only
-                                           // Bit 6: Undefined, 0 only
+                                           // Bit 7: Latching Relay Mode
+					   //   Software Defined Radio only
+					   //   0 = Off
+					   //   1 = On
+                                           // Bit 6: Response Lock
+					   //   0 = IP responses allowed
+					   //   1 = IP responses not allowed
                                            // Bit 5: Force PCF8574 pin
 					   //   delete messages
 					   //   0 = No action
@@ -162,6 +171,7 @@ uint8_t stack_limit2;
 					   //   001 Pinout Option 1 (default)
 					   //   010 Pinout Option 2
 					   //   011 Pinout Option 3
+					   //   100 Pinout Option 4
 @eeprom uint8_t stored_devicename[20];     // Byte 01 Device name @4000
 //---------------------------------------------------------------------------//
 
@@ -300,15 +310,13 @@ extern uint32_t second_counter; // Time in seconds
 extern uint8_t OctetArray[14];  // Used in emb_itoa conversions and to
                                 // transfer short strings globally
 
-extern uint8_t parse_tail[66];  // >>> Used mostly in POST packet processing
+// extern uint8_t parse_tail[66];  // >>> Used mostly in POST packet processing
                                 // but also repurposed for buffering data
 				// received in a program update file.
 
-// ************************************************************************ //
-// Change to support Issue #174 - comment out the following line
-// ************************************************************************ //
+#if SUPPORT_174 == 0
 int8_t io_map_offset;           // Used in pinout options
-
+#endif // SUPPORT_174 == 0
 
 #if LINKED_SUPPORT == 1
 #if PCF8574_SUPPORT == 0
@@ -411,13 +419,6 @@ uint16_t Port_Mqttd;                  // In use MQTT host port number
 
 
 
-// The following are diagnostic counters mostly useful for checking for the
-// need for Full Duplex in an MQTT setting, they may still be useful in
-// other scenarios, so they remain functional even if MQTT is not enabled.
-uint8_t RXERIF_counter;          // Counts RXERIF errors detected by the
-                                 // ENC28J60
-uint8_t TXERIF_counter;          // Counts TXERIF errors detected by the
-                                 // ENC28J60
 uint32_t TRANSMIT_counter;       // Counts any transmit by the ENC28J60
 uint8_t MQTT_resp_tout_counter;  // Counts response timeout events in the
                                  // mqtt_sanity_check() function
@@ -465,6 +466,15 @@ int8_t send_mqtt_BME280;      // Indicates if new sensor measurements are
 			      // cause all 3 to transmit (2,1,0). -1 indicates
 			      // nothing to transmit.
 #endif // BME280_SUPPORT == 1
+
+
+#if INA226_SUPPORT == 1;
+// INA226 variables
+extern float voltage;       // Voltage value reported by the INA226
+extern float current;       // Current value reported by the INA226
+extern float power;         // Power value reported by the INA226
+extern float shunt_voltage; // Shunt Voltage value reported by the INA226
+#endif // INA226_SUPPORT == 1;
 
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -562,13 +572,6 @@ int main(void)
                                          // startup
   MQTT_error_status = 0;                 // For MQTT error status display in
                                          // GUI
-  
-  // While the following diagnostic counters are mostly useful for checking for
-  // the need for Full Duplex in an MQTT setting, they may still be useful in
-  // other scenarios, so they remain functional even if MQTT is not enabled.
-  TXERIF_counter = 0;                    // Initialize the TXERIF error counter
-  RXERIF_counter = 0;                    // Initialize the RXERIF error counter
-  TRANSMIT_counter = 0;                  // Initialize the TRANSMIT counter
   MQTT_resp_tout_counter = 0;            // Initialize the MQTT response
                                          // timeout event counter
   MQTT_not_OK_counter = 0;               // Initialize the MQTT != OK event
@@ -614,26 +617,51 @@ int main(void)
 				// stored in I2C EEPROM which uses IO pins 14
 				// and 15 to implement the I2C bus.
 
+
+
+  TRANSMIT_counter = 0;    // Initialize the TRANSMIT counter
+  
   // Restore the saved debug statistics
   restore_eeprom_debug_bytes();
 
+
+
     
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
   // Initialize the UART for debug output
   // Note: gpio_init() must be called prior to this call
   InitializeUART();
   UARTPrintf("\r\n\r\n\r\n\r\n\r\nBooting Rev ");
   UARTPrintf(code_revision);
   
-#if BUILD_TYPE_MQTT_STANDARD == 1 || BUILD_TYPE_BROWSER_STANDARD == 1 || BUILD_TYPE_MQTT_UPGRADEABLE == 1 || BUILD_TYPE_BROWSER_UPGRADEABLE == 1
+#if BUILD_TYPE_MQTT_STANDARD == 1 || BUILD_TYPE_BROWSER_STANDARD == 1 || BUILD_TYPE_MQTT_UPGRADEABLE == 1 || BUILD_TYPE_BROWSER_UPGRADEABLE == 1 || BUILD_TYPE_BROWSER_STANDARD_RFA == 1 || BUILD_TYPE_BROWSER_UPGRADEABLE_RFA == 1
   UARTPrintf("   MQTT or BROWSER\r\n");
 #endif // BUILD_TYPE_MQTT_STANDARD == 1 || BUILD_TYPE_BROWSER_STANDARD == 1 || BUILD_TYPE_MQTT_UPGRADEABLE == 1 || BUILD_TYPE_BROWSER_UPGRADEABLE == 1
 
 #if BUILD_TYPE_CODE_UPLOADER == 1
   UARTPrintf("   Code Uploader\r\n");
 #endif // BUILD_TYPE_CODE_UPLOADER == 1
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
+#if BUILD_TYPE_CODE_UPLOADER == 1
+#if RESPONSE_LOCK_SUPPORT == 1
+  // If starting the Code Uploader make sure the Response Lock is turned OFF.
+  // This is not necessary if the Code Uploader was started from running code
+  // as that could only happen if the Response Lock was already off. Howerver,
+  // if started by downloading the Code Uploader over the SWIM interface it is
+  // possible that the Response Lock was ON from previous activity and this
+  // will interfere with operation of the Code Uploader.
+  {
+    uint8_t j;
+    j = (uint8_t)(stored_options1 & 0xbf); // Clear locked bit
+    if (stored_options1 != j) {
+      unlock_eeprom();
+      stored_options1 = j;
+      lock_eeprom();
+    }
+  }
+#endif // RESPONSE_LOCK_SUPPORT == 1
+#endif // BUILD_TYPE_CODE_UPLOADER == 1
 
   spi_init();              // Initialize the SPI bit bang interface to the
                            // ENC28J60 and perform hardware reset on ENC28J60
@@ -641,6 +669,9 @@ int main(void)
   LEDcontrol(1);           // turn LED on
   
   Enc28j60Init();          // Initialize the ENC28J60 ethernet interface
+                           // Note: Run restore_eeprom_debug_bytes() before
+			   // this init so that the Stack Overflow bit is
+			   // properly handled.
 
   uip_arp_init();          // Initialize the ARP module
   
@@ -717,6 +748,17 @@ int main(void)
 #endif // PCF8574_SUPPORT == 1
 
 
+#if INA226_SUPPORT == 1
+  // Initialize all INA226 devices
+  ina226_init_all();
+  //   Calibrate all INA226 devices
+  ina226_calibrate_all();
+  //   Configure all INA226 devices
+  ina226_configure_all();
+#endif // INA226_SUPPORT == 1
+
+
+
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
   // there is a stack overflow (wherein the stack will over write this preset
@@ -725,18 +767,18 @@ int main(void)
   stack_limit2 = 0x55;
 
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
   // Check RST_SR (Reset Status Register)
   if (RST_SR & 0x1f) {
     // Bit 4 EMCF: EMC reset flag
-    // Bit 3 SWIMF: SWIM reset flag
-    // Bit 2 ILLOPF: Illegal opcode reset flag
-    // Bit 1 IWDGF: Independent Watchdog reset flag
-    // Bit 0 WWDGF: Window Watchdog reset flag
     if (RST_SR & 0x10) debug[5] = (uint8_t)(debug[5] + 1);
+    // Bit 3 SWIMF: SWIM reset flag
     if (RST_SR & 0x08) debug[6] = (uint8_t)(debug[6] + 1);
+    // Bit 2 ILLOPF: Illegal opcode reset flag
     if (RST_SR & 0x04) debug[7] = (uint8_t)(debug[7] + 1);
+    // Bit 1 IWDGF: Independent Watchdog reset flag
     if (RST_SR & 0x02) debug[8] = (uint8_t)(debug[8] + 1);
+    // Bit 0 WWDGF: Window Watchdog reset flag
     if (RST_SR & 0x01) debug[9] = (uint8_t)(debug[9] + 1);
     update_debug_storage1();
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
@@ -770,14 +812,14 @@ int main(void)
   else UARTPrintf("Stack Overflow - none detected");
   UARTPrintf("\r\n");
 #endif // TEMP_DEBUG_EXCLUDE == 0
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("stored_options1 at boot = ");
 // emb_itoa(stored_options1, OctetArray, 16, 2);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 
 
 
@@ -1083,9 +1125,9 @@ int main(void)
         // eeprom_copy_to_flash() will reprogram the Flash with the I2C EEPROM
 	// contents. On completion of the copy the module will reboot.
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Copying EEPROM0 to Flash\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
         eeprom_copy_to_flash();
       }
@@ -1161,10 +1203,10 @@ int main(void)
         send_mqtt_BME280 = 2; // Indicates that the BME280 sensors
                               // need to be transmitted via MQTT.
 #endif // BUILD_SUPPORT == MQTT_BUILD
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
         // Print sensor data on UART
 //        print_sensor_data(&comp_data);
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
       }
     }
 #endif // BME280_SUPPORT == 1
@@ -1535,18 +1577,18 @@ void mqtt_startup(void)
 	case 4: mqtt_local_port = ALTERNATE_PORT04; break;
       }
       mqtt_conn = uip_connect(&uip_mqttserveraddr, Port_Mqttd, mqtt_local_port);
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("mqtt_local_port = ");
 // emb_itoa(mqtt_local_port, OctetArray, 10, 5);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
     }
 
     if (mqtt_conn != NULL) {
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Good mqtt_conn status\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       verify_count = 0; // Clear the ARP verify count
       mqtt_start_status = MQTT_START_CONNECTIONS_GOOD;
@@ -1573,9 +1615,9 @@ void mqtt_startup(void)
 	verify_count = 0;
         mqtt_start_status |= MQTT_START_ARP_REQUEST_GOOD;
         mqtt_start = MQTT_START_VERIFY_TCP;
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("MQTT ARP Verified\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
       }
       if (verify_count > 50) {
         // mqtt_start_ctr1 allows us to wait up to 15 seconds for the ARP
@@ -1605,9 +1647,9 @@ void mqtt_startup(void)
         mqtt_start_ctr1 = 0; // Clear 50ms counter
         mqtt_start_status |= MQTT_START_TCP_CONNECT_GOOD;
         mqtt_start = MQTT_START_MQTT_INIT;
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("MQTT TCP Verified\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
       }
       if (verify_count > 166) { // 50 seconds.
         // This needs to be longer than the RTO timeout in the uip.c code
@@ -2025,7 +2067,7 @@ void mqtt_startup(void)
       else if (auto_discovery == DEFINE_DISABLED) {
         if ((pin_control[pin_ptr - 1] & 0x03) == 0x00) {
 	  // Pin is Disabled
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("DEFINE_DISABLED - pin is disabled - pin = ");
 // emb_itoa(pin_ptr, OctetArray, 10, 2);
 // UARTPrintf(OctetArray);
@@ -2033,7 +2075,7 @@ void mqtt_startup(void)
 // emb_itoa(stored_options1, OctetArray, 16, 2);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 	  if (auto_discovery_step == SEND_INPUT_DELETE) {
             // Create Input pin delete msg.
             send_IOT_msg(pin_ptr, INPUTMSG, DELETE_IOT);
@@ -2165,9 +2207,9 @@ void mqtt_startup(void)
       ON_OFF_word_sent = (uint32_t)(~ON_OFF_word);
 #endif // PCF8574_SUPPORT == 1
       // Indicate succesful completion
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("MQTT Startup Complete\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
       mqtt_start = MQTT_START_COMPLETE;
     }
     break;
@@ -2452,9 +2494,9 @@ void mqtt_sanity_check(struct mqtt_client *client)
       client->number_of_timeouts = 0;
       MQTT_resp_tout_counter++;
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("mqtt_sanity_check Response Timeout\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -2468,9 +2510,9 @@ void mqtt_sanity_check(struct mqtt_client *client)
      && mqtt_conn->tcpstateflags == UIP_CLOSED) {
       MQTT_broker_dis_counter++;
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("mqtt_sanity_check Broker Disconnect\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -2483,7 +2525,7 @@ void mqtt_sanity_check(struct mqtt_client *client)
       MQTT_not_OK_counter++;
 
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // MQTT not OK values are all negative numbers from 0x8000 to 0x801c.
 // For debug display strip the first 4 bits, convert the remaining bits
 // using emb_itoa (as it can only handle positive numbers), then rebuild
@@ -2497,7 +2539,7 @@ void mqtt_sanity_check(struct mqtt_client *client)
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
 // }
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
       mqtt_restart_step = MQTT_RESTART_BEGIN;
     }
@@ -4099,7 +4141,7 @@ void check_eeprom_settings(void)
     if (stored_config_settings != i) stored_config_settings = i;
     // Validate stored_options
     i = stored_options1;
-    i &= 0xf7; // Turn off PCF8574
+    i &= 0xd7; // Turn off PCF8574
     if (stored_options1 != i) stored_options1 = i;
     lock_eeprom();
   }
@@ -4688,7 +4730,7 @@ void check_runtime_changes(void)
 #endif // I2C_SUPPORT == 1
 
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
   // If UART functionality is enabled disable pin 11 so that it can be used
   // for the UART transmit pin.
   // This check is run here in case the user tried to change the pin state
@@ -4698,7 +4740,7 @@ void check_runtime_changes(void)
   unlock_eeprom();
   if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
   lock_eeprom();
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 
 #if LINKED_SUPPORT == 1
@@ -4912,7 +4954,7 @@ void check_runtime_changes(void)
           }
         }
       }
-    |
+    }
 #if PCF8574_SUPPORT == 1
     {
       int i;
@@ -5683,6 +5725,12 @@ void check_runtime_changes(void)
 
   // Periodic check of the stack overflow guardband
   if (stack_limit1 != 0xaa || stack_limit2 != 0x55) {
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("DETECTED STACK ERROR\r\n");
+#endif // DEBUG_SUPPORT == 15
+
     stack_error = 1;
     fastflash();
     fastflash();
@@ -6017,9 +6065,9 @@ void reboot(void)
   fastflash();
   LEDcontrol(0);  // turn LED off
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Hardware reboot in reboot()\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
   // Set the Window Watchdog to reboot the module
   // WWDG is used here instead of the IWDG so that the cause of a reset can be
@@ -6093,14 +6141,12 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit)
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
-// ************************************************************************ //
-// Change to support Issue #174 - comment out the following line
-// ************************************************************************ //
+#if SUPPORT_174 == 0
     j = i + io_map_offset;
-// ************************************************************************ //
-// Change to support Issue #174 - insert the following line
-// ************************************************************************ //
-//    j = calc_PORT_BIT_index(i);
+#endif // SUPPORT_174 == 0
+#if SUPPORT_174 == 1
+    j = calc_PORT_BIT_index((uint8_t)i);
+#endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit)
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint16_t)mask;
@@ -6172,14 +6218,12 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit)
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
-// ************************************************************************ //
-// Change to support Issue #174 - comment out the following line
-// ************************************************************************ //
+#if SUPPORT_174 == 0
     j = i + io_map_offset;
-// ************************************************************************ //
-// Change to support Issue #174 - insert the following line
-// ************************************************************************ //
-//    j = calc_PORT_BIT_index(i);
+#endif // SUPPORT_174 == 0
+#if SUPPORT_174 == 1
+    j = calc_PORT_BIT_index(i);
+#endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit)
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint32_t)mask;
@@ -6264,14 +6308,12 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
-// ************************************************************************ //
-// Change to support Issue #174 - comment out the following line
-// ************************************************************************ //
+#if SUPPORT_174 == 0
     j = i + io_map_offset;
-// ************************************************************************ //
-// Change to support Issue #174 - insert the following line
-// ************************************************************************ //
-//    j = calc_PORT_BIT_index((uint8_t)i);
+#endif // SUPPORT_174 == 0
+#if SUPPORT_174 == 1
+    j = calc_PORT_BIT_index((uint8_t)i);
+#endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint16_t)mask;
@@ -6357,14 +6399,12 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
-// ************************************************************************ //
-// Change to support Issue #174 - comment out the following line
-// ************************************************************************ //
+#if SUPPORT_174 == 0
     j = i + io_map_offset;
-// ************************************************************************ //
-// Change to support Issue #174 - insert the following line
-// ************************************************************************ //
-//    j = calc_PORT_BIT_index(i);
+#endif // SUPPORT_174 == 0
+#if SUPPORT_174 == 1
+    j = calc_PORT_BIT_index(i);
+#endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint32_t)mask;
@@ -6578,10 +6618,10 @@ void write_output_pins(void)
   // Loop across all IO and set or clear them according to the mask
   // Skip IO pins that are being used for UART, I2C or DS18B20  
   for (i=0; i<16; i++) {
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
     // If UART support is enabled do not write Output 11
     if (i == 10) continue; // Output 11
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 #if I2C_SUPPORT == 1
     // If I2C support is enabled do not write Output 14 and 15
     if (i == 13) continue; // Output 14
@@ -6603,14 +6643,12 @@ void write_output_pins(void)
 #endif // PINOUT_OPTION_SUPPORT == 0
 
 #if PINOUT_OPTION_SUPPORT == 1
-// ************************************************************************ //
-// Change to support Issue #174 - comment out the following line
-// ************************************************************************ //
+#if SUPPORT_174 == 0
     j = i + io_map_offset;
-// ************************************************************************ //
-// Change to support Issue #174 - insert the following line
-// ************************************************************************ //
-//    j = calc_PORT_BIT_index((uint8_t)i);
+#endif // SUPPORT_174 == 0
+#if SUPPORT_174 == 1
+    j = calc_PORT_BIT_index((uint8_t)i);
+#endif // SUPPORT_174 == 1
     if (xor_tmp & (1 << i)) {
       io_reg[ io_map[j].port ].odr |= io_map[j].bit;
     }
@@ -6667,10 +6705,10 @@ void write_output_pins(void)
   // Loop across all IO and set or clear them according to the mask.
   // Skip IO pins that are being used for UART, I2C or DS18B20.
   for (i=0; i<16; i++) {
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
     // If UART support is enabled do not write Output 11
     if (i == 10) continue; // Output 11
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 #if I2C_SUPPORT == 1
     // If I2C support is enabled do not write Output 14 and 15
     if (i == 13) continue; // Output 14
@@ -6692,14 +6730,12 @@ void write_output_pins(void)
 #endif // PINOUT_OPTION_SUPPORT == 0
 
 #if PINOUT_OPTION_SUPPORT == 1
-// ************************************************************************ //
-// Change to support Issue #174 - comment out the following line
-// ************************************************************************ //
+#if SUPPORT_174 == 0
     j = i + io_map_offset;
-// ************************************************************************ //
-// Change to support Issue #174 - insert the following line
-// ************************************************************************ //
-//    j = calc_PORT_BIT_index(i);
+#endif // SUPPORT_174 == 0
+#if SUPPORT_174 == 1
+    j = calc_PORT_BIT_index(i);
+#endif // SUPPORT_174 == 1
     if (xor_tmp & (1 << i)) {
       io_reg[ io_map[j].port ].odr |= io_map[j].bit;
     }
@@ -6866,9 +6902,9 @@ void check_reset_button(void)
     while((PA_IDR & 0x02) == 0x00) {  // Wait for button release
     }
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Reboot in check_reset_button() function\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
     // Set the Window Watchdog to reboot the module
     // WWDG is used here instead of the IWDG so that the cause of a reset can be
@@ -6937,7 +6973,25 @@ void oneflash(void)
 void restore_eeprom_debug_bytes(void)
 {
   // Restore debug bytes from EEPROM to RAM
-  memcpy(&debug[0], &stored_debug[0], 10);
+  
+  // debug[0]: Not currently used
+  
+  // debug[1]: Not currently used
+  
+  // debug[2]: The ENC28J60 revision part of debug[2] is restored in the
+  // Enc28j60Init() function.
+  // Restore the stack_error bit
+  if ((stored_debug[2] & 0x80) == 0x80) debug[2] |= 0x80;
+  
+  // While the following diagnostic counters are mostly useful for checking
+  // for the need for Full Duplex in an MQTT setting, they may still be useful
+  // in other scenarios, so they remain functional even if MQTT is not
+  // enabled.
+  debug[3] = stored_debug[3];      // Restore the TXERIF error counter
+  debug[4] = stored_debug[4];      // Restore the RXERIF error counter
+  
+  // Restore the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
+  memcpy(&debug[5], &stored_debug[5], 5);
 }
 
 
@@ -6956,7 +7010,7 @@ void update_debug_storage1() {
 
 
 /*
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 #if PCF8574_SUPPORT == 1
 void PCF8574_display_pin_control(void)
 {
@@ -7001,11 +7055,11 @@ void PCF8574_display_pin_control(void)
   UARTPrintf("\r\n");
 }
 #endif // PCF8574_SUPPORT == 1
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 */
 
 /*
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 void STM8_display_pin_control(void)
 {
 // Diagnostic routine to display the STM8 pin_control bytes via the UART.
@@ -7041,5 +7095,5 @@ void STM8_display_pin_control(void)
   }
   UARTPrintf("\r\n");
 }
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 */

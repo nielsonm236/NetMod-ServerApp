@@ -763,9 +763,9 @@ int16_t __mqtt_send(struct mqtt_client *client)
       break;
     }
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf(".");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 
     // check for keep-alive
@@ -782,7 +782,7 @@ int16_t __mqtt_send(struct mqtt_client *client)
       
       keep_alive_timeout = client->time_of_last_send + (uint32_t)((client->keep_alive * 3) / 4);
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("sec ctr = ");
 // emb_itoa(second_counter, OctetArray, 10, 8);
 // UARTPrintf(OctetArray);
@@ -791,7 +791,7 @@ int16_t __mqtt_send(struct mqtt_client *client)
 // UARTPrintf(OctetArray);
 // if (mqtt_start == MQTT_START_COMPLETE) UARTPrintf("   mqtt sc");
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
       
       if ((second_counter > keep_alive_timeout) && (mqtt_start == MQTT_START_COMPLETE)) {

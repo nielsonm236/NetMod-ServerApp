@@ -46,13 +46,9 @@
 // All includes are in main.h
 #include "main.h"
 
-#if DEBUG_SUPPORT != 0
 // Variables used to store debug information
 extern uint8_t debug[10];
-#endif // DEBUG_SUPPORT
 
-extern uint8_t RXERIF_counter;         // Counts RXERIF errors
-extern uint8_t TXERIF_counter;         // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;      // Counts any transmit
 extern uint8_t stored_config_settings; // Config settings stored in EEPROM
 extern uint8_t OctetArray[14];         // Used in emb_itoa conversions and to
@@ -609,15 +605,21 @@ void Enc28j60Init(void)
     Enc28j60WritePhy(PHY_PHCON1, 0x0000);
   }
   
-#if DEBUG_SUPPORT != 0
   // Read the ENC28J60 revision level and store for output to the UART and
-  // EEPROM. Note: debug[2] also contains the stack overflow bit in the MSB
-  // of the byte which must not be over-written here, so the existing bit is
-  // read and duplicated here.
-  debug[2] = (uint8_t)(debug[2] & 0xf0);
+  // EEPROM. Note: debug[2] also contains the stack overflow bit in the most
+  // significant bit of the byte which must not be over-written here, so the
+  // existing bit is read and duplicated here.
+  debug[2] = (uint8_t)(debug[2] & 0x80);
+
+#if DEBUG_SUPPORT == 15
+// if (debug[2] & 0x80) {
+// UARTPrintf("\r\n");
+// UARTPrintf("Enc28j60Init: Stack Error is set!!!\r\n");
+// }
+#endif // DEBUG_SUPPORT == 15
+
   debug[2] = (uint8_t)(debug[2] | ((Enc28j60ReadReg(BANK3_EREVID)) & 0x07));
   update_debug_storage1(); // Only write the EEPROM if the byte changed.
-#endif // DEBUG_SUPPORT
 
   // Enable Packet Reception
   Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_RXEN));
@@ -633,12 +635,16 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   // If overflow increment the error counter
   if (Enc28j60ReadReg(BANKX_EIR) & 0x01) {
   
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Enc28j60Receive OVERFLOW detected\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 
-    RXERIF_counter++;
-    // Clear RXERIF
+    // Increment the RXERIF counter
+    debug[4]++;
+    // Store result in EEPROM for display
+    update_debug_storage1();
+    
+    // Clear RXERIF in the ENC28J60
     Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_RXERIF));
   }
 
@@ -646,11 +652,6 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   Enc28j60SwitchBank(BANK1);
   if (Enc28j60ReadReg(BANK1_EPKTCNT) == 0) {
     return 0;
-  }
-  else {
-// #if DEBUG_SUPPORT != 11
-// UARTPrintf("Enc28j60Receive NO PACKETS detected\r\n");
-// #endif // DEBUG_SUPPORT != 11
   }
 
   select();
@@ -679,9 +680,9 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
     SpiReadChunk(pBuffer, nBytes);
   }
   else {
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Enc28j60Receive MAXFRAME exceeded\r\n");
-#endif // DEBUG_SUPPORT != 11
+#endif // || DEBUG_SUPPORT == 15
   }
 
   deselect();
@@ -706,14 +707,14 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   // And decrement PacketCounter
   Enc28j60SetMaskReg(BANKX_ECON2 , (1<<BANKX_ECON2_PKTDEC));
   
-#if DEBUG_SUPPORT != 11
+#if DEBUG_SUPPORT == 15
 // if (nBytes > (ENC28J60_MAXFRAME - 20)) {
 // UARTPrintf("Enc28j60Received nBytes = ");
 // emb_itoa(nBytes, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
 // }
-#endif // DEBUG_SUPPORT != 11
+#endif // DEBUG_SUPPORT == 15
 
   return nBytes;
 }
@@ -722,16 +723,16 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
 void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
 {
   uint16_t TxEnd = ENC28J60_TXSTART + nBytes;
-  uint8_t i = 200;
+  uint8_t i;
   uint8_t txerif_temp;
+  uint8_t late_collision;
 
-  txerif_temp = 0;
-  
   // Wait for a previously buffered frame to be sent out completely
   // 
   // This workaround will wait for TXRTS to be cleared within a maximum of 100ms
   // The errata may cause it to never be cleared even though the data finished
   // transmission - so we'll timeout if that is the case.
+  i = 200;
   while (i--) {
     if (!(Enc28j60ReadReg(BANKX_ECON1) & (1<<BANKX_ECON1_TXRTS))) break;
     wait_timer(500);  // Wait 500 uS
@@ -813,137 +814,161 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
   //
   // The above errata are handled together in this code. There will be
   // 16 attempts to work around collisions
-  {
-    uint8_t late_collision;
     
-    // Before starting transmision check for a pre-existing transmit error
-    // condition - TXERIF of EIR register.
-    //   From the spec:
-    //   The Transmit Error Interrupt Flag (TXERIF) is used to indicate that a
-    //   transmit abort has occurred. An abort can occur because of any of the
-    //   following:
-    //     1. Excessive collisions occurred as defined by the Retransmission
-    //        Maximum (RETMAX) bits in the MACLCON1 register.
-    //     2. A late collision occurred as defined by the Collision Window
-    //        (COLWIN) bits in the MACLCON2 register.
-    //     3. A collision after transmitting 64 bytes occurred (ESTAT.LATECOL
-    //        set).
-    //     4. The transmission was unable to gain an opportunity to transmit
-    //        the packet because the medium was constantly occupied for too
-    //        long. The deferral limit (2.4287 ms) was reached and the
-    //        MACON4.DEFER bit was clear.
-    //     5. An attempt to transmit a packet larger than the maximum frame
-    //        length defined by the MAMXFL registers was made without setting
-    //        the MACON3.HFRMEN bit or per packet POVERRIDE and PHUGEEN bits.
-    //
-    // If there is a TXERIF error already present reset the transmit logic.
-    // This should never happen as any error should have been handled the last
-    // time a transmit occurred. If no error just start the transmission.
-    if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) {
-      // Count TXERIF error
-      TXERIF_counter++;
+  // Before starting transmision check for a pre-existing transmit error
+  // condition - TXERIF of EIR register.
+  //   From the spec:
+  //   The Transmit Error Interrupt Flag (TXERIF) is used to indicate that a
+  //   transmit abort has occurred. An abort can occur because of any of the
+  //   following:
+  //     1. Excessive collisions occurred as defined by the Retransmission
+  //        Maximum (RETMAX) bits in the MACLCON1 register.
+  //     2. A late collision occurred as defined by the Collision Window
+  //        (COLWIN) bits in the MACLCON2 register.
+  //     3. A collision after transmitting 64 bytes occurred (ESTAT.LATECOL
+  //        set).
+  //     4. The transmission was unable to gain an opportunity to transmit
+  //        the packet because the medium was constantly occupied for too
+  //        long. The deferral limit (2.4287 ms) was reached and the
+  //        MACON4.DEFER bit was clear.
+  //     5. An attempt to transmit a packet larger than the maximum frame
+  //        length defined by the MAMXFL registers was made without setting
+  //        the MACON3.HFRMEN bit or per packet POVERRIDE and PHUGEEN bits.
+  //
+  // If there is a TXERIF error already present reset the transmit logic.
+  // This should never happen as any error should have been handled the last
+  // time a transmit occurred. If no error just start the transmission.
+  if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) {
+    // Count TXERIF error
+    debug[3]++;
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      // Set TXRST
-      Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
-      // Clear TXRST
-      Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
-      // Clear TXABRT
-      Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_ESTAT_TXABRT));
-      // Clear TXERIF
-      Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXERIF));
-      // Clear TXIF
-      Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXIF));
-    }
+    reset_transmit_logic();
+  }
 
-    // Count any transmit
-    TRANSMIT_counter++;
+  // Count any transmit
+  TRANSMIT_counter++;
     
-    // Start transmission
-    Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
+  // Start transmission
+  Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
+  // Wait for transmission complete
+  txerif_temp = wait_for_xmit_complete();
+    
+  // If a TXERIF error is present we need to enter a loop to retry
+  if (txerif_temp) {
 
-    // Wait for transmission complete ... or collision error
-    // while(TXIF == 0 and TXERIF == 0) NOP
-    while (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))
-        && !(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF))) nop();
-	
-    // Save the TXERIF state just in case clearing TXRTS interferes with it
-    if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) txerif_temp = 1;
-    
-    // If TXIF is zero Clear TXRTS
-    if (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))) {
-      Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
-    }
-    
-    // If a TXERIF error is present we need to enter a loop to retry
-    if (txerif_temp) {
-      // Count TXERIF error
-      TXERIF_counter++;
+#if DEBUG_SUPPORT == 15
+UARTPrintf("\r\n");
+UARTPrintf("TXERIF first error\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+    // Count TXERIF error
+    debug[3]++;
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       
-      for (i = 0; i < 16; i++) {
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// We only need to check for a late collision. This is available as the
-// ESTAT.LATECOL bit so reading the TSV is way too much code and complication.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        // Read Transmit Status Vector (TSV)
-//	read_TSV();
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-wait_timer(10);  // Wait 10 uS
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
- 
-        // Bit 29 of the TSV is the Late Collision bit
-        // This corresponds to bit 5 of tsv_byte[3]
-        late_collision = 0;
-//        if (tsv_byte[3] & 0x20) late_collision = 1;
-        // ESTAT.LATECOL is the Late Collision bit
-        if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_ESTAT_LATECOL)) late_collision = 1;
-        else break; // If no Late Collision error leave the for loop
-	
-	// If error was a late collision retry the transmission
-        if (txerif_temp && late_collision) {
-	  txerif_temp = 0;
+    for (i = 0; i < 16; i++) {
+      // Developer comment: We need to check for a Late Collision and retry
+      // the transmission if there is a Late Collision. A method for checking
+      // for Late Collision is to read the Transmit Status Vector (TSV) and
+      // then look at the Late Collision bit in the TSV. However it looks like
+      // a Late Collision can be determined by reading the ESTAT.LATECOL bit
+      // so reading the TSV is way too much code and complication.
 
-          // Count TXERIF error
-          TXERIF_counter++;
+#if DEBUG_SUPPORT == 15
+UARTPrintf("\r\n");
+UARTPrintf("TXERIF Loop count =");
+emb_itoa(i, OctetArray, 10, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+wait_timer(10);  // Wait 10 uS
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX 
+      late_collision = 0;
+      // ESTAT.LATECOL is the Late Collision bit
+      if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_ESTAT_LATECOL)) late_collision = 1;
+      else break; // If no Late Collision error leave the for loop
+	
+      // If a TXERIF error is present AND there was a late collision retry the
+      // transmission.
+      if (txerif_temp && late_collision) {
+        // Count TXERIF error
+        debug[3]++;
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      
-          // Set TXRST
-          Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
-          // Clear TXRST
-          Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
-          // Clear TXABRT
-          Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_ESTAT_TXABRT));
-          // Clear TXERIF
-          Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXERIF));
-          // Clear TXIF
-          Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXIF));
-          // Start transmission
-          Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
-          // Wait for transmission complete ... or collision error
-          // while(TXIF == 0 and TXERIF == 0) NOP
-          while (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))
-              && !(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF))) nop();
-          // Save the TXERIF state just in case clearing TXRTS interferes with it
-          if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) txerif_temp = 1;
-          // If TXIF is zero Clear TXRTS
-          if (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))) {
-	    Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
-	  }
-          // Go back to the start of the for() loop to check error status.
-        }
+
+        reset_transmit_logic();
+        // Start transmission
+        Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
+        // Wait for transmission complete
+        txerif_temp = wait_for_xmit_complete();
+        // Go back to the start of the for() loop to check error status.
+	// Only loop 16 times.
       }
     }
   }
+  
+  // Save debug[3] (TXERIF counter) in EEPROM for display in Link Error
+  // Statistics
+  update_debug_storage1();
+}
+
+
+void reset_transmit_logic(void)
+{
+  // Set TXRST
+  Enc28j60SetMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+  // Clear TXRST
+  Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
+  // Clear TXABRT
+  Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_ESTAT_TXABRT));
+  // Clear TXERIF
+  Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXERIF));
+  // Clear TXIF
+  Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXIF));
+}
+
+
+uint8_t wait_for_xmit_complete()
+{
+//          // Wait for transmission complete ... or collision error
+//          // while(TXIF == 0 and TXERIF == 0) NOP
+//          while (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))
+//              && !(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF))) nop();
+
+  uint8_t timeout;
+  uint8_t txerif_temp;
+  
+  txerif_temp = 0;
+  
+  // Wait for transmission complete ... or collision error ... or
+  // timeout.
+  timeout = 200; // Timeout added so we don't get stuck here. Wait a max of
+                 // 100ms for completion.
+  while (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))
+      && !(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF))) {
+    wait_timer(500);  // Wait 500 uS
+    timeout--;
+    if (timeout == 0) {
+      txerif_temp = 1; // If timeout set the error state
+      break;
+    }
+  }
+	  
+  // Save the TXERIF state just in case clearing TXRTS interferes with it
+  if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) txerif_temp = 1;
+  
+  // If TXIF is zero Clear TXRTS
+  if (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))) {
+    Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRTS));
+  }
+  
+  return txerif_temp;
 }
 
 
@@ -957,7 +982,7 @@ void read_TSV(void)
   // KEEP THIS CODE AROUND in case reading the TSV bytes is ever
   // needed again. It came in handy for debugging the Ethernet
   // interface, but now that it all seems to be working this code
-  // is sideline.
+  // is sidelined.
 
   // I don't find this in the spec, but from experimentation it seems a
   // few microseconds are needed for the TSV values to be stable

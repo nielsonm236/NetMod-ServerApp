@@ -27,14 +27,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <math.h>
 
 #include <iostm8s005.h>	// Address definitions for all registers
 			// See C:\Program Files (x86)\COSMIC\FSE_Compilers\CXSTM8\Hstm8 directory
 #include <stm8s-005.h>	// Bit location definitions in registers
 			// See C:\Users\Mike\Desktop\STM8S Peripheral Library\en.stsw-stm8069\STM8S_StdPeriph_Lib\Libraries\STM8S_StdPeriph_Driver\inc directory
 
-#include "uipopt.h"
 
+#include "uipopt.h"
 #include "bme280.h"
 #include "DS18B20.h"
 #include "Enc28j60.h"
@@ -50,6 +51,7 @@
 #include "uip_arch.h"
 #include "uip_arp.h"
 #include "pcf8574.h"
+#include "ina226.h"
 #include "uip_TcpAppHub.h"
 
 
@@ -257,6 +259,7 @@ void debugflash(void);
 void restore_eeprom_debug_bytes(void);
 void update_debug_storage1(void);
 uint8_t off_board_EEPROM_detect(void);
+
 void write_one(uint8_t byte);
 void prep_read(uint8_t control_write, uint8_t control_read,
                uint16_t start_address, uint8_t addr_size);

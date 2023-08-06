@@ -96,8 +96,14 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer);
 // Copies a packet into ENC28J60's buffer and sends the ethernet frame
 void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes);
 
+// Resets the transmit logic in the ENC28J60
+void reset_transmit_logic(void);
+
+// Wait for transmission complete ... or collision error ... or timeout.
+uint8_t wait_for_xmit_complete(void);
+
 // Reads the Transmit Status Vector
-void read_TSV(void);
+// void read_TSV(void);
 
 // Use this function to control onchip clock-prescaling
 // provided by the ENC28J60 for using as the host processor's main clock

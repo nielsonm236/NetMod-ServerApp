@@ -292,9 +292,9 @@ void eeprom_copy_to_flash(void)
   uint16_t eeprom_index;
   uint16_t blocks;
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("eeprom_copy_to_flash\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
   // This function will copy a Flash image from the I2C EEPROM to the
   // STM8 Flash.
@@ -480,9 +480,9 @@ void eeprom_copy_to_flash(void)
   // Lock the Flash
   FLASH_IAPSR &= (uint8_t)(~0x02);
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Reboot after Copy RAM to Flash\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
   // Set the Window Watchdog to reboot the module
   // WWDG is used here instead of the IWDG so that the cause of a reset can be

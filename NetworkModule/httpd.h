@@ -161,7 +161,7 @@ uint16_t read_two_bytes(void);
 void read_httpd_diagnostic_bytes(void);
 uint16_t adjust_template_size(struct tHttpD* pSocket);
 
-static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen);
+static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen, uint8_t header_type);
 static uint16_t CopyHttpData(uint8_t* pBuffer,
                              const char** ppData,
 			     uint16_t* pDataLeft,
@@ -170,6 +170,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 void create_sensor_ID(int8_t sensor);
 char *show_temperature_string(char * pBuffer, uint8_t nParsedNum);
 char *show_BME280_PTH_string(char *pBuffer);
+char *show_INA226_CVW_string(char *pBuffer);
+void FloatToString(float fVal);
 char *show_space_or_minus(int32_t value, char *pBuffer);
 
 void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad);
@@ -180,13 +182,15 @@ void int2hex(uint8_t i);
 void int16to4hex(uint16_t i);
 
 void HttpDInit(void);
-// void init_tHttpD_struct(struct tHttpD* pSocket);
 void init_tHttpD_struct(struct tHttpD* pSocket, int i);
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);
-// char *read_two_characters(struct tHttpD* pSocket, char *pBuffer);
+
 char *read_two_characters(char *pBuffer);
 uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes);
 void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max);
 void update_ON_OFF(uint8_t i, uint8_t j);
+// void parseget(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes);
+void parseget(struct tHttpD* pSocket, char *pBuffer);
+void parse_command_abort(struct tHttpD* pSocket);
 
 #endif /*HTTPD_H_*/

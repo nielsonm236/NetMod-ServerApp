@@ -136,7 +136,7 @@ extern uint8_t Pending_pin_control[24];   // Per pin configuration byte when
 // Setup the UART to run at 115200 baud, no parity, one stop bit, 8 data bits.
 // Important: This relies upon the system clock being set to run at 16 MHz.
 //
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 void InitializeUART(void)
 {
   unsigned char tmp;
@@ -205,6 +205,6 @@ void UARTPrintf(char *message)
     ch++;
   }
 }
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 

@@ -35,15 +35,14 @@ extern uint8_t stored_pin_control[16];  // STM8 per pin control settings
 extern uint8_t stored_options1;         // Additional options stored in EEPROM
 
 
+#if SUPPORT_174 == 0
 // io_map_offset defines the user selected IO pinout map.
 // io_map_offset = 0 for the first 16 io_map definitions
 // io_map_offset = 16 for the second 16 io_map definitions
 // io_map_offset = 32 for the third 16 io_map definitions
 // See the manual for explanation
-// ************************************************************************ //
-// Change to support Issue #174 - Comment out the following line
-// ************************************************************************ //
 extern int8_t io_map_offset;
+#endif // SUPPORT_174 == 0
 
 
 // The following enum PORTS, struct io_registers, struct io_mapping, and
@@ -59,11 +58,8 @@ extern int8_t io_map_offset;
 // 0x5000). This way we can manipulate this data as an array of ports.
 volatile struct io_registers io_reg[ NUM_PORTS ] @0x5000; // Make room for PA .. PG starting at 0x5000
 
-// ************************************************************************ //
-// Change to support Issue #174 - Comment out the following line
-// ************************************************************************ //
+#if SUPPORT_174 == 0
 #if PINOUT_OPTION_SUPPORT == 0
-// ************************************************************************ //
 // Define the pair PORT:BIT for each of the 16 I/Os
 const struct io_mapping io_map[16] = {
 	{ PA, 0x08 },    // PA bit3, IO1
@@ -83,15 +79,34 @@ const struct io_mapping io_map[16] = {
 	{ PG, 0x01 },    // PG bit0, IO15
 	{ PC, 0x40 }     // PC bit6, IO16
 };
-// ************************************************************************ //
-// Change to support Issue #174 - Comment out the following line
-// ************************************************************************ //
 #endif // PINOUT_OPTION_SUPPORT == 0
+#endif // SUPPORT_174 == 0
+
+#if SUPPORT_174 == 1
+// Define the pair PORT:BIT for each of the 16 I/Os. This is the default
+// pairing.
+const struct io_mapping io_map[16] = {
+	{ PA, 0x08 },    // PA bit3, IO1
+	{ PA, 0x20 },    // PA bit5, IO2
+	{ PD, 0x40 },    // PD bit6, IO3
+	{ PD, 0x10 },    // PD bit4, IO4
+	{ PD, 0x04 },    // PD bit2, IO5
+	{ PE, 0x01 },    // PE bit0, IO6
+	{ PG, 0x02 },    // PG bit1, IO7
+	{ PC, 0x80 },    // PC bit7, IO8
+	{ PA, 0x10 },    // PA bit4, IO9
+	{ PD, 0x80 },    // PD bit7, IO10
+	{ PD, 0x20 },    // PD bit5, IO11
+	{ PD, 0x08 },    // PD bit3, IO12
+	{ PD, 0x01 },    // PD bit0, IO13
+	{ PE, 0x08 },    // PE bit3, IO14
+	{ PG, 0x01 },    // PG bit0, IO15
+	{ PC, 0x40 }     // PC bit6, IO16
+};
+#endif // SUPPORT_174 == 1
 
 
-// ************************************************************************ //
-// Change to support Issue #174 - Comment out the following section of code
-// ************************************************************************ //
+#if SUPPORT_174 == 0
 #if PINOUT_OPTION_SUPPORT == 1
 // Define the pair PORT:BIT for each of the 16 I/Os. Three sets of definition
 // are placed in the table. Only one alternative set is used at any given time
@@ -184,6 +199,7 @@ const struct io_mapping io_map[48] = {
 	{ PC, 0x80 }     // PC bit7, IO16, Pin 9
 };
 #endif // PINOUT_OPTION_SUPPORT == 1
+#endif // SUPPORT_174 == 0
 
 
 void gpio_init(void)
@@ -206,10 +222,7 @@ void gpio_init(void)
   // Any pins that are "not used" are set as pulled up inputs.
 
 
-
-// ************************************************************************ //
-// Change to support Issue #174 - Replace the "Set Pinout Option" code
-// ************************************************************************ //
+#if SUPPORT_174 == 0
   // Set Pinout Option
   // If an alternate Pinout Option is selected it must be selected before any
   // GPIO settings are applied.
@@ -231,7 +244,7 @@ void gpio_init(void)
 #if I2C_SUPPORT == 1
     // If ISC_SUPPORT is enabled then Option 1 must be used. Set a flag.
     i = 1;
-#endif I2C_SUPPORT == 1
+#endif // I2C_SUPPORT == 1
     j = (uint8_t)(stored_options1 & 0x07);
     if (j > 0 && j < 4 && i == 0) {
       // If stored_options1 is valid update io_map_offset
@@ -247,10 +260,9 @@ void gpio_init(void)
       lock_eeprom();
     }
   }
-// ************************************************************************ //
-// Change to support Issue #174 - Replacement for "Set Pinout Option" code
-// ************************************************************************ //
-/*
+#endif // SUPPORT_174 == 0
+
+#if SUPPORT_174 == 1
   // Set Pinout Option
   // If an alternate Pinout Option is selected it must be selected before any
   // GPIO settings are applied.
@@ -269,7 +281,7 @@ void gpio_init(void)
 #if I2C_SUPPORT == 1
     // If ISC_SUPPORT is enabled then Option 1 must be used. Set a flag.
     i = 1;
-#endif I2C_SUPPORT == 1
+#endif // I2C_SUPPORT == 1
     j = (uint8_t)(stored_options1 & 0x07);
     if (j > 0 && j < 5 && i == 0) {
       // If stored_options1 is valid do nothing
@@ -283,7 +295,7 @@ void gpio_init(void)
       lock_eeprom();
     }
   }
-*/
+#endif // SUPPORT_174 == 1
 
 
   // To reduce the incidence of output pin "chatter" during a reboor (no power
@@ -451,14 +463,12 @@ void gpio_init(void)
 
 
 #if PINOUT_OPTION_SUPPORT == 1
-// ************************************************************************ //
-// Change to support Issue #174 - COmment out the following line
-// ************************************************************************ //
+#if SUPPORT_174 == 0
       j = (int8_t)(i + io_map_offset);
-// ************************************************************************ //
-// Change to support Issue #174 - Insert the following line
-// ************************************************************************ //
-//      j = calc_PORT_BIT_index(i);
+#endif // SUPPORT_174 == 0
+#if SUPPORT_174 == 1
+      j = calc_PORT_BIT_index(i);
+#endif // SUPPORT_174 == 1
       io_reg[ io_map[j].port ].ddr |= io_map[j].bit;
 #endif // PINOUT_OPTION_SUPPORT == 1
 
@@ -468,9 +478,7 @@ void gpio_init(void)
 }
 
 
-// ************************************************************************ //
-// Change to support Issue #174
-// ************************************************************************ //
+#if SUPPORT_174 == 1
 uint8_t calc_PORT_BIT_index(uint8_t IO_index)
 {
   // Function to determine the index into the array of PORT:BIT pairs for the
@@ -553,7 +561,7 @@ uint8_t calc_PORT_BIT_index(uint8_t IO_index)
 
   // The next equations are not used in all Pinout Options but are calculated
   // here for code reduction.
-  partial_index1 = ((uint8_t)((~(IO_index)) & 0x0f));
+  partial_index1 = (uint8_t)( (uint8_t)~(IO_index) & 0x0f);
 
   // Pinout Option 4
   if (pinout_option == 4) {
@@ -578,7 +586,7 @@ uint8_t calc_PORT_BIT_index(uint8_t IO_index)
 
   return PORT_BIT_index;
 }
-// ************************************************************************ //
+#endif // SUPPORT_174 == 1
 
 
 void LEDcontrol(uint8_t state)

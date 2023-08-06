@@ -49,32 +49,42 @@
 
 #define STATE_CONNECTED		0	// Client has just connected
 #define STATE_GOTGET		1	// Client just sent a GET request
-#define STATE_GOTPOST		2	// Client just sent a POST request
+#define STATE_GOTGET2		2	// Client just sent a GET request
+#define STATE_GOTPOST		3	// Client just sent a POST request
 #define STATE_PARSEPOST		10	// We are currently parsing the
-                                        // client's POST-data
+                                        //   client's POST-data
 #define STATE_PARSEFILE		11	// We are currently parsing the
-                                        // client's POSTed file data
+                                        //   client's POSTed file data
 #define STATE_SENDHEADER200	12	// Next we send the HTTP 200 header
-#define STATE_SENDHEADER204	13	// Or we send the HTTP 204 header
-#define STATE_SENDDATA		14	// ... followed by data
-#define STATE_PARSEGET		15	// We are currently parsing the
-                                        // client's GET-request
+                                        //   with Content-Length > 0
+#define STATE_SENDHEADER204	13	// Or we send the HTTP 200 header
+                                        //   with Content-Length = 0
+#define STATE_SENDHEADER429	14	// Or we send the HTTP 429 header
+                                        //   with Content-Length = 0 and
+					//   Retry-After of 10 seconds
+#define STATE_SENDDATA		20	// ... followed by data
+#define STATE_PARSEGET		21	// We are currently parsing the
+                                        //   client's GET-request
 #define STATE_NULL		127     // Inactive state
+
+#define HEADER200		1       // Generate HTTP/1.1 200 header
+#define HEADER204		2       // Generate HTTP/1.1 200 header
+#define HEADER429		3       // Generate HTTP/1.1 429 header
+
 
 #define PARSE_CMD		0       // Parsing the command byte in a POST
 #define PARSE_NUMMSD		1       // Parsing the most sig digit of POST
-                                        // cmd
+                                        //   cmd
 #define PARSE_NUMLSD		2       // Parsing the least sig digit of a
-                                        // POST cmd
+                                        //   POST cmd
 #define PARSE_EQUAL		3       // Parsing the equal sign of a POST
-                                        // cmd
+                                        //   cmd
 #define PARSE_VAL		4       // Parsing the data value of a POST
-                                        // cmd
+                                        //   cmd
 #define PARSE_DELIM		5       // Parsing the delimiter of a POST cmd
 #define PARSE_SLASH1		6       // Parsing the slash of a GET cmd
 #define PARSE_FAIL		7       // Indicates parse failure - no action
-                                        // taken
-
+                                        //   taken
 
 #define PARSE_FILE_SEEK_START	30	// Parse a new SREC record
 #define PARSE_FILE_SEEK_SX	31	// Parse a new SREC record
@@ -91,9 +101,9 @@
 extern uint8_t debug[10];
 extern uint8_t stored_debug[10];
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 uint16_t rexmit_count; // Used only for sending the rexmit count via UART
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 extern uint16_t Port_Httpd;               // Port number in use
 
@@ -229,14 +239,27 @@ extern uint8_t I2C_failcode;         // Used in monitoring I2C transactions
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-uint8_t parse_tail[40];       // Used to collect each component of a POST
-			      // sequence. If TCP fragmentation occurs
-                              // parse_tail will contain a part of the POST
-			      // component that was at the end of the packet.
-			      // The size of this array is determined by the
-			      // longest POST component. In normal POST
-			      // processing the longest component is the &h00
-			      // POST reply of 37 bytes.
+uint8_t parse_tail[40];       // In Browser and MQTT builds parse_tail is used
+                              // to collect each component of a POST sequence.
+			      // If TCP fragmentation occurs parse_tail will
+			      // contain the part of the POST component that
+			      // was at the end of the packet. The size of
+			      // this array is determined by the longest POST
+			      // component. In normal POST processing the
+			      // longest component is the &h00 POST reply of
+			      // 37 bytes.
+// IMPORTANT POST NOTES:
+// Since parse_tail is a single global variable there is a high probablility
+// of corruption of POST requests if multiple Browser attempt to Save their
+// IOControl or Configuration changes at the same time. Also note that since
+// IOControl and Configuration changes are managed via Javascript in each
+// Broswer is it also possible for the changes to be in conflict when the
+// user clicks "Save" in those Browsers. For this reason there is a
+// restriction that specifies that ONLY ONE BROWSER USING A SINGLE BROWSER
+// TAB is allowed to be used for creating and saving IOControl and
+// Configuration changes. Other Browsers or Broswer tabs may be used for
+// viewing / monitoring, but those other Browsers or tabs must never be used
+// to apply changes.
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
@@ -251,6 +274,20 @@ uint8_t parse_tail[66];       // In the Code Uploader build the parse_tail is
 uint32_t file_length;         // Length of the body (the file data) in a
                               // firmware update POST.
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+
+
+uint8_t parse_GETcmd[11];     // Holds the GET cmd until the entire GET
+                              // request is received. This variable requires
+			      // some special handling as it is also used to
+			      // prevent GET requests from multiple Browsers
+			      // from interfering with each other. Due to
+			      // RAM size limitations only 1 GET request can
+			      // be handled at a time, so if GET requests
+			      // arrive from more than one Browser at a time
+			      // only the first one received will be
+			      // processed. The others will be rejected with
+			      // a 429 response and a Retry-After setting of
+			      // 10 seconds.
 
 
 // uint8_t z_diag;               // The last value in a POST (hidden), used for
@@ -291,8 +328,6 @@ extern uint8_t MQTT_error_status;         // For MQTT error status display in
 
 
 
-extern uint8_t RXERIF_counter;            // Counts RXERIF errors
-extern uint8_t TXERIF_counter;            // Counts TXERIF errors
 extern uint32_t TRANSMIT_counter;         // Counts any transmit
 extern uint8_t MQTT_resp_tout_counter;    // Counts response timeout events
 extern uint8_t MQTT_not_OK_counter;       // Counts MQTT != OK events
@@ -341,6 +376,22 @@ extern uint16_t Pending_IO_TIMER[24];
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
+#if INA226_SUPPORT == 1;
+// INA226 variables. Special Software Defined Radio build only.
+extern float voltage;       // Voltage value reported by the INA226
+extern float current;       // Current value reported by the INA226
+extern float power;         // Power value reported by the INA226
+extern float shunt_voltage; // Shunt Voltage value reported by the INA226
+#endif // INA226_SUPPORT == 1;
+
+#if SDR_POWER_RELAY_SUPPORT == 1
+// Latching (aka Keep) Relay variables. Special Software Defined Radio build
+// only.
+extern uint8_t stored_latching_relay_state;
+                              // Indicates the last known ON/OFF state of the
+                              // 8 Latching Relays. Value is stored in EEPROM.
+#endif // SDR_POWER_RELAY_SUPPORT == 1
+
 
 
 
@@ -370,10 +421,9 @@ extern uint16_t Pending_IO_TIMER[24];
 //   the markers tell the application code to insert strings that are repeated
 //   many times in the web page HTML text, rather than have them repeatedly
 //   appear in flash memory. For instance %y00 could be used to signal the
-//   application code to insert the string
-//   "this is a test string"
-//   While this makes the code harder to read, it makes the web page templates
-//   much smaller.
+//   application code to insert the string "this is a test string". While this
+//   makes the code harder to read, it makes the web page templates much
+//   smaller.
 //
 // - All of these insertion steps cause a complication: In the HttpDCall() the
 //   function "sizeof" is called to determine the size of the webpage to be
@@ -390,7 +440,7 @@ extern uint16_t Pending_IO_TIMER[24];
 //   template then adjust that size for all the replacement actions that will
 //   occur. The function needs to know which template it is working on because
 //   each has different amounts of replacement text. The size adjustment also
-//   needs to account for UIP_STATISTICS ifdef's as these will also cause
+//   needs to account for NETWORK_STATISTICS ifdef's as these will also cause
 //   variation in the length of the actual data transmitted.
 //
 // - IMPORTANT: Be sure to carefully update the adjust_template_size function
@@ -401,8 +451,8 @@ extern uint16_t Pending_IO_TIMER[24];
 // - The templates include the line
 //   "<link rel='icon' href='data:,'>".
 //   This is needed to prevent browsers from sending "favicon" requests. They
-//   seem to do this with annoying repetition greatly slowing down the
-//   transmit/receive process.
+//   do this with annoying repetition slowing down the transmit/receive
+//   process.
 //
 // - The templates include the line
 //   "<input type='hidden' name='z00' value='0'><br>"
@@ -2483,7 +2533,7 @@ const m = (data => {
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
-#if UIP_STATISTICS == 1
+#if NETWORK_STATISTICS == 1
 // Network Statistics page Template
 // Browser Only builds
 // URL /68
@@ -2525,11 +2575,290 @@ static const char g_HtmlPageStats1[] =
   "<button onclick='location=`/69`'>Clear</button>"
   "</body>"
   "</html>";
-#endif // UIP_STATISTICS == 1
+#endif // NETWORK_STATISTICS == 1
+
+
+#if RF_ATTEN_SUPPORT == 1
+// SDR RF Attenuator page Template
+// Part of the Software Defined Radio project
+// Browser Only builds
+// URL /75
+#define WEBPAGE_RF_ATTEN		18
+static const char g_HtmlPageRFAtten[] =
+"%y04%y05"
+  "<title>RF Attenuator</title>"
+  "<style>"
+    "h1 { margin: 0; }"
+  "</style>"
+  "</head>"
+  "<body>"
+  "<p>"
+    "<h1>RF Attenuator</h1>"
+    "Device: %a00<br>"
+  "</p>"
+  "Current Setting %f01db<br><br>"
+  "Select Attenuation (db)<br><br>"
+  "%y0600`'>00%y07"
+  "%y0602`'>01%y07"
+  "%y0604`'>02%y07"
+  "%y0606`'>03%y07"
+  "%y0608`'>04%y07<br><br>"
+  "%y060a`'>05%y07"
+  "%y060c`'>06%y07"
+  "%y060e`'>07%y07"
+  "%y0610`'>08%y07"
+  "%y0612`'>09%y07<br><br>"
+  "%y0614`'>10%y07"
+  "%y0616`'>11%y07"
+  "%y0618`'>12%y07"
+  "%y061a`'>13%y07"
+  "%y061c`'>14%y07<br><br>"
+  "%y061e`'>15%y07"
+  "%y0620`'>16%y07"
+  "%y0622`'>17%y07"
+  "%y0624`'>18%y07"
+  "%y0626`'>19%y07<br><br>"
+  "%y0628`'>20%y07"
+  "%y062a`'>21%y07"
+  "%y062c`'>22%y07"
+  "%y062e`'>23%y07"
+  "%y0630`'>24%y07<br><br>"
+  "%y0632`'>25%y07"
+  "%y0634`'>26%y07"
+  "%y0636`'>27%y07"
+  "%y0638`'>28%y07"
+  "%y063a`'>29%y07<br><br>"
+  "%y063c`'>30%y07"
+  "%y063e`'>31%y07<br>"
+  
+  "<script>"
+    "setTimeout( function() {"
+      "location='/75';"
+    "}, 30000);"
+  "</script>"
+  
+  "</body>"
+  "</html>";
+  
+// For reference the above string replacements are as follows:
+//   String for %y06 replacement
+//     <button onclick='location=`/52003f00
+//   String for %y07 replacement
+//     </button>&emsp;&ensp;
+// The original button code was
+//  "Select Attenuation (db)<br><br>"
+//  "<button onclick='location=`/52003f0000`'>00</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0002`'>01</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0004`'>02</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0006`'>03</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0008`'>04</button>&emsp;&ensp;<br><br>"
+//  "<button onclick='location=`/52003f000a`'>05</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f000c`'>06</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f000e`'>07</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0010`'>08</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0012`'>09</button>&emsp;&ensp;<br><br>"
+//  "<button onclick='location=`/52003f0014`'>10</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0016`'>11</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0018`'>12</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f001a`'>13</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f001c`'>14</button>&emsp;&ensp;<br><br>"
+//  "<button onclick='location=`/52003f001e`'>15</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0020`'>16</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0022`'>17</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0024`'>18</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0026`'>19</button>&emsp;&ensp;<br><br>"
+//  "<button onclick='location=`/52003f0028`'>20</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f002a`'>21</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f002c`'>22</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f002e`'>23</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0030`'>24</button>&emsp;&ensp;<br><br>"
+//  "<button onclick='location=`/52003f0032`'>25</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0034`'>26</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0036`'>27</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f0038`'>28</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f003a`'>29</button>&emsp;&ensp;<br><br>"
+//  "<button onclick='location=`/52003f003c`'>30</button>&emsp;&ensp;"
+//  "<button onclick='location=`/52003f003e`'>31</button>&emsp;&ensp;<br>"
+//
+// I tried using an iframe to display the Current Attenuator value so that I
+// wouldn't have to resend and repaint the entire page. Unfortunately I
+// couldn't get that to work properly.
+#endif // RF_ATTEN_SUPPORT == 1
+
+
+#if INA226_SUPPORT == 1
+// SDR INA226 page Template
+// Part of the Software Defined Radio project
+// Browser Only builds
+// URL /76
+#define WEBPAGE_INA226		19
+static const char g_HtmlPageINA226[] =
+"%y04%y05"
+  "<title>Power</title>"
+  "<style>"
+    "h1 { margin: 0; }"
+  "</style>"
+  "</head>"
+  "<body>"
+  "<p>"
+    "<h1>Power</h1>"
+    "Device: %a00<br>"
+  "</p>"
+  "INA226-1<br>"
+  "%t06"
+  "<br>"
+  "INA226-2<br>"
+  "%t07"
+  "<br>"
+  "INA226-3<br>"
+  "%t08"
+  "<br>"
+  "INA226-4<br>"
+  "%t09"
+  "<br>"
+  "INA226-5<br>"
+  "%t10"
+
+  "<script>"
+    "setTimeout( function() {"
+      "location='/76';"
+    "}, 30000);"
+  "</script>"
+  
+  "</body>"
+  "</html>";
+#endif // INA226_SUPPORT == 1
+
+
+#if SDR_POWER_RELAY_SUPPORT == 2
+// SDR Power Relay page Template
+// Part of the Software Defined Radio project
+// Browser Only builds
+// URL /77
+// It is assumed that the Configuration for all IO's is set as follows:
+// IO   Type     Name          Invert  Boot State   Timer
+// #1   Output   Relay 1 ON    No      Off          15  0.1s
+// #2   Output   Relay 1 OFF   No      Off          15  0.1s
+// #3   Output   Relay 2 ON    No      Off          15  0.1s
+// #4   Output   Relay 2 OFF   No      Off          15  0.1s
+// #5   Output   Relay 3 ON    No      Off          15  0.1s
+// #6   Output   Relay 3 OFF   No      Off          15  0.1s
+// #7   Output   Relay 4 ON    No      Off          15  0.1s
+// #8   Output   Relay 4 OFF   No      Off          15  0.1s
+// #9   Output   Relay 5 ON    No      Off          15  0.1s
+// #10  Output   Relay 5 OFF   No      Off          15  0.1s
+// #11  Output   Relay 6 ON    No      Off          15  0.1s
+// #12  Output   Relay 6 OFF   No      Off          15  0.1s
+// #13  Output   Relay 7 ON    No      Off          15  0.1s
+// #14  Output   Relay 7 OFF   No      Off          15  0.1s
+// #15  Output   Relay 8 ON    No      Off          15  0.1s
+// #16  Output   Relay 8 OFF   No      Off          15  0.1s
+// Note: "Name" can be anything, but the above is illustrative of what the
+// IO does.
+#define WEBPAGE_SDR_POWER_RELAY	20
+static const char g_HtmlPageSDRPowerRelay[] =
+"%y04%y05"
+  "<title>Keep Relays</title>"
+  "<style>"
+    "h1 { margin: 0; }"
+  "</style>"
+  "</head>"
+  "<body>"
+  "<p>"
+    "<h1>Keep Relays</h1>"
+    "Device: %a00<br>"
+  "</p>"
+  "<button onclick='location=`/01`'>%j00</button> "
+  "<button onclick='location=`/03`'>%j01</button><br><br>"
+  "<button onclick='location=`/05`'>%j02</button> "
+  "<button onclick='location=`/07`'>%j03</button><br><br>"
+  "<button onclick='location=`/09`'>%j04</button> "
+  "<button onclick='location=`/11`'>%j05</button><br><br>"
+  "<button onclick='location=`/13`'>%j06</button> "
+  "<button onclick='location=`/15`'>%j07</button><br><br>"
+  "<button onclick='location=`/17`'>%j08</button> "
+  "<button onclick='location=`/19`'>%j09</button><br><br>"
+  "<button onclick='location=`/21`'>%j10</button> "
+  "<button onclick='location=`/23`'>%j11</button><br><br>"
+  "<button onclick='location=`/25`'>%j12</button> "
+  "<button onclick='location=`/27`'>%j13</button><br><br>"
+  "<button onclick='location=`/29`'>%j14</button> "
+  "<button onclick='location=`/31`'>%j15</button><br><br>"
+  "</body>"
+  "</html>";
+#endif // SDR_POWER_RELAY_SUPPORT == 2
+
+
+#if SDR_POWER_RELAY_SUPPORT == 1
+// SDR Power Relay page Template
+// Part of the Software Defined Radio project
+// Browser Only builds
+// URL /77
+// It is assumed that the Configuration for all IO's is set as follows:
+// IO   Type     Name       Invert   Boot State   Timer
+// #1   Output   Relay 1    No       Off          15  0.1s
+// #2   Output   Relay 1    No       Off          15  0.1s
+// #3   Output   Relay 2    No       Off          15  0.1s
+// #4   Output   Relay 2    No       Off          15  0.1s
+// #5   Output   Relay 3    No       Off          15  0.1s
+// #6   Output   Relay 3    No       Off          15  0.1s
+// #7   Output   Relay 4    No       Off          15  0.1s
+// #8   Output   Relay 4    No       Off          15  0.1s
+// #9   Output   Relay 5    No       Off          15  0.1s
+// #10  Output   Relay 5    No       Off          15  0.1s
+// #11  Output   Relay 6    No       Off          15  0.1s
+// #12  Output   Relay 6    No       Off          15  0.1s
+// #13  Output   Relay 7    No       Off          15  0.1s
+// #14  Output   Relay 7    No       Off          15  0.1s
+// #15  Output   Relay 8    No       Off          15  0.1s
+// #16  Output   Relay 8    No       Off          15  0.1s
+// Note: "Name" can be anything, but the above is illustrative of what the
+// IO does.
+#define WEBPAGE_SDR_POWER_RELAY	20
+static const char g_HtmlPageSDRPowerRelay[] =
+"%y04%y05"
+  "<title>Keep Relays</title>"
+  "<style>"
+    "h1 {margin:0;}"
+    ".box {float:left; height:20px; width:20px; margin-right:15px; border:1px solid black; clear:both;}"
+    ".red {background-color:red;}"
+    ".grn {background-color:green;}"
+    ".kr-btn1 {position:absolute; left:35px;}"
+    ".kr-btn2 {position:absolute; left:75px;}"
+    ".kr-name {position:absolute; left:130px;}"
+    "</style>"
+  "</head>"
+  "<body>"
+  "<p>"
+    "<h1>Keep Relays</h1>"
+    "Device: %a00<br>"
+  "</p>"
+  "<div class='box %n10'></div><button class='kr-btn1' onclick='location=`/01`'>ON</button> <button class='kr-btn2' onclick='location=`/03`'>OFF</button><div class='kr-name'>%j00</div><br><br>"
+  "<div class='box %n11'></div><button class='kr-btn1' onclick='location=`/05`'>ON</button> <button class='kr-btn2' onclick='location=`/07`'>OFF</button><div class='kr-name'>%j02</div><br><br>"
+  "<div class='box %n12'></div><button class='kr-btn1' onclick='location=`/09`'>ON</button> <button class='kr-btn2' onclick='location=`/11`'>OFF</button><div class='kr-name'>%j04</div><br><br>"
+  "<div class='box %n13'></div><button class='kr-btn1' onclick='location=`/13`'>ON</button> <button class='kr-btn2' onclick='location=`/15`'>OFF</button><div class='kr-name'>%j06</div><br><br>"
+  "<div class='box %n14'></div><button class='kr-btn1' onclick='location=`/17`'>ON</button> <button class='kr-btn2' onclick='location=`/19`'>OFF</button><div class='kr-name'>%j08</div><br><br>"
+  "<div class='box %n15'></div><button class='kr-btn1' onclick='location=`/21`'>ON</button> <button class='kr-btn2' onclick='location=`/23`'>OFF</button><div class='kr-name'>%j10</div><br><br>"
+  "<div class='box %n16'></div><button class='kr-btn1' onclick='location=`/25`'>ON</button> <button class='kr-btn2' onclick='location=`/27`'>OFF</button><div class='kr-name'>%j12</div><br><br>"
+  "<div class='box %n17'></div><button class='kr-btn1' onclick='location=`/29`'>ON</button> <button class='kr-btn2' onclick='location=`/31`'>OFF</button><div class='kr-name'>%j14</div><br><br>"
+
+  "<script>"
+    "setTimeout( function() {"
+      "location='/77';"
+    "}, 30000);"
+  "</script>"
+  
+  "</body>"
+  "</html>";
+#endif // SDR_POWER_RELAY_SUPPORT == 1
+
+
+
+
 
 
 /*
-#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+#if LINK_STATISTICS == 1
 // Link Error Statistics page Template
 // URL /66
 #define WEBPAGE_STATS2		7
@@ -2552,9 +2881,9 @@ static const char g_HtmlPageStats2[] =
   "<button onclick='location=`/67`'>Clear</button>"
   "</body>"
   "</html>";
-#endif // DEBUG_SUPPORT
+#endif // LINK_STATISTICS == 1
 */
-#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+#if LINK_STATISTICS == 1
 // Link Error Statistics page Template
 // URL /66
 #define WEBPAGE_STATS2		7
@@ -2570,7 +2899,7 @@ static const char g_HtmlPageStats2[] =
   "34 %e34"
   "<br>"
   "35 %e35";
-#endif // DEBUG_SUPPORT
+#endif // LINK_STATISTICS == 1
 
 
 
@@ -2598,7 +2927,6 @@ static const char g_HtmlPageTmpSerialNum[] =
 #endif // DEBUG_SENSOR_SERIAL
 
 
-#if PCF8574_SUPPORT == 0
 // Very Short IO state page Template
 // Only responds with a TCP payload that contains the 16 alphanumeric
 // characters representing the IO pins states. The response may not be
@@ -2607,19 +2935,6 @@ static const char g_HtmlPageTmpSerialNum[] =
 #define WEBPAGE_SSTATE		9
 static const char g_HtmlPageSstate[] =
   "%f00";
-#endif // PCF8574_SUPPORT == 0
-
-
-#if PCF8574_SUPPORT == 1
-// Very Short IO state page Template
-// Only responds with a TCP payload that contains the 24 alphanumeric
-// characters representing the IO pins states. The response may not be
-// browser compatible.
-// URL /98 and /99
-#define WEBPAGE_SSTATE		9
-static const char g_HtmlPageSstate[] =
-  "%f00";
-#endif // PCF8574_SUPPORT == 1
 
 
 // Load Uploader page Template
@@ -2888,6 +3203,8 @@ static const char g_HtmlPageEEPROMMissing[] =
 
 
 //---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 // The following creates an array of strings that are commonly used strings
 // in the HTML pages. To reduce the size of the HTML pages these common
 // strings are replaced with placeholders of the form "%yxx", then when the
@@ -2896,12 +3213,23 @@ static const char g_HtmlPageEEPROMMissing[] =
 // manually counted and put in the associated _len value. When the _len value 
 // is needed it often has 4 subtracted (as the strings are replacing the 4
 // character placeholder), so that subtraction is done once here.
+// Notes for Flash optimization:
+// 1) Strings must be > 4 characters in length because the size of the string
+//    (less 5) is stored as an integer in the string structure defined below.
+// 2) Strings must be < 256 characters.
+// 3) If two strings are identical the compiler optimizer will creae a single
+//    string and point to that string.
+// 4) CAUTION: Strings defined here are placed in a structure even if they are
+//    not used in a given build. Since it is important that the index to a
+//    given string always be the same in all builds, the best mitigation to
+//    prevent an unused string from occupying Flash space is to use a compiler
+//    directive to replace that string with a shorter "not used" placeholder.
 
-// The following creates an array of 6 strings of variable length
+// The following creates an array of strings of variable lengths.
 
-// String for %y00 replacement in web page templates
+// String for %y00 replacement in web page templates.
 #define s0 "" \
-  "placeholder"
+  "not used"
 
 // String for %y01 replacement in web page templates
 #define s1 "" \
@@ -2916,9 +3244,9 @@ static const char g_HtmlPageEEPROMMissing[] =
 #define s2 "" \
   "<button title='Save first!' onclick="
 
-// String for %y03 replacement in web page templates
+// String for %y03 replacement in web page templates.
 #define s3 "" \
-"placeholder"
+  "not used"
 
 // String for %y04 replacement in web page templates
 #define s4  "" \
@@ -2944,6 +3272,25 @@ static const char g_HtmlPageEEPROMMissing[] =
   ".hs{height:9px;}" \
   "</style>"
 
+#if RF_ATTEN_SUPPORT == 1
+// String for %y06 replacement in web page templates
+#define s6 "" \
+  "<button onclick='location=`/52003f00"
+#else
+#define s6 "" \
+  "not used"
+#endif // RF_ATTEN_SUPPORT == 1
+  
+#if RF_ATTEN_SUPPORT == 1
+// String for %y07 replacement in web page templates
+#define s7 "" \
+  "</button>&emsp;&ensp;"
+#else
+#define s7 "" \
+  "not used"
+#endif // RF_ATTEN_SUPPORT == 1
+
+
 // The following creates an array of string lengths corresponding to
 // the strings in the #define statements above
 // AND
@@ -2955,13 +3302,15 @@ struct page_string {
     uint8_t size_less4;
 };
 
-const struct page_string ps[6] = {
+const struct page_string ps[8] = {
     { s0, sizeof(s0)-1, sizeof(s0)-5 },
     { s1, sizeof(s1)-1, sizeof(s1)-5 },
     { s2, sizeof(s2)-1, sizeof(s2)-5 },
     { s3, sizeof(s3)-1, sizeof(s3)-5 },
     { s4, sizeof(s4)-1, sizeof(s4)-5 },
-    { s5, sizeof(s5)-1, sizeof(s5)-5 }
+    { s5, sizeof(s5)-1, sizeof(s5)-5 },
+    { s6, sizeof(s6)-1, sizeof(s6)-5 },
+    { s7, sizeof(s7)-1, sizeof(s7)-5 }
 };
 
 // Access the above strings, string length, and (string length - 4) as
@@ -2998,6 +3347,17 @@ const struct page_string ps[6] = {
 #if (sizeof(s5) > 255)
   #error "string s5 is too big"
 #endif
+
+#if (sizeof(s6) > 255)
+  #error "string s6 is too big"
+#endif
+
+#if (sizeof(s7) > 255)
+  #error "string s7 is too big"
+#endif
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 
 
 void HttpDStringInit() {
@@ -3217,7 +3577,7 @@ uint16_t read_two_bytes(void)
 #endif // OB_EEPROM_SUPPORT == 1
 
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 #if OB_EEPROM_SUPPORT == 1
 #if HTTPD_DIAGNOSTIC_SUPPORT == 1
 void httpd_diagnostic(void)
@@ -3282,10 +3642,10 @@ void httpd_diagnostic(void)
 }
 #endif // HTTPD_DIAGNOSTIC_SUPPORT == 1
 #endif // OB_EEPROM_SUPPORT == 1
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 #if OB_EEPROM_SUPPORT == 1
 #if HTTPD_DIAGNOSTIC_SUPPORT == 1
 void read_httpd_diagnostic_bytes(void)
@@ -3333,7 +3693,7 @@ void read_httpd_diagnostic_bytes(void)
 }
 #endif // HTTPD_DIAGNOSTIC_SUPPORT == 1
 #endif // OB_EEPROM_SUPPORT == 1
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 
 uint16_t adjust_template_size(struct tHttpD* pSocket)
@@ -3503,11 +3863,11 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // them  each time we display the web page.
     {
       int i;
-//      for (i=0; i<15; i++) {
       for (i=0; i<16; i++) {
         size = size + (strlen(IO_NAME[i]) - 4);
       }
     }
+    
     // The TIMER fields have no size change impact
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
   }
@@ -3860,7 +4220,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
-#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#if NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
   else if (pSocket->current_webpage == WEBPAGE_STATS1) {
     size = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
 
@@ -3880,7 +4240,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + (22 x (6));
     size = size + 132;
   }
-#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#endif // NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
   //-------------------------------------------------------------------------//
@@ -3893,18 +4253,18 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
-#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+#if LINK_STATISTICS == 1
   else if (pSocket->current_webpage == WEBPAGE_STATS2) {
     size = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
 
     // Account for header replacement strings %y04 %y05
-    size = size + ps[4].size_less4
-                + ps[5].size_less4;
+//    size = size + ps[4].size_less4
+//                + ps[5].size_less4;
 
     // Account for Device Name field %a00 in <title>
     // This can be variable in size during run time so we have to calculate it
     // each time we display the web page.
-    size = size + strlen_devicename_adjusted;
+//    size = size + strlen_devicename_adjusted;
 
     // Account for Statistics fields %e31, %e32, %e33, %e34, %e35
     // There are 5 instances of these fields
@@ -3913,7 +4273,158 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + (5 x (6));
     size = size + 30;
   }
-#endif // DEBUG_SUPPORT
+#endif // LINK_STATISTICS == 1
+
+
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  // Adjust the size reported by the WEBPAGE_RF_ATTEN template (special RF
+  // Attenuator page)
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+#if RF_ATTEN_SUPPORT == 1
+  else if (pSocket->current_webpage == WEBPAGE_RF_ATTEN) {
+    size = (uint16_t)(sizeof(g_HtmlPageRFAtten) - 1);
+
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+
+    // Account for Device Name field %a00
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + strlen_devicename_adjusted;
+
+    // Account for Current Decibel setting string %f01
+    // There is 1 instance of this field
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (1 x (2 - 4));
+    // size = size + (1 x -2);
+    size = size - 2;
+
+    // Account for button strings %y06
+    // There are 32 instances of these fields
+    // <button onclick='location=`/51003f00     (36 bytes)
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (32 x (36 - 4));
+    // size = size + (32 x (32));
+    size = size + 1024;
+
+    // Account for button strings %y07
+    // There are 32 instances of these fields
+    // </button>&emsp;&ensp;      (21 bytes)
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (32 x (21 - 4));
+    // size = size + (32 x (17));
+    size = size + 544;
+  }
+#endif // RF_ATTEN_SUPPORT == 1
+
+
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  // Adjust the size reported by the WEBPAGE_SDR_POWER_RELAY template (special
+  // SDR Power Relay page)
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+#if SDR_POWER_RELAY_SUPPORT == 2
+  else if (pSocket->current_webpage == WEBPAGE_SDR_POWER_RELAY) {
+    size = (uint16_t)(sizeof(g_HtmlPageSDRPowerRelay) - 1);
+
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+
+    // Account for Device Name field %a00
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + strlen_devicename_adjusted;
+
+    // Account for IO Name fields %j00 to %j15
+    // Each can be variable in size during run time so we have to calculate
+    // them  each time we display the web page.
+    {
+      int i;
+      for (i=0; i<16; i++) {
+        size = size + (strlen(IO_NAME[i]) - 4);
+      }
+    }
+  }
+#endif // SDR_POWER_RELAY_SUPPORT == 2
+
+
+#if SDR_POWER_RELAY_SUPPORT == 1
+  else if (pSocket->current_webpage == WEBPAGE_SDR_POWER_RELAY) {
+    size = (uint16_t)(sizeof(g_HtmlPageSDRPowerRelay) - 1);
+
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+
+    // Account for Device Name field %a00
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + strlen_devicename_adjusted;
+
+    // Account for Green / Red relay status field %n10 to %n17
+    // There are 8 instances of this field
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (8 x (3 - 4));
+    // size = size + (8 x -1);
+    size = size - 8;
+    
+    // Account for IO Name fields %j00, %j02, %j04, %j06, %j08, %j10, %j12, %j14
+    // Each can be variable in size during run time so we have to calculate
+    // them  each time we display the web page.
+    {
+      int i;
+      for (i=0; i<16; i += 2) {
+        size = size + (strlen(IO_NAME[i]) - 4);
+      }
+    }
+  }
+#endif // SDR_POWER_RELAY_SUPPORT == 1
+
+
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  // Adjust the size reported by the WEBPAGE_INA226 template (special Current,
+  // Voltage, Wattage page)
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+#if INA226_SUPPORT == 1
+  else if (pSocket->current_webpage == WEBPAGE_INA226) {
+    size = (uint16_t)(sizeof(g_HtmlPageINA226) - 1);
+
+    // Account for Device Name field %a00
+    // This can be variable in size during run time so we have to calculate it
+    // each time we display the web page.
+    size = size + strlen_devicename_adjusted;
+
+    // Account for header replacement strings %y04 %y05
+    size = size + ps[4].size_less4
+                + ps[5].size_less4;
+
+    // Account for Current, Voltage, Wattage string %t06
+    // There are 5 instances of this field
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (5 x (63 - 4));
+    // size = size + (5 x 59);
+    size = size + 295;
+  }
+#endif // INA226_SUPPORT == 1
 
 
   //-------------------------------------------------------------------------//
@@ -4302,7 +4813,7 @@ uint8_t int2nibble(uint8_t j)
   else return (uint8_t)(j - 10 + 'a');
 }
 
-
+/*
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
 {
   uint16_t nBytes;
@@ -4322,13 +4833,65 @@ static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
   pBuffer = stpcpy(pBuffer, http_string1);
   nBytes += strlen(http_string1);
 
-  // This creates the "xxxxx" part of a 5 character "Content-Length:xxxxx" field in the pBuffer.
+  // This creates the "xxxxx" part of a 5 character "Content-Length:xxxxx"
+  // field in the pBuffer.
   emb_itoa(nDataLen, OctetArray, 10, 5);
   pBuffer = stpcpy(pBuffer, OctetArray);
   nBytes += 5;
 
   pBuffer = stpcpy(pBuffer, http_string2);
   nBytes += strlen(http_string2);
+  
+  return nBytes;
+}
+*/
+static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen, uint8_t header_type)
+{
+  uint16_t nBytes;
+  int i;
+  
+  static const char http_string1[] = 
+    "\r\n"
+    "Cache-Control: no-cache, no-store\r\n"
+    "Content-Type: text/html; charset=utf-8\r\n";
+
+  nBytes = 0;
+  
+  pBuffer = stpcpy(pBuffer, "HTTP/1.1 ");
+  nBytes += 9;
+
+  if (header_type == HEADER200) {
+    pBuffer = stpcpy(pBuffer, "200 OK\r\n");
+    nBytes += 8;
+  }
+//  if (header_type == HEADER204) {
+//    pBuffer = stpcpy(pBuffer, "204 No Content\r\n");
+//    nBytes += 16;
+//  }
+  if (header_type == HEADER429) {
+    pBuffer = stpcpy(pBuffer, "429 Too Many Requests\r\n");
+    nBytes += 23;
+  }
+
+  pBuffer = stpcpy(pBuffer, "Content-Length:");
+  nBytes += 15;
+
+  // This creates the "xxxxx" part of a 5 character "Content-Length:xxxxx"
+  // field in the pBuffer.
+  emb_itoa(nDataLen, OctetArray, 10, 5);
+  pBuffer = stpcpy(pBuffer, OctetArray);
+  nBytes += 5;
+
+  pBuffer = stpcpy(pBuffer, http_string1);
+  nBytes += strlen(http_string1);
+  
+  if (header_type == HEADER429) {
+    pBuffer = stpcpy(pBuffer, "Retry-After: 10\r\n");
+    nBytes += 17;
+  }
+  
+  pBuffer = stpcpy(pBuffer, "Connection:close\r\n\r\n");
+  nBytes += 20;
   
   return nBytes;
 }
@@ -4413,7 +4976,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
   //
   //-------------------------------------------------------------------------//
   // nMaxbytes must be smaller than UIP_TCP_MSS due to the need to allow for
-  // the largest string insertion that is NOT a %yxx replacement (as %y00
+  // the largest string insertion that is NOT a %yxx replacement (as %yxx
   // replacements can be interrupted if the buffer fills and can be continued
   // at the next call of this routine).
   //
@@ -4586,6 +5149,9 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	//      they want to change the MAC address. Input and output.
         // %e - Statistics display information. Output only.
         // %f - IO states displayed in simplified form. Output only.
+	//        00 - IO states of all 16 pins
+	//        01 - IO6 to IO2 converted to a decimal value (for the
+	//             RF Attenuator application).
         // %g - "Config" string to control BME280 Enable, Disable Cfg Button,
 	//      DS18B20 Enable, MQTT Enable, Full/Half Duplex, and Home
 	//      Assistant Auto Discovery Enable. Input and Output.
@@ -4605,11 +5171,22 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	//      Username. Used in MQTT communication. Input and output.
         // %m - MQTT Password - This is a user entered text field with a
 	//      Password. Used in MQTT communication. Input and output.
-        // %n - MQTT Status - Displays red or green boxes to indicate startup
-	//      status for MQTT (Connection Available, ARP OK, TCP OK, Connect
-	//      OK, MQTT_OK). Output only.
+        // %n - MQTT Status or Latching Relay Status
+	//      00 to 04 - Displays red or green boxes to indicate MQTT
+	//        startup status (Connection Available, ARP OK, TCP OK,
+	//        Connect OK, MQTT_OK). Output only.
+	//      10 to 17 - Displays red or green boxes to indicate the
+	//        last known ON / OFF status of latching relays. Applies
+	//        only to special Software Defined Radio builds.
 	// %s - I2C EEPROM presence status. Output only.
-	// %t - Temperature Sensor data or BME280 data. Output only.
+	// %t - I2C Sensor data
+	//        00 - 18B20 Temperature Sensor 1 data. Output only.
+	//        01 - 18B20 Temperature Sensor 2 data. Output only.
+	//        02 - 18B20 Temperature Sensor 3 data. Output only.
+	//        03 - 18B20 Temperature Sensor 4 data. Output only.
+	//        04 - 18B20 Temperature Sensor 5 data. Output only.
+	//        05 - BME280 Temperature, Humidity, Pressure sensor data. Output only.
+	//        06 - INA226 Current, Voltage, Wattage sensor data. Output only.
 	// %w - General purpose output strings:
 	//        00 - Code Revision
 	//        01 - Pinout Option
@@ -4793,7 +5370,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	}
 	
 
-#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#if NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
         else if ((nParsedMode == 'e') && (nParsedNum < 22)) {
 	  // This displays the statistics information (10 characters per
 	  // data item). We need to get a single uint32_t from storage but
@@ -4850,21 +5427,25 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  }
         pBuffer = stpcpy(pBuffer, OctetArray);
 	}
-#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#endif // NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
-#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+#if LINK_STATISTICS == 1
         else if ((nParsedMode == 'e') && (nParsedNum >= 30) && (nParsedNum < 40)) {
 	  // This displays the Link Error Statistics
           if (nParsedNum == 31) {
+	    // Display Seconds Counter
 	    emb_itoa(second_counter, OctetArray, 10, 10);
             pBuffer = stpcpy(pBuffer, OctetArray);
 	  }
           else if (nParsedNum == 32) {
+	    // Display Transmit Counter
 	    emb_itoa(TRANSMIT_counter, OctetArray, 10, 10);
             pBuffer = stpcpy(pBuffer, OctetArray);
 	  }
           else if (nParsedNum == 33) {
+	    // Display Stack Overflow Error, ENC28J60 revision, TXERIF Error
+	    // Count and RXERIF Error Count
 	    for (i=0; i<5; i++) {
               int2hex(stored_debug[i]);
               pBuffer = stpcpy(pBuffer, OctetArray);
@@ -4872,11 +5453,14 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  }
           else if (nParsedNum == 34) {
 	    for (i=5; i<10; i++) {
+	      // Display EMCF, SWIMF, ILLOPF,IWDGF and WWDGF Counters
               int2hex(stored_debug[i]);
               pBuffer = stpcpy(pBuffer, OctetArray);
 	    }
 	  }
           else if (nParsedNum == 35) {
+	    // Display MQTT Response Timeout, MQTT Not OK Count, and MQTT
+	    // Broker Disconnect Count
             pBuffer = stpcpy(pBuffer, "0000");
             int2hex(MQTT_resp_tout_counter);
             pBuffer = stpcpy(pBuffer, OctetArray);
@@ -4886,7 +5470,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
             pBuffer = stpcpy(pBuffer, OctetArray);
 	  }
 	}
-#endif // DEBUG_SUPPORT
+#endif // LINK_STATISTICS == 1
 
 
 #if DEBUG_SENSOR_SERIAL == 1
@@ -4912,7 +5496,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 #endif // DEBUG_SENSOR_SERIAL
 
 
-        else if (nParsedMode == 'f') {
+        else if ((nParsedMode == 'f') && (nParsedNum == 0)) {
 	  // Display the pin state information in the format used by the "98"
 	  // and "99" command. "99" is the command used in the original
 	  // Network Module.
@@ -4973,6 +5557,23 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	    i--;
 	  }
 	}
+	
+
+#if RF_ATTEN_SUPPORT == 1
+        else if ((nParsedMode == 'f') && (nParsedNum == 1)) {
+	  // This is a special case utilized only for the RF Attenuator
+	  // special build. This will display IO bits 6 to 2 (5 bits) as a
+	  // decimal number.
+	  {
+	    uint16_t pinstates;
+	    pinstates = (uint16_t)ON_OFF_word;
+	    pinstates = pinstates & 0x003f;
+	    pinstates = pinstates >> 1;
+	    emb_itoa(pinstates, OctetArray, 10, 2);
+	    pBuffer = stpcpy(pBuffer, OctetArray);
+	  }
+	}
+#endif // RF_ATTEN_SUPPORT == 1
 	
 
         else if (nParsedMode == 'g') {
@@ -5253,7 +5854,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	}
 
 
-        else if (nParsedMode == 'n') {
+        else if ((nParsedMode == 'n') && (nParsedNum < 10)) {
 	  // This displays the MQTT Start Status information as five
 	  // red/green boxes showing Connections available, ARP status,
 	  // TCP status, MQTT Connect status, and MQTT Error status.
@@ -5290,6 +5891,62 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	}
 
 
+#if SDR_POWER_RELAY_SUPPORT == 1
+        else if ((nParsedMode == 'n') && (nParsedNum > 9) && (nParsedNum < 20)) {
+	  // This displays the last know state of the Latching Relays. Applies
+	  // only to Software Defined Radio builds. If a relay is indicated as
+	  // ON a green box is displaed. If a relay is indicated as OFF a red
+	  // box is displayed.
+
+          switch (nParsedNum)
+	  {
+	    case 10:
+              // Relay 1 state
+	      if ((stored_latching_relay_state & 0x01) == 0x01) pBuffer = stpcpy(pBuffer, "grn");
+              else pBuffer = stpcpy(pBuffer, "red");
+              break;
+	    case 11:
+              // Relay 2 state
+	      if ((stored_latching_relay_state & 0x02) == 0x02) pBuffer = stpcpy(pBuffer, "grn");
+              else pBuffer = stpcpy(pBuffer, "red");
+              break;
+	    case 12:
+              // Relay 3 state
+	      if ((stored_latching_relay_state & 0x04) == 0x04) pBuffer = stpcpy(pBuffer, "grn");
+              else pBuffer = stpcpy(pBuffer, "red");
+              break;
+	    case 13:
+              // Relay 4 state
+	      if ((stored_latching_relay_state & 0x08) == 0x08) pBuffer = stpcpy(pBuffer, "grn");
+              else pBuffer = stpcpy(pBuffer, "red");
+              break;
+	    case 14:
+              // Relay 5 state
+	      if ((stored_latching_relay_state & 0x10) == 0x10) pBuffer = stpcpy(pBuffer, "grn");
+              else pBuffer = stpcpy(pBuffer, "red");
+              break;
+	    case 15:
+              // Relay 6 state
+	      if ((stored_latching_relay_state & 0x20) == 0x20) pBuffer = stpcpy(pBuffer, "grn");
+              else pBuffer = stpcpy(pBuffer, "red");
+              break;
+	    case 16:
+              // Relay 7 state
+	      if ((stored_latching_relay_state & 0x40) == 0x40) pBuffer = stpcpy(pBuffer, "grn");
+              else pBuffer = stpcpy(pBuffer, "red");
+              break;
+	    case 17:
+              // Relay 8 state
+	      if ((stored_latching_relay_state & 0x80) == 0x80) pBuffer = stpcpy(pBuffer, "grn");
+              else pBuffer = stpcpy(pBuffer, "red");
+              break;
+	    default:
+	      break;
+	  }
+	}
+#endif // SDR_POWER_RELAY_SUPPORT == 1
+
+
 #if OB_EEPROM_SUPPORT == 1
         else if (nParsedMode == 's') {
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -5317,7 +5974,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 
 
 #if DS18B20_SUPPORT == 1
-        else if ((nParsedMode == 't') && (stored_config_settings & 0x08)) {
+        else if ((nParsedMode == 't') && (nParsedNum < 5) && (stored_config_settings & 0x08)) {
 	  // This displays temperature sensor data for 5 sensors and the
 	  // text fields around that data IF DS18B20 mode is enabled. The
 	  // possible nParsedNum values for DS18B20 sensors are 0, 1, 2, 3, 4.
@@ -5360,7 +6017,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 
 
 #if BME280_SUPPORT == 1
-        else if ((nParsedMode == 't') && (stored_config_settings & 0x20)) {
+        else if ((nParsedMode == 't') && (nParsedNum == 5) && (stored_config_settings & 0x20)) {
 	  // This displays temperature, pressure, and humidity data from the
 	  // BME280 sensor and the text fields around that data IF BME280
 	  // mode is enabled. It also shows the user entered altitude.
@@ -5372,6 +6029,31 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 #endif // BME280_SUPPORT == 1
 
 
+#if INA226_SUPPORT == 1
+        else if ((nParsedMode == 't') && (nParsedNum > 5) && (nParsedNum < 11)) {
+	  // This displays Current, Voltage, and Wattage data from the
+	  // INA226-1 sensor. Also shows the text fields around that data.
+	  
+	  // Collect data
+          // Call ina226_conversion_ready() to determine if a conversion is
+          // available to be read.
+//          if (ina226_conversion_ready() != 0) {
+            // Call ina226_read_measurements(write_command, read_command,
+	    // *voltage, *current, *power, *shunt_voltage)
+            // voltage, current, power, and shunt_voltage are floats that must
+	    // exist as globals. These are filled with 0 when the call is made
+	    // but are replaced by the ina226_read() function.
+	    if (nParsedNum == 6)  ina226_read_measurements(INA226_1_write, INA226_1_read, 0, 0, 0, 0);
+	    if (nParsedNum == 7)  ina226_read_measurements(INA226_2_write, INA226_2_read, 0, 0, 0, 0);
+	    if (nParsedNum == 8)  ina226_read_measurements(INA226_3_write, INA226_3_read, 0, 0, 0, 0);
+	    if (nParsedNum == 9)  ina226_read_measurements(INA226_4_write, INA226_4_read, 0, 0, 0, 0);
+	    if (nParsedNum == 10) ina226_read_measurements(INA226_5_write, INA226_5_read, 0, 0, 0, 0);
+//          }
+          pBuffer = show_INA226_CVW_string(pBuffer);
+	}
+#endif // INA226_SUPPORT == 1
+
+
         else if (nParsedMode == 'w') {
 	  // This displays Code Revision information (13 characters) plus Code
 	  // Type (13 characters, '.' characters are added to make sure the
@@ -5379,29 +6061,36 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  if (nParsedNum == 0) {
             pBuffer = stpcpy(pBuffer, code_revision);
 	  
-// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD && I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
 #if BUILD_TYPE_BROWSER_STANDARD == 1
             pBuffer = stpcpy(pBuffer, " Browser Only");
 #endif
 
-// #if BUILD_SUPPORT == MQTT_BUILD && I2C_SUPPORT == 0 && OB_EEPROM_SUPPORT == 0
 #if BUILD_TYPE_MQTT_STANDARD == 1
             pBuffer = stpcpy(pBuffer, " MQTT .......");
 #endif
 
-// #if BUILD_SUPPORT == BROWSER_ONLY_BUILD && I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
 #if BUILD_TYPE_BROWSER_UPGRADEABLE == 1
             pBuffer = stpcpy(pBuffer, " Browser UPG ");
 #endif
 
-// #if BUILD_SUPPORT == MQTT_BUILD && I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1
 #if BUILD_TYPE_MQTT_UPGRADEABLE == 1
             pBuffer = stpcpy(pBuffer, " MQTT UPG ...");
 #endif
 
-// #if BUILD_SUPPORT == MQTT_BUILD && I2C_SUPPORT == 1 && OB_EEPROM_SUPPORT == 1 && BME280_SUPPORT == 1
 #if BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
             pBuffer = stpcpy(pBuffer, " MQTT UPG BME");
+#endif
+	  
+#if BUILD_TYPE_BROWSER_STANDARD_RFA == 1
+            pBuffer = stpcpy(pBuffer, " Browser RFA ");
+#endif
+	  
+#if BUILD_TYPE_BROWSER_UPGRADEABLE_RFA == 1
+            pBuffer = stpcpy(pBuffer, " Browser URFA");
+#endif
+	  
+#if BUILD_TYPE_CODE_UPLOADER == 1
+            pBuffer = stpcpy(pBuffer, " Uploader ...");
 #endif
           }
 	  
@@ -5436,7 +6125,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  //    possible.
 	  // b) An "insertion_index" is filled to contain the index into the
 	  //    string being inserted into the transmit buffer. If this index
-	  //    is zero we know we are just starting to insert a %y00 string.
+	  //    is zero we know we are just starting to insert a %yxx string.
 	  //    If this index is non-zero on entry to this code we know we are
 	  //    already in the process of inserting a %yxx string and will
 	  //    continue that insertion here.
@@ -5619,6 +6308,7 @@ char *show_BME280_PTH_string(char *pBuffer)
 
   // Altitude entered by user.
   pBuffer = stpcpy(pBuffer, "Altitude ");  // Display "Altitude " text
+  
   // Convert altitude to meters
   temp_whole = stored_altitude;
   temp_whole = ((temp_whole * 3048) / 10000);
@@ -5636,20 +6326,160 @@ char *show_BME280_PTH_string(char *pBuffer)
   pBuffer = stpcpy(pBuffer, " meters ");
 
   // Show altitude in feet
+  temp_whole = stored_altitude;
   if (stored_altitude < 0) {
+    temp_whole = (uint32_t)(temp_whole * -1);
     pBuffer = stpcpy(pBuffer, "-");        // Insert minus sign
   }
   else {
     pBuffer = stpcpy(pBuffer, " ");        // Insert space
   }
   
-  emb_itoa((uint16_t)stored_altitude, OctetArray, 10, 5);
+  emb_itoa((uint16_t)temp_whole, OctetArray, 10, 5);
   pBuffer = stpcpy(pBuffer, OctetArray);   // Display value in feet
   pBuffer = stpcpy(pBuffer, " feet</p>");
 
   return pBuffer;
 }
 #endif // BME280_SUPPORT == 1
+
+
+#if INA226_SUPPORT == 1
+char *show_INA226_CVW_string(char *pBuffer)
+{
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("running show_INA226_CVW_string\r\n");
+#endif // DEBUG_SUPPORT == 15
+  
+#if DEBUG_SUPPORT == 15
+// current += 0.01;
+current = 0.6;
+#endif // DEBUG_SUPPORT == 15
+
+  // Display Current in 3.3 format
+  // Example: A value of 1.2 amps is shown as 001.200 A  
+  pBuffer = stpcpy(pBuffer, "Current "); // Copy name to webpage
+//  sprintf(temp, "%3.3f", current);       // Format the string
+//  pBuffer = stpcpy(pBuffer, temp);       // Copy to webpage
+  FloatToString(current);                // Convert to string in OctetArray
+  pBuffer = stpcpy(pBuffer, OctetArray); // Copy to webpage
+  pBuffer = stpcpy(pBuffer, " A<br>");   // Copy units to webpage
+
+#if DEBUG_SUPPORT == 15
+voltage = 12.721;
+#endif // DEBUG_SUPPORT == 15
+
+  // Display Voltage in 3.3 format
+  // Example: A value of 1.2 volts is shown as 001.200 V  
+  pBuffer = stpcpy(pBuffer, "Voltage "); // Copy name to webpage
+//  sprintf(temp, "%3.3f", voltage);       // Format the string
+//  pBuffer = stpcpy(pBuffer, temp);       // Copy to webpage
+  FloatToString(voltage);                // Convert to string in OctetArray
+  pBuffer = stpcpy(pBuffer, OctetArray); // Copy to webpage
+  pBuffer = stpcpy(pBuffer, " V<br>");   // Copy units to webpage
+
+#if DEBUG_SUPPORT == 15
+power = 248.92;
+#endif // DEBUG_SUPPORT == 15
+
+  // Display Wattage in 3.3 format
+  // Example: A value of 12 V at 20 A or 240 Watts is shown as 240.000 W
+  pBuffer = stpcpy(pBuffer, "Wattage "); // Copy name to webpage
+//  sprintf(temp, "%3.3f", power);           // Format the string
+//  pBuffer = stpcpy(pBuffer, temp);       // Copy to webpage
+  FloatToString(power);                  // Convert to string in OctetArray
+  pBuffer = stpcpy(pBuffer, OctetArray); // Copy to webpage
+  pBuffer = stpcpy(pBuffer, " W<br>");   // Copy units to webpage
+
+  return pBuffer;
+}
+
+
+void FloatToString(float fVal)
+{
+  // Converts a float value to a string in global OctetArray.
+  // The string consists of a number with 3 digits following the decimal
+  // place.
+  // Creates the string backwards before copyint it character-by-character
+  // from the end to the start.
+  char result[8];
+  int16_t dVal, i, j, k;
+  int32_t dec;
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("running FloatToString\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+  fVal += 0.0005; // Added to make float truncation more closely match a
+                  // round off.
+
+  dVal = (int16_t)fVal; // This recast capture the "number" as an int.
+  if (dVal > 999) dVal = 999; // Limit to three places.
+  
+  dec = (int32_t)(fVal * 1000) % 1000; // Capture the decimal as three places.
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("dec = ");
+// emb_itoa(dec, OctetArray, 10, 5);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+  // Fill the result varoab;e with null
+  memset(result, 0, 8);
+  
+  // Convert the decimal part of the value to string characters
+  result[0] = (char)((dec % 10) + '0');
+  dec /= 10;
+  result[1] = (char)((dec % 10) + '0');
+  dec /= 10;
+  result[2] = (char)((dec % 10) + '0');
+  
+  // Insert decimal point
+  result[3] = '.';
+
+  // Convert the number part of the value to string characters.
+
+//   i = 4;
+//   if (dVal == 0) result[i] = '0';
+//   else {
+//     while (dVal > 0) {
+//       result[i] = (char)((dVal % 10) + '0');
+//       dVal /= 10;
+//       i++;
+//       if (i == 7) break;
+//     }
+//   }
+  
+  result[4] = (char)((dVal % 10) + '0');
+  dVal /= 10;
+  result[5] = (char)((dVal % 10) + '0');
+  dVal /= 10;
+  result[6] = (char)((dVal % 10) + '0');
+  
+  // Reverse the order of the characters in the string.
+  k = strlen(result);
+  j = 0;
+  memset(OctetArray, 0, 8);
+  for (i = k-1; i >= 0; ) OctetArray[j++] = result[i--];
+  
+//   // Insert '0' at the start of the string if needed.
+//   while (strlen(OctetArray) < 7) {
+//     OctetArray[6] = OctetArray[5];
+//     OctetArray[5] = OctetArray[4];
+//     OctetArray[4] = OctetArray[3];
+//     OctetArray[3] = OctetArray[2];
+//     OctetArray[2] = OctetArray[1];
+//     OctetArray[1] = OctetArray[0];
+//     OctetArray[0] = '0';
+//   }
+
+}
+#endif // INA226_SUPPORT == 1
 
 
 #if BME280_SUPPORT == 1
@@ -5782,6 +6612,9 @@ void HttpDInit(void)
     uip_connr = &uip_conns[i];
     init_tHttpD_struct(&uip_connr->appstate.HttpDSocket, i);
   }
+  
+  // Initialize storage for the GET command
+  parse_GETcmd[0] = '\0';
 
   // Start listening on our port
   uip_listen(htons(Port_Httpd));
@@ -5834,21 +6667,86 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   //    In the form of a POST if the Broswer is sending data to the
   //    application.
   // b) Send a requsted web page to the Browser:
+  //    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  //    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  //    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   //    This uses the "if (uip_connected())" part of the code below to start a
   //    new page transmission and the "if (uip_acked())" part of the code
   //    below if continuing a page transmission.
+  
+  // HttpDCall() is called from uip_TcpAppHubCall(), which is in turn called
+  // via UIP_APPCALL in the uip.c code. uip_periodic() assures that an
+  // HttpDCall() occurs regularly to process any outstanding data pending for
+  // receipt or transmission.
 
   i = 0;
   j = 0;
 
   if (uip_connected()) {
-    //Initialize this connection
+    // uip_connected() will occur when a connection is established after being
+    // requested by either the webserver or the Browser.
+    //
+    // In this application passing through the uip_connected() code is really
+    // only useful to receiving data from the Browser as uip_connected() will
+    // set nState to STATE_CONNECTED, which then allows the uip_new_data()
+    // code to sort out whether we are receiving a GET or POST from the
+    // Browser.
+    //
+    // If uip_connected() occurred as a result of the webserver requesting a
+    // connection to the Browser WAIT - THIS MAKES NO SENSE. THE WEBSERVER
+    // CAN'T START A CONNECTION TO THE BROWSER ... IT ONLY CONTINUES A
+    // CONNECTION BY RESPONDING TO A BROWSER REQUEST.
+    
+    // This is a "receive data from the Browser" function.
+    
+    //
+    // In the original code that this application is based on uip_connected()
+    // had code like this:
+    // \code
+    // if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
+    //   pSocket->pData = g_HtmlPageIOControl;
+    //   pSocket->nDataLeft = HtmlPageIOControl_size;
+    // }
+    // pSocket->nState = STATE_CONNECTED;
+    // pSocket->nPrevBytes = 0xFFFF;
+    // \endcode
+    // The "if" part of the above had to be present for every type of webpage.
+    // I think the above would initialize a pSocket to transmit any of the
+    // webpages to the Browser.
+    // However, since this application is entriely based on GET requests from
+    // the Browser, the pSocket initialization occurs within the GET
+    // request processing, and uip_connected() only gets called to establish
+    // the nState as STATE_CONNECTED at the start of receipt of the first
+    // packet from the Browser. See the "else if (uip_newdata())" code below
+    // where the first packet is interpreted as either a GET packet or as a
+    // POST packet.
+    
+    // HttpDCall() is called repeatedly via uip_periodic() to allow
+    // uip_connected() to run followed by allowing uip_newdata() to run.
+    
+    
+    
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 rexmit_count = 0; // Used only for sending the rexmit count via UART
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("Entering uip_connected()\r\n");
+#endif // DEBUG_SUPPORT == 15
 
 
+
+
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// I COMMENTED OUT ALL THIS CODE BECAUSE I DON'T THINK IT DOES ANYTHING
+// USEFUL. AS THE CODE EVOLVED THE SETTING OF THE pData AND nDataLeft VALUES
+// WERE HANDLED IN THE "GET" PROCESSING, AS ALL PAGES ARE DISPLAYED AS A
+// RESULT OF A GET.
+// I THINK ALL THAT THE UIP_CONNECTED() PROCESS NEEDS TO DO IS INITIALIZE
+// nState = STATE_CONNECTED SO THAT THE TRANSMIT CODE CAN START.
+/*
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
       pSocket->pData = g_HtmlPageIOControl;
@@ -5874,7 +6772,7 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
       pSocket->pData = g_HtmlPagePCFConfiguration;
       pSocket->nDataLeft = HtmlPagePCFConfiguration_size;
     }
-#endif PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1
     
     if (pSocket->current_webpage == WEBPAGE_SSTATE) {
       pSocket->pData = g_HtmlPageSstate;
@@ -5889,19 +6787,19 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 #endif // OB_EEPROM_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
-#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#if NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
     if (pSocket->current_webpage == WEBPAGE_STATS1) {
       pSocket->pData = g_HtmlPageStats1;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
     }
-#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+#endif // NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
+#if LINK_STATISTICS == 1
     if (pSocket->current_webpage == WEBPAGE_STATS2) {
       pSocket->pData = g_HtmlPageStats2;
       pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
     }
-#endif // DEBUG_SUPPORT
+#endif // LINK_STATISTICS == 1
 
 #if DEBUG_SENSOR_SERIAL == 1
     if (pSocket->current_webpage == WEBPAGE_SENSOR_SERIAL) {
@@ -5945,32 +6843,89 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
     }
 #endif // OB_EEPROM_SUPPORT == 1
 
-    pSocket->nState = STATE_CONNECTED;
-    pSocket->nPrevBytes = 0xFFFF;
 
-    // Note on TCP Fragment reassembly: The uip_connected() steps ABOVE are
-    // run for every TCP packet and fragment. That being the case we need to
-    // be sure that TCP Fragment reassembly values are not changed in these
-    // steps.
+#if RF_ATTEN_SUPPORT == 1
+    if (pSocket->current_webpage == WEBPAGE_RF_ATTEN) {
+      pSocket->pData = g_HtmlPageRFAtten;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRFAtten) - 1);
+    }
+#endif // RF_ATTEN_SUPPORT == 1
+
+
+#if INA226_SUPPORT == 1
+    if (pSocket->current_webpage == WEBPAGE_INA226) {
+      pSocket->pData = g_HtmlPageINA226;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageINA226) - 1);
+    }
+#endif // INA226_SUPPORT == 1
+
+
+#if SDR_POWER_RELAY_SUPPORT == 1
+    if (pSocket->current_webpage == WEBPAGE_SDR_POWER_RELAY) {
+      pSocket->pData = g_HtmlPageSDRPowerRelay;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSDRPowerRelay) - 1);
+    }
+#endif // SDR_POWER_RELAY_SUPPORT == 1
+*/
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+
+// I THINK ENTERING STATE_CONNECTED IS ALL THIS STEP NEEDS TO DO. THIS TELLS
+// THE CODE THAT A CONNECTION WAS ESTABLISHED AS WE SHOULD START INTERPRETING
+// THE TRANSMISSION RECEIVED FROM THE BROWSER.
+    pSocket->nState = STATE_CONNECTED;
+    
+
+// I DON'T THINK THIS NEXT STEP IS NEEDED. IT LOOKS LIKE THIS IS ALREADY DONE
+// IN THE "GET" PROCESSING.
+//    pSocket->nPrevBytes = 0xFFFF;
   }
 
   else if (uip_acked()) {
-    // if uip_acked() is true we will be in the STATE_SENDDATA state and
-    // only need to run the "senddata" part of this routine. This typically
+    // This is a "transmit data to the Browser" function.
+    
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("Entering uip_acked()\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+    // How a webpage is transmitted to the Browser: At the end of GET or POST
+    // processing the webpage header is sent (see STATE_SENDHEADER200 and
+    // STATE_SENDHEADER204). Sending the header will start the transmission
+    // process which will result in a connection being established. After that
+    // All data following the header is sent with uip_acked() which calls the
+    // senddata: process.
+    
+    // If uip_acked() is true we will be in the STATE_SENDDATA state and
+    // only need to run the "senddata" part of this function. This typically
     // happens when there are multiple packets to send to the Broswer in
     // response to a POST or GET, so we may repeat this loop in
-    // STATE_SENDDATA several times.
+    // STATE_SENDDATA several times. Note that GET or POST processing has
+    // already sent the TCP HEADER, and uip_acked() indicates an acknowledge
+    // from the Browser such that more data can be sent to the Browser.
+    
     goto senddata;
   }
   
   else if (uip_newdata()) {
+    // This is a "receive data from the Browser" function.
+
+#if DEBUG_SUPPORT == 15
+if (uip_newdata()) {
+  UARTPrintf("Entering uip_newdata(). nBytes = ");
+  emb_itoa(nBytes, OctetArray, 10, 3);
+  UARTPrintf(OctetArray);
+  UARTPrintf("\r\n");
+}
+#endif // DEBUG_SUPPORT == 15
+
+    //
     // This is the start of a new Browser session, or it is additional packets
-    // sent to complete a transmission from the Browser.
+    // received to complete a transmission from the Browser.
     //
     // In this limited application the only "new data" packets a browser can
-    // send to the web server are "POST" or "GET" packets, as the browser can
-    // only reply to the pages the web server sent to it. We're going to parse
-    // the data portion of the packet.
+    // send to the web server are "POST" or "GET" packets. We're going to
+    // parse the data portion of the packet.
     //
     // This code will re-assemble POST/GET datagrams that arrive in
     // "fragmented" packets. Note that we are not really receiving "fragments"
@@ -6021,7 +6976,8 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
     //      in the GET case because everything we want to parse from the GET
     //      message will occur prior to the post-amble and has zero chance of
     //      being fragmented. So the code is not written to handle any
-    //      fragmentation of GET requests.
+    //      fragmentation of GET commands, although the code WILL handle
+    //      fragmentation of the unused balance of the GET request.
     //   3c) With the addition of I2C EEPROMs and the ability to upload
     //      replacement code via Ethernet the POST pre-amble is parsed for the
     //      "Content-Type" phrase. The phrase is used to determine if the POST
@@ -6120,13 +7076,13 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 	  // Initialize parse_tail for first pass of parsing
 	  parse_tail[0] = '\0';
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
 // UARTPrintf("Beginning of POST found. parse_tail set to NULL. nBytes = ");
 // emb_itoa(nBytes, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 
           // Start parsing
@@ -6288,1091 +7244,144 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
     }
 
 
-    if (pSocket->nState == STATE_GOTGET) {
-      // Don't search for \r\n\r\n ... instead parse what we've got
-      // Initialize Parsing variables
-      // nParseLeft is used as a flag in GET parsing. nParseLeft == 1 will
-      // cause parsing to continue. nParseLeft == 0 will cause parsing to
-      // end.
-      pSocket->nParseLeft = 1;
-      pSocket->ParseState = PARSE_SLASH1;
-      // Start parsing
-      pSocket->nState = STATE_PARSEGET;
+
+    if (pSocket->nState == STATE_GOTGET && parse_GETcmd[0] != '\0') {
+      // If we are in state GOTGET but we are already processing a GET Request
+      // we need to throw away the new request and return a 429 response.
+      pSocket->nState == STATE_SENDHEADER429;
+      pSocket->nDataLeft = 0;
+    }
+
+
+//    if (pSocket->nState == STATE_GOTGET) {
+    if (pSocket->nState == STATE_GOTGET && parse_GETcmd[0] == '\0') {
+      // The GET request is processed only if no GET request is already being
+      // processed (as indicated by NULL in the first character of the
+      // parse_GETcmd).
+      // Save the 10 characters that follow "GET " in the first packet in
+      // global parse_GETcmd[11]. These will be parsed later after the entire
+      // GET request is read. This is only to allow the Browser to finish
+      // sending the entire request.
+      for (i = 0; i < 10; i++) {
+        parse_GETcmd[i] = *pBuffer;
+        pBuffer++;
+      }
+      parse_GETcmd[10] = '\0';
+      // Reset pBuffer back to the end of the "GET " indentifier so that the
+      // search performed in STATE_GOTGET2 will work properly. nBytes is
+      // already set properly for that location.
+      pBuffer -= 10;
+      pSocket->nState = STATE_GOTGET2;
+    }
+
+    if (pSocket->nState == STATE_GOTGET2) {
+#if DEBUG_SUPPORT == 15
+UARTPrintf("Entering STATE_GOTGET2\r\n");
+#endif // DEBUG_SUPPORT == 15
+      // Receive the entire GET request. We don't use any of the remaining
+      // content in the GET request so just keep returning for more packets
+      // until the end of the GET request is found.
+
+      while (nBytes != 0) {
+	// The following searches for a zero length line to indictate
+	// the end of the GET request. Note: Since any text line that
+	// precedes the zero length line must end with a \r\n, and the
+	// zero length line consists only of a \r\n, this code uses the
+	// same "nNewlines" search that the POST process uses to find a
+	// "\r\n\r\n" sequence.
+	if (pSocket->nNewlines == 2) {
+	  // This handles the case where a TCP Fragmentation occured in the
+	  // previous packet just as we collected the second \n. In that case
+	  // the search does not continue.
+	}
+	else {
+          // We're processing packets but haven't found the \r\n\r\n sequence
+          // yet. The sequence detector really just looks for two \n in a row,
+          // ignoring the first \r. If any character other than \r appears
+	  // between the \n and \n the Newlines counter is zero'd.
+#if DEBUG_SUPPORT == 15
+// if (*pBuffer != '\r' && *pBuffer != '\n') {
+//   OctetArray[0] = *pBuffer;
+//   OctetArray[1] = '\0';
+//   UARTPrintf(OctetArray);
+// }
+// else if (*pBuffer == '\n') {
+//   UARTPrintf("\r\n");
+// }
+#endif // DEBUG_SUPPORT == 15
+          if (*pBuffer == '\n') {
+            pSocket->nNewlines++;
+	  }
+          else if (*pBuffer == '\r') { }
+          else pSocket->nNewlines = 0;
+          pBuffer++;
+          nBytes--;
+          if (pSocket->nNewlines != 2 && nBytes == 0) {
+            // Didn't find the "\r\n\r\n" yet but we hit end of fragment, so
+	    // we exit and will come back to the loop with the next fragment.
+#if DEBUG_SUPPORT == 15
+UARTPrintf("Reading GET header - hit end of fragment\r\n");
+#endif // DEBUG_SUPPORT == 15
+            return;
+          }
+        }
+
+        if (pSocket->nNewlines == 2) {
+	  // End of GET header found
+	  // Clear nNewlines for future GETs
+	  pSocket->nNewlines = 0;
+	  
+#if DEBUG_SUPPORT == 15
+UARTPrintf("End of GET header found. nBytes = ");
+emb_itoa(nBytes, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+          // Start parsing the GET command
+          // Initialize Parsing variables
+          // nParseLeft is used as a flag in GET parsing. nParseLeft == 1 will
+          // cause parsing to continue. nParseLeft == 0 will cause parsing to
+          // end.
+          pSocket->nParseLeft = 1;
+          pSocket->ParseState = PARSE_SLASH1;
+          // Start parsing
+          pSocket->nState = STATE_PARSEGET;
+          break;
+        }
+      }
     }
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     if (pSocket->nState == STATE_PARSEPOST) {
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
 // UARTPrintf("Calling STATE_PARSEPOST. nBytes = ");
 // emb_itoa(nBytes, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
-      // This code parses data the user entered in the GUI.
+      // Parse data the user entered in the GUI.
       parsepost(pSocket, pBuffer, nBytes);
     }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-    
+
 
     if (pSocket->nState == STATE_PARSEGET) {
-      // This section will parse a GET request sent by the user. Normally in a
-      // general purpose web server a GET request would be used to obtain
-      // files or other items from the server. In that general case the data
-      // that follows "GET " is a "/path/filename" (path optional). In this
-      // application we'll use "filename" to command the web server to perform
-      // internal operations. For instance, performing a GET for filename "42"
-      // (with a "/42") might turn an output on, or might command transmission
-      // of a specific web page, rather than retrieve a file.
-      //
-      // At this point the "GET " (GET plus space) part of the request has
-      // been parsed. The "GET " should be followed by "/filename". So we look
-      // for the "/" and collect the next two characters as the fake
-      // "filename".
-      //
-      // Fragmentation note: We don't need to collect any state information in
-      // this parse process as anything we are collecting will easily fit in
-      // the first 100 bytes of the first packet ... so no fragmentation will
-      // occur.
-      //
-      // Browser note: Looks like some browsers get creative and do things
-      // like requesting "favicon.ico" from the server. This causes the code
-      // below to execute - and in the original code it caused confusion as I
-      // would send the IOControl web page if I didn't understand the inquiry.
-      // Now I will just throw the request away if it doesn't exactly match an
-      // expected request. The only exception will be if I get a "/" or "/ "
-      // then I will send the default web page.
-      //
-      // Digit Parsing note: All digits that make up the two digit URL Command
-      // (ex: /55) are interpreted as hex digits. Thus, commands can be /00 to
-      // /ff.
-
-      while (nBytes != 0) {
-        if (pSocket->ParseState == PARSE_SLASH1) {
-	  // When we entered the loop *pBuffer should already be pointing at
-	  // the "/". If there isn't one we should display the IOControl page.
-          pSocket->ParseCmd = *pBuffer;
-          pBuffer++;
-	  if (pSocket->ParseCmd == (uint8_t)0x2f) { // Compare to '/'
-	    pSocket->ParseState = PARSE_NUMMSD;
-	  }
-          else {
-            // Didn't find '/' - send default page
-	    // While this is not a PARSE_FAIL, going through the PARSE_FAIL
-	    // logic will accomplish what we want (paint the default page).
-            pSocket->ParseState = PARSE_FAIL;
-	  }
-        }
-
-
-	// ---------------------------------------------------------------- //
-        // Converted the code to allow two hex digits for URL commands instead
-	// of two decimal digits.
-	// - Collect the "PARSE_NUMMSD" and "PARSE_NUMLSD" characters as a
-	//   string.
-	// - Validate that the two character string consists of hex digits.
-	// - Use two_hex2int() to convert the characters to a uint8_t byte.
-	//
-	// Previously the URL commands used decimal values in the case
-	// statements and that can continue. But the user entries will
-	// actually be in hex, even if the user doesn't know they are in hex.
-	// This means that a number of potential URL entries have been skipped
-	// and should probably continue to be skipped to keep things simple
-	// for the user. For instance, don't use the folloing for now:
-	//     0a to 0f
-	//     1a to 1f
-	//     2a to 2f
-	//     3a to 3f
-	// The above only skips 6 x 4 = 24 possible commands. But in the range
-	// above these values we can go ahead and create commands with the
-	// full hex values.
-	// ---------------------------------------------------------------- //
-
-        else if (pSocket->ParseState == PARSE_NUMMSD) {
-	  {
-	    int i;
-	    // Parse and validate first ParseNum digit.
-	    i = hex2int(*pBuffer);
-	    if (i >= 0) { // Hex nibble?
-              // Still good - parse number
-              pSocket->ParseNum = (uint8_t)(i << 4);
-	      pSocket->ParseState = PARSE_NUMLSD;
-              pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
-	                               // while() loop yet. PARSE_NUMLSD will be
-                                       // called.
-              pBuffer++;
-	    }
-	    else {
-	      // Something out of sync or invalid - exit while() loop but do
-	      // not change the current_webpage
-              pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
-	                               // SENDHEADER
-              pSocket->ParseState = PARSE_FAIL;
-            }
-	  }
-        }
-	
-	// Parse second ParseNum digit
-        if (pSocket->ParseState == PARSE_NUMLSD) {
-	  i = hex2int(*pBuffer);
-	  if (i >= 0) { // Hex nibble?
-            // Still good - parse number
-            pSocket->ParseNum |= (uint8_t)(i);
-            pSocket->ParseState = PARSE_VAL;
-            pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
-	                             // while() loop yet. PARSE_VAL will be
-	                             // called.
-            pBuffer++;
-	  }
-	  else {
-	    // Something out of sync or invalid - exit while() via the
-	    // PARSE_FAIL logic.
-            pSocket->ParseState = PARSE_FAIL;
-	  }
-	}
-        else if (pSocket->ParseState == PARSE_VAL) {
-	  // ParseNum should now contain a two digit "filename". The filename
-	  // is used to command specific action by the webserver. Following
-	  // are the commands for the Network Module.
-	  //
-	  // From a fragment perspective we already received all the useful
-	  // information, so we can clear the saved states and process what
-	  // we've got. If another fragment still follows it won't have
-	  // anything useful in it and processing of the fragment won't cause
-	  // anything to happen.
-	  //
-	  // Only those Output ON/OFF commands that correspond to a pin
-	  // configured as an Output will work.
-	  //
-	  // At this point pBuffer will be pointing at the character in the
-	  // input stream that follows the "two digit" ParseNum.
-	  //   Since hex digits are allowed the character following a two
-	  //   digit ParseNum may need to be validated as a space for that
-	  //   ParseNum to be valid. This check is needed in case the Browser
-	  //   sent a request like "favicon.ico" where the first two
-	  //   characters of the filename look like a pair of hex digits (ie,
-	  //   "fa").
-	  //   Keep in mind that some commands are allowed to have trailing
-	  //   information in the command (for example /80 will have 8
-	  //   additional hex digits after the /80).
-	  //   Not all incoming commands are checked for a trailing space
-	  //   character to reduce code size. This is a potential exposure to
-	  //   filenames being received with characters that look like a
-	  //   command (say a filename "01File" ... which would be interpreted
-	  //   as a "01" command). I'm only aware of one typical conflict at
-	  //   this time (the favicon.ico problem), so the code will only
-	  //   add the filter for the "fa" digits if that command is ever
-	  //   implemented.
-	  //   Example code to add the filter if needed:
-	  //   case 0xfa:
-	  //     if (*pBuffer == ' ') {
-	  //       // Validate that the command is followed by a space. If
-	  //       // not then just ignore this command.
-          //       ... do stuff ...
-	  //     }
-          //     else {
-	  //       // Invalid syntax. Show default page.
-	  //       pSocket->ParseState = PARSE_FAIL;
-          //     }
-	  //     break;
-	  //   For now I suggest that the hex digits "fa" simply not be used
-	  //   to save code space. But if they ARE used the above filter is
-	  //   needed.
-	  //
-	  //
-	  // For 00-31, 55, and 56 you wont see any screen refresh.
-	  // http://IP/00  Output-01OFF
-	  // http://IP/01  Output-01ON
-	  // http://IP/02  Output-02OFF
-	  // http://IP/03  Output-02ON
-	  // http://IP/04  Output-03OFF
-	  // http://IP/05  Output-03ON
-	  // http://IP/06  Output-04OFF
-	  // http://IP/07  Output-04ON
-	  // http://IP/08  Output-05OFF
-	  // http://IP/09  Output-05ON
-	  // http://IP/10  Output-06OFF
-	  // http://IP/11  Output-06ON
-	  // http://IP/12  Output-07OFF
-	  // http://IP/13  Output-07ON
-	  // http://IP/14  Output-08OFF
-	  // http://IP/15  Output-08ON
-	  // http://IP/16  Output-09OFF
-	  // http://IP/17  Output-09ON
-	  // http://IP/18  Output-10OFF
-	  // http://IP/19  Output-10ON
-	  // http://IP/20  Output-11OFF
-	  // http://IP/21  Output-11ON
-	  // http://IP/22  Output-12OFF
-	  // http://IP/23  Output-12ON
-	  // http://IP/24  Output-13OFF
-	  // http://IP/25  Output-13ON
-	  // http://IP/26  Output-14OFF
-	  // http://IP/27  Output-14ON
-	  // http://IP/28  Output-15OFF
-	  // http://IP/29  Output-15ON
-	  // http://IP/30  Output-16OFF
-	  // http://IP/31  Output-16ON
-	  // PCF8574 Outputs:
-	  // http://IP/32  Output-17OFF
-	  // http://IP/33  Output-17ON
-	  // http://IP/34  Output-18OFF
-	  // http://IP/35  Output-18ON
-	  // http://IP/36  Output-19OFF
-	  // http://IP/37  Output-19ON
-	  // http://IP/38  Output-20OFF
-	  // http://IP/39  Output-20ON
-	  // http://IP/40  Output-21OFF
-	  // http://IP/41  Output-21ON
-	  // http://IP/42  Output-22OFF
-	  // http://IP/43  Output-22ON
-	  // http://IP/44  Output-23OFF
-	  // http://IP/45  Output-23ON
-	  // http://IP/46  Output-24OFF
-	  // http://IP/47  Output-24ON	  
-	  //
-          // http://IP/50  Mask and Output Pin settings
-          // http://IP/51  Mask and Output Pin settings plus returns Very
-	  //               Short Form IO States page
-	  //
-	  // http://IP/55  All Outputs ON
-	  // http://IP/56  All Outputs OFF
-	  //
-	  // http://IP/60  Show IO Control page
-	  // http://IP/61  Show Configuration page
-	  // http://IP/62  Show PCF8574 IO Control page
-	  // http://IP/63  Show PCF8574 Configuration page
-	  //
-	  // http://IP/65  Flash LED 3 times
-	  // http://IP/66  Show Link Error Statistics page
-	  // http://IP/67  Clear Link Error Statistics and refresh page
-	  // http://IP/68  Show Network Statistics page
-	  // http://IP/69  Clear Network Statistics and refresh page
-          // http://IP/70  Clear the "Reset Status Register" counters
-          // http://IP/71  Display the Temperature Sensor Serial Numbers
-          // http://IP/72  Load the Code Uploader (works only in runtime
-	  //               builds)
-          // http://IP/73  Restore (works only in the Code Uploader build)
-          // http://IP/74  Erase I2C EEPROM (works only in the Code Uploader
-	  //               build)
-	  //
-          // http://IP/80  Mask and Output Pin settings (deprecated)
-	  // http://IP/81  Altitude entry
-	  // http://IP/82  User entered Pinout Option
-	  // http://IP/83  User entered PCF8574 output byte (deprecated)
-	  // http://IP/84  Short Form Option
-	  // http://IP/85  Force HA Delete Msgs for PCF8574 pins
-	  // http://IP/91  Reboot
-	  // http://IP/98  Show Very Short Form IO States page
-	  // http://IP/99  Show Short Form IO States page
-	  //
-	      
-          GET_response_type = 200; // Default response type
-          switch(pSocket->ParseNum)
-	  {
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-	    case 0x55:
-	      // Turn all outputs ON. Verify that each pin is an output
-	      // and that it is enabled.
-#if PCF8574_SUPPORT == 0
-	      for (i=0; i<16; i++) {
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
-	      for (i=0; i<24; i++) {
-#endif // PCF8574_SUPPORT == 1
- 		Pending_pin_control[i] = pin_control[i];
-#if LINKED_SUPPORT == 0
-                if ((pin_control[i] & 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 0
-#if LINKED_SUPPORT == 1
-                if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 1
-                  // The above: If an Enabled Output, then turn on the pin
-                  Pending_pin_control[i] |= 0x80;
-	        }
-              }
-	      // Set parse_complete for the check_runtime_changes() process
-              parse_complete = 1;
-	      GET_response_type = 204; // No return webpage
-	      break;
-	      
-	    case 0x56:
-	      // Turn all outputs OFF. Verify that each pin is an output
-	      // and that it is enabled.
-#if PCF8574_SUPPORT == 0
-	      for (i=0; i<16; i++) {
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
-	      for (i=0; i<24; i++) {
-#endif // PCF8574_SUPPORT == 1
-		Pending_pin_control[i] = pin_control[i];
-#if LINKED_SUPPORT == 0
-                if ((pin_control[i] & 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 0
-#if LINKED_SUPPORT == 1
-                if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 1
-                    // The above: If an Enabled Output, then turn off the pin
-                    Pending_pin_control[i] &= 0x7f;
-	        }
-              }
-	      // Set parse_complete for the check_runtime_changes() process
-              parse_complete = 1;
-	      GET_response_type = 204; // No return webpage
-	      break;
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-            case 0x50: // Mask and Output Pin settings, returns no webpage
-//            case 0x80: // Mask and Output Pin settings, returns no webpage
-	    case 0x51: // Mask and Output Pin settings plus returns Very Short
-	             // Form IO States page
-              // This is similar to case 55 and case 56, except a 4 hex char
-	      // Mask and a 4 hex char Pin State value hould also be in the
-	      // buffer. Capture the characters, check validity, parse into
-	      // binary values, and set the pending control bytes.
-              //
-              // Example URL command
-              //   192.168.1.182/50ff00c300
-	      //     or
-              //   192.168.1.182/80ff00c300
-	      //     or
-              //   192.168.1.182/51ff00c300
-              // The above example will affect only the upper 8 output pins
-              // and will set output pins as follows:
-              // Output 16 >> 11000011 << Output 9
-              // Output 8 to 1 are not affected
-	      // The /50... version returns no webpage
-	      // The /80... version returns no webpage
-	      // The /51... version returns the Very Short Form IO states page
-	      //
-              {
-                uint16_t word;
-                uint16_t mmmm;
-                uint16_t pppp;
-                uint16_t nibble;
-                uint16_t bit_ptr;
-                int i;
-                int k;
-
-                word = 0;
-		mmmm = 0;
-                pppp = 0;
-                k = 0;
-		
-                while (k < 2) {
-                  i = 4;
-                  while (i > 0) {
-                    if (hex2int(*pBuffer) != -1) {
-                      nibble = (uint16_t)hex2int(*pBuffer);
-                      word |= (nibble << ((i-1)*4));
-                      pBuffer++;
-                      i--;
-                    }
-                    else {
-                      // Something out of sync or invalid filename. Indicate
-                      // parse failure and break out of while(i) loop.
-                      pSocket->ParseState = PARSE_FAIL;
-                      break;
-                    }
-                  } // end of while(i) loop
-                  if (k == 0) mmmm = word;
-                  else pppp = word;
-                  k++;
-		  word = 0;
-                  if (pSocket->ParseState == PARSE_FAIL) {
-                    // If fail detected break out of while(k) loop.
-                    break;
-                  }
-                } // end of while(k) loop
-                if (pSocket->ParseState == PARSE_FAIL) {
-                  // If fail detected break out of the switch, but do not
-                  // change the current_webpage. This will cause the URL
-                  // command to be ignored and the current webpage to be
-                  // refreshed.
-		  break;
-		}
-
-//                COMMENTED THIS OUT. WHILE A GOOD ADDITIONAL SYNTAX CHECK
-//                IT IS OMITTED TO SAVE FLASH SPACE
-//                // Now check that the URL termination is valid
-//                if (*pBuffer != ' ') {
-//		  pSocket->ParseState = PARSE_FAIL;
-//		}
-//                pBuffer++;
-//                if (*pBuffer != 'H') {
-//		  pSocket->ParseState = PARSE_FAIL;
-//                }
-		
-                if (pSocket->ParseState == PARSE_FAIL) {
-                  // If fail detected break out of the switch, but do not
-                  // change the current_webpage. This will cause the URL
-                  // command to be ignored and the current webpage to be
-                  // refreshed.
-                  break;
-                }
-
-
-                // If we didn't break out of the switch yet we should have
-                // valid Mask (mmmm) and Pin State (pppp) values. Now we
-		// modify the Pending_pin_control bytes accordingly.
-              
-                bit_ptr = 1;
-                for (i=0; i<16; i++) {
-                  if ((mmmm & bit_ptr) != 0) {
-                    // If the Mask for this pin is non-zero check if the pin
-		    // is an enabled output. If yes, uptate the pin state.
-                    Pending_pin_control[i] = pin_control[i];
-#if LINKED_SUPPORT == 0
-                    if ((pin_control[i] & 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 0
-#if LINKED_SUPPORT == 1
-                    if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 1
-                    // Enabled output
-                      if ((pppp & bit_ptr) == 0) {
-                        Pending_pin_control[i] &= 0x7f; // Output OFF
-		      }
-                      else {
-                        Pending_pin_control[i] |= 0x80; // Output ON
-		      }
-                    }
-                  }
-		  // Shift the bit pointer and check the next pin
- 		  bit_ptr = bit_ptr << 1;
-                }
-              }
-	      // Set parse_complete for the check_runtime_changes() process
-              parse_complete = 1;
-	      if (pSocket->ParseNum == 0x51) {
-                // Return IOPin status page
-                pSocket->current_webpage = WEBPAGE_SSTATE;
-                pSocket->pData = g_HtmlPageSstate;
-                pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
-              } else {
-                GET_response_type = 204; // No return webpage
-	      }
-              break;
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-	    case 0x60: // Show IO Control page
-	      // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
-	      // will accomplish what we want which is to display the
-	      // IO_Control page.
-	      pSocket->ParseState = PARSE_FAIL;
-	      break;
-	      
-	    case 0x61: // Show Configuration page
-	      pSocket->current_webpage = WEBPAGE_CONFIGURATION;
-              pSocket->pData = g_HtmlPageConfiguration;
-              pSocket->nDataLeft = HtmlPageConfiguration_size;
-#if OB_EEPROM_SUPPORT == 1
-              init_off_board_string_pointers(pSocket);
-#endif // OB_EEPROM_SUPPORT == 1
-	      break;
-
-
-#if PCF8574_SUPPORT == 1
-	    case 0x62: // Show PCF8574 IO Control page
-	      if (stored_options1 & 0x08) {
-	        pSocket->current_webpage = WEBPAGE_PCF8574_IOCONTROL;
-                pSocket->pData = g_HtmlPagePCFIOControl;
-                pSocket->nDataLeft = HtmlPagePCFIOControl_size;
-                init_off_board_string_pointers(pSocket);
-	      }
-	      else pSocket->ParseState = PARSE_FAIL;
-	      break;
-	      
-	    case 0x63: // Show PCF8574 Configuration page
-	      if (stored_options1 & 0x08) {
-	        pSocket->current_webpage = WEBPAGE_PCF8574_CONFIGURATION;
-                pSocket->pData = g_HtmlPagePCFConfiguration;
-                pSocket->nDataLeft = HtmlPagePCFConfiguration_size;
-                init_off_board_string_pointers(pSocket);
-	      }
-	      else pSocket->ParseState = PARSE_FAIL;
-	      break;
-#endif // PCF8574_SUPPORT == 1
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-	    case 0x65: // Flash LED for diagnostics
-	      debugflash();
-	      debugflash();
-	      debugflash();
-	      // Show default page
-	      // Show default page
-	      // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
-	      // will accomplish what we want which is to display the
-	      // IO_Control page.
-	      pSocket->ParseState = PARSE_FAIL;
-	      break;
-
-#if DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-            case 0x66: // Show Link Error Statistics page
-	      pSocket->current_webpage = WEBPAGE_STATS2;
-              pSocket->pData = g_HtmlPageStats2;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
-	      break;
-	      
-            case 0x67: // Clear Link Error Statistics
-	      // Clear the the Link Error Statistics bytes and Stack Overflow
-	      debug[2] = (uint8_t)(debug[2] & 0x7f); // Clear the Stack Overflow bit
-	      debug[3] = 0; // Clear TXERIF counter
-	      debug[4] = 0; // Clear RXERIF counter
-	      debug[5] = 0; // Clear EMCF counter
-	      debug[6] = 0; // Clear SWIMF counter
-	      debug[7] = 0; // Clear ILLOPF counter
-	      debug[8] = 0; // Clear IWDGF counter
-	      debug[9] = 0; // Clear WWDGF counter
-	      update_debug_storage1();
-	      TRANSMIT_counter = 0;
-	      MQTT_resp_tout_counter = 0;
-	      MQTT_not_OK_counter = 0;
-	      MQTT_broker_dis_counter = 0;
-	      
-	      pSocket->current_webpage = WEBPAGE_STATS2;
-              pSocket->pData = g_HtmlPageStats2;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
-	      break;
-#endif // DEBUG_SUPPORT == 11 || DEBUG_SUPPORT == 15
-
-#if UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
-            case 0x68: // Show Network Statistics page
-	      pSocket->current_webpage = WEBPAGE_STATS1;
-              pSocket->pData = g_HtmlPageStats1;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
-	      break;
-	      
-            case 0x69: // Clear Network Statistics and refresh page
-	      uip_init_stats();
-	      pSocket->current_webpage = WEBPAGE_STATS1;
-              pSocket->pData = g_HtmlPageStats1;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
-	      break;
-#endif // UIP_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
-
-            case 0x70: // Clear the "Reset Status Register" counters
-	      // Clear the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
-	      // These only display via the UART
-	      debug[5] = 0; // Clear EMCF counter
-	      debug[6] = 0; // Clear SWIMF counter
-	      debug[7] = 0; // Clear ILLOPF counter
-	      debug[8] = 0; // Clear IWDGF counter
-	      debug[9] = 0; // Clear WWDGF counter
-	      update_debug_storage1();
-	      // Show default page
-	      // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
-	      // will accomplish what we want which is to display the
-	      // IO_Control page.
-	      pSocket->ParseState = PARSE_FAIL;
-	      break;
-
-#if DEBUG_SENSOR_SERIAL == 1
-            case 0x71: // Display the Temperature Sensor Serial Numbers
-	      pSocket->current_webpage = WEBPAGE_SENSOR_SERIAL;
-              pSocket->pData = g_HtmlPageTmpSerialNum;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
-	      break;
-#endif // DEBUG_SENSOR_SERIAL
-
-#if OB_EEPROM_SUPPORT == 1
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-            case 0x72: // Load Code Uploader
-	      // Re-Check that the I2C EEPROM exists, and if it does then load
-	      // the Code Uploader from I2C EEPROM1, display the Loading Code
-	      // Uploader webpage, then reboot.
-	      // If the I2C EEPROM does not exist dieplay an error webpage.
-	      // Verify that I2C EEPROM(s) exist.
-              eeprom_detect = off_board_EEPROM_detect();
-	      if (eeprom_detect == 0) {
-	        pSocket->current_webpage = WEBPAGE_EEPROM_MISSING;
-                pSocket->pData = g_HtmlPageEEPROMMissing;
-                pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageEEPROMMissing) - 1);
-	      }
-	      else {
-	        pSocket->current_webpage = WEBPAGE_LOADUPLOADER;
-                pSocket->pData = g_HtmlPageLoadUploader;
-                pSocket->nDataLeft = HtmlPageLoadUploader_size;
-                eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_REQUEST;
-                init_off_board_string_pointers(pSocket);
-	      }
-	      break;
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-	      
-#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-            case 0x73: // Reload firmware existing image
-	      // Load the existing firmware image from I2C EEPROM0,
-	      // display the Loading Existing Image webpage, then reboot.
-	      pSocket->current_webpage = WEBPAGE_EXISTING_IMAGE;
-              pSocket->pData = g_HtmlPageExistingImage;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageExistingImage) - 1);
-              eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_REQUEST;
-	      upgrade_failcode = UPGRADE_OK;
-	      break;
-
-            // case 74 commented out since it is only useful during
-	    // development and could be very disruptive to a regular
-	    // user.
-            case 0x74: // Erase entire I2C EEPROM
-              // Erase I2C EEPROM regions 0, 1, 2, and 3 to provide a clean
-	      // slate. Useful mostly during development for code debug.
-	      {
-	        uint16_t i;
-	        uint8_t j;
-	        int k;
-	        uint16_t temp_eeprom_address_index;
-	        for (k=0; k<4; k++) {
-	          for (i=0; i<256; i++) {
-	            // Write 256 blocks of 128 bytes each with zero
-		    if (k == 0) I2C_control(I2C_EEPROM0_WRITE);
-		    if (k == 1) I2C_control(I2C_EEPROM1_WRITE);
-		    if (k == 2) I2C_control(I2C_EEPROM2_WRITE);
-		    if (k == 3) I2C_control(I2C_EEPROM3_WRITE);
-	            temp_eeprom_address_index = i * 128;
-                    I2C_byte_address(temp_eeprom_address_index, 2);
-	            for (j=0; j<128; j++) {
-	              // Write a zero byte
-	              I2C_write_byte(0);
-	            }
-                    I2C_stop(); // Start the EEPROM internal write cycle
-                    IWDG_KR = 0xaa; // Prevent the IWDG from firing.
-                    wait_timer(5000); // Wait 5ms
-	          }
-                }
-	      }
-              GET_response_type = 204; // No return webpage
-              break;
-#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-#endif // OB_EEPROM_SUPPORT == 1
-
-
-#if BME280_SUPPORT == 1
-            case 0x81:
-	      // Altitude setting for the BME280 Temperature / Pressure / 
-	      // Humidity sensor.
-              // This command allows the user to input the altitude of the
-	      // device so that the BME280 pressure sensor can be calibrated
-	      // to provide barometric pressure measurements. The altitude
-	      // can be provided in Feet or Meters in Decimal with no
-	      // fractional part (no decimal point).
-	      // 
-              // Example URL command
-              //   192.168.1.182/815432F
-              //   The above example provides an altitude of 5432 feet.
-              //   192.168.1.182/81280M
-              //   The above example provides an altitude of 280 meters.
-              //   192.168.1.182/81-432F
-              //   The above example provides an altitude of -432 feet.
-	      // Limits for best accuracy:
-	      //   Minimum altitude is -1000 feet / -304 meters
-	      //   Maximum altitude is 15000 feet / 4572 meters
-	      // An entry error will result in an altitude of 0.
-              //
-              {
-                uint32_t altitude_local;
-                uint8_t error;
-                char digit_string[6];
-                uint8_t digit_count;
-                uint8_t altitude_scale;
-                uint32_t multiplier;
-		
-		// There must be at least one digit, and up to 5 digits,
-		// followed by an F (for feet) or M (for meters). Internally
-		// the code uses feet for all calculations, so all "meter"
-		// entries are converted to feet.
-		error = 0;
-		altitude_local = 0;
-		
-		// First character must be a digit or a minus.
-		if ((*pBuffer == '-') || (isdigit(*pBuffer))) {
-		  digit_string[0] = *pBuffer;
-		  pBuffer++;
-		}
-		else error = 1;
-		digit_count = 1;
-		altitude_scale = 0;
-		while (error == 0) {
-		  // Check additional characters (up to 4 more digits, then F or
-		  // M terminator.
-		  // Second character position:
-		  if (isdigit(*pBuffer)) {
-		    // Character is a digit
-		    digit_string[digit_count++] = *pBuffer;
-		    pBuffer++;
-		  }
-		  else if (*pBuffer == 'F' || *pBuffer == 'M') {
-		    // F = 0x46, M = 0x4d
-		    altitude_scale = *pBuffer;
-		    pBuffer++;
-		    digit_string[digit_count] = '\0';
-		    break;
-		  }
-		  else {
-		    error = 1;
-		    break;
-		  }
-		  if (digit_count == 6) {
-		    // Too many digits - error
-		    error = 1;
-		    break;
-		  }
-		} // end of while
-		
-		if (error == 0) {
-		  // No error so far
-		  // If F or M terminator not found yet the next character
-		  // MUST be an F or M
-		  if (altitude_scale == 0) {
-		    if (*pBuffer == 'F' || *pBuffer == 'M') {
-		      altitude_scale = *pBuffer;
-		      pBuffer++;
-		    }
-		    else {
-		      error = 1;
-		    }
-		  }
-		}
-
-                if (error == 0) {
-		  // No error so far
-		  // Convert digit_string to altitude value
-		  multiplier = 1;
-		  for (i = strlen(digit_string); i > 0; i--) {
-		    if (digit_string[i-1] == '-') continue;
-		    altitude_local = altitude_local + ((digit_string[i-1] - '0') * multiplier);
-		    multiplier = (uint32_t)(multiplier * 10);
-		  }
-		  if (altitude_scale == 'M') {
-		    // 1 meter = 3.28084 feet
-		    altitude_local = (altitude_local * 328084) / 100000;
-		  }
-		  if (digit_string[0] == '-') {
-		    altitude_local = altitude_local * -1;
-		  }
-		}
-		    
-		if (error == 1) {
-		  altitude_local = 0;
-                  // Something out of sync or invalid user entry. Indicate
-                  // parse failure.
-		  pSocket->ParseState = PARSE_FAIL;
-		}
-
-//                COMMENTED THIS OUT. WHILE A GOOD ADDITIONAL SYNTAX CHECK
-//                IT IS OMITTED TO SAVE FLASH SPACE
-//                // Now check that the URL termination is valid
-//                if (*pBuffer != ' ') {
-//		  pSocket->ParseState = PARSE_FAIL;
-//		}
-//                pBuffer++;
-//                if (*pBuffer != 'H') {
-//		  pSocket->ParseState = PARSE_FAIL;
-//               }
-
-                if (pSocket->ParseState == PARSE_FAIL) {
-                  // If fail detected break out of the switch, but do not
-                  // change the current_webpage. This will cause the URL
-                  // command to be ignored and the current webpage to be
-                  // refreshed.
-                  break;
-                }
-	        unlock_eeprom();	
-	        stored_altitude = (int16_t)altitude_local;
-		lock_eeprom();
-              }
-	      // Didn't break so far so parse was successful
-	      // Set parse_complete for the check_runtime_changes() process
-              parse_complete = 1;
-              GET_response_type = 204; // No return webpage
-              break;
-#endif // BME280_SUPPORT == 1
-
-
-#if PINOUT_OPTION_SUPPORT == 1
-            case 0x82:
-	      // User entered Pinout Option.
-	      // Allowed to enter one digit (0 to 9) to select the pinout map
-	      // for the IO pins.
-	      // 
-              // Example URL command
-              //   192.168.1.182/821
-              //   The above example selects Pinout Option 1.
-	      //
-	      // Note: Only Pinout Option 1 is allowed if any special pin
-	      // usage is compiled (for example: UART, I2C, Temperature
-	      // sensors). I2C and Temperature sensors are handled via build
-	      // settings where Pinout Options are "not allowed". However, the
-	      // UART can be enabled during development, over-riding the
-	      // build setting. A check is done here to make sure that only
-	      // Pinout Option 1 is allowed if the UART is enabled. This check
-	      // is mostly a "developer helper" as the end user doesn't have
-	      // access to enabling the UART.
-              {
-                uint8_t pinout_select;
-		uint8_t j;
-		
-		// Accept the first character as the Pinout selection
-		if (isdigit(*pBuffer)) {
-		  pinout_select = (uint8_t)(*pBuffer & 0x07);
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-                  // Force Pinout Option 1 if UART enabled
-		  pinout_select = 1;
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-		  if ((pinout_select > 0) && (pinout_select < 5)){
-		    j = (uint8_t)(stored_options1 & 0xf8);
-		    j |= pinout_select;
-		    unlock_eeprom();
-		    stored_options1 = j;
-		    lock_eeprom();
-	            user_reboot_request = 1;
-		  }
-	          // Set parse_complete for the check_runtime_changes() process
-                  parse_complete = 1;
-		}
-                // Always display the IOControl page even if there is no parse
-		// fail. The PARSE_FAIL state will cause this to happen.
-		pSocket->ParseState = PARSE_FAIL;
-              }
-              break;
-#endif // PINOUT_OPTION_SUPPORT == 1
-
-
-            case 0x84:
-	      // User entered Short Form Option.
-	      // User may enter '+' or '-' to select how Disabled pins are
-	      // displayed in the Short Form Status page.
-	      // - The Default is for all pins to display 0 or 1 depending
-	      //   on the last state of the pin.
-	      // - If the user enters URL command /84- then Disabled pins will
-	      //   display with a '-' character.
-	      // - If the user enters URL command /84+ then Disabled pins will
-	      //   display a 0 or 1 depending on the last state of the pin.
-	      // - If a syntax error the command is ignored.
-	      // Note: The '+' command is only supplied so that the user can
-	      // reverse a '-' selection.
-	      //
-	      // Example URL command
-              //   192.168.1.182/84-
-              //   The above example selects the Short Form option which will
-	      //   display a '-' for Disabled pin.
-
-	      {
-	        uint8_t i;
-		uint8_t j;
-		j = 0xff;
-		// Accept the first character as the Short Form option
-		if (*pBuffer == '-') j = 0x10;
-		if (*pBuffer == '+') j = 0x00;
-		if (j != 0xff) {
-		  i = stored_options1;
-		  // mask out current Short Form setting
-		  i &= 0xef;
-		  // add new Short Form setting
-		  i |= j;
-		  unlock_eeprom();
-		  stored_options1 = i;
-		  lock_eeprom();
-		}
-              }
-
-              // Show Short Form IO state page
-	      pSocket->current_webpage = WEBPAGE_SSTATE;
-              pSocket->pData = g_HtmlPageSstate;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
-              break;
-              
-              
-#if PCF8574_SUPPORT == 1
-	    case 0x85: // Force PCF8574 Pin Delete Msgs. Causes a reboot so
-	               // that the Home Assistant Auto Discovery processes
-		       // will run to generate the appropriate delete
-		       // messages over MQTT to Home Assistant.
-	      {
-	        uint8_t j;
-		int i;
-	        j = stored_options1;
-	        j |= 0x20;
-	        unlock_eeprom();
-	        stored_options1 = j;
-	        lock_eeprom();
-		
-                // Set all PCF8574 pins to Disabled
-		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-		// Note for future testing: I don't think it is necessary to
-		// set the Pending_pin_control and pin_control bytes here -
-		// it is only necessary to set the I2C_EEPROM bytes. Why?
-		// Because this command should only be run by the user when
-		// the PCF8574 has been removed. Code in main.c will not
-		// process the Pending_pin_control and pin_control bytes if
-		// the PCF8574 is absent. But a user_reboot_request is made
-		// here, and when the reboot is performed the code in main.c
-		// will update the Pending_pin_control and pin_control bytes
-		// with the content of the I2C_EEPROM.
-		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-		// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-                for (i = 16; i < 24; i++) {
-                  Pending_pin_control[i] &= 0xfc;
-                  pin_control[i] = Pending_pin_control[i];
-                }
-                I2C_control(I2C_EEPROM2_WRITE);
-                I2C_byte_address(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE, 2);
-                for (i=16; i<24; i++) {
-                  I2C_write_byte(pin_control[i]);
-                }
-                I2C_stop(); // Start the EEPROM internal write cycle
-                wait_timer(5000); // Wait 5ms
-	        user_reboot_request = 1;
-                GET_response_type = 204; // No return webpage
-	        break;
-	      }
-#endif // PCF8574_SUPPORT == 1
-              
-              
-	    case 0x91: // Reboot
-	      user_reboot_request = 1;
-              GET_response_type = 204; // No return webpage
-
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-// UARTPrintf("\r\n");
-// UARTPrintf("case 0x91 Reboot requested\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
-
-	      break;
-
-
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-            case 0x98: // Show Very Short Form IO state page
-            case 0x99: // Show Short Form IO state page
-	      // Normally when a page is transmitted the "current_webpage" is
-	      // updated to reflect the page just transmitted. This is not
-	      // done for this case as the page is very short (only requires
-	      // one packet to send) and not changing the current_webpage
-	      // pointer prevents "page interference" between normal browser
-	      // activity and the automated functions that normally use this
-	      // page.
-	      pSocket->current_webpage = WEBPAGE_SSTATE;
-              pSocket->pData = g_HtmlPageSstate;
-              pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
-	      break;
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-	    default:
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-#if PCF8574_SUPPORT == 0
-	      if (pSocket->ParseNum < 0x32) {
-                 // Output-01..16 OFF/ON
-                {
-                  // The logic here converts hex values to the original decimal
-                  // values for IO pins. It is assumed the following cmds are
-                  // not used:
-                  // 0x0a to 0x0f
-                  // 0x1a to 0x1f
-                  // 0x2a to 0x2f
-                  // 0x3a to 0x3f
-                  uint8_t cmd_num;
-		  cmd_num = 0;
-                  if ((pSocket->ParseNum & 0x0f) < 0x0a) {
-		    // The above "if" eliminates invalid hex values
-		    // Covert the remaining values to decimal
-                    if (pSocket->ParseNum < 0x0a) cmd_num = (uint8_t)(pSocket->ParseNum);
-                    else if (pSocket->ParseNum < 0x1a) cmd_num = (uint8_t)(pSocket->ParseNum - 6);
-                    else if (pSocket->ParseNum < 0x2a) cmd_num = (uint8_t)(pSocket->ParseNum - 12);
-                    else if (pSocket->ParseNum < 0x32) cmd_num = (uint8_t)(pSocket->ParseNum - 18);
-		    
-                    update_ON_OFF((uint8_t)(cmd_num/2), (uint8_t)(cmd_num%2));
-	            GET_response_type = 204; // No return webpage
-                  }
-                }
-	      }
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
-	      if (pSocket->ParseNum < 0x48) {
-                 // Output-01..24 OFF/ON
-                {
-                  // The logic here converts hex values to the original decimal
-                  // values for IO pins. It is assumed the following cmds are
-                  // not used:
-                  // 0x0a to 0x0f
-                  // 0x1a to 0x1f
-                  // 0x2a to 0x2f
-                  // 0x3a to 0x3f
-                  uint8_t cmd_num;
-		  cmd_num = 0;
-                  if ((pSocket->ParseNum & 0x0f) < 0x0a) {
-                    if (pSocket->ParseNum < 0x0a) cmd_num = (uint8_t)(pSocket->ParseNum);
-                    else if (pSocket->ParseNum < 0x1a) cmd_num = (uint8_t)(pSocket->ParseNum - 6);
-                    else if (pSocket->ParseNum < 0x2a) cmd_num = (uint8_t)(pSocket->ParseNum - 12);
-                    else if (pSocket->ParseNum < 0x3a) cmd_num = (uint8_t)(pSocket->ParseNum - 18);
-                    else if (pSocket->ParseNum < 0x48) cmd_num = (uint8_t)(pSocket->ParseNum - 24);
-		    
-                    update_ON_OFF((uint8_t)(cmd_num/2), (uint8_t)(cmd_num%2));
-	            GET_response_type = 204; // No return webpage
-                  }
-                }
-	      }
-#endif // PCF8574_SUPPORT == 1
-              else
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-              {
-	        // Show default page
-		// While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
-		// will accomplish what we want.
-		pSocket->ParseState = PARSE_FAIL;
-              }
-              break;
-
-	  } // end switch
-          pSocket->nParseLeft = 0;
-        }
-
-        if (pSocket->ParseState == PARSE_FAIL) {
-          // Parsing failed above OR there was a decision to display the
-	  // default webpage.
-
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-          pSocket->current_webpage = WEBPAGE_IOCONTROL;
-          pSocket->pData = g_HtmlPageIOControl;
-          pSocket->nDataLeft = HtmlPageIOControl_size;
-#if OB_EEPROM_SUPPORT == 1
-          init_off_board_string_pointers(pSocket);
-#endif // OB_EEPROM_SUPPORT == 1
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-
-#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-	  pSocket->current_webpage = WEBPAGE_UPLOADER;
-          pSocket->pData = g_HtmlPageUploader;
-          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
-#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-
-          pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
-	                           // SENDHEADER
-	}
-
-        if (pSocket->nParseLeft == 0) {
-          // Finished parsing ... even if nBytes is not zero
-	  // Send the response
-          pSocket->nPrevBytes = 0xFFFF;
-          if (GET_response_type == 200) {
-	    // Update GUI with appropriate webpage
-            pSocket->nState = STATE_SENDHEADER200;
-	  }
-          if (GET_response_type == 204) {
-	    // No return webpage - send header with Content-Length: 0
-            pSocket->nState = STATE_SENDHEADER204;
-	  }
-          break; // Break out of while loop
-        }
-      } // end of while loop
+      // Parse the GET command and identify the webpage to be copied to the
+      // body of the GET response.
+//      parseget(pSocket, pBuffer, nBytes);
+      parseget(pSocket, pBuffer);
     }
+
+
+
+
+
+
 
     
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
@@ -8302,9 +8311,9 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("PARSE_FILE_FAIL\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 	    while (file_length > 0) {
 	      // Use the read_two_characters() function to deplete the incoming
@@ -8354,9 +8363,9 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 	// copy the data to Flash and display a Timer window to have the
 	// user wait until Flash programming completes and the module reboots.
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Sending Copy EEPROM to Flash request\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 	eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_REQUEST;
         pSocket->nParseLeft = 0;
@@ -8423,38 +8432,94 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 
+
+
+
+
+
+
+
     if (pSocket->nState == STATE_SENDHEADER200) {
-      // This step is usually entered after GET processing is complete in
-      // order to send an appropriate web page in response to the GET request.
+      // This step is entered after HTTP request processing is complete in
+      // order to copy an appropriate web page into the body of the reply
+      // to the request.
+      // This step is entered after:
+      //   a) GET processing is complete and a webpage is to be displayed in
+      //      response to the GET.
+      //   b) The Code Uploader has completed processing a file upload.
+      //      Various webpages can be displayed depending on the error status
+      //      of the file upload.
       // In the uip_send() call we provide the CopyHttpHeader function with
       // the length of the web page.
-      // Some GET requests do not send a webpage response (just a header with
-      // 0 data). In those cases STATE_SENDHEADER204 will have been entered
-      // from GET processing.
-      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(pSocket)));
+      // Some GET requests do not send a webpage response (just a 200 header
+      // with Content-Length = 0). In those cases STATE_SENDHEADER204 will
+      // have been entered from GET processing (see below).
+      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(pSocket), HEADER200));
       pSocket->nState = STATE_SENDDATA;
       return;
     }
       
     if (pSocket->nState == STATE_SENDHEADER204) {
-      // This step is entered after POST is complete.
-      // This step is also entered after GET processing is complete if no
-      // webpage reply is required.
-      // In both of these cases we only send a header with Content Length: 0
-      // and no data is sent.
-      // Note: After POST of an IOControl or Configuration page no webpage is
-      // automatically sent. The javascript in those pages will generate a GET
-      // request to update the Browser after the POST is sent.
+      // This step is entered after HTTP request processing is complete in
+      // in order to copy an "empty" web page into the body of the reply to
+      // the request.
+      // This step is entered after:
+      //   a) POST is complete.
+      //      OR
+      //   b) GET processing is complete and no webpage is to be displayed in
+      //      response to the GET.
+      // In both of these cases we only copy a header with Content_Length: 0
+      // and no data into the body of the reply to the GET or POST.
+      //
+      // Note: In this application a POST is only generated by a IOControl or
+      // Configuration page. STATE_SENDHEADER204 will copy the 200 header into
+      // the body of the reply to the POST with Content-Length = 0. Also note
+      // that the javascript in the IOControl and Configurationose pages will
+      // generate a GET request to update the Browser after the POST is
+      // complete.
+      //
       // Note: It is not clear if some browsers require a "204 No Content"
       // header. This appears to work just returning a "200 OK" with Content
-      // Length: 0.
-      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, 0));
+      // Length: 0, which is what actually happens in this application.
+
+#if RESPONSE_LOCK_SUPPORT == 1
+      // A special case when SENDHEADER_204 is requested is the case where the
+      // Response Lock is turned on. In this case we don't want to send
+      // anyting at all, not even the header. This makes it appear that the
+      // webserver does not exist, helping to make the device a little more
+      // secure.
+      if ((stored_options1 & 0x40) == 0x40) {
+        pSocket->nDataLeft = 0;
+        pSocket->nState = STATE_NULL;
+      }
+#endif // RESPONSE_LOCK_SUPPORT == 1
+
+#if RESPONSE_LOCK_SUPPORT == 1
+      else {
+#endif // RESPONSE_LOCK_SUPPORT == 1
+      // Send a 200 response with length 0
+      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, 0, HEADER200));
       // Clear nDataLeft and go to STATE_SENDDATA, but only to close
       // connection.
       pSocket->nDataLeft = 0;
       pSocket->nState = STATE_SENDDATA;
+#if RESPONSE_LOCK_SUPPORT == 1
+      }
+#endif // RESPONSE_LOCK_SUPPORT == 1
       return;
     }
+    
+    if (pSocket->nState == STATE_SENDHEADER429) {
+      // This is a special case where two GET requests have arrived in
+      // parallel from two different Browsers (or Tabs). We can only allow one
+      // at a time, so the second arrival is rejected with a 429 response.
+      // The 429 response has no webpage response (just a 429 header with
+      // Content-Length = 0 and Retry-After set to 10 seconds).
+      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, 0, HEADER429));
+      pSocket->nState = STATE_SENDDATA;
+      return;
+    }
+      
 
     senddata:
     if (pSocket->nState == STATE_SENDDATA) {
@@ -8498,7 +8563,7 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
   
   else if (uip_rexmit()) {
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // Debug notes:
 // This debug needs to be kept for looking into problems with delays in
 // browser updates and browser lockups.
@@ -8508,11 +8573,11 @@ UARTPrintf("Re-xmit count = ");
 emb_itoa(rexmit_count, OctetArray, 10, 5);
 UARTPrintf(OctetArray);
 UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
     if (pSocket->nPrevBytes == 0xFFFF) {
       // Send header again
-      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(pSocket)));
+      uip_send(uip_appdata, CopyHttpHeader(uip_appdata, adjust_template_size(pSocket), HEADER200));
     }
     else {
       // The pData pointer needs to be moved back by the number of bytes
@@ -8711,7 +8776,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
     i++;
     j++;
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // Debug notes:
 // Turn on this debug to see the character by character parsing of the incom-
 // ing packet into the local_buf and parse_tail.
@@ -8725,23 +8790,23 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
 // emb_itoa(nBytes, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
     
     if (nBytes == 0) {
       // We just added a character from the incoming stream to both parse_tail
       // and the local_buf, AND nBytes = zero indicating we hit end of packet.
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
 // UARTPrintf("Hit end of packet with nBytes zero\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
       if (strcmp(parse_tail, "z00=0") == 0) {
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
 // UARTPrintf("This is also end of the POST z00 detected\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
         // If this is the end of the POST (as indicated by parse_tail equal to
 	// "z00=0") then send the entire local_buf to parsing.
@@ -8797,10 +8862,10 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
         // Handle case 1
 	if ((local_buf[0] != '&') && (strlen(local_buf) == strlen(parse_tail))) {
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
 // UARTPrintf("Handle case 1\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 	  break;
 	}
@@ -8808,10 +8873,10 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
 	// Handle case 2, 3, and 4
         else {
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
 // UARTPrintf("Handle case 2, 3, 4\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
           // Back up the NULL terminator in the local_buf to the point where
           // the last POST component ended, leaving the '&' that starts the
@@ -8822,7 +8887,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
           i = i - strlen(parse_tail);
           local_buf[i] = '\0';
           
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // Debug notes:
 // Turn on this debug to verify that the local_buf is terminated after a '&'
 // delimiter, and that the parse_tail contains part of the next POST compon-
@@ -8833,7 +8898,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
 // UARTPrintf("   Parse tail = ");
 // UARTPrintf(parse_tail);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
           // Parse the local_buf
           parse_local_buf(pSocket, local_buf, strlen(local_buf));
@@ -8861,7 +8926,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
       i = i - strlen(parse_tail);
       local_buf[i] = '\0';
       
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // Debug notes:
 // Turn on this debug to verify that the local_buf is terminated after a '&'
 // delimiter, and that the parse_tail contains part of the next POST compon-
@@ -8872,7 +8937,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
 // UARTPrintf("   Parse tail = ");
 // UARTPrintf(parse_tail);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
       // Parse the local_buf
       parse_local_buf(pSocket, local_buf, strlen(local_buf));
@@ -9373,7 +9438,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
           }
         }
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // Debug notes:
 // Turn on these debug statements to verify that the "h00=" POST component is
 // being detected properly. This is an important check to verify that the
@@ -9383,7 +9448,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 // emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
       }
 
@@ -9451,7 +9516,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
           }
         }
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // Debug notes:
 // Turn on these debug statements to verify that the "H00=" POST component is
 // being detected properly. This is an important check to verify that the
@@ -9461,7 +9526,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 // emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
       }
 #endif // PCF8574_SUPPORT == 1
@@ -9523,32 +9588,32 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	// has shown this is working properly. It is good idea to recheck if
 	// any changes are made to the POST logic or content.
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // Debug notes:
 // If the UARTprintf statements below are enabled and POST parsing is working
 // successfully the following should be seen in the UART output:
 //   Parsing z command. nParseleft = 1   lbi = xxx   lbi_max = yyy
 // where xxx is one less than yyy
-UARTPrintf("\r\n");
-UARTPrintf("Parsing z command.");
-UARTPrintf(" nParseLeft = ");
-emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
-UARTPrintf(OctetArray);
-UARTPrintf("   lbi = ");
-emb_itoa(lbi, OctetArray, 10, 3);
-UARTPrintf(OctetArray);
-UARTPrintf("   lbi_max = ");
-emb_itoa(lbi_max, OctetArray, 10, 3);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
-
-if (pSocket->nParseLeft == 1 && (lbi_max - lbi) == 1) {
-  UARTPrintf("POST Parsing terminated normally\r\n");
-}
-else {
-  UARTPrintf("POST Parsing DID NOT TERMINATE NORMALLY\r\n");
-}
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Parsing z command.");
+// UARTPrintf(" nParseLeft = ");
+// emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   lbi = ");
+// emb_itoa(lbi, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   lbi_max = ");
+// emb_itoa(lbi_max, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+// 
+// if (pSocket->nParseLeft == 1 && (lbi_max - lbi) == 1) {
+//   UARTPrintf("POST Parsing terminated normally\r\n");
+// }
+// else {
+//   UARTPrintf("POST Parsing DID NOT TERMINATE NORMALLY\r\n");
+// }
+#endif // DEBUG_SUPPORT == 15
 
         pSocket->nParseLeft = 0;
         break; // Break out of the while loop. We're done with POST.
@@ -9587,7 +9652,7 @@ else {
 	  break; // Break out of thw while() loop
 	}
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // Debug notes:
 // This debug can be a little confusing in the UART display but it will show
 // progress through the parsing of the local_buf.
@@ -9602,7 +9667,7 @@ else {
 // emb_itoa(lbi_max, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 	// Advance the pointers in case we are to go parse the next command
 	// byte.
@@ -9620,7 +9685,7 @@ else {
         // We somehow advanced past the end of the local_buf. This is a
 	// parsing error and should abort the POST.
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
 // UARTPrintf("PARSE_DELIM, Parse Error, lbi >= lbi_max. nParseLeft = ");
 // emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
@@ -9632,7 +9697,7 @@ else {
 // emb_itoa(lbi_max, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 	parse_error = 1;
         pSocket->nParseLeft = 0;
@@ -9647,13 +9712,13 @@ else {
 	// component to end parsing. Since this part of PARSE_DELIM should
 	// never happen this will be considered a parsing error.
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
 // UARTPrintf("PARSE_DELIM, Parse Error, No z00=0. nParseLeft = ");
 // emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 	parse_error = 1;
         pSocket->nParseLeft = 0;
@@ -9707,7 +9772,8 @@ else {
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       parse_error = 0; // Clear parse_error for the next Save
     }
-    // Set nState to close the connection
+    // Set nState to copy a 200 header with Content-Length = 0 into the body
+    // of the reply to the POST. This will also close the connection.
     pSocket->nState = STATE_SENDHEADER204;
   }
 
@@ -9748,4 +9814,1475 @@ void update_ON_OFF(uint8_t i, uint8_t j)
     else Pending_pin_control[i] |= (uint8_t)0x80;
     parse_complete = 1;
   }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+// void parseget(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes)
+void parseget(struct tHttpD* pSocket, char *pBuffer)
+{
+  uint8_t GET_response_type;
+  GET_response_type = 200; // Default response type
+  
+  // This section will parse a GET request sent by the user. Normally in a
+  // general purpose web server a GET request would be used to obtain
+  // files or other items from the server. In that general case the data
+  // that follows "GET " is a "/path/filename" (path optional). In this
+  // application we'll use "filename" to command the web server to perform
+  // internal operations. For instance, performing a GET for filename "42"
+  // (with a "/42") might turn an output on, or might command transmission
+  // of a specific web page, rather than retrieve a file.
+  //
+  // At this point the "GET " (GET plus space) part of the request has
+  // been parsed and the remainder of the GET request is stored in global
+  // "parse_GETcmd". The "GET " should be followed by "/filename". So we look
+  // for the "/" and collect the next characters as the fake "filename".
+  //
+  // Browser note: Looks like some browsers get creative and do things
+  // like requesting "favicon.ico" from the server. This causes the code
+  // below to execute - and in the original code it caused confusion as I
+  // would send the IOControl web page if I didn't understand the inquiry.
+  // Now I will just throw the request away if it doesn't exactly match an
+  // expected request. The only exception will be if I get a "/" or "/ "
+  // each followed by nothing, then I will send the default web page.
+  //
+  // Digit Parsing note: All digits that make up the two digit URL Command
+  // (ex: /55) are interpreted as hex digits. Thus, commands can be /00 to
+  // /ff.
+
+  while (1) {
+    // The GET command has been captured in parse_GETcmd[], so the while()
+    // loop just spins until a parse decision is made.
+    if (pSocket->ParseState == PARSE_SLASH1) {
+      // When we entered the loop parse_GETcmd[0] should already be pointing at
+      // the "/". If there isn't one we should display the IOControl page.
+      pSocket->ParseCmd = parse_GETcmd[0];
+      if (pSocket->ParseCmd == '/') { // Compare to '/'
+        // The '/' is present. Go on to check for a command value
+        pSocket->ParseState = PARSE_NUMMSD;
+      }
+      else parse_command_abort(pSocket);
+    }
+
+
+    // ---------------------------------------------------------------- //
+    // Converted the code to allow two hex digits for URL commands instead
+    // of two decimal digits.
+    // - Collect the "PARSE_NUMMSD" and "PARSE_NUMLSD" characters as a
+    //   string.
+    // - Validate that the two character string consists of hex digits.
+    // - Use two_hex2int() to convert the characters to a uint8_t byte.
+    //
+    // Previously the URL commands used decimal values in the case
+    // statements and that can continue. But the user entries will
+    // actually be in hex, even if the user doesn't know they are in hex.
+    // This means that a number of potential URL entries have been skipped
+    // and should probably continue to be skipped to keep things simple
+    // for the user. For instance, don't use the folloing for now:
+    //     0a to 0f
+    //     1a to 1f
+    //     2a to 2f
+    //     3a to 3f
+    // The above only skips 6 x 4 = 24 possible commands. But in the range
+    // above these values we can go ahead and create commands with the
+    // full hex values.
+    // ---------------------------------------------------------------- //
+	 
+    if (pSocket->ParseState == PARSE_NUMMSD) {
+      {
+        int i;
+        // Parse and validate first ParseNum digit.
+        i = hex2int(parse_GETcmd[1]);
+        if (i >= 0) { // Hex nibble?
+          // Still good - parse number
+          pSocket->ParseNum = (uint8_t)(i << 4);
+          pSocket->ParseState = PARSE_NUMLSD;
+          pSocket->nParseLeft = 1; // Set to 1 so we don't exit the
+                                   // parsing while() loop yet.
+        }
+        else parse_command_abort(pSocket);
+      }
+    }
+    
+    
+    // Parse second ParseNum digit
+    if (pSocket->ParseState == PARSE_NUMLSD) {
+      {
+        int i;
+        i = hex2int(parse_GETcmd[2]);
+        if (i >= 0) { // Hex nibble?
+          // Still good - parse number
+          pSocket->ParseNum |= (uint8_t)(i);
+          pSocket->ParseState = PARSE_VAL;
+          pSocket->nParseLeft = 1; // Set to 1 so we don't exit the parsing
+                                   // while() loop yet. PARSE_VAL will be
+                                   // called.
+#if RESPONSE_LOCK_SUPPORT == 1
+          if ((stored_options1 & 0x40) == 0x40) {
+            // Completed collecting the incoming command but Response Lock
+            // is ON. Fake receipt of a "/a0L" command (except when the
+            // command is a "/a0unlock" command), then go to PARSE_VAL.
+            if (parse_GETcmd[3] != 'u') {
+              parse_GETcmd[3] = 'L';
+            }
+            pSocket->ParseNum = 0xa0;
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Over-ride legit command after URL - Forcing a0L\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+	    // Now go to state PARSE_VAL to interpret the two digit command
+	    // code and additional characters (if any).
+            pSocket->ParseState = PARSE_VAL;
+	  }
+#endif // RESPONSE_LOCK_SUPPORT == 1
+        }
+        else parse_command_abort(pSocket);
+      }
+    }
+	 
+    // Parse the captured ParseNum digits
+    if (pSocket->ParseState == PARSE_VAL) {
+
+#if RESPONSE_LOCK_SUPPORT == 1
+#if DEBUG_SUPPORT == 15
+UARTPrintf("Command = 0x");
+emb_itoa(pSocket->ParseNum, OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+#endif // RESPONSE_LOCK_SUPPORT == 1
+
+      // ParseNum should now contain a two digit "filename". The filename is
+      // used to command specific action by the webserver. Following are the
+      // commands for the Network Module.
+      //
+      // From a fragment perspective we already received all the useful
+      // information, so we can clear the saved states and process what
+      // we've got. If another fragment still follows it won't have
+      // anything useful in it and processing of the fragment won't cause
+      // anything to happen.
+      //
+      // Only those Output ON/OFF commands that correspond to a pin
+      // configured as an Output will work.
+      //
+      // At this point parse_GETcmd[] contains the entire GET command.
+      //   Since hex digits are allowed the character following a two
+      //   digit ParseNum may need to be validated as a space for that
+      //   ParseNum to be valid. This check is needed in case the Browser
+      //   sent a request like "favicon.ico" where the first two
+      //   characters of the filename look like a pair of hex digits (ie,
+      //   "fa").
+      //   Keep in mind that some commands are allowed to have trailing
+      //   information in the command (for example /80 will have 8
+      //   additional hex digits after the /80).
+      //   Not all incoming commands are checked for a trailing space
+      //   character to reduce code size. This is a potential exposure to
+      //   filenames being received with characters that look like a
+      //   command (say a filename "01File" ... which would be interpreted
+      //   as a "01" command). I'm only aware of one typical conflict at
+      //   this time (the favicon.ico problem), so the code will only
+      //   add the filter for the "fa" digits if that command is ever
+      //   implemented.
+      //   Example code to add the filter if needed:
+      //   case 0xfa:
+      //     if (*pBuffer == ' ') {
+      //       // Validate that the command is followed by a space. If
+      //       // not then just ignore this command.
+      //       ... do stuff ...
+      //     }
+      //     else {
+      //       // Invalid syntax. Show default page.
+      //       pSocket->ParseState = PARSE_FAIL;
+      //     }
+      //     break;
+      //   For now I suggest that the hex digits "fa" simply not be used
+      //   to save code space. But if they ARE used the above filter is
+      //   needed.
+      //
+      //
+      // For 00-31, 55, and 56 you wont see any screen refresh.
+      // http://IP/00  Output-01OFF
+      // http://IP/01  Output-01ON
+      // http://IP/02  Output-02OFF
+      // http://IP/03  Output-02ON
+      // http://IP/04  Output-03OFF
+      // http://IP/05  Output-03ON
+      // http://IP/06  Output-04OFF
+      // http://IP/07  Output-04ON
+      // http://IP/08  Output-05OFF
+      // http://IP/09  Output-05ON
+      // http://IP/10  Output-06OFF
+      // http://IP/11  Output-06ON
+      // http://IP/12  Output-07OFF
+      // http://IP/13  Output-07ON
+      // http://IP/14  Output-08OFF
+      // http://IP/15  Output-08ON
+      // http://IP/16  Output-09OFF
+      // http://IP/17  Output-09ON
+      // http://IP/18  Output-10OFF
+      // http://IP/19  Output-10ON
+      // http://IP/20  Output-11OFF
+      // http://IP/21  Output-11ON
+      // http://IP/22  Output-12OFF
+      // http://IP/23  Output-12ON
+      // http://IP/24  Output-13OFF
+      // http://IP/25  Output-13ON
+      // http://IP/26  Output-14OFF
+      // http://IP/27  Output-14ON
+      // http://IP/28  Output-15OFF
+      // http://IP/29  Output-15ON
+      // http://IP/30  Output-16OFF
+      // http://IP/31  Output-16ON
+      // PCF8574 Outputs:
+      // http://IP/32  Output-17OFF
+      // http://IP/33  Output-17ON
+      // http://IP/34  Output-18OFF
+      // http://IP/35  Output-18ON
+      // http://IP/36  Output-19OFF
+      // http://IP/37  Output-19ON
+      // http://IP/38  Output-20OFF
+      // http://IP/39  Output-20ON
+      // http://IP/40  Output-21OFF
+      // http://IP/41  Output-21ON
+      // http://IP/42  Output-22OFF
+      // http://IP/43  Output-22ON
+      // http://IP/44  Output-23OFF
+      // http://IP/45  Output-23ON
+      // http://IP/46  Output-24OFF
+      // http://IP/47  Output-24ON	  
+      //
+      // http://IP/50  Mask and Output Pin settings
+      // http://IP/51  Mask and Output Pin settings plus returns Very
+      //               Short Form IO States page
+      // http://IP/52  Mask and Output Pin settings plus returns RF
+      //               Attenuator Settings page
+      //
+      // http://IP/55  All Outputs ON
+      // http://IP/56  All Outputs OFF
+      //
+      // http://IP/60  Show IO Control page
+      // http://IP/61  Show Configuration page
+      // http://IP/62  Show PCF8574 IO Control page
+      // http://IP/63  Show PCF8574 Configuration page
+      //
+      // http://IP/65  Flash LED 3 times
+      // http://IP/66  Show Link Error Statistics page
+      // http://IP/67  Clear Link Error Statistics and refresh page
+      // http://IP/68  Show Network Statistics page
+      // http://IP/69  Clear Network Statistics and refresh page
+      // http://IP/70  Clear the "Reset Status Register" counters
+      // http://IP/71  Display the Temperature Sensor Serial Numbers
+      // http://IP/72  Load the Code Uploader (works only in runtime
+      //               builds)
+      // http://IP/73  Restore (works only in the Code Uploader build)
+      // http://IP/74  Erase I2C EEPROM (works only in the Code Uploader
+      //               build)
+      // http://IP/75  Show SDR RF Attenuator Settings page
+      // http://IP/76  Show SDR INA226 Measurements page
+      // http://IP/77  Show SDR Power Relay Control page
+      //
+      // http://IP/80  Mask and Output Pin settings (deprecated)
+      // http://IP/81  Altitude entry
+      // http://IP/82  User entered Pinout Option
+      // http://IP/83  User entered PCF8574 output byte (deprecated)
+      // http://IP/84  Short Form Option
+      // http://IP/85  Force HA Delete Msgs for PCF8574 pins
+      // http://IP/91  Reboot
+      // http://IP/98  Show Very Short Form IO States page
+      // http://IP/99  Show Short Form IO States page
+      //
+      // http://IP/a0  Turn the Response Lock on or off
+
+
+//      GET_response_type = 200; // Default response type
+      switch(pSocket->ParseNum)
+      {
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+	case 0x55:
+	  {
+	    int i;
+	    // Turn all outputs ON. Verify that each pin is an output
+	    // and that it is enabled.
+#if PCF8574_SUPPORT == 0
+	    for (i=0; i<16; i++) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+	    for (i=0; i<24; i++) {
+#endif // PCF8574_SUPPORT == 1
+ 	      Pending_pin_control[i] = pin_control[i];
+#if LINKED_SUPPORT == 0
+              if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+              if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+                // The above: If an Enabled Output, then turn on the pin
+                Pending_pin_control[i] |= 0x80;
+	      }
+            }
+	    // Set parse_complete for the check_runtime_changes() process
+            parse_complete = 1;
+	    GET_response_type = 204; // Send header but no webpage. No webpage
+	                             // is returned in this case to prevent
+				     // interference with REST scripts.
+	  }
+	  break;
+	      
+	case 0x56:
+	  {
+	    int i;
+	    // Turn all outputs OFF. Verify that each pin is an output
+	    // and that it is enabled.
+#if PCF8574_SUPPORT == 0
+	    for (i=0; i<16; i++) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+	    for (i=0; i<24; i++) {
+#endif // PCF8574_SUPPORT == 1
+	      Pending_pin_control[i] = pin_control[i];
+#if LINKED_SUPPORT == 0
+              if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+              if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+                // The above: If an Enabled Output, then turn off the pin
+                Pending_pin_control[i] &= 0x7f;
+	      }
+            }
+	    // Set parse_complete for the check_runtime_changes() process
+            parse_complete = 1;
+	    GET_response_type = 204; // Send header but no webpage. No webpage
+	                             // is returned in this case to prevent
+				     // interference with REST scripts.
+	  }
+	  break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+        case 0x50: // Mask and Output Pin settings, returns no webpage
+	case 0x51: // Mask and Output Pin settings plus returns Very Short
+	           // Form IO States page
+	case 0x52: // Mask and Output Pin settings plus returns RF
+	           // Attenuator Settings page
+          // This is similar to case 55 and case 56, except a 4 hex char
+	  // Mask and a 4 hex char Pin State value hould also be in the
+	  // buffer. Capture the characters, check validity, parse into
+	  // binary values, and set the pending control bytes.
+          //
+          // Example URL command
+          //   192.168.1.182/50ff00c300
+	  //     or
+          //   192.168.1.182/51ff00c300
+          // The above example will affect only the upper 8 output pins
+          // and will set output pins as follows:
+          // Output 16 >> 11000011 << Output 9
+          // Output 8 to 1 are not affected
+	  // The /50... version returns no webpage
+	  // The /51... version returns the Very Short Form IO states page
+	  // The /52... version returns the RF Attenuator settings page
+	  //
+          {
+            uint16_t word;
+            uint16_t mmmm;
+            uint16_t pppp;
+            uint16_t nibble;
+            uint16_t bit_ptr;
+            int i;
+            int k;
+            int m;
+            
+            word = 0;
+	    mmmm = 0;
+            pppp = 0;
+            k = 0;
+	    
+            while (k < 2) {
+              i = 4;
+              m = 3;
+              while (i > 0) {
+                if (hex2int(parse_GETcmd[m]) != -1) {
+                  nibble = (uint16_t)hex2int(parse_GETcmd[m]);
+                  word |= (nibble << ((i-1)*4));
+                  m++;
+                  i--;
+                }
+                else {
+                  // Something out of sync or invalid filename. Indicate
+                  // parse failure and break out of while(i) loop.
+                  pSocket->ParseState = PARSE_FAIL;
+                  break;
+                }
+              } // end of while(i) loop
+              if (k == 0) mmmm = word;
+              else pppp = word;
+              k++;
+	      word = 0;
+              if (pSocket->ParseState == PARSE_FAIL) {
+                // If fail detected break out of while(k) loop.
+                break;
+              }
+            } // end of while(k) loop
+             
+	    // An additional syntax check could be added here to make sure
+	    // the command is followed by " H" (space followed by letter H).
+	    // This was omitted to save Flash space.
+	    
+            if (pSocket->ParseState == PARSE_FAIL) {
+              // If fail detected break out of the switch, but do not
+              // change the current_webpage. This will cause the URL
+              // command to be ignored and the current webpage to be
+              // refreshed.
+	      break;
+	    }
+             
+            // If we didn't break out of the switch yet we should have
+            // valid Mask (mmmm) and Pin State (pppp) values. Now we
+	    // modify the Pending_pin_control bytes accordingly.
+            
+            bit_ptr = 1;
+            for (i=0; i<16; i++) {
+              if ((mmmm & bit_ptr) != 0) {
+                // If the Mask for this pin is non-zero check if the pin
+	        // is an enabled output. If yes, uptate the pin state.
+                Pending_pin_control[i] = pin_control[i];
+#if LINKED_SUPPORT == 0
+                if ((pin_control[i] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+                if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+                  // Enabled output
+                  if ((pppp & bit_ptr) == 0) {
+                    Pending_pin_control[i] &= 0x7f; // Output OFF
+		  }
+                  else {
+                    Pending_pin_control[i] |= 0x80; // Output ON
+		  }
+                }
+              }
+	      // Shift the bit pointer and check the next pin
+ 	      bit_ptr = bit_ptr << 1;
+            }
+          }
+	  // Set parse_complete for the check_runtime_changes() process
+          parse_complete = 1;
+	  if (pSocket->ParseNum == 0x51) {
+            // Return IOPin status page
+            pSocket->current_webpage = WEBPAGE_SSTATE;
+            pSocket->pData = g_HtmlPageSstate;
+            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
+          }
+#if RF_ATTEN_SUPPORT == 1
+	  else if (pSocket->ParseNum == 0x52) {
+            // Return RF Attenuator Settings page
+            pSocket->current_webpage = WEBPAGE_RF_ATTEN;
+            pSocket->pData = g_HtmlPageRFAtten;
+            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRFAtten) - 1);
+          }
+#endif // RF_ATTEN_SUPPORT == 1
+	  else {
+	    GET_response_type = 204; // Send header but no webpage. No webpage
+	                             // is returned in this case to prevent
+				     // interference with REST scripts.
+	  }
+          break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+	case 0x60: // Show IO Control page
+	  // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
+	  // will accomplish what we want which is to display the
+	  // IO_Control page.
+	  pSocket->ParseState = PARSE_FAIL;
+	  break;
+	  
+	case 0x61: // Show Configuration page
+	  pSocket->current_webpage = WEBPAGE_CONFIGURATION;
+          pSocket->pData = g_HtmlPageConfiguration;
+          pSocket->nDataLeft = HtmlPageConfiguration_size;
+          
+#if OB_EEPROM_SUPPORT == 1
+          init_off_board_string_pointers(pSocket);
+#endif // OB_EEPROM_SUPPORT == 1
+          
+	  break;
+
+
+#if PCF8574_SUPPORT == 1
+	case 0x62: // Show PCF8574 IO Control page
+	  if (stored_options1 & 0x08) {
+	    pSocket->current_webpage = WEBPAGE_PCF8574_IOCONTROL;
+            pSocket->pData = g_HtmlPagePCFIOControl;
+            pSocket->nDataLeft = HtmlPagePCFIOControl_size;
+            init_off_board_string_pointers(pSocket);
+	  }
+	  else pSocket->ParseState = PARSE_FAIL;
+	  break;
+	      
+	case 0x63: // Show PCF8574 Configuration page
+	  if (stored_options1 & 0x08) {
+	    pSocket->current_webpage = WEBPAGE_PCF8574_CONFIGURATION;
+            pSocket->pData = g_HtmlPagePCFConfiguration;
+            pSocket->nDataLeft = HtmlPagePCFConfiguration_size;
+            init_off_board_string_pointers(pSocket);
+	  }
+	  else pSocket->ParseState = PARSE_FAIL;
+	  break;
+#endif // PCF8574_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+	case 0x65: // Flash LED for diagnostics
+	  debugflash();
+	  debugflash();
+	  debugflash();
+	  // Show default page
+	  // Show default page
+	  // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
+	  // will accomplish what we want which is to display the
+	  // IO_Control page.
+	  pSocket->ParseState = PARSE_FAIL;
+	  break;
+
+#if LINK_STATISTICS == 1
+        case 0x66: // Show Link Error Statistics page
+	  pSocket->current_webpage = WEBPAGE_STATS2;
+          pSocket->pData = g_HtmlPageStats2;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
+	  break;
+	  
+        case 0x67: // Clear Link Error Statistics
+	  // Clear the the Link Error Statistics bytes and Stack Overflow
+	  debug[2] = (uint8_t)(debug[2] & 0x7f); // Clear the Stack Overflow bit
+	  debug[3] = 0; // Clear TXERIF counter
+	  debug[4] = 0; // Clear RXERIF counter
+	  debug[5] = 0; // Clear EMCF counter
+	  debug[6] = 0; // Clear SWIMF counter
+	  debug[7] = 0; // Clear ILLOPF counter
+	  debug[8] = 0; // Clear IWDGF counter
+	  debug[9] = 0; // Clear WWDGF counter
+	  update_debug_storage1();
+	  TRANSMIT_counter = 0;
+	  MQTT_resp_tout_counter = 0;
+	  MQTT_not_OK_counter = 0;
+	  MQTT_broker_dis_counter = 0;
+	  
+	  pSocket->current_webpage = WEBPAGE_STATS2;
+          pSocket->pData = g_HtmlPageStats2;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
+	  break;
+#endif // LINK_STATISTICS == 1
+
+#if NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+        case 0x68: // Show Network Statistics page
+	  pSocket->current_webpage = WEBPAGE_STATS1;
+          pSocket->pData = g_HtmlPageStats1;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
+	  break;
+	  
+        case 0x69: // Clear Network Statistics and refresh page
+	  uip_init_stats();
+	  pSocket->current_webpage = WEBPAGE_STATS1;
+          pSocket->pData = g_HtmlPageStats1;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageStats1) - 1);
+	  break;
+#endif // NETWORK_STATISTICS == 1 && BUILD_SUPPORT == BROWSER_ONLY_BUILD
+          
+        case 0x70: // Clear the "Reset Status Register" counters
+	  // Clear the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
+	  // These only display via the UART
+	  debug[5] = 0; // Clear EMCF counter
+	  debug[6] = 0; // Clear SWIMF counter
+	  debug[7] = 0; // Clear ILLOPF counter
+	  debug[8] = 0; // Clear IWDGF counter
+	  debug[9] = 0; // Clear WWDGF counter
+	  update_debug_storage1();
+	  // Show default page
+	  // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
+	  // will accomplish what we want which is to display the
+	  // IO_Control page.
+	  pSocket->ParseState = PARSE_FAIL;
+	  break;
+          
+#if DEBUG_SENSOR_SERIAL == 1
+        case 0x71: // Display the Temperature Sensor Serial Numbers
+	  pSocket->current_webpage = WEBPAGE_SENSOR_SERIAL;
+          pSocket->pData = g_HtmlPageTmpSerialNum;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageTmpSerialNum) - 1);
+	  break;
+#endif // DEBUG_SENSOR_SERIAL
+          
+#if OB_EEPROM_SUPPORT == 1
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+        case 0x72: // Load Code Uploader
+	  // Re-Check that the I2C EEPROM exists, and if it does then load
+	  // the Code Uploader from I2C EEPROM1, display the Loading Code
+	  // Uploader webpage, then reboot.
+	  // If the I2C EEPROM does not exist dieplay an error webpage.
+	  // Verify that I2C EEPROM(s) exist.
+          eeprom_detect = off_board_EEPROM_detect();
+	  if (eeprom_detect == 0) {
+	    pSocket->current_webpage = WEBPAGE_EEPROM_MISSING;
+            pSocket->pData = g_HtmlPageEEPROMMissing;
+            pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageEEPROMMissing) - 1);
+	  }
+	  else {
+	    pSocket->current_webpage = WEBPAGE_LOADUPLOADER;
+            pSocket->pData = g_HtmlPageLoadUploader;
+            pSocket->nDataLeft = HtmlPageLoadUploader_size;
+            eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_REQUEST;
+            init_off_board_string_pointers(pSocket);
+	  }
+	  break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+	  
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+        case 0x73: // Reload firmware existing image
+	  // Load the existing firmware image from I2C EEPROM0,
+	  // display the Loading Existing Image webpage, then reboot.
+	  pSocket->current_webpage = WEBPAGE_EXISTING_IMAGE;
+          pSocket->pData = g_HtmlPageExistingImage;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageExistingImage) - 1);
+          eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_REQUEST;
+	  upgrade_failcode = UPGRADE_OK;
+	  break;
+          
+        case 0x74: // Erase entire I2C EEPROM
+          // Erase I2C EEPROM regions 0, 1, 2, and 3 to provide a clean
+	  // slate. Useful mostly during development for code debug.
+	  {
+	    uint16_t i;
+	    uint8_t j;
+	    int k;
+	    uint16_t temp_eeprom_address_index;
+	    for (k=0; k<4; k++) {
+	      for (i=0; i<256; i++) {
+	        // Write 256 blocks of 128 bytes each with zero
+	        if (k == 0) I2C_control(I2C_EEPROM0_WRITE);
+	        if (k == 1) I2C_control(I2C_EEPROM1_WRITE);
+	        if (k == 2) I2C_control(I2C_EEPROM2_WRITE);
+	        if (k == 3) I2C_control(I2C_EEPROM3_WRITE);
+	        temp_eeprom_address_index = i * 128;
+                I2C_byte_address(temp_eeprom_address_index, 2);
+	        for (j=0; j<128; j++) {
+	          // Write a zero byte
+	          I2C_write_byte(0);
+	        }
+                I2C_stop(); // Start the EEPROM internal write cycle
+                IWDG_KR = 0xaa; // Prevent the IWDG from firing.
+                wait_timer(5000); // Wait 5ms
+	      }
+            }
+	  }
+          GET_response_type = 204; // Send header but no webpage. No webpage
+	                           // is returned in this case as erasing the
+				   // EEPROM results in loss of the webpage
+				   // content until the strings file is
+				   // uploaded.
+          break;
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+#endif // OB_EEPROM_SUPPORT == 1
+          
+          
+#if RF_ATTEN_SUPPORT == 1
+	case 0x75: // Show RF Attenuator Settings page
+	  pSocket->current_webpage = WEBPAGE_RF_ATTEN;
+          pSocket->pData = g_HtmlPageRFAtten;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageRFAtten) - 1);
+	  break;
+#endif // RF_ATTEN_SUPPORT == 1
+          
+          
+#if INA226_SUPPORT == 1
+	case 0x76: // Show INA226 measurements page
+	  pSocket->current_webpage = WEBPAGE_INA226;
+          pSocket->pData = g_HtmlPageINA226;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageINA226) - 1);
+	  break;
+#endif // INA226_SUPPORT == 1
+          
+          
+#if SDR_POWER_RELAY_SUPPORT == 1
+	case 0x77: // Show SDR Power Relay page
+	  pSocket->current_webpage = WEBPAGE_SDR_POWER_RELAY;
+          pSocket->pData = g_HtmlPageSDRPowerRelay;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSDRPowerRelay) - 1);
+	  // If 0x77 is ever called we go into "Latching Relay Mode"
+	  // wherein any 0x00 to 0x31 command will be turned into a pulse
+	  // to operate the set/reset functions of a latching relay. Once
+	  // "Latching Relay Mode" has been enabled it can only be turned
+	  // off with command 0x78. A bit is set in stored_options1 so
+	  // that this setting is retained over power cycles.
+	  unlock_eeprom();
+	  stored_options1 |= 0x80;
+	  lock_eeprom();
+	  break;
+	      
+	case 0x78: // Turn off Latching Relay Mode
+	  // If 0x77 is ever called we go into "Latching Relay Mode"
+	  // wherein any 0x00 to 0x31 command will be turned into a pulse
+	  // to operate the set/reset functions of a latching relay. This
+	  // mode is saved in stored_options1. The 0x78 command is used to
+	  // turn off Latching Relay Mode.
+	  unlock_eeprom();
+	  stored_options1 &= 0x7f;
+	  lock_eeprom();
+	  // Show default page
+	  // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
+	  // will accomplish what we want which is to display the
+	  // IO_Control page.
+	  pSocket->ParseState = PARSE_FAIL;
+	  break;
+#endif // SDR_POWER_RELAY_SUPPORT == 1
+           
+           
+#if BME280_SUPPORT == 1
+        case 0x81:
+	  // Altitude setting for the BME280 Temperature / Pressure / 
+	  // Humidity sensor.
+          // This command allows the user to input the altitude of the
+	  // device so that the BME280 pressure sensor can be calibrated
+	  // to provide barometric pressure measurements. The altitude
+	  // can be provided in Feet or Meters in Decimal with no
+	  // fractional part (no decimal point).
+	  // 
+          // Example URL command
+          //   192.168.1.182/815432F
+          //   The above example provides an altitude of 5432 feet.
+          //   192.168.1.182/81280M
+          //   The above example provides an altitude of 280 meters.
+          //   192.168.1.182/81-432F
+          //   The above example provides an altitude of -432 feet.
+	  // Limits for best accuracy:
+	  //   Minimum altitude is -1000 feet / -304 meters
+	  //   Maximum altitude is 15000 feet / 4572 meters
+	  // An entry error will result in an altitude of 0.
+          //
+          {
+            int32_t altitude_local;
+            uint8_t error;
+            char digit_string[6];
+            uint8_t digit_count;
+            uint8_t altitude_scale;
+            uint32_t multiplier;
+            int i;
+            int m;
+	    
+	    // There must be at least one digit, and up to 5 digits,
+	    // followed by an F (for feet) or M (for meters). Internally
+	    // the code uses feet for all calculations, so all "meter"
+	    // entries are converted to feet.
+	    error = 0;
+	    altitude_local = 0;
+            m = 3;
+	    
+	    // First character must be a digit or a minus.
+	    if ((parse_GETcmd[m] == '-') || (isdigit(parse_GETcmd[m]))) {
+	      digit_string[0] = parse_GETcmd[m];
+	      m++;
+	    }
+	    else error = 1;
+	    digit_count = 1;
+	    altitude_scale = 0;
+	    while (error == 0) {
+	      // Check additional characters (up to 4 more digits, then F or
+	      // M terminator.
+	      // Second character position:
+	      if (isdigit(parse_GETcmd[m])) {
+	        // Character is a digit
+	        digit_string[digit_count++] = parse_GETcmd[m];
+	        m++;
+	      }
+	      else if (parse_GETcmd[m] == 'F' || parse_GETcmd[m] == 'M') {
+	        // F = 0x46, M = 0x4d
+	        altitude_scale = parse_GETcmd[m];
+	        m++;
+	        digit_string[digit_count] = '\0';
+	        break;
+	      }
+	      else {
+	        error = 1;
+	        break;
+	      }
+	      if (digit_count == 6) {
+	        // Too many digits - error
+	        error = 1;
+	        break;
+	      }
+	    } // end of while
+	    
+	    if (error == 0) {
+	      // No error so far
+	      // If F or M terminator not found yet then the next character
+	      // MUST be an F or M
+	      if (altitude_scale == 0) {
+	        if (parse_GETcmd[m] == 'F' || parse_GETcmd[m] == 'M') {
+	          altitude_scale = parse_GETcmd[m];
+	          m++;
+	        }
+	        else {
+	          error = 1;
+	        }
+	      }
+	    }
+            
+            if (error == 0) {
+	      // No error so far
+	      // Convert digit_string to altitude value
+	      multiplier = 1;
+	      for (i = strlen(digit_string); i > 0; i--) {
+	        if (digit_string[i-1] == '-') continue;
+	        altitude_local = altitude_local + ((digit_string[i-1] - '0') * multiplier);
+	        multiplier = (uint32_t)(multiplier * 10);
+	      }
+	      if (altitude_scale == 'M') {
+	        // 1 meter = 3.28084 feet
+	        altitude_local = (altitude_local * 328084) / 100000;
+	      }
+	      if (digit_string[0] == '-') {
+	        altitude_local = altitude_local * -1;
+	      }
+	    }
+	    
+	    if (error == 1) {
+	      altitude_local = 0;
+              // Something out of sync or invalid user entry. Indicate
+              // parse failure.
+	      pSocket->ParseState = PARSE_FAIL;
+	    }
+	    
+	    // An additional syntax check could be added here to make sure
+	    // the command is followed by " H" (space followed by letter H).
+	    // This was omitted to save Flash space.
+
+            if (pSocket->ParseState == PARSE_FAIL) {
+              // If fail detected break out of the switch, but do not
+              // change the current_webpage. This will cause the URL
+              // command to be ignored and the current webpage to be
+              // refreshed.
+              break;
+            }
+	    unlock_eeprom();	
+	    stored_altitude = (int16_t)altitude_local;
+	    lock_eeprom();
+          }
+	  // Didn't break so far so parse was successful
+	  // Set parse_complete for the check_runtime_changes() process
+          parse_complete = 1;
+//          GET_response_type = 204; // Send header but no webpage
+           // While parsing was successful set PARSE_FAIL so the IOControl
+	   // page will be displayed.
+ 	   pSocket->ParseState = PARSE_FAIL;
+         break;
+#endif // BME280_SUPPORT == 1
+          
+           
+#if PINOUT_OPTION_SUPPORT == 1
+        case 0x82:
+	  // User entered Pinout Option.
+	  // Allowed to enter one digit (0 to 9) to select the pinout map
+	  // for the IO pins.
+	  // 
+          // Example URL command
+          //   192.168.1.182/821
+          //   The above example selects Pinout Option 1.
+	  //
+	  // Note: Only Pinout Option 1 is allowed if any special pin
+	  // usage is compiled (for example: UART, I2C, Temperature
+	  // sensors). I2C and Temperature sensors are handled via build
+	  // settings where Pinout Options are "not allowed". However, the
+	  // UART can be enabled during development, over-riding the
+	  // build setting. A check is done here to make sure that only
+	  // Pinout Option 1 is allowed if the UART is enabled. This check
+	  // is mostly a "developer helper" as the end user doesn't have
+	  // access to enabling the UART.
+          {
+            uint8_t pinout_select;
+	    uint8_t j;
+	    
+	    // Accept the first character as the Pinout selection
+	    if (isdigit(parse_GETcmd[3])) {
+	      pinout_select = (uint8_t)(parse_GETcmd[3] & 0x07);
+#if DEBUG_SUPPORT == 15
+              // Force Pinout Option 1 if UART enabled
+	      pinout_select = 1;
+#endif // DEBUG_SUPPORT == 15
+#if SUPPORT_174 == 0
+	      if ((pinout_select > 0) && (pinout_select < 4)){
+#endif // SUPPORT_174 == 0
+#if SUPPORT_174 == 1
+	      if ((pinout_select > 0) && (pinout_select < 5)){
+#endif // SUPPORT_174 == 1
+	        j = (uint8_t)(stored_options1 & 0xf8);
+	        j |= pinout_select;
+	        unlock_eeprom();
+	        stored_options1 = j;
+	        lock_eeprom();
+	        user_reboot_request = 1;
+	      }
+	      // Set parse_complete for the check_runtime_changes() process
+              parse_complete = 1;
+	    }
+            // Always display the IOControl page even if there is no parse
+	    // fail. The PARSE_FAIL state will cause this to happen.
+	    pSocket->ParseState = PARSE_FAIL;
+          }
+          break;
+#endif // PINOUT_OPTION_SUPPORT == 1
+          
+          
+        case 0x84:
+	  // User entered Short Form Option.
+	  // User may enter '+' or '-' to select how Disabled pins are
+	  // displayed in the Short Form Status page.
+	  // - The Default is for all pins to display 0 or 1 depending
+	  //   on the last state of the pin.
+	  // - If the user enters URL command /84- then Disabled pins will
+	  //   display with a '-' character.
+	  // - If the user enters URL command /84+ then Disabled pins will
+	  //   display a 0 or 1 depending on the last state of the pin.
+	  // - If a syntax error the command is ignored.
+	  // Note: The '+' command is only supplied so that the user can
+	  // reverse a '-' selection.
+	  //
+	  // Example URL command
+          //   192.168.1.182/84-
+          //   The above example selects the Short Form option which will
+	  //   display a '-' for Disabled pin.
+          
+	  {
+	    uint8_t i;
+	    uint8_t j;
+	    j = 0xff;
+	    // Accept the first character as the Short Form option
+	    if (parse_GETcmd[3] == '-') j = 0x10;
+	    if (parse_GETcmd[3] == '+') j = 0x00;
+	    if (j != 0xff) {
+	      i = stored_options1;
+	      // mask out current Short Form setting
+	      i &= 0xef;
+	      // add new Short Form setting
+	      i |= j;
+	      unlock_eeprom();
+	      stored_options1 = i;
+	      lock_eeprom();
+	    }
+          }
+          
+          // Show Short Form IO state page
+	  pSocket->current_webpage = WEBPAGE_SSTATE;
+          pSocket->pData = g_HtmlPageSstate;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
+          break;
+          
+          
+#if PCF8574_SUPPORT == 1
+	case 0x85: // Force PCF8574 Pin Delete Msgs. Causes a reboot so
+	           // that the Home Assistant Auto Discovery processes
+	           // will run to generate the appropriate delete
+	           // messages over MQTT to Home Assistant.
+	  {
+	    uint8_t j;
+	    int i;
+	    j = stored_options1;
+	    j |= 0x20;
+	    unlock_eeprom();
+	    stored_options1 = j;
+	    lock_eeprom();
+	    
+            // Set all PCF8574 pins to Disabled
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // Note for future testing: I don't think it is necessary to
+	    // set the Pending_pin_control and pin_control bytes here -
+	    // it is only necessary to set the I2C_EEPROM bytes. Why?
+	    // Because this command should only be run by the user when
+	    // the PCF8574 has been removed. Code in main.c will not
+	    // process the Pending_pin_control and pin_control bytes if
+	    // the PCF8574 is absent. But a user_reboot_request is made
+	    // here, and when the reboot is performed the code in main.c
+	    // will update the Pending_pin_control and pin_control bytes
+	    // with the content of the I2C_EEPROM.
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+            for (i = 16; i < 24; i++) {
+              Pending_pin_control[i] &= 0xfc;
+              pin_control[i] = Pending_pin_control[i];
+            }
+            I2C_control(I2C_EEPROM2_WRITE);
+            I2C_byte_address(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE, 2);
+            for (i=16; i<24; i++) {
+              I2C_write_byte(pin_control[i]);
+            }
+            I2C_stop(); // Start the EEPROM internal write cycle
+            wait_timer(5000); // Wait 5ms
+	    user_reboot_request = 1;
+            GET_response_type = 204; // Send header but no webpage
+	    break;
+	  }
+#endif // PCF8574_SUPPORT == 1
+          
+          
+	case 0x91: // Reboot
+	  user_reboot_request = 1;
+          GET_response_type = 204; // Send header but no webpage
+          
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("case 0x91 Reboot requested\r\n");
+#endif // DEBUG_SUPPORT == 15
+          
+	  break;
+        
+	
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+        case 0x98: // Show Very Short Form IO state page
+        case 0x99: // Show Short Form IO state page
+	  // Normally when a page is transmitted the "current_webpage" is
+	  // updated to reflect the page just transmitted. This is not
+	  // done for this case as the page is very short (only requires
+	  // one packet to send) and not changing the current_webpage
+	  // pointer prevents "page interference" between normal browser
+	  // activity and the automated functions that normally use this
+	  // page.
+	  pSocket->current_webpage = WEBPAGE_SSTATE;
+          pSocket->pData = g_HtmlPageSstate;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);
+	  break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+
+#if RESPONSE_LOCK_SUPPORT == 1
+        case 0xa0:
+	  // Turn the Response Lock on or off.
+          // Read the next 6 characters and compare to the lock and unlock
+	  // codes.
+          {
+            char code[7];
+            int k;
+            int m;
+
+            k = 0;
+            m = 3;
+            while (k < 6) {
+              code[k] = parse_GETcmd[m];
+              m++;
+              k++;
+            }
+            code[6] = '\0';
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("code = ");
+// UARTPrintf(code);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+	    if (code[0] == 'L') {
+	      // Lock code received.
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Setting Response Lock\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+              // Update the stored_options1 byte in EEPROM. Only perform the
+	      // eeprom write if the value changed.
+	      {
+	        uint8_t j;
+	        j = (uint8_t)(stored_options1 | 0x40); // Set locked bit
+                if (stored_options1 != j) {
+                  unlock_eeprom();
+                  stored_options1 = j;
+                  lock_eeprom();
+                }
+	      }
+              GET_response_type = 204; // Send header but no webpage
+	    }
+	    
+            else if (strcmp(code, "unlock") == 0) {
+              // Unlock code received.
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Clearing Response Lock\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+              // Update the stored_options1 byte in EEPROM. Only perform the
+	      // eeprom write if the value changed.
+	      {
+	        uint8_t j;
+	        j = (uint8_t)(stored_options1 & 0xbf); // Clear locked bit
+                if (stored_options1 != j) {
+                  unlock_eeprom();
+                  stored_options1 = j;
+                  lock_eeprom();
+                }
+	      }
+              // Even though this is not a parse fail call that routine
+              // anyway to display the IOControl page
+              pSocket->ParseState = PARSE_FAIL;
+            }
+		
+            else if ((stored_options1 & 0x40) == 0x40) {
+              // Response Lock is ON and 0xa0 code was received but it is
+	      // not followed by 'L' or 'unlock'. There should be no
+	      // response to the command.
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Response Lock is ON and 0xa0 received without proper code\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+              GET_response_type = 204; // Send header but no webpage
+	    }
+		
+	    else {
+	      // Response Lock is OFF and 0xa0 code was received but it is
+	      // not followed by 'L' or 'unlock'. This is a parse fail and
+	      // the IOControl page should be displayed.
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Response Lock is OFF and 0xa0 received without proper code\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+              pSocket->ParseState = PARSE_FAIL;
+	    }
+	  }
+          break;
+#endif // RESPONSE_LOCK_SUPPORT == 1
+
+
+        case 0xfa:
+	  // At present 0xfa is not used, however, Browsers will sometimes
+	  // attempt to collect a "favicon.ico" file from the webserver. This
+	  // looks like a 0xfa command, so this code will verify if it is
+	  // really a favicon request and will provide a 200 Content-Length=0
+	  // reply.
+	  // Check the next character to see if it is a "v". If so assume this
+	  // is a favicon.ico request. If it is a " " (a space), then this
+	  // really was a 0xfa command. 0xfa is currently unsupported and must
+	  // return the IOControl page.
+	  // Developer note: If 0xfa ever really is used as a command then the
+	  // command functionality should be placed in the "else" below. For
+	  // now the response is a PARSE_FAIL if the user enters /fa, which
+	  // will display the IOControl page.
+	  if (parse_GETcmd[3] == 'v') {
+	    GET_response_type = 204; // Send header but no webpage
+	  }
+	  else {
+	    // Call PARSE_FAIL to display the IOControl page.
+	    pSocket->ParseState = PARSE_FAIL;
+	  }
+          break;
+
+
+	default:
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if PCF8574_SUPPORT == 0
+	  if (pSocket->ParseNum < 0x32) {
+            // Output-01..16 OFF/ON
+            {
+              // The logic here converts hex values to the original decimal
+              // values for IO pins. It is assumed the following cmds are
+              // not used:
+              // 0x0a to 0x0f
+              // 0x1a to 0x1f
+              // 0x2a to 0x2f
+              // 0x3a to 0x3f
+              uint8_t cmd_num;
+	      cmd_num = 0;
+              if ((pSocket->ParseNum & 0x0f) < 0x0a) {
+	        // The above "if" eliminates invalid hex values
+	        // Covert the remaining values to decimal
+                if (pSocket->ParseNum < 0x0a) cmd_num = (uint8_t)(pSocket->ParseNum);
+                else if (pSocket->ParseNum < 0x1a) cmd_num = (uint8_t)(pSocket->ParseNum - 6);
+                else if (pSocket->ParseNum < 0x2a) cmd_num = (uint8_t)(pSocket->ParseNum - 12);
+                else if (pSocket->ParseNum < 0x32) cmd_num = (uint8_t)(pSocket->ParseNum - 18);
+
+#if SDR_POWER_RELAY_SUPPORT == 0
+                // If no latching relays then simply turn IO pins ON or OFF
+		// and do not send a response page.
+                update_ON_OFF((uint8_t)(cmd_num/2), (uint8_t)(cmd_num%2));
+	        GET_response_type = 204; // Send header but no webpage
+#endif // SDR_POWER_RELAY_SUPPORT == 0
+
+#if SDR_POWER_RELAY_SUPPORT == 1
+                // If latching relays are supported then the "Latching Relay
+		// Mode" bit in stored_options1 is checked to determine if the
+		// relays should be treated as regular relays or as latching
+		// relays.
+		//
+		// If regular relays (Latching Relay Mode is OFF), then the
+		// Outputs are simply turned ON or OFF per the 0x00 to 0x31
+		// command and there is no webpage returned to the Browser.
+		//
+		// If latching relays (Latching Relay Mode is ON), then a
+		// check is run to make sure all outputs are set up as pulse
+		// outputs. This is done to prevent overheating of the
+		// latching relay coils. The check is accomplished by scanning
+		// the IO_TIMER contents and the pin_control variables.
+		//
+		// For now it is assumed that the IO_TIMERs must be set to
+		// units of 0.1s and a value of 15 (providing a 1.5 second
+		// pulse interval).
+		//
+		// For reference:
+		//   The IO_TIMERs are 14 bit timers with the 2 most
+                //   significant bits defining the resolution as:
+		//   00 = 0.1 second
+		//   01 = 1 second
+		//   10 = 1 minute
+		//   11 = 1 hour
+		//   The remaining lower 14 bits are the actual timer
+		//   value from 0 to 16384.
+		// So, the IO_TIMERS should all be set to 
+		//   0000 0000 0000 000f
+		// The pin_control bytes should all be set to
+		//   xxx0 0011
+		//   This assures the Boot State is OFF, Invert is OFF,
+		//   and all pins are outputs.
+		    
+		if ((stored_options1 & 0x80) == 0) {
+		  // Latching Relay Mode is off. Simply turn IO pins on or
+		  // off and do not send a response page.
+                  update_ON_OFF((uint8_t)(cmd_num/2), (uint8_t)(cmd_num%2));
+	          GET_response_type = 204; // Send header but no webpage
+		}
+		else {
+		  // Latching Relay Mode is on. Validate the pin settings
+		  // and send the appropriate set/reset pulse to the relay.
+		  {
+		    int i;
+		    uint8_t error;
+		    uint8_t latching_relay_state;
+		    
+		    error = 0;
+		    
+#if OB_EEPROM_SUPPORT == 0
+		    for (i=0; i<16; i++) {
+		      if (IO_TIMER[i] != 0x000f) error = 1;
+		    }
+		    for (i=0; i<16; i++) {
+		      if ((pin_control[i] & 0x1f) != 0x03) error = 1;
+		    }
+#endif // OB_EEPROM_SUPPORT == 0
+#if OB_EEPROM_SUPPORT == 1
+                    // This section is for development only. Latching Relays
+		    // are only meant to be utilized in non-upgradeable code.
+		    // However, development is easier in upgradeable code
+		    // along with the UART. If OB_EEPROM_SUPPORT is enabled
+		    // the implication is that this is an upgradeable build,
+		    // thus the code below will limit the latching relay
+		    // check to the first 10 pins (5 relays), allowing use of
+		    // pin 11 for the UART and pins 14 and 15 for the I2C
+		    // EEPROM.
+		    for (i=0; i<10; i++) {
+		      if (IO_TIMER[i] != 0x000f) error = 1;
+		    }
+		    for (i=0; i<10; i++) {
+		      if ((pin_control[i] & 0x1f) != 0x03) error = 1;
+		    }
+#endif // OB_EEPROM_SUPPORT == 1
+		    
+		    if (error == 0) {
+		      // All settings are good. Write the outupt pins.
+                      update_ON_OFF((uint8_t)(cmd_num/2), (uint8_t)(cmd_num%2));
+		    
+                      // The ON/OFF commands are used to set or clear bits
+		      // in the stored_latching_relay_state variable to
+		      // record the "last known ON/OFF state" of the
+		      // latching relays.
+		      latching_relay_state = stored_latching_relay_state;
+		      switch (pSocket->ParseNum) {
+		        case 0x01: latching_relay_state |= 0x01; break; // Relay 1 ON
+		        case 0x05: latching_relay_state |= 0x02; break; // Relay 2 ON
+		        case 0x09: latching_relay_state |= 0x04; break; // Relay 3 ON
+		        case 0x13: latching_relay_state |= 0x08; break; // Relay 4 ON
+		        case 0x17: latching_relay_state |= 0x10; break; // Relay 5 ON
+		        case 0x21: latching_relay_state |= 0x20; break; // Relay 6 ON
+		        case 0x25: latching_relay_state |= 0x40; break; // Relay 7 ON
+		        case 0x29: latching_relay_state |= 0x80; break; // Relay 8 ON
+		            
+		        case 0x03: latching_relay_state &= (uint8_t)~0x01; break; // Relay 1 OFF
+		        case 0x07: latching_relay_state &= (uint8_t)~0x02; break; // Relay 2 OFF
+		        case 0x11: latching_relay_state &= (uint8_t)~0x04; break; // Relay 3 OFF
+		        case 0x15: latching_relay_state &= (uint8_t)~0x08; break; // Relay 4 OFF
+		        case 0x19: latching_relay_state &= (uint8_t)~0x10; break; // Relay 5 OFF
+		        case 0x23: latching_relay_state &= (uint8_t)~0x20; break; // Relay 6 OFF
+		        case 0x27: latching_relay_state &= (uint8_t)~0x40; break; // Relay 7 OFF
+		        case 0x31: latching_relay_state &= (uint8_t)~0x80; break; // Relay 8 OFF
+		      } // end of switch
+		      unlock_eeprom();
+		      if (stored_latching_relay_state != latching_relay_state)
+		        stored_latching_relay_state = latching_relay_state;
+		      lock_eeprom();
+		    }
+		      
+		    // Otherwise no output pin changes are made.
+		  }
+		    
+		  // Prepare to show the SDR Power Relay page
+		  pSocket->current_webpage = WEBPAGE_SDR_POWER_RELAY;
+		  pSocket->pData = g_HtmlPageSDRPowerRelay;
+		  pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSDRPowerRelay) - 1);
+		  GET_response_type = 200; // Signal to send return webpage
+		}
+#endif // SDR_POWER_RELAY_SUPPORT == 1
+		    
+              }
+            }
+	  }
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+	  if (pSocket->ParseNum < 0x48) {
+             // Output-01..24 OFF/ON
+            {
+              // The logic here converts hex values to the original decimal
+              // values for IO pins. It is assumed the following cmds are
+              // not used:
+              // 0x0a to 0x0f
+              // 0x1a to 0x1f
+              // 0x2a to 0x2f
+              // 0x3a to 0x3f
+              uint8_t cmd_num;
+	      cmd_num = 0;
+              if ((pSocket->ParseNum & 0x0f) < 0x0a) {
+                if (pSocket->ParseNum < 0x0a) cmd_num = (uint8_t)(pSocket->ParseNum);
+                else if (pSocket->ParseNum < 0x1a) cmd_num = (uint8_t)(pSocket->ParseNum - 6);
+                else if (pSocket->ParseNum < 0x2a) cmd_num = (uint8_t)(pSocket->ParseNum - 12);
+                else if (pSocket->ParseNum < 0x3a) cmd_num = (uint8_t)(pSocket->ParseNum - 18);
+                else if (pSocket->ParseNum < 0x48) cmd_num = (uint8_t)(pSocket->ParseNum - 24);
+		    
+                update_ON_OFF((uint8_t)(cmd_num/2), (uint8_t)(cmd_num%2));
+	        GET_response_type = 204; // Send header but no webpage
+              }
+            }
+	  }
+#endif // PCF8574_SUPPORT == 1
+          else
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+          {
+	    // Show default page
+	    // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
+            // will accomplish what we want.
+	    pSocket->ParseState = PARSE_FAIL;
+          }
+          break;
+
+      } // end switch
+      pSocket->nParseLeft = 0; // Clear nParseLeft to indicate parse complete.
+      parse_GETcmd[0] = '\0'; // Clear parse_GETcmd to allow receipt of nest
+                              // GET command.
+    }
+
+    if (pSocket->ParseState == PARSE_FAIL) {
+      // Parsing failed above OR there was a decision to display the
+      // default webpage.
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("\r\n");
+UARTPrintf("Executing PARSE_FAIL\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+      pSocket->current_webpage = WEBPAGE_IOCONTROL;
+      pSocket->pData = g_HtmlPageIOControl;
+      pSocket->nDataLeft = HtmlPageIOControl_size;
+#if OB_EEPROM_SUPPORT == 1
+      init_off_board_string_pointers(pSocket);
+#endif // OB_EEPROM_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+      pSocket->current_webpage = WEBPAGE_UPLOADER;
+      pSocket->pData = g_HtmlPageUploader;
+      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+
+      pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
+	                       // SENDHEADER
+    }
+
+    if (pSocket->nParseLeft == 0) {
+      // Finished parsing
+      // Send the response
+      pSocket->nPrevBytes = 0xFFFF;
+
+      if (GET_response_type == 200) {
+        // Update GUI with appropriate webpage
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("STATE_SENDHEADER200\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+        pSocket->nState = STATE_SENDHEADER200;
+      }
+      if (GET_response_type == 204) {
+        // No return webpage - send header 200 with Content-Length: 0
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("STATE_SENDHEADER204\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+        pSocket->nState = STATE_SENDHEADER204;
+      }
+      break; // Break out of while loop
+    }
+  } // end of while loop
+  return;
+}
+
+
+
+void parse_command_abort(struct tHttpD* pSocket)
+{
+  // This function is used to complete parsing of an incoming GET command when
+  // an error is detected.
+  
+#if RESPONSE_LOCK_SUPPORT == 0
+  // Something out of sync, or invalid, or simply need to respond with the
+  // the IOControl webpage.
+  pSocket->ParseNum = 0x60;
+  pSocket->ParseState = PARSE_VAL;
+#endif // RESPONSE_LOCK_SUPPORT == 0
+
+#if RESPONSE_LOCK_SUPPORT == 1
+  // Something out of sync, or invalid, or simply need to respond with the
+  // the IOControl webpage.
+  if ((stored_options1 & 0x40) == 0x00) {
+    // Response Lock is OFF.
+    pSocket->ParseNum = 0x60;
+    pSocket->ParseState = PARSE_VAL;
+  }
+  else {
+    // Response Lock is ON.
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Response Lock is ON - Forcing a0L\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+    // Fake a "/a0L" command then go to PARSE_VAL.
+    parse_GETcmd[3] = 'L';
+    pSocket->ParseNum = 0xa0;
+    pSocket->ParseState = PARSE_VAL;
+  }
+#endif // RESPONSE_LOCK_SUPPORT == 1
 }

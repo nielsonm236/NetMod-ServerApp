@@ -78,12 +78,12 @@ void PCF8574_init()
       // Found a device. Terminate the search.
       found = 1;
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Found PCF8574 at ");
 // emb_itoa(I2C_PCF8574_1_WRITE_CMD, OctetArray, 16, 2);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
       break;
     }
@@ -118,7 +118,7 @@ void PCF8574_init()
       lock_eeprom();
     }
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 //    if ((stored_options1 & 0x08) == 0x08) {
 //      UARTPrintf("\r\n");
 //      UARTPrintf("PCF8574 found\r\n");
@@ -127,7 +127,7 @@ void PCF8574_init()
 //      UARTPrintf("\r\n");
 //      UARTPrintf("PCF8574 not found\r\n");
 //    }
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
   }
 }
@@ -140,26 +140,31 @@ void PCF8574_write(uint8_t byte)
   I2C_write_byte(byte);
   I2C_stop();
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Write PCF8574 byte ");
 // emb_itoa(byte, OctetArray, 16, 2);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
 
 }
 
 
 uint8_t PCF8574_read()
 {
-  // Function to read single byte from PCF8574
+  // Function to read single byte from PCF8574.
+  // Note: The PCF8574 spec is a little confusing with regard to data read,
+  // in particular the TI spec seems to imply that a double read is required.
+  // Other specs to not indicate this. A single byte read appears to work in
+  // testing performed. I note this here just in case there are any reports
+  // of functional issues.
   uint8_t byte;
   uint8_t read_cmd;
   
   read_cmd = (uint8_t)(I2C_PCF8574_1_WRITE_CMD | 0x01);
   I2C_control(read_cmd);
   byte = I2C_read_byte(1);
-  I2C_stop();
+//  I2C_stop();
   
   return byte;
 }
@@ -173,17 +178,17 @@ uint8_t PCF8574_response_check()
   uint8_t error;
   uint8_t read_cmd;
 
-#if DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#if DEBUG_SUPPORT == 15
 // UARTPrintf("Checking for PCF8574 at ");
 // emb_itoa(I2C_PCF8574_1_WRITE_CMD, OctetArray, 16, 2);
 // UARTPrintf(OctetArray);
 // UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 7 || DEBUG_SUPPORT == 15
+#endif // DEBUG_SUPPORT == 15
   
   read_cmd = (uint8_t)(I2C_PCF8574_1_WRITE_CMD | 0x01);
   error = I2C_control(read_cmd);
   I2C_read_byte(1);
-  I2C_stop();
+//  I2C_stop();
   
   return error;
 }

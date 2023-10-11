@@ -13,6 +13,10 @@ Contact: You can reach me at nielsonm.projects@gmail.com. But questions can also
 
 Feature Comparison of the MQTT and Browser builds:
 
+|                             |                         |                                           |
+|:---------------------------:|:-----------------------:|:-----------------------------------------:|
+|                             |    SWIM Install Only    |      Upgradeable (Ethernet) Install       |
+
 |                             |       |       |         |       |       |         |        |        |
 |:----------------------------|:-----:|:-----:|:-------:|:-----:|:-----:|:-------:|:------:|:------:|
 |                             | MQTT  | MQTT  | Browser | MQTT  | MQTT  | Browser |  MQTT  |  MQTT  |

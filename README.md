@@ -13,6 +13,7 @@ Contact: You can reach me at nielsonm.projects@gmail.com. But questions can also
 
 Feature Comparison of the MQTT and Browser builds:
 
+|                             |       |       |         |       |       |         |        |        |
 |:----------------------------|:-----:|:-----:|:-------:|:-----:|:-----:|:-------:|:------:|:------:|
 |                             | MQTT  | MQTT  | Browser | MQTT  | MQTT  | Browser |  MQTT  |  MQTT  |
 |                             | Home  | Domo  |  Only   | Home  | Domo  |  Only   |  Home  |  Domo  |

@@ -21,7 +21,7 @@ Feature Comparison of the MQTT and Browser builds:
 |                              | Build |       |         | UPG   | Build |  Build  | BME280 |  UPG   |
 |                              |       |       |         | Build |       |         |  UPG   |  Build |
 |                              |       |       |         |       |       |         |  Build |        |
-|----------- Feature ----------|       |       |         |       |       |         |        |        |
+|-------- Feature -------      |       |       |         |       |       |         |        |        |
 |SWIM Install                  |   x   |   x   |    x    |       |       |         |        |        |
 |Upgradeable (Ethernet) Install|       |       |         |   x   |   x   |    x    |   x    |   x    |
 |MQTT Support                  |   x   |   x   |         |   x   |   x   |         |   x    |   x    |
@@ -41,6 +41,7 @@ Feature Comparison of the MQTT and Browser builds:
 |PCF8574 Support               |       |       |         |   x   |   x   |    x    |        |        |
 |Alternative Pinout Support    |   x   |   x   |    x    |       |       |         |        |        |
 |Response Lockout Support      |       |       |    x    |   x   |   x   |    x    |   x    |   x    |
+
 IMPORTANT: "Upgradeable (Ethernet) Install" requires additonal hardware - see Manual
 
 Short summary of recent history:

@@ -13,39 +13,35 @@ Contact: You can reach me at nielsonm.projects@gmail.com. But questions can also
 
 Feature Comparison of the MQTT and Browser builds:
 
-|                             |                         |                                           |
-|:---------------------------:|:-----------------------:|:-----------------------------------------:|
-|                             |    SWIM Install Only    |      Upgradeable (Ethernet) Install       |
-
-|                             |       |       |         |       |       |         |        |        |
-|:----------------------------|:-----:|:-----:|:-------:|:-----:|:-----:|:-------:|:------:|:------:|
-|                             | MQTT  | MQTT  | Browser | MQTT  | MQTT  | Browser |  MQTT  |  MQTT  |
-|                             | Home  | Domo  |  Only   | Home  | Domo  |  Only   |  Home  |  Domo  |
-|                             | Asst  | Build |  Build  | Asst  | UPG   |  UPG    |  Asst  | BME280 |
-|                             | Build |       |         | UPG   | Build |  Build  | BME280 |  UPG   |
-|                             |       |       |         | Build |       |         |  UPG   |  Build |
-|                             |       |       |         |       |       |         |  Build |        |
-|                             |       |       |         |       |       |         |        |        |
-|---------- Feature ----------|       |       |         |       |       |         |        |        |
-|MQTT Support                 |   x   |   x   |         |   x   |   x   |         |   x    |   x    |
-|Home Assistant Support       |   x   |       |         |   x   |       |         |   x    |        |
-|Domoticz Support             |       |   x   |         |       |   x   |         |        |   x    |
-|Browser IO Control           |   x   |   x   |    x    |   x   |   x   |    x    |   x    |   x    |
-|Browser Configuration        |   x   |   x   |    x    |   x   |   x   |    x    |   x    |   x    |
-|Full/Half Duplex             |   x   |   x   |    x    |   x   |   x   |    x    |   x    |   x    |
-|DS18B20 Temp Sensor          |   x   |   x   |    x    |   x   |   x   |    x    |        |        |
-|BME280 Sensor                |       |       |         |       |       |         |   x    |   x    |
-|IO Naming                    |       |       |    x    |       |       |    x    |        |        |
-|IO Timers                    |       |       |    x    |       |       |    x    |        |        |
-|Link Error Statistics        |   x   |   x   |    x    |   x   |   x   |    x    |        |        |
-|Network Statistics           |       |       |    x    |       |       |    x    |        |        |
-|I2C Support                  |       |       |         |   x   |   x   |    x    |   x    |   x    |
-|Upgradeable over Ethernet  * |       |       |         |   x   |   x   |    x    |   x    |   x    |
-|Linked Pin Support           |   x   |   x   |    x    |   x   |   x   |    x    |        |        |
-|PCF8574 Support              |       |       |         |   x   |   x   |    x    |        |        |
-|Alternative Pinout Support   |   x   |   x   |    x    |       |       |         |        |        |
-|Response Lockout Support     |       |       |    x    |   x   |   x   |    x    |   x    |   x    |
-* "Upgradeable over Ethernet" requires additonal hardware - see Manual
+|                              |       |       |         |       |       |         |        |        |
+|:-----------------------------|:-----:|:-----:|:-------:|:-----:|:-----:|:-------:|:------:|:------:|
+|                              | MQTT  | MQTT  | Browser | MQTT  | MQTT  | Browser |  MQTT  |  MQTT  |
+|                              | Home  | Domo  |  Only   | Home  | Domo  |  Only   |  Home  |  Domo  |
+|                              | Asst  | Build |  Build  | Asst  | UPG   |  UPG    |  Asst  | BME280 |
+|                              | Build |       |         | UPG   | Build |  Build  | BME280 |  UPG   |
+|                              |       |       |         | Build |       |         |  UPG   |  Build |
+|                              |       |       |         |       |       |         |  Build |        |
+|----------- Feature ----------|       |       |         |       |       |         |        |        |
+|SWIM Install                  |   x   |   x   |    x    |       |       |         |        |        |
+|Upgradeable (Ethernet) Install|       |       |         |   x   |   x   |    x    |   x    |   x    |
+|MQTT Support                  |   x   |   x   |         |   x   |   x   |         |   x    |   x    |
+|Home Assistant Support        |   x   |       |         |   x   |       |         |   x    |        |
+|Domoticz Support              |       |   x   |         |       |   x   |         |        |   x    |
+|Browser IO Control            |   x   |   x   |    x    |   x   |   x   |    x    |   x    |   x    |
+|Browser Configuration         |   x   |   x   |    x    |   x   |   x   |    x    |   x    |   x    |
+|Full/Half Duplex              |   x   |   x   |    x    |   x   |   x   |    x    |   x    |   x    |
+|DS18B20 Temp Sensor           |   x   |   x   |    x    |   x   |   x   |    x    |        |        |
+|BME280 Sensor                 |       |       |         |       |       |         |   x    |   x    |
+|IO Naming                     |       |       |    x    |       |       |    x    |        |        |
+|IO Timers                     |       |       |    x    |       |       |    x    |        |        |
+|Link Error Statistics         |   x   |   x   |    x    |   x   |   x   |    x    |        |        |
+|Network Statistics            |       |       |    x    |       |       |    x    |        |        |
+|I2C Support                   |       |       |         |   x   |   x   |    x    |   x    |   x    |
+|Linked Pin Support            |   x   |   x   |    x    |   x   |   x   |    x    |        |        |
+|PCF8574 Support               |       |       |         |   x   |   x   |    x    |        |        |
+|Alternative Pinout Support    |   x   |   x   |    x    |       |       |         |        |        |
+|Response Lockout Support      |       |       |    x    |   x   |   x   |    x    |   x    |   x    |
+IMPORTANT: "Upgradeable (Ethernet) Install" requires additonal hardware - see Manual
 
 Short summary of recent history:
 

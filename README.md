@@ -12,31 +12,39 @@ See the Wiki for links to the Youtube videos on how to install and operate the f
 Contact: You can reach me at nielsonm.projects@gmail.com. But questions can also be asked via the Issues section. Sometimes others have the same questions and Q&A in the Issues section might help them out.
 
 Feature Comparison of the MQTT and Browser builds:
-|                             |       |         |             |              |             |
-|:----------------------------|:-----:|:-------:|:-----------:|:------------:|:-----------:|
-|                             | MQTT  | Browser |    MQTT     | Browser Only |   MQTT w/   |
-|                             | Build |  Only   | Upgradeable |  Upgradeable |   BME280    |
-|                             |       | Build   |    Build    |     Build    | Upgradeable |
-|---------- Feature ----------|       |         |             |              |    Build    |
-|MQTT Support                 |   x   |         |      x      |              |      x      |
-|Home Assistant Support       |   x   |         |      x      |              |      x      |
-|Browser IO Control           |   x   |    x    |      x      |       x      |      x      |
-|Browser Configuration        |   x   |    x    |      x      |       x      |      x      |
-|Full/Half Duplex             |   x   |    x    |      x      |       x      |      x      |
-|DS18B20 Temp Sensor          |   x   |    x    |      x      |       x      |             |
-|BME280 Sensor                |       |         |             |              |      x      |
-|IO Naming                    |       |    x    |             |       x      |             |
-|IO Timers                    |       |    x    |             |       x      |             |
-|Link Error Statistics        |   x   |    x    |      x      |       x      |             |
-|Network Statistics           |       |    x    |             |       x      |             |
-|I2C Support                  |       |         |      x      |       x      |      x      |
-|Upgradeable over Ethernet  * |       |         |      x      |       x      |      x      |
-|Linked Pin Support           |   x   |    x    |      x      |       x      |             |
-|PCF8574 Support              |       |         |      x      |       x      |             |
-|Alternative Pinout Support   |   x   |    x    |             |              |             |
+|                             |    SWIM Install Only    |      Upgradeable (Ethernet) Install       |
+|:----------------------------|:-----:|:-----:|:-------:|:-----:|:-----:|:-------:|:------:|:------:|
+|                             | MQTT  | MQTT  | Browser | MQTT  | MQTT  | Browser |  MQTT  |  MQTT  |
+|                             | Home  | Domo  |  Only   | Home  | Domo  |  Only   |  Home  |  Domo  |
+|                             | Asst  | Build |  Build  | Asst  | UPG   |  UPG    |  Asst  | BME280 |
+|                             | Build |       |         | UPG   | Build |  Build  | BME280 |  UPG   |
+|                             |       |       |         | Build |       |         |  UPG   |  Build |
+|                             |       |       |         |       |       |         |  Build |        |
+|                             |       |       |         |       |       |         |        |        |
+|---------- Feature ----------|       |       |         |       |       |         |        |        |
+|MQTT Support                 |   x   |   x   |         |   x   |   x   |         |   x    |   x    |
+|Home Assistant Support       |   x   |       |         |   x   |       |         |   x    |        |
+|Domoticz Support             |       |   x   |         |       |   x   |         |        |   x    |
+|Browser IO Control           |   x   |   x   |    x    |   x   |   x   |    x    |   x    |   x    |
+|Browser Configuration        |   x   |   x   |    x    |   x   |   x   |    x    |   x    |   x    |
+|Full/Half Duplex             |   x   |   x   |    x    |   x   |   x   |    x    |   x    |   x    |
+|DS18B20 Temp Sensor          |   x   |   x   |    x    |   x   |   x   |    x    |        |        |
+|BME280 Sensor                |       |       |         |       |       |         |   x    |   x    |
+|IO Naming                    |       |       |    x    |       |       |    x    |        |        |
+|IO Timers                    |       |       |    x    |       |       |    x    |        |        |
+|Link Error Statistics        |   x   |   x   |    x    |   x   |   x   |    x    |        |        |
+|Network Statistics           |       |       |    x    |       |       |    x    |        |        |
+|I2C Support                  |       |       |         |   x   |   x   |    x    |   x    |   x    |
+|Upgradeable over Ethernet  * |       |       |         |   x   |   x   |    x    |   x    |   x    |
+|Linked Pin Support           |   x   |   x   |    x    |   x   |   x   |    x    |        |        |
+|PCF8574 Support              |       |       |         |   x   |   x   |    x    |        |        |
+|Alternative Pinout Support   |   x   |   x   |    x    |       |       |         |        |        |
+|Response Lockout Support     |       |       |    x    |   x   |   x   |    x    |   x    |   x    |
 * "Upgradeable over Ethernet" requires additonal hardware - see Manual
 
 Short summary of recent history:
+
+October 9, 2023 - Added Domoticz support and addressed several other Issues: #199, #200, #201, #202, #205, #206, #207. See the Change Log in the manual for Issue titles.
 
 August 3, 2023 - Addressed numerous issues, most relatively small. See the change log in the manual for full descriptions of Issues #172, #174, #179, #180, #181, #183, #184, #185, #187, #188, #189, #190, and #191.
 

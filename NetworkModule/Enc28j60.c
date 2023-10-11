@@ -47,7 +47,7 @@
 #include "main.h"
 
 // Variables used to store debug information
-extern uint8_t debug[10];
+extern uint8_t debug_bytes[10];
 
 extern uint32_t TRANSMIT_counter;      // Counts any transmit
 extern uint8_t stored_config_settings; // Config settings stored in EEPROM
@@ -609,16 +609,16 @@ void Enc28j60Init(void)
   // EEPROM. Note: debug[2] also contains the stack overflow bit in the most
   // significant bit of the byte which must not be over-written here, so the
   // existing bit is read and duplicated here.
-  debug[2] = (uint8_t)(debug[2] & 0x80);
+  debug_bytes[2] = (uint8_t)(debug_bytes[2] & 0x80);
 
 #if DEBUG_SUPPORT == 15
-// if (debug[2] & 0x80) {
+// if (debug_bytes[2] & 0x80) {
 // UARTPrintf("\r\n");
 // UARTPrintf("Enc28j60Init: Stack Error is set!!!\r\n");
 // }
 #endif // DEBUG_SUPPORT == 15
 
-  debug[2] = (uint8_t)(debug[2] | ((Enc28j60ReadReg(BANK3_EREVID)) & 0x07));
+  debug_bytes[2] = (uint8_t)(debug_bytes[2] | ((Enc28j60ReadReg(BANK3_EREVID)) & 0x07));
   update_debug_storage1(); // Only write the EEPROM if the byte changed.
 
   // Enable Packet Reception
@@ -640,7 +640,7 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
 #endif // DEBUG_SUPPORT == 15
 
     // Increment the RXERIF counter
-    debug[4]++;
+    debug_bytes[4]++;
     // Store result in EEPROM for display
     update_debug_storage1();
     
@@ -840,7 +840,7 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
   // time a transmit occurred. If no error just start the transmission.
   if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) {
     // Count TXERIF error
-    debug[3]++;
+    debug_bytes[3]++;
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -864,7 +864,7 @@ UARTPrintf("TXERIF first error\r\n");
 #endif // DEBUG_SUPPORT == 15
 
     // Count TXERIF error
-    debug[3]++;
+    debug_bytes[3]++;
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -897,7 +897,7 @@ wait_timer(10);  // Wait 10 uS
       // transmission.
       if (txerif_temp && late_collision) {
         // Count TXERIF error
-        debug[3]++;
+        debug_bytes[3]++;
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -913,7 +913,7 @@ wait_timer(10);  // Wait 10 uS
     }
   }
   
-  // Save debug[3] (TXERIF counter) in EEPROM for display in Link Error
+  // Save debug_bytes[3] (TXERIF counter) in EEPROM for display in Link Error
   // Statistics
   update_debug_storage1();
 }

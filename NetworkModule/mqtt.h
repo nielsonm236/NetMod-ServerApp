@@ -176,19 +176,31 @@ struct mqtt_fixed_header {
 #define MQTT_OK                                    (int16_t)1
 
 
+// Defines for the "long MQTT message filter"
+#define CAPTURE_VARIABLE_HEADER_BYTE1	0
+#define CAPTURE_VARIABLE_HEADER_BYTE2	1
+#define FIND_COMPONENT_START		2
+#define CAPTURE_COMPONENT		3
+// #define FIND_PAYLOAD_START		4
+// #define CAPTURE_COMPONENT_NAME		5
+// #define COMPLETE_COMPONENT_CAPTURE	6
+#define COMPLETE_MSG_RECEIVE		7
+
+
+
 // Pack a MQTT 16 bit integer, given a native 16 bit integer
 // buf - the buffer that the MQTT integer will be written to
 // integer - the native integer to be written to buf
 // This function provides no error checking
 // returns 2
-int16_t __mqtt_pack_uint16(uint8_t *buf, uint16_t integer);
+int16_t mqtt_pack_uint16(uint8_t *buf, uint16_t integer);
 
 
 // Unpack a MQTT 16 bit integer to a native 16 bit integer.
 // buf - the buffer that the MQTT integer will be read from.
 // This function provides no error checking and does not modify buf.
 // returns The native integer
-uint16_t __mqtt_unpack_uint16(const uint8_t *buf);
+uint16_t mqtt_unpack_uint16(const uint8_t *buf);
 
 
 // Pack a MQTT string, given a c-string str.
@@ -196,11 +208,7 @@ uint16_t __mqtt_unpack_uint16(const uint8_t *buf);
 // str - the c-string to be written to buf.
 // This function provides no error checking.
 // returns strlen(str) + 2
-int16_t __mqtt_pack_str(uint8_t *buf, const char* str);
-
-
-// A macro to get the MQTT string length from a c-string
-#define __mqtt_packed_cstrlen(x) (2 + strlen(x))
+int16_t mqtt_pack_str(uint8_t *buf, const char* str);
 
 
 /* RESPONSES */
@@ -787,13 +795,13 @@ uint16_t __mqtt_next_pid(struct mqtt_client *client);
 // Handles egress client traffic.
 // client - The MQTT client.
 // returns - MQTT_OK upon success, an MQTTErrors otherwise. 
-int16_t __mqtt_send(struct mqtt_client *client);
+int16_t mqtt_send(struct mqtt_client *client);
 
 
 // Handles ingress client traffic.
 // client - The MQTT client.
 // returns - MQTT_OK upon success, an MQTTErrors otherwise. 
-int16_t __mqtt_recv(struct mqtt_client *client);
+int16_t mqtt_recv(struct mqtt_client *client);
 
 
 // Function that does the actual sending and receiving of traffic from the
@@ -938,11 +946,6 @@ int16_t mqtt_subscribe(struct mqtt_client *client,
 // client - The MQTT client.
 // returns - MQTT_OK upon success, an MQTTErrors otherwise.
 int16_t mqtt_ping(struct mqtt_client *client);
-
-
-// Ping the broker.
-// see mqtt_ping
-int16_t __mqtt_ping(struct mqtt_client *client);
 
 
 // Terminate the session with the MQTT broker. 

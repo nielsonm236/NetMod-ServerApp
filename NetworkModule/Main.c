@@ -36,7 +36,7 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20230803 1943"; // Normal Release Revision
+const char code_revision[] = "20231009 1022"; // Normal Release Revision
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -93,9 +93,9 @@ uint8_t stack_limit2;
 					   // User entered altitude used for
 					   // BME280 pressure calibration
 // 108 bytes used below
-@eeprom uint8_t stored_debug[10];          // 10 debug bytes
-					   // Byte 108 stored_debug[9]
-                                           // Byte 99 stored_debug[0]
+@eeprom uint8_t stored_debug_bytes[10];    // 10 debug bytes
+					   // Byte 108 stored_debug_bytes[9]
+                                           // Byte 99 stored_debug_bytes[0]
 
 // 98 bytes used below
 @eeprom uint8_t stored_pin_control[16];    // Byte 83-98 Config settings for
@@ -119,12 +119,32 @@ uint8_t stack_limit2;
                                            // prior to reboot
 @eeprom uint8_t stored_unused6;            // Byte 80 unused
 @eeprom uint8_t stored_unused5;            // Byte 79 unused
-@eeprom uint8_t stored_unused4;            // Byte 78 unused
+@eeprom uint8_t stored_options2;           // Byte 78 Additional Options
+                                           // Bit 7: not used
+					   // Bit 6: not used
+					   // Bit 5: not used
+					   // Bit 4: not used
+					   // Bit 3: not used
+					   // Bits 0-2: INA226 Shunt Resistor Options
+					   //   See Manual
+					   //   000 = 0.002 ohm
+					   //   001 = 0.010 ohm
+					   //   010 = 0.100 ohm
 @eeprom uint8_t stored_latching_relay_state; // Byte 77 latching_relay_state
                                            // is used to store the last known
 					   // state that latching relays were
 					   // set to in the Software Defined
 					   // Radio builds.
+					   // Bit 7: Relay 7 state
+					   //   0 = off
+					   //   1 = on
+					   // Bit 6: Relay 6 state
+					   // Bit 5: Relay 5 state
+					   // Bit 4: Relay 4 state
+					   // Bit 3: Relay 3 state
+					   // Bit 2: Relay 2 state
+					   // Bit 1: Relay 1 state
+					   // Bit 0: Relay 0 state
 @eeprom uint8_t stored_rotation_ptr;       // Byte 76 rotation_ptr is used to
                                            // select an alternate local MQTT
 					   // port number on successive boots
@@ -177,19 +197,26 @@ uint8_t stack_limit2;
 
 
 //---------------------------------------------------------------------------//
-// The "debug" EEPROM storage is used to retain specific debug information
+// The "debug_bytes" EEPROM storage is used to retain specific debug information
 // across reboots and to make that information available for user viewing.
 // The RAM debug values provide temporary storage of the values as an aid in
 // reducing the number of EEPROM writes.
-uint8_t debug[10];
+uint8_t debug_bytes[10];
 //---------------------------------------------------------------------------//
 
 
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+// Define Flash addresses for IDX values
+// Note: While IDX values are not used in all builds they are still defined
+// for all builds.
+uint8_t Sensor_IDX[6][8] @FLASH_START_SENSOR_IDX;
+
+
 // Define Flash addresses for STM8 pin IO Names and IO Timers
+// Note: While IO_NAME and IO_TIMER Flash space is not used in all builds it
+// is still defined for all builds.
 uint16_t IO_TIMER[16] @FLASH_START_IO_TIMERS;
 char IO_NAME[16][16] @FLASH_START_IO_NAMES;
-
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 // Define RAM for IO Timers
 #if PCF8574_SUPPORT == 0
 uint16_t Pending_IO_TIMER[16];
@@ -198,6 +225,7 @@ uint16_t Pending_IO_TIMER[16];
 uint16_t Pending_IO_TIMER[24];
 #endif // PCF8574_SUPPORT == 1
 uint8_t timer_flags; // Flags to aid in timer decrementing
+
 
 // Define pin_timers
 #if PCF8574_SUPPORT == 0
@@ -220,10 +248,14 @@ uint16_t pin_timer[24]; // The pin_timers are 14 bit timers with the 2 most
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
-
-#if PCF8574_SUPPORT == 0
+// Declaring variables for processing pin_control bytes.
+// Builds that do not have PCF8574 support can utilize smaller variables
+// (which take less RAM) and 16 bit operations (which take less Flash space).
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 uint8_t pin_control[16];                // Array of per pin configuration
                                         // bytes
+uint8_t Pending_pin_control[16];        // Temporary storage of pending
+                                        // pin_control bytes.
 uint16_t ON_OFF_word;                   // ON/OFF states of pins in single 16
                                         // bit word
 uint16_t ON_OFF_word_new1;              // ON/OFF states of pins stored for
@@ -234,12 +266,14 @@ uint16_t ON_OFF_word_sent;              // Used to indicate pin states that
                                         // need to be sent in MQTT Publish msgs
 uint16_t Invert_word;                   // Invert state of pins in single 16 bit
                                         // word
-#endif // PCF8574_SUPPORT == 0
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 
-#if PCF8574_SUPPORT == 1
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 uint8_t pin_control[24];                // Array of per pin configuration
                                         // bytes when PCF8574 is included in
 					// the hardware configuration
+uint8_t Pending_pin_control[24];        // Temporary storage of pending
+                                        // pin_control bytes.
 uint32_t ON_OFF_word;                   // ON/OFF states of pins in single 32
                                         // bit word
 uint32_t ON_OFF_word_new1;              // ON/OFF states of pins stored for
@@ -250,7 +284,9 @@ uint32_t ON_OFF_word_sent;              // Used to indicate pin states that
                                         // need to be sent in MQTT Publish msgs
 uint32_t Invert_word;                   // Invert state of pins in single 32 bit
                                         // word
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
+
+
 
 
 // Flag bytes
@@ -289,12 +325,11 @@ uint8_t Pending_config_settings;
 
 uint8_t Pending_uip_ethaddr_oct[6];
 
-#if PCF8574_SUPPORT == 0
-uint8_t Pending_pin_control[16];
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
-uint8_t Pending_pin_control[24];
-#endif // PCF8574_SUPPORT == 1
+
+
+
+
+
 
 char mac_string[13];
 
@@ -310,20 +345,17 @@ extern uint32_t second_counter; // Time in seconds
 extern uint8_t OctetArray[14];  // Used in emb_itoa conversions and to
                                 // transfer short strings globally
 
-// extern uint8_t parse_tail[66];  // >>> Used mostly in POST packet processing
-                                // but also repurposed for buffering data
-				// received in a program update file.
-
 #if SUPPORT_174 == 0
 int8_t io_map_offset;           // Used in pinout options
 #endif // SUPPORT_174 == 0
 
+
 #if LINKED_SUPPORT == 1
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 uint8_t linked_edge;		// Used for indicating Input pin edge
 				// detection when using Linked pins
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 uint16_t linked_edge;		// Used for indicating Input pin edge
 				// detection when using Linked pins.
 				// If a bit is set to 1 it means the
@@ -344,7 +376,7 @@ uint16_t linked_edge;		// Used for indicating Input pin edge
 				// bit 13 = N/A
 				// bit 14 = N/A
 				// bit 15 = N/A
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 #endif // LINKED_SUPPORT == 1
 
 
@@ -392,13 +424,23 @@ uint8_t auto_discovery;               // Used in the Auto Discovery state machin
 uint8_t auto_discovery_step;          // Used in the Auto Discovery state machine
 uint8_t pin_ptr;                      // Used in the Auto Discovery state machine
 uint8_t sensor_number;                // Used in the Auto Discovery state machine
-#if PCF8574_SUPPORT == 0
+
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 uint16_t MQTT_transmit;               // Used to force a publish_pinstate
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 uint32_t MQTT_transmit;               // Used to force a publish_pinstate
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
+
+
+// Define globals to communicate the idx and nvalue values from the
+// mqtt_sync() function to the publish_callback() function.
+#if DOMOTICZ_SUPPORT == 1
+extern char idx_string[7];
+extern char nvalue_string[2];
+#endif // DOMOTICZ_SUPPORT == 1
 #endif // BUILD_SUPPORT == MQTT_BUILD
+
 
 // These MQTT variables must always be compiled for both the MQTT_BUILD and
 // the BROWSER_ONLY_BUILD to maintain a common user interface between the MQTT
@@ -415,9 +457,6 @@ char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
 uint16_t mqttport;             	      // MQTT host port number
 uint16_t mqtt_local_port;             // MQTT local port number
 uint16_t Port_Mqttd;                  // In use MQTT host port number
-
-
-
 
 uint32_t TRANSMIT_counter;       // Counts any transmit by the ENC28J60
 uint8_t MQTT_resp_tout_counter;  // Counts response timeout events in the
@@ -460,11 +499,22 @@ struct bme280_data comp_data; // Structure to collect the compensated
                               // pressure, temperature and humidity data.
 uint8_t BME280_found;         // Used to indicate that that a BME280 device
                               // was found on the I2C bus.
-int8_t send_mqtt_BME280;      // Indicates if new sensor measurements are
-                              // pending transmit on MQTT. In this application
-			      // there are 3 sensors, so setting to 2 will
-			      // cause all 3 to transmit (2,1,0). -1 indicates
-			      // nothing to transmit.
+int8_t send_mqtt_BME280;      // Indicates if new BME280 sensor measurements
+                              // are pending transmit on MQTT.
+			      //
+			      // In thee Home Assistant environment the BME280
+			      // is treated as 3 separate sensors (Temperature,
+			      // Humidity, Pressure) so setting send_mqtt_BME280
+			      // to 2 will cause all 3 to transmit (2,1,0).
+			      //
+			      // In the Domoticz environment the BME280 sensors
+			      // are sent as a single message, so setting to
+			      // 0 will cause the sensor values to transmit.
+			      //
+			      // In both environments -1 indicates "nothing to
+			      // transmit".
+extern int32_t comp_data_temperature; // Compensated temperature
+extern int32_t comp_data_humidity;    // Compensated humidity
 #endif // BME280_SUPPORT == 1
 
 
@@ -631,14 +681,14 @@ int main(void)
   // Initialize the UART for debug output
   // Note: gpio_init() must be called prior to this call
   InitializeUART();
-  UARTPrintf("\r\n\r\n\r\n\r\n\r\nBooting Rev ");
+  UARTPrintf("\r\n\n\n\n\nBooting Rev ");
   UARTPrintf(code_revision);
   
-#if BUILD_TYPE_MQTT_STANDARD == 1 || BUILD_TYPE_BROWSER_STANDARD == 1 || BUILD_TYPE_MQTT_UPGRADEABLE == 1 || BUILD_TYPE_BROWSER_UPGRADEABLE == 1 || BUILD_TYPE_BROWSER_STANDARD_RFA == 1 || BUILD_TYPE_BROWSER_UPGRADEABLE_RFA == 1
+#if BUILD_SUPPORT == MQTT_BUILD || BUILD_SUPPORT == BROWSER_ONLY_BUILD
   UARTPrintf("   MQTT or BROWSER\r\n");
-#endif // BUILD_TYPE_MQTT_STANDARD == 1 || BUILD_TYPE_BROWSER_STANDARD == 1 || BUILD_TYPE_MQTT_UPGRADEABLE == 1 || BUILD_TYPE_BROWSER_UPGRADEABLE == 1
+#endif // BUILD_SUPPORT == MQTT_BUILD || BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-#if BUILD_TYPE_CODE_UPLOADER == 1
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
   UARTPrintf("   Code Uploader\r\n");
 #endif // BUILD_TYPE_CODE_UPLOADER == 1
 #endif // DEBUG_SUPPORT == 15
@@ -707,7 +757,7 @@ int main(void)
     // Collect initial temperature
     get_temperature();
     // Iniialize DS18B20 transmit control variable
-    send_mqtt_temperature = 0;
+    send_mqtt_temperature = -1; // Indicates nothing to send on MQTT yet.
   }
 #endif // DS18B20_SUPPORT == 1
 
@@ -715,7 +765,8 @@ int main(void)
 #if BME280_SUPPORT == 1
   // Initialize the BME280
   BME280_found = 0;
-  send_mqtt_BME280 = 0;
+//  send_mqtt_BME280 = -1; // Indicates nothing to send on MQTT yet.
+  send_mqtt_BME280 = 2; // Indicates we should send BME280 data as part of boot.
   check_BME280_ctr = second_counter;
   rslt = bme280_init(&dev);
   if (rslt == BME280_OK) {
@@ -745,6 +796,23 @@ int main(void)
   // Initialize the PCF8574 and update the stored_options1 byte to reflect the
   // presence or absence of the PCF8574
   PCF8574_init();
+  
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // A problem that becomes apparent in the Domoticz builds occurs when
+  // PCF8574_SUPPORT == 1 but there is no PCF8574. Old contents in the I2C
+  // EEPROM can show up as PCF8574 settings. The user can simply delete those
+  // settings in the GUI, but it may be reasonable to set the pin_control
+  // bytes to "disabled" at this point in the code instead. The only problem
+  // with doing this in an automated way is the case where the PCF8574 was
+  // accidentally removed, then reattached. Automated code will have set all
+  // pins to disabled, but if automated code is not used the user settings
+  // will remain in the I2C EEPROM.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  
 #endif // PCF8574_SUPPORT == 1
 
 
@@ -771,48 +839,48 @@ int main(void)
   // Check RST_SR (Reset Status Register)
   if (RST_SR & 0x1f) {
     // Bit 4 EMCF: EMC reset flag
-    if (RST_SR & 0x10) debug[5] = (uint8_t)(debug[5] + 1);
+    if (RST_SR & 0x10) debug_bytes[5] = (uint8_t)(debug_bytes[5] + 1);
     // Bit 3 SWIMF: SWIM reset flag
-    if (RST_SR & 0x08) debug[6] = (uint8_t)(debug[6] + 1);
+    if (RST_SR & 0x08) debug_bytes[6] = (uint8_t)(debug_bytes[6] + 1);
     // Bit 2 ILLOPF: Illegal opcode reset flag
-    if (RST_SR & 0x04) debug[7] = (uint8_t)(debug[7] + 1);
+    if (RST_SR & 0x04) debug_bytes[7] = (uint8_t)(debug_bytes[7] + 1);
     // Bit 1 IWDGF: Independent Watchdog reset flag
-    if (RST_SR & 0x02) debug[8] = (uint8_t)(debug[8] + 1);
+    if (RST_SR & 0x02) debug_bytes[8] = (uint8_t)(debug_bytes[8] + 1);
     // Bit 0 WWDGF: Window Watchdog reset flag
-    if (RST_SR & 0x01) debug[9] = (uint8_t)(debug[9] + 1);
+    if (RST_SR & 0x01) debug_bytes[9] = (uint8_t)(debug_bytes[9] + 1);
     update_debug_storage1();
     RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
   }
 
-
 #if TEMP_DEBUG_EXCLUDE == 0
   UARTPrintf("ENC28J60 Rev Code ");
-  emb_itoa((debug[2] & 0x07), OctetArray, 16, 2);
+  emb_itoa((debug_bytes[2] & 0x07), OctetArray, 16, 2);
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
 
   UARTPrintf("EMCF: ");
-  emb_itoa(debug[5], OctetArray, 10, 3);
+  emb_itoa(debug_bytes[5], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("  SWIMF: ");
-  emb_itoa(debug[6], OctetArray, 10, 3);
+  emb_itoa(debug_bytes[6], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("  ILLOPF: ");
-  emb_itoa(debug[7], OctetArray, 10, 3);
+  emb_itoa(debug_bytes[7], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("  IWDGF: ");
-  emb_itoa(debug[8], OctetArray, 10, 3);
+  emb_itoa(debug_bytes[8], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("  WWDGF: ");
-  emb_itoa(debug[9], OctetArray, 10, 3);
+  emb_itoa(debug_bytes[9], OctetArray, 10, 3);
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
   
-  if (debug[2] & 0x80) UARTPrintf("Stack Overflow ERROR!");
+  if (debug_bytes[2] & 0x80) UARTPrintf("Stack Overflow ERROR!");
   else UARTPrintf("Stack Overflow - none detected");
-  UARTPrintf("\r\n");
+  UARTPrintf("\r\n\r\n");
 #endif // TEMP_DEBUG_EXCLUDE == 0
 #endif // DEBUG_SUPPORT == 15
+
 
 #if DEBUG_SUPPORT == 15
 // UARTPrintf("stored_options1 at boot = ");
@@ -833,9 +901,9 @@ int main(void)
   // If a Code Uploader Build copy Flash to EEPROM1.
   if (eeprom_detect == 1) {
     copy_code_uploader_to_EEPROM1();
+    // Flicker LED for 1 second to indicate I2C EEPROM write completion
+    fastflash();
   }
-  // Flicker LED for 1 second to indicate I2C EEPROM write completion
-  fastflash();
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 
@@ -852,16 +920,16 @@ int main(void)
   // Copy Flash to I2C EEPROM0.
   if (eeprom_detect == 1) {
     copy_flash_to_EEPROM0();
+    // Flicker LED for 1 second to indicate I2C EEPROM write completion
+    fastflash();
   }
-  // Flicker LED for 1 second to indicate I2C EEPROM write completion
-  fastflash();
 #endif // OB_EEPROM_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD    
 
 
-// Call the httpd_diagnotic() to verify that the content of the String file
-// is correct. The UART must be enabled for this to work.
 #if HTTPD_DIAGNOSTIC_SUPPORT == 1
+  // Call the httpd_diagnotic() to verify that the content of the String file
+  // is correct. The UART must be enabled for this to work.
   httpd_diagnostic();
 #endif // HTTPD_DIAGNOSTIC_SUPPORT == 1
 
@@ -1174,6 +1242,16 @@ int main(void)
       uip_arp_timer(); // Clean out old ARP Table entries. Any entry that has
                        // exceeded the UIP_ARP_MAXAGE without being accessed
 		       // is cleared. UIP_ARP_MAXAGE is typically 20 minutes.
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Stack Overflow Status = ");
+// if ((debug_bytes[2] & 0x80) == 0) UARTPrintf("GOOD\r\n");
+// if (debug_bytes[2] & 0x80) {
+// UARTPrintf("Stack Overflow ERROR!\r\n");
+// debug_bytes[2] = (uint8_t)(debug_bytes[2] & 0x7f); // clear stack overflow error
+// }
+#endif // DEBUG_SUPPORT == 15
     }
 
 #if DS18B20_SUPPORT == 1
@@ -1200,8 +1278,19 @@ int main(void)
         check_BME280_ctr = second_counter;
         stream_sensor_data_forced_mode(&dev, &comp_data);
 #if BUILD_SUPPORT == MQTT_BUILD
-        send_mqtt_BME280 = 2; // Indicates that the BME280 sensors
-                              // need to be transmitted via MQTT.
+        send_mqtt_BME280 = 2; // Indicates that the BME280 sensors need to be
+                              // transmitted via MQTT.
+			      // The value is set to 2 because the Home
+			      // Assistant implementation sends the
+			      // Temperature, Humidity, and Pressure valuse as
+			      // three separate sensors (so the
+			      // send_mqtt_BME280 index counts down 2, 1, 0 to
+			      // send all three sensors).
+			      // The Domoticz implementation sends the three
+			      // sensor values as a single message, so that
+			      // code will see the "2" as a "send now", and
+			      // will adjust the send_mqtt_BME280 count down
+			      // accordingly.
 #endif // BUILD_SUPPORT == MQTT_BUILD
 #if DEBUG_SUPPORT == 15
         // Print sensor data on UART
@@ -1523,7 +1612,7 @@ void mqtt_startup(void)
   //   - Verifies that the TCP connection request suceeded.
   //   - Initializes communication with the MQTT Broker.
   // - Once the above is completed the Home Assistant Auto Discovery messages
-  //   are published (if Auto Discovery is enabled).
+  //   are published (if Home Assistnat Auto Discovery is enabled).
 
   switch(mqtt_start)
   {
@@ -1665,6 +1754,7 @@ void mqtt_startup(void)
     break;
 
 
+#if HOME_ASSISTANT_SUPPORT == 1
   case MQTT_START_MQTT_INIT:
     if (mqtt_start_ctr1 > 4) {
       // Initialize mqtt client
@@ -1678,6 +1768,28 @@ void mqtt_startup(void)
       mqtt_start = MQTT_START_QUEUE_CONNECT;
     }
     break;
+#endif // HOME_ASSISTANT_SUPPORT == 1
+
+
+#if DOMOTICZ_SUPPORT == 1
+  case MQTT_START_MQTT_INIT:
+    if (mqtt_start_ctr1 > 4) {
+      // Initialize mqtt client
+      mqtt_init(&mqttclient,
+                mqtt_sendbuf,
+                sizeof(mqtt_sendbuf),
+                &uip_buf[UIP_IPTCPH_LEN + UIP_LLH_LEN],
+                UIP_APPDATA_SIZE,
+                publish_callback);
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
+      mqtt_start = MQTT_START_QUEUE_CONNECT;
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Sent mqtt_init\r\n");
+#endif // DEBUG_SUPPORT == 15
+    }
+    break;
+#endif // DOMOTICZ_SUPPORT == 1
 
 
   case MQTT_START_QUEUE_CONNECT:
@@ -1726,6 +1838,10 @@ void mqtt_startup(void)
      
       mqtt_start_ctr1 = 0; // Clear 50ms counter
       mqtt_start = MQTT_START_VERIFY_CONNACK;
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Sent mqtt_connect\r\n");
+#endif // DEBUG_SUPPORT == 15
     }
     break;
 
@@ -1744,6 +1860,10 @@ void mqtt_startup(void)
         mqtt_start_ctr1 = 0; // Clear 50ms counter
         mqtt_start_status |= MQTT_START_MQTT_CONNECT_GOOD;
         mqtt_start = MQTT_START_QUEUE_SUBSCRIBE1;
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("connack_received\r\n");
+#endif // DEBUG_SUPPORT == 15
       }
     }
     else {
@@ -1754,11 +1874,11 @@ void mqtt_startup(void)
     break;
 
 
+#if HOME_ASSISTANT_SUPPORT == 1
   case MQTT_START_QUEUE_SUBSCRIBE1:
   case MQTT_START_QUEUE_SUBSCRIBE2:
   case MQTT_START_QUEUE_SUBSCRIBE3:
     if (mqtt_start_ctr1 > 4) {
-//    if (mqtt_start_ctr1 > 2) {
       // Queue the mqtt_subscribe messages for transmission to the MQTT
       // Broker.
       // Wait 200ms before queueing first Subscribe msg.
@@ -1845,8 +1965,96 @@ void mqtt_startup(void)
       mqtt_start_status = MQTT_START_NOT_STARTED; 
     }
     break;
+#endif // HOME_ASSISTANT_SUPPORT == 1
 
 
+#if DOMOTICZ_SUPPORT == 1
+  case MQTT_START_QUEUE_SUBSCRIBE1:
+    if (mqtt_start_ctr1 > 4) {
+      // Queue the mqtt_subscribe messages for transmission to the MQTT
+      // Broker.
+      // Wait 200ms before queueing first Subscribe msg.
+      //
+      // The mqtt_subscribe function will create the message and put it in
+      // the mqtt_sendbuf queue. uip_periodic() will start the process that
+      // will call mqtt_sync to transfer the message from the mqtt_sendbuf
+      // to the uip_buf.
+      //
+      // Note: Timing is managed here to prevent placing multiple SUBSCRIBE
+      // messages in the mqtt_sendbuf as that buffer is very small.
+      //
+      // SUBSCRIBE is run two times:
+      //   case MQTT_START_QUEUE_SUBSCRIBE1:
+      //   Subscribe to the domoticz/in topic
+      //
+      //   case MQTT_START_QUEUE_SUBSCRIBE2:
+      //   Subscribe to the domoticz/out topic
+      //
+	
+      suback_received = 0;
+      
+      if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE1) {
+        strcpy(topic_base, "domoticz/out");
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("MQTT_START_QUEUE_SUBSCRIBE1\r\n");
+#endif // DEBUG_SUPPORT == 15
+      }
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("MQTT_START_QUEUE_SUBSCRIBE2\r\n");
+#endif // DEBUG_SUPPORT == 15
+      
+      // In the mqtt_subscribe call the maximum QOS level spedified (0 in this
+      // case) is the max QOS level supported for the topic messages being
+      // subcribed to. The SUBSCRIBE itself has no QOS level as a special
+      // SUBACK message must be returned to verify the SUBSCRIBE transaction.
+      mqtt_subscribe(&mqttclient, topic_base, 0);
+      mqtt_start_ctr1 = 0; // Clear 50ms counter
+      
+      if (mqtt_start == MQTT_START_QUEUE_SUBSCRIBE1) mqtt_start = MQTT_START_VERIFY_SUBSCRIBE1;
+    }
+    break;
+
+
+  case MQTT_START_VERIFY_SUBSCRIBE1:
+    // Verify that the SUBSCRIBE SUBACK was received.
+    // When a SUBSCRIBE is sent to the broker it should respond with a SUBACK.
+    // The SUBACK will occur very quickly but we will allow up to 10 seconds
+    // before assuming an error has occurred.
+    // A workaround is implemented with the global variable suback_received so
+    // that the mqtt.c code can tell the main.c code that the SUBSCRIBE SUBACK
+    // was received.
+    //
+    // VERIFY_SUBSCRIBE is run two times
+
+    if (mqtt_start_ctr1 < 200) {
+      // Allow up to 10 seconds for SUBACK
+      if (suback_received == 1) {
+        mqtt_start_ctr1 = 0; // Clear 50ms counter
+        if (mqtt_start == MQTT_START_VERIFY_SUBSCRIBE1) {
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("SUBSCRIBE1 suback received\r\n");
+#endif // DEBUG_SUPPORT == 15
+          mqtt_start = MQTT_START_QUEUE_PUBLISH_ON;
+	}
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("SUBSCRIBE2 suback received\r\n");
+#endif // DEBUG_SUPPORT == 15
+      }
+    }
+    else {
+      mqtt_start = MQTT_START_TCP_CONNECT;
+      // Clear the error indicator flags
+      mqtt_start_status = MQTT_START_NOT_STARTED; 
+    }
+    break;
+#endif // DOMOTICZ_SUPPORT == 1
+
+
+#if HOME_ASSISTANT_SUPPORT == 1
   case MQTT_START_QUEUE_PUBLISH_AUTO:
     if (mqtt_start_ctr1 > 2) {
       // Publish Home Assistant Auto Discovery messages
@@ -2034,7 +2242,7 @@ void mqtt_startup(void)
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
             // if no PCF8574 exit the loop when pin_ptr == 16
-	    // if PCF8574 is present exit the loop when pin_ptr ==24
+	    // if PCF8574 is present exit the loop when pin_ptr == 24
 	    if ((((stored_options1 & 0x08) == 0x00) && (pin_ptr == 16))
 	     || (((stored_options1 & 0x08) == 0x08) && (pin_ptr == 24))) {
 #endif // PCF8574_SUPPORT == 1
@@ -2174,7 +2382,10 @@ void mqtt_startup(void)
       }
     }
     break;
+#endif // HOME_ASSISTANT_SUPPORT == 1
 
+
+#if HOME_ASSISTANT_SUPPORT == 1
   case MQTT_START_QUEUE_PUBLISH_ON:
     if (mqtt_start_ctr1 > 4) {
       // Wait 200ms before queuing the "availability online" PUBLISH message.
@@ -2192,7 +2403,19 @@ void mqtt_startup(void)
       mqtt_start = MQTT_START_QUEUE_PUBLISH_PINS;
     }
     break;
-  
+#endif // HOME_ASSISTANT_SUPPORT == 1
+
+
+#if DOMOTICZ_SUPPORT == 1
+  case MQTT_START_QUEUE_PUBLISH_ON:
+    // Domoticz environments do not use the "availability" function, so bypass
+    // that step - just go on to MQTT_START_QUEUE_PUBLISH_PINS
+    mqtt_start_ctr1 = 0; // Clear the 50ms counter
+    mqtt_start = MQTT_START_QUEUE_PUBLISH_PINS;
+    break;
+#endif // DOMOTICZ_SUPPORT == 1
+
+
   case MQTT_START_QUEUE_PUBLISH_PINS:
     if (mqtt_start_ctr1 > 4) {
       // Wait 200ms before starting
@@ -2200,12 +2423,12 @@ void mqtt_startup(void)
       // This is accomplished by setting ON_OFF_word_sent to the inverse of
       // whatever is currently in ON_OFF_word. This will cause the normal
       // checks for pin state changes to trigger a transmit for every pin.
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
       ON_OFF_word_sent = (uint16_t)(~ON_OFF_word);
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
       ON_OFF_word_sent = (uint32_t)(~ON_OFF_word);
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
       // Indicate succesful completion
 #if DEBUG_SUPPORT == 15
 // UARTPrintf("MQTT Startup Complete\r\n");
@@ -2218,12 +2441,13 @@ void mqtt_startup(void)
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 #if DS18B20_SUPPORT == 1
 void define_temp_sensors(void)
 {
   // This function is called from the mqtt_startup function when
   //   auto_discovery == DEFINE_TEMP_SENSORS
+  // This function is applicable only to Home Assistant Auto Discovery.
   // This function is part of the state machine contained within the
   // mqtt_startup and will manipulate the following state machine controls:
   //   auto_discovery_step = SEND_TEMP_SENSOR_DEFINE  
@@ -2262,15 +2486,16 @@ void define_temp_sensors(void)
   else sensor_number++;
 }
 #endif // DS18B20_SUPPORT == 1
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 #if BME280_SUPPORT == 1
 void define_BME280_sensors(void)
 {
   // This function is called from the mqtt_startup function when
   //   auto_discovery == DEFINE_BME280_SENSORS
+  // This function is applicable only to Home Assistant Auto Discovery.
   // This function is part of the state machine contained within mqtt_startup
   // and will manipulate the following state machine controls:
   //   auto_discovery_step = SEND_TEMP_SENSOR_DEFINE  
@@ -2318,14 +2543,15 @@ void define_BME280_sensors(void)
   else sensor_number++;
 }
 #endif // BME280_SUPPORT == 1
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 {
   // Format and send IO delete/define messages and sensor delete/define
   // messages.
+  // This function is applicable only to Home Assistant Auto Discovery.
   // For IOT == INPUTMSG or OUTPUTMSG the IOT_ptr indicates the pin number
   //   (1 to 16) that is being messaged.
   // For IOT == TMPRMSG the IOT_PTR indicates the sensor number (0 to 4) that
@@ -2463,7 +2689,7 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
                strlen(app_message),
                MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -2529,7 +2755,7 @@ void mqtt_sanity_check(struct mqtt_client *client)
 // MQTT not OK values are all negative numbers from 0x8000 to 0x801c.
 // For debug display strip the first 4 bits, convert the remaining bits
 // using emb_itoa (as it can only handle positive numbers), then rebuild
-// the code for display.
+// the error code for display.
 // {
 // int16_t temp1;
 // UARTPrintf("mqtt_sanity_check MQTT_not_OK - Error code: 0x");
@@ -2736,7 +2962,11 @@ void mqtt_sanity_check(struct mqtt_client *client)
 //--------------------------------------------------------------------------//
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
+
+
+
+
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 void publish_callback(void** unused, struct mqtt_response_publish *published)
 {
   char* pBuffer;
@@ -2758,6 +2988,8 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   // This function will be called if a "Publish" is received from the Broker.
   // The publish message will contain a payload that, in this application,
   // will be the output control bits.
+  //
+  // This function is applicable to Home Assistant environments.
   //
   // This function is called from within the mqtt_recv() function. The data
   // left in the uip_buf will remain there until this function completes.
@@ -2982,7 +3214,189 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
   // Note: if none of the above matched the parsing we just exit without
   // executing any functionality (the message is effectively ignored).
 }
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+
+
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+void publish_callback(void** unused, struct mqtt_response_publish *published)
+{
+  uint8_t ParseNum;
+  uint8_t error;
+  uint8_t match_found;
+  int i;
+
+  ParseNum = 0;
+  match_found = 0;
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("Running publish_callback\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+  // This function is applicable to Domoticz environments.
+  //
+  // This function will be called if a "Publish" is received from the Broker.
+  // Domoticz operates differently that Home Assistant in that the Publish
+  // message will have been completely received and analyzed in the
+  // mqtt_sync() process of the mqtt.c code. This is necessary because
+  // domoticz/out messages can be huge and may cross packet boundaries, which
+  // can only be accounted for if the message is processed within the
+  // mqtt_sync() function.
+  //
+  // The only values that need to be extracted from a Domoticz "domoticz/out"
+  // message are the idx and nvalue values. Those are captured in the
+  // mqtt_sync() function and stored in global values idx_string and
+  // nvalue_string.
+  //
+  // In the following code we set or clear an individual pin associated with
+  // the idx value. This requires searching the idx table to determine which
+  // IOn pin is being referenced.
+  
+  // Set the pBuffer pointer to the start of the MQTT packet
+
+  i = 0;
+  error = 0;
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("idx_string = ");
+// UARTPrintf(idx_string);
+// UARTPrintf("\r\n");
+// UARTPrintf("nvalue_string = ");
+// UARTPrintf(nvalue_string);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+  if (idx_string[0] == '\0') error = 1;
+  if (nvalue_string[0] == '\0') error = 1;
+
+  if (error == 0) {
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Starting IO_NAME search\r\n");
+#endif // DEBUG_SUPPORT == 15
+    // If no error was found then the idx and nvalue were captured.
+    // Search the idx table to determine which pin has been set or cleared.
+    // The idx table is stored in the same space normally used to store
+    // pin names.
+    
+    // Assumption is that the idx value is never greater than 6 digits and
+    // there are no leading zeroes.
+    match_found = 0;
+    for (i=0; i<16; i++) {
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("IO_NAME = ");
+// UARTPrintf(IO_NAME[i]);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+      if (strcmp(idx_string, IO_NAME[i]) == 0) {
+        // Found a match
+	match_found = 1;
+	ParseNum = (uint8_t)i;
+	break;
+      }
+    }
+    
+#if PCF8574_SUPPORT == 1
+    {
+      int j;
+      char temp_byte[16];
+      for (i=16; i<24; i++) {
+        // Read a PCF8574_IO_NAME value from I2C EEPROM
+        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + ((i - 16) * 16), 2);
+        for (j=0; j<15; j++) {
+          temp_byte[j] = I2C_read_byte(0);
+        }
+        temp_byte[15] = I2C_read_byte(1);
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("IO_NAME = ");
+// UARTPrintf(temp_byte);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+        if (strcmp(idx_string, temp_byte) == 0) {
+          // Found a match
+	  match_found = 1;
+	  ParseNum = (uint8_t)i;
+	  break;
+        }
+      }
+    }
+#endif // PCF8574_SUPPORT == 1
+    
+    if (match_found == 0) {
+      // Do nothing. The idx value is bogus.
+    
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("No idx match found\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+    }
+  }
+
+  if (match_found == 1) {
+    // Verify ParseNum is in the correct range
+    ParseNum++; // Add 1 to Parsenum for the following check
+#if PCF8574_SUPPORT == 0
+    if (ParseNum > 0 && ParseNum < 17) {
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+    if (ParseNum > 0 && ParseNum < 25) {
+#endif // PCF8574_SUPPORT == 1
+      ParseNum--; // Subtract one from ParseNum to use it as an array index
+      // Determine if payload is ON or OFF
+      if (nvalue_string[0] == '0') {
+        // Turn output OFF (and make sure it is an output)
+#if LINKED_SUPPORT == 0
+        if ((pin_control[ParseNum] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+        if (chk_iotype(pin_control[ParseNum], ParseNum, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+          // This is an Output
+	  Pending_pin_control[ParseNum] &= (uint8_t)~0x80;
+        }
+      }
+      else {
+        // Turn output ON (and make sure it is an output)
+#if LINKED_SUPPORT == 0
+	if ((pin_control[ParseNum] & 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 0
+#if LINKED_SUPPORT == 1
+        if (chk_iotype(pin_control[ParseNum], ParseNum, 0x03) == 0x03) {
+#endif // LINKED_SUPPORT == 1
+          // This is an Output
+	  Pending_pin_control[ParseNum] |= (uint8_t)0x80;
+        }
+      }
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // The below doesn't look right. I set the MQTT_transmit which will
+      // force a transmit. But I also changed the Pending_pin_control which
+      // when processed will also cause a transmit. If timing doesn't work
+      // out well we will have a double transmit?
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      // Set the appropriate bit in MQTT_transmit to force a 
+      // publish_pinstate for this pin.
+      {
+        uint32_t pin_index;
+        pin_index = 1;
+        pin_index = (pin_index << ParseNum);
+        MQTT_transmit = (MQTT_transmit | pin_index);
+      }
+    }
+  }
+    
+  // The above code effectively did for MQTT what the POST parsing does for
+  // HTML, ie, changed the pin_control byte. So we need to set the 
+  // mqtt_parse_complete value so that the check_runtime_changes() function
+  // will perform the necessary IO actions.
+  mqtt_parse_complete = 1;
+  // Note: if none of the above matched the parsing we just exit without
+  // executing any functionality (the message is effectively ignored).
+}
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
 
 
 #if BUILD_SUPPORT == MQTT_BUILD
@@ -3018,14 +3432,15 @@ void publish_outbound(void)
   // expirations to get all bits sent, and frequent changes in higher order
   // bits will supersede the processing of lower order bits.
 
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
   uint16_t xor_tmp;
   uint16_t j;
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
   uint32_t xor_tmp;
   uint32_t j;
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
+
   int i;
   int signal_break;
 
@@ -3053,18 +3468,19 @@ void publish_outbound(void)
     // XOR the current ON_OFF_word with the ON_OFF_word_sent (_sent being the
     // pin states we already transmitted via MQTT). This gives a result that
     // has a 1 for any pin state that still needs to be transmitted.
-#if PCF8574_SUPPORT == 0
+    
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
     xor_tmp = (uint16_t)(ON_OFF_word ^ ON_OFF_word_sent);
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
     xor_tmp = (uint32_t)(ON_OFF_word ^ ON_OFF_word_sent);
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
     i = 15;
     j = 0x8000;
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
     if (stored_options1 & 0x08) {
       i = 23;
       j = 0x00800000;
@@ -3073,7 +3489,7 @@ void publish_outbound(void)
       i = 15;
       j = 0x8000;
     }
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 
     while ( 1 ) {
 
@@ -3091,7 +3507,7 @@ void publish_outbound(void)
       }
 #endif // DS18B20_SUPPORT == 1
 
-#if BME280_SUPPORT == 1
+#if BME280_SUPPORT == 1 && HOME_ASSISTANT_SUPPORT == 1
       // Check if BME280 is enabled, and if yes check if a Sensor
       // Publish needs to occur.
       if (stored_config_settings & 0x20) { // BME280 enabled?
@@ -3101,7 +3517,24 @@ void publish_outbound(void)
 	  break;
 	}
       }
-#endif // BME280_SUPPORT == 1
+#endif // BME280_SUPPORT == 1 && HOME_ASSISTANT_SUPPORT == 1
+
+#if BME280_SUPPORT == 1 && DOMOTICZ_SUPPORT == 1
+      // Check if BME280 is enabled, and if yes check if a Sensor
+      // Publish needs to occur.
+      if (stored_config_settings & 0x20) { // BME280 enabled?
+	if (send_mqtt_BME280 >= 0) {
+	  publish_BME280(5);     // In the Domoticz environment the BME280
+	                         // sensor always occupies IDX index 5. IDX
+				 // indices 0, 1, 2, 3, 4 are for DS18B20.
+	  send_mqtt_BME280 = -1; // In the Domoticz environment all BME280
+	                         // sensors are sent in one call to
+				 // publish_BME280, so setting to -1 after
+				 // that call prevents further calls.
+	  break;
+	}
+      }
+#endif // BME280_SUPPORT == 1 && DOMOTICZ_SUPPORT == 1
 
       // Perform a publish_pinstate for each pin that has changed OR if an
       // MQTT PUBLISH attempts to change a pin state.
@@ -3120,13 +3553,16 @@ void publish_outbound(void)
       // when it is already OFF. That is a case where the Client is out of
       // sync, so the Network Module will generate a PUBLISH Response to get
       // the Client back into sync.
-      if ((xor_tmp & j) || (MQTT_transmit & j)) {
+//      if ((xor_tmp & j) || (MQTT_transmit & j)) {
+      if ((xor_tmp & j) || (MQTT_transmit & j && mqtt_parse_complete == 0)) {
 	// A publish_pinstate needs to occur if:
 	//   A pin is Enabled (either Input or Output) and its ON/OFF state
 	//   changed as indicated by xor_temp
 	//   OR
         //   A MQTT PUBLISH was received for a pin as indicated by the
-	//   MQTT_transmit word.
+	//   MQTT_transmit word. Only use the MQTT_tranmit word as a trigger
+	//   if mqtt_parse_complete == 0, indicating that any pin_control
+	//   changes have been processed.
 	// Send a PUBLISH Response containing the pin state
 #if LINKED_SUPPORT == 0
         if ((pin_control[i] & 0x03) == 0x03) { // Enabled Output
@@ -3156,12 +3592,12 @@ void publish_outbound(void)
         // ON_OFF_word_sent matches the bit in ON_OFF_word for the pin
         // just examined. This will inidcate it was processed.
         if (ON_OFF_word & j) ON_OFF_word_sent |= j;
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
         else ON_OFF_word_sent &= (uint16_t)~j;
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
         else ON_OFF_word_sent &= (uint32_t)~j;
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 	// Clear the bit in the MQTT_transmit word to indicate that the
 	// transmit was satisfied.
 	MQTT_transmit &= ~j;
@@ -3178,6 +3614,7 @@ void publish_outbound(void)
     }
   }
 
+#if HOME_ASSISTANT_SUPPORT == 1 // state_request not supported in Domoticz
   // Check for a state_request for 16 pins
   if (state_request == STATE_REQUEST_RCVD) {
     // Publish all pin states
@@ -3190,11 +3627,12 @@ void publish_outbound(void)
     state_request = STATE_REQUEST_IDLE;
     publish_pinstate_all(STATE_REQUEST_RCVD24);
   }
+#endif // HOME_ASSISTANT_SUPPORT == 1
 }
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 #if PCF8574_SUPPORT == 0
 void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t mask)
 #endif // PCF8574_SUPPORT == 0
@@ -3283,10 +3721,92 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
 	       size,
 	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+// #if PCF8574_SUPPORT == 0
+// void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t mask)
+// #endif // PCF8574_SUPPORT == 0
+// #if PCF8574_SUPPORT == 1
+void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t mask)
+// #endif // PCF8574_SUPPORT == 1
+{
+  // This function transmits a change in pin state for a single pin.
+  
+  int size;
+  int i;
+  int j;
+  unsigned char app_message[60]; // app_message (payload) is always of the form
+                                 // {"command":"switchlight","idx":xxxx,"switchcmd":"on"}
+				 // or
+                                 // {"command":"switchlight", "idx": xxxx, "switchcmd":"off"}
+  unsigned char topic_base[12];  // topic_base for Domoticz is always
+                                 //   domoticz/in
+  unsigned char temp_idx[8];     // temp storage for idx value when read from I2C EEPROM
+  
+  
+  strcpy(topic_base, "domoticz/in");
+
+  // If we are sending an Input message invert the value if the Invert_word
+  // bit associated with the pin is 1
+  if (direction == 'I') {
+// #if PCF8574_SUPPORT == 0
+//     if ((Invert_word & mask)) value = (uint16_t)(~value);
+// #endif // PCF8574_SUPPORT == 0
+// #if PCF8574_SUPPORT == 1
+    if ((Invert_word & mask)) value = (uint32_t)(~value);
+// #endif // PCF8574_SUPPORT == 1
+  }
+  
+  // Determine idx from table
+  pin--; // Subtract 1 from the pin number to use it as an index
+  app_message[0] = '\0';
+  // Place command and idx in the payload
+  strcat(app_message, "{\"command\":\"switchlight\",\"idx\":");
+  
+  if (pin < 16) {
+    // Collect idx for pin numbers from 0 to 15
+    strcat(app_message, IO_NAME[pin]);
+  }
+  
+#if PCF8574_SUPPORT == 1
+  else {
+    // Collect idx for pin numbers from 16 to 24
+    // Read a PCF8574_idx value from I2C EEPROM
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + ((pin - 16) * 16), 2);
+    for (j=0; j<7; j++) {
+      temp_idx[j] = I2C_read_byte(0);
+    }
+    temp_idx[7] = I2C_read_byte(1);
+    strcat(app_message, temp_idx);
+  }
+#endif // PCF8574_SUPPORT == 1
+  
+  // Place the on/off state in the payload
+  strcat(app_message, ",\"switchcmd\":\"");
+  if (value & mask) {
+    strcat(app_message, "On\"}");
+  }
+  else {
+    strcat(app_message, "Off\"}");
+  }
+  size = strlen(app_message);
+
+  // Queue publish message
+  // This message is always published with QOS 0
+  mqtt_publish(&mqttclient,
+               topic_base,
+	       app_message,
+	       size,
+	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+}
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+
+
+
+
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 void publish_pinstate_all(uint8_t type)
 {
   // This function transmits the state of all pins (outputs and sense inputs)
@@ -3388,10 +3908,10 @@ void publish_pinstate_all(uint8_t type)
 	       msg_size,
 	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
 }
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 #if DS18B20_SUPPORT == 1
 void publish_temperature(uint8_t sensor)
 {
@@ -3431,10 +3951,7 @@ void publish_temperature(uint8_t sensor)
     // as a value from 0 to 4 (for the five sensors).
     //
     // The "numROMs" value is also a value from 0 to 4 (for the five sensors).
-    //
-    // When the Publish message is sent the sensor value must be in human
-    // readable form, ie, 1 to 5 (for the 5 sensors).
-
+    
     // Build the topic string
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
@@ -3455,7 +3972,7 @@ void publish_temperature(uint8_t sensor)
     
     // Build the application message
     convert_temperature(sensor, 0); // Convert to degress C in OctetArray
-
+    
     // Queue publish message
     // This message is always published with QOS 0
     mqtt_publish(&mqttclient,
@@ -3466,10 +3983,63 @@ void publish_temperature(uint8_t sensor)
   }
 }
 #endif // DS18B20_SUPPORT == 1
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+#if DS18B20_SUPPORT == 1
+void publish_temperature(uint8_t sensor)
+{
+  // This function is called to Publish a temperature value collected from
+  // a DS18B20 connected to IO 16.
+  
+  unsigned char topic_base[12]; // Used for building connect, subscribe,
+                                // and publish topic strings.
+  unsigned char app_message[90]; // app_message (payload) is always of the form
+    // {"command": "udevice", "idx": 321, "nvalue": 0, "svalue": "22.7", "parse": true}
+  
+  if (sensor <= numROMs && (Sensor_IDX[sensor][0] != '0')) {
+    // Only Publish if the sensor number is one of the sensors found by
+    // FindDevices as indicated by numROMs AND the sensor has been given an
+    // IDX number.
+    //
+    // The "sensor" value delivered to this function identifies the sensor
+    // as a value from 0 to 4 (for the five sensors).
+    //
+    // The "numROMs" value is also a value from 0 to 4 (for the five sensors).
+    
+    // Build the topic string
+    strcpy(topic_base, "domoticz/in");
+    
+    // Build the Payload message
+    // {"command":"udevice","idx":321,"nvalue":0,"svalue":"22.77","parse":true}
+    strcpy(app_message, "{\"command\":\"udevice\",\"idx\":");
+    
+    // Add idx value
+    strcat(app_message, Sensor_IDX[sensor]);
+    
+    strcat(app_message, ",\"nvalue\":0,\"svalue\":\"");
+    
+    // Add sensor temperature value
+    convert_temperature(sensor, 0); // Convert to degress C in OctetArray
+    if (OctetArray[0] == ' ') OctetArray[0] = '0';
+    strcat(app_message, OctetArray);
+    strcat(app_message, "\",\"parse\":true}");
+    
+    // Queue publish message
+    // This message is always published with QOS 0
+    mqtt_publish(&mqttclient,
+                 topic_base,
+                 app_message,
+                 strlen(app_message),
+                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+  }
+}
+#endif // DS18B20_SUPPORT == 1
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+
+
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 #if BME280_SUPPORT == 1
 void publish_BME280(int8_t sensor)
 {
@@ -3503,17 +4073,6 @@ void publish_BME280(int8_t sensor)
 
   
   if (BME280_found == 1) {
-    // Only Publish if the sensor number is one of the sensors found by
-    // FindDevices as indicated by numROMs.
-    //
-    // The "sensor" value delivered to this function identifies the sensor
-    // as a value from 0 to 4 (for the five sensors).
-    //
-    // The "numROMs" value is also a value from 0 to 4 (for the five sensors).
-    //
-    // When the Publish message is sent the sensor value must be in human
-    // readable form, ie, 1 to 5 (for the 5 sensors).
-
     // Build the topic string
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
@@ -3554,7 +4113,166 @@ void publish_BME280(int8_t sensor)
   }
 }
 #endif // BME280_SUPPORT == 1
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+
+
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+#if BME280_SUPPORT == 1
+void publish_BME280(int8_t sensor)
+{
+  // This function is called to Publish the sensor values collected from
+  // a BME280 temperature, pressure, humidity sensor.
+  
+  int8_t i;
+  unsigned char topic_base[12]; // Used for building connect, subscribe,
+                                // and publish topic strings.
+  unsigned char app_message[90]; // app_message (payload) is always of the form
+    // {"command":"udevice","idx":321,"svalue":"8.8;91;3;1029;0"}
+    // The svalue consists of fields in this order;
+    //   Temperature in C
+    //   Relative Humidity in %
+    //   Humidity Status
+    //   Barometric Pressure in HPa
+    //   Weather Prediction
+    
+    // Humidity Status can be one of 
+    //  HUM_NORMAL	value 0
+    //  HUM_COMFORTABLE	value 1
+    //  HUM_DRY		value 2
+    //  HUM_WET		value 3
+    // A suggested calculation from the Domoticz Forum:
+    //  if humidity <= 30 then HUM_DRY
+    //  else if humidity >= 70 then return HUM_WET
+    //  else if humidity >= 35 and
+    //    humidity <= 65 and
+    //    temperature >= 22 and
+    //    temperature <= 26 then HUM_COMFORTABLE
+    //  else HUM_NORMAL
+    
+    // Weather Prediction values:
+    // From the Domoticz Forum https://www.domoticz.com/forum/viewtopic.php?t=36921
+    // For dummy devices the list is
+    // 0 { bmpbaroforecast_stable, "Stable" },
+    // 1 { bmpbaroforecast_sunny, "Sunny" },
+    // 2 { bmpbaroforecast_cloudy, "Cloudy" },
+    // 3 { bmpbaroforecast_unstable, "Unstable" },
+    // 4 { bmpbaroforecast_thunderstorm, "Thunderstorm" },
+    // 5 { bmpbaroforecast_unknown, "Unknown" },
+    // 6 { bmpbaroforecast_rain, "Cloudy/Rain" },
+    // 
+    // For other baro devices in native integrations, like in buienradar the list is different....
+    // 0 { wsbaroforecast_heavy_snow, "Heavy Snow" },
+    // 1 { wsbaroforecast_snow, "Snow" },
+    // 2 { wsbaroforecast_heavy_rain, "Heavy Rain" },
+    // 3 { wsbaroforecast_rain, "Rain" },
+    // 4 { wsbaroforecast_cloudy, "Cloudy" },
+    // 5 { wsbaroforecast_some_clouds, "Some Clouds" },
+    // 6 { wsbaroforecast_sunny, "Sunny" },
+    // 7 { wsbaroforecast_unknown, "Unknown" },
+    // 8 { wsbaroforecast_unstable, "Unstable" },
+    // 9 { wsbaroforecast_stable, "Stable" },
+    //
+    // From the Domoticz Forum https://www.domoticz.com/forum/viewtopic.php?t=39655
+    // For "Barometer" and "Temperature + Barometer", the following "Prediction"
+    // is given (this matches the "dummy" list above):
+    // 0: Stable
+    // 1: Sunny
+    // 2: Cloudy
+    // 3: Unstable
+    // 4: Thunderstorm
+    // 5: Unknown
+    // 6: Cloudy/Rain
+    //
+    // For "Temperature + Humidity + Barometer", the following "Prediction" is
+    // given (this seems to match what is happening in this application, or at
+    // least "0" matches):
+    // 0: No Info
+    // 1: Sunny
+    // 2: Partly Cloudy
+    // 3: Cloudy
+    // 4: Rain
+    //
+    // Calculating a weather predition is discussed in this link:
+    // https://wiki.seeedstudio.com/Wio-Terminal-TinyML-TFLM-2/
+    // Since calculating a prediction requires retaiing several hours of data
+    // from the BME280 it seems beyond the scope of this application to do
+    // the calcuation, so 0 is always returned (No Info).
+    
+    // Note: In the Home Assistant environment the Temperature, Humidity, and
+    // Pressure values are sent as 3 separate MQTT messages. In the Domoticz
+    // environment the Temperature, Humidity, and Pressure values are sent as
+    // a single MQTT message.
+
+  if (BME280_found == 1) {
+
+    // Build the topic string
+    strcpy(topic_base, "domoticz/in");
+
+    // Build the Payload message
+    // {"command":"udevice","idx":321,"svalue":"8.8;91;3;1029;0"}
+    
+    strcpy(app_message, "{\"command\":\"udevice\",\"idx\":");
+    
+    // Add idx value
+    strcat(app_message, Sensor_IDX[sensor]);
+    strcat(app_message, ",\"svalue\":\"");
+    
+    // Add sensor temperature value
+    // Convert temperature to degrees C in OctetArry
+    BME280_temperature_string_C();
+    // Remove leading spaces. Replace with '0'.
+    for (i = 0; i < strlen (OctetArray); i++) {
+      if (OctetArray[i] == ' ') OctetArray[i] = '0';
+    }
+    strcat(app_message, OctetArray);
+    strcat(app_message, ";");
+
+    // Add sensor humidity value
+    // Convert pressure to hPa in OctetArry
+    BME280_humidity_string();
+    strcat(app_message, OctetArray);
+    strcat(app_message, ";");
+
+    // Calculate and add HUM_STAT value
+    {
+      int32_t hum_whole;
+      char hum_stat[2];
+      
+      hum_whole = (int32_t)(comp_data_humidity / 1024);
+      hum_stat[1] = '\0';
+      
+      if (hum_whole <= 30) hum_stat[0] = '2'; // HUM_DRY
+      else if (hum_whole >= 70) hum_stat[0] = '3'; // HUM_WET
+      else if (hum_whole >= 35 && hum_whole <= 65
+            && comp_data_temperature >= 22 && comp_data_temperature <= 26)
+	    hum_stat[0] = '1'; // HUM_COMFORTABLE
+      else hum_stat[0] = '0'; // HUM_NORMAL
+      strcat(app_message, hum_stat);
+      strcat(app_message, ";");
+    }
+
+    // Add sensor pressure value
+    // Convert pressure to hPa in OctetArry
+    BME280_pressure_string();
+    strcat(app_message, OctetArray);
+    strcat(app_message, ";");
+
+    // Add sensor pressure prediciton value. Use Default of 0 and add payload
+    // termination.
+//    strcat(app_message, "0\",\"parse\":true}");
+    strcat(app_message, "0\"}");
+
+    // Queue publish message
+    // This message is always published with QOS 0
+    mqtt_publish(&mqttclient,
+                 topic_base,
+                 app_message,
+                 strlen(app_message),
+                 MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
+  }
+}
+#endif // BME280_SUPPORT == 1
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
 
 
 void unlock_eeprom(void)
@@ -3673,7 +4391,9 @@ void upgrade_EEPROM(void)
 void check_eeprom_settings(void)
 {
   int i;
-  char temp[10];
+  char temp[20];
+  
+  i = 0;
 
   // Check magic number in EEPROM.
   //
@@ -3843,53 +4563,15 @@ void check_eeprom_settings(void)
     //   STM8 pin_controls 16 bytes
     memset(&stored_mqtt_username[0], 0, 45); // 45 bytes
     
-    // Skip 10 bytes (the Debug bytes)
+    // Skip 10 bytes (the debug_bytes)
     
     // Altitude 2 bytes
     memset(&stored_altitude, 0, 2);
 
     lock_eeprom();
 
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-    // Initialize Flash memory that is used to store IO Timers for STM8 output
-    // pins.
-    // Since the magic number didn't match all timers are set to zero.
-    unlock_flash();
-    // IO_TIMER bytes are written 4 bytes at a time to reduce Flash wear
-    i = 0;
-    while(i<16) {
-      // Enable Word Write Once
-      FLASH_CR2 |= FLASH_CR2_WPRG;
-      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-      memcpy(&IO_TIMER[i], 0, 4);
-      i += 4;
-    }
-    lock_flash();
-    
-    // Initialize Flash memory that is used to store IO Names
-    // Since the magic number didn't match all names are set
-    // to defaults. 4 byte writes are used to reduce Flash wear.
-    // Even though 16 bytes are allocated in Flash, only 8 bytes
-    // are written here (a 4 byte IO Name and a 4 byte set of
-    // NULL characters to provide a string terminator).
-    unlock_flash();
-    for (i=0; i<16; i++) {
-      strcpy(temp, "IO");
-      emb_itoa(i+1, OctetArray, 10, 2);
-      strcat(temp, OctetArray);
-      // Enable Word Write Once
-      FLASH_CR2 |= FLASH_CR2_WPRG;
-      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-      memcpy(&IO_NAME[i][0], &temp, 4);
-      // Enable Word Write Once
-      FLASH_CR2 |= FLASH_CR2_WPRG;
-      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-      memcpy(&IO_NAME[i][4], 0, 4);
-    }
-    lock_flash();
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD    
-  }
 
+  }
 
 
   // ********************************************************************** //
@@ -3981,37 +4663,51 @@ void check_eeprom_settings(void)
     char temp[16];
     for (i=0; i<16; i++) {
       // Build replacement name in case it is needed
-      memcpy(&temp, 0, 16); // Fill temp with null
+      memset(&temp[0], 0, 16); // Fill temp with null
       strcpy(temp, "IO");
       emb_itoa(i+1, OctetArray, 10, 2);
       strcat(temp, OctetArray);
     
       // Check name for corruption
       fail = 0;
-      if (IO_NAME[i][0] == 0) fail = 1;
-      else {
-        for (j = 0; j < 16; j++) {
-          if (is_allowed_char(IO_NAME[i][j]) == 0) fail = 1;
-        }
+      if (IO_NAME[i][0] == 0) fail = 1; // Name empty - not allowed
+      if (magic_number_missing_flag == 1) fail = 1; // New module - must init value.
+      for (j = 0; j < 16; j++) {
+        if (is_allowed_char(IO_NAME[i][j]) == 0) fail = 1;
       }
-      if (fail) {
+      if (fail == 1) {
         // Write the default NAME to Flash
-        // Enable Word Write Once
+        // Enable Word Write Once - enables a 4 byte write to Flash	
         FLASH_CR2 |= FLASH_CR2_WPRG;
         FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
         memcpy(&IO_NAME[i][0], &temp, 4); // Write default name
-        // Enable Word Write Once
+        // Enable Word Write Once - enables a 4 byte write to Flash	
         FLASH_CR2 |= FLASH_CR2_WPRG;
         FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-        memcpy(&IO_NAME[i][4], 0, 4); // Add NULL
+        memset(&IO_NAME[i][4], 0, 4); // Add NULL
       }
     }
   }
+  
+  // Initialize Flash memory that is used to store IO Timers for STM8 output
+  // pins.
+  // If the magic number didn't match all timers are set to zero.
+  // IO_TIMER bytes are written 4 bytes at a time to reduce Flash wear
+  if (magic_number_missing_flag == 1) {
+    i = 0;
+    while(i<16) {
+      // Enable Word Write Once
+      FLASH_CR2 |= FLASH_CR2_WPRG;
+      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+      memset(&IO_TIMER[i], 0, 4);
+      i += 4;
+    }
+  }
+  else {
+    // If the magic number is present: Any 16 bit value is legitimate in the
+    // IO_TIMER values so it is not possible to check for corruption.
+  }
   lock_flash();
-  
-  
-  // IO_TIMER check: Any 16 bit value is legitimate in the IO_TIMER values so
-  // it is not possible to check for corruption.
   
   // Copy Flash IO_TIMER values to the Pending IO_TIMER variables for STM8
   // pins
@@ -4025,6 +4721,153 @@ void check_eeprom_settings(void)
     }
   }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+
+#if DOMOTICZ_SUPPORT == 1
+  // Domoticz code uses the IO NAME space in Flash to store Domoticz IDX
+  // values for the IO pins attached to the STM8 processor.
+  // Domoticz code also uses a separate Flash space to store the IDX values
+  // for the DS18B20 and BME280 Sensors.
+  // Domoticz code also uses the IO_NAME space in I2C EEPROM to store
+  // Domoticz IDX values for the IO pins attached to the PCF8574.
+  //
+  // The IO_NAME space allocates 16 bytes per pin for IO_NAME storage, or in
+  // this case for storage of the IDX values. Even though 16 bytes per pin is
+  // allocated, the IDX value is only allowed to be 6 bytes long.
+  //
+  // The Sensor_IDX space alloacated for the Sensors is 8 bytes per device,
+  // but again the IDX values are only allowed to be 6 bytes.
+  //
+  // The purpose of the code here is to make sure the IDX values stored in the
+  // IO_NAME space or in the Sensor_IDX sape are not corrupted. The names must
+  // contain only characters 0-9 and must be no longer than 6 bytes. If an IDX
+  // value does not meet this requirement it is replaced with a "0".
+  //
+  // Additionally, if it was determined that the magic number was missing at
+  // boot then it is assumed this is a new module and the IDX values will be
+  // initialized to "0".
+  //
+  // IDX values might be corrupted if the device is programmed using "Program/
+  // Current Tab" instead of "Program/Address Range 8000-FEBF". "Program/
+  // Current Tab" will zero out the Flash area where these variables are
+  // stored but will leave a valid magic number in the EEPROM.
+  //
+  // The IDX values might also be corrupted if Browser code is replaced with
+  // Domoticz MQTT Code, leaving a Magic Number in place but failing to
+  // initialize the IDX values storage area.
+  //
+  // If there is already an IDX value stored that meets the spec for an
+  // allowed name it will not be changed.
+  //
+  // Location of IDX storage space from main.h
+  // #define FLASH_START_IO_NAMES	0xff00 16x16 = 256 bytes
+  // #define FLASH_START_SENSOR_IDX	0xfe80 6x8 = 48 bytes
+  
+  unlock_flash();
+  {
+    int i;
+    int j;
+    int fail;
+    char temp1[8];
+    char temp2[8];
+    
+    // Build replacement name in case it is needed
+    memset(&temp1[0], 0, 8); // Fill temp1 with null
+    temp1[0] = '0';       // Set temp1 to string 0
+    
+    for (i=0; i<22; i++) {
+      // Check name for corruption
+      // Checking the 16 IO_NAME fields associated with the IO pins and the
+      // 6 Sensor_IDX names associated with the Temperature sensors. The
+      // IO_NAME fields are repurposed to contain IDX values, and of course
+      // the Sensor_IDX fields are IDX values.
+      if (i < 16) memcpy(&temp2, &IO_NAME[i], 8);
+      else memcpy(&temp2, &Sensor_IDX[i - 16], 8);
+      fail = 0;
+      if (temp2[0] == 0) fail = 1; // Name is empty - not allowed.
+      if (temp2[6] != 0) fail = 1; // Name is too long - not allowed.
+      if (magic_number_missing_flag == 1) fail = 1; // New module - must init value.
+      for (j = 0; j < 6; j++) {
+	// Check for digits or NULL only
+        if (is_digit(temp2[j]) == 0) fail = 1;
+      }
+      if (fail == 1) {
+        int w;
+        // Write the default IDX value to Flash. 8 bytes are written even
+	// though we've already assured that the default value is a single
+	// character ("0") followed by a terminator.
+        // IDX bytes are written 4 bytes at a time to reduce Flash wear.
+	// Only 8 bytes need to be written regardless of whether they are
+	// stored in the repurposed IO_NAME space or in the Sensor_IDX space.
+        w = 0;
+        while(w < 8) {
+          // Enable Word Write Once - enables a 4 byte write to Flash
+          FLASH_CR2 |= FLASH_CR2_WPRG;
+          FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+          if (i < 16) memcpy(&IO_NAME[i][w], &temp1[w], 4);
+          else memcpy(&Sensor_IDX[i - 16][w], &temp1[w], 4);
+          w += 4; // Loop runs twice
+        }
+      }
+      else {
+        // Value already in the IDX Flash storage is valid and we don't need
+	// to do anything. Just go on to check the next value.
+      }
+    }
+  }
+  lock_flash();
+  
+  
+#if PCF8574_SUPPORT == 1
+  {
+    int i;
+    int j;
+    int w;
+    char temp1[8];
+    char temp2[8];
+    int fail;
+    
+    // Build replacement name in case it is needed
+    memset(&temp1[0], 0, 8); // Fill temp with null
+    strcpy(temp1, "0");
+    
+    for (i=16; i<24; i++) {
+      // Read a PCF8574_IO_NAME value from I2C EEPROM. These are repurposed
+      // to contain IDX values.
+      // Checking the 8 IDX fields associated with the PCF8574 IO pins.
+      // Note: If PCF8574 is not supported (as in the MQTT Domoticz Standard
+      // build) then later code that attempts access to IO_NAME 16 to 23 will
+      // substitute "0" for the field.
+      prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + ((i - 16) * 16), 2);
+      for (j=0; j<8; j++) {
+        temp2[j] = I2C_read_byte(0);
+      }
+      temp2[8] = I2C_read_byte(1);
+      
+      // Check name for corruption
+      fail = 0;
+      if (temp2[0] == 0) fail = 1; // Name is empty - not allowed.
+      if (temp2[6] != 0) fail = 1; // Name is too long - not allowed.
+      if (magic_number_missing_flag == 1) fail = 1; // New module - must init value.
+      for (j = 0; j < 8; j++) {
+        // Check for digits or NULL only
+        if (is_digit(temp2[j]) == 0) fail = 1;
+      }
+      
+      if (fail == 1) {
+        // Write the default NAME to I2C EEPROM
+        I2C_control(I2C_EEPROM2_WRITE);
+        I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + ((i - 16) * 16), 2);
+        for (w=0; w<8; w++) {
+          I2C_write_byte(temp1[w]);
+        }
+        I2C_stop(); // Start the EEPROM internal write cycle
+        wait_timer(5000); // Wait 5ms
+      }
+    }
+  }
+#endif // PCF8574_SUPPORT == 1
+#endif // DOMOTICZ_SUPPORT == 1
 
 
 #if LINKED_SUPPORT == 1
@@ -4131,7 +4974,7 @@ void check_eeprom_settings(void)
   // build.
   // ---------------------------------------------------------------------- //
   
-#if BUILD_TYPE_MQTT_STANDARD == 1
+#if BUILD_TYPE_MQTT_HOME_STANDARD == 1
   {
     uint8_t i;
     unlock_eeprom();
@@ -4145,7 +4988,32 @@ void check_eeprom_settings(void)
     if (stored_options1 != i) stored_options1 = i;
     lock_eeprom();
   }
-#endif // BUILD_TYPE_MQTT_STANDARD == 1
+#endif // BUILD_TYPE_MQTT_HOME_STANDARD == 1
+
+#if BUILD_TYPE_MQTT_DOMO_STANDARD == 1 
+  {
+    uint8_t i;
+    unlock_eeprom();
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xdd; // Turn off BME280, turn off Home Assistant Auto Discovery
+    // stored_config_settings
+    // Bit 7: Undefined, 0 only
+    // Bit 6: Undefined, 0 only
+    // Bit 5: BME280
+    // Bit 4: Disable Cfg Button
+    // Bit 3: DS18B20
+    // Bit 2: MQTT
+    // Bit 1: Home Assistant Auto Discovery
+    // Bit 0: Duplex
+    if (stored_config_settings != i) stored_config_settings = i;
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xd7; // Turn off PCF8574
+    if (stored_options1 != i) stored_options1 = i;
+    lock_eeprom();
+  }
+#endif // BUILD_TYPE_MQTT_DOMO_STANDARD == 1 
 
 #if BUILD_TYPE_BROWSER_STANDARD == 1
   {
@@ -4163,7 +5031,7 @@ void check_eeprom_settings(void)
   }
 #endif // BUILD_TYPE_BROWSER_STANDARD == 1
 
-#if BUILD_TYPE_MQTT_UPGRADEABLE == 1
+#if BUILD_TYPE_MQTT_HOME_UPGRADEABLE == 1
   {
     uint8_t i;
     unlock_eeprom();
@@ -4181,7 +5049,27 @@ void check_eeprom_settings(void)
     if (stored_options1 != i) stored_options1 = i;
     lock_eeprom();
   }
-#endif // BUILD_TYPE_MQTT_UPGRADEABLE == 1
+#endif // BUILD_TYPE_MQTT_HOME_UPGRADEABLE == 1
+
+#if BUILD_TYPE_MQTT_DOMO_UPGRADEABLE == 1
+  {
+    uint8_t i;
+    unlock_eeprom();
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xdd; // Turn off BME280, Turn off Home Assistant Auto Discovery
+    if (stored_config_settings != i) stored_config_settings = i;
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf9; // Force to Pinout Option 1
+               // Note: Don't touch the PCF8574 enable bit. If already
+	       // enabled it can be left enabled. If not enabled, the
+	       // PCF8574_init() function in startup code will check if it
+	       // should be enabled or disabled.
+    if (stored_options1 != i) stored_options1 = i;
+    lock_eeprom();
+  }
+#endif // BUILD_TYPE_MQTT_DOMO_UPGRADEABLE == 1
 
 #if BUILD_TYPE_BROWSER_UPGRADEABLE == 1
   {
@@ -4203,7 +5091,7 @@ void check_eeprom_settings(void)
   }
 #endif // BUILD_TYPE_BROWSER_UPGRADEABLE == 1
 
-#if BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
+#if BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE == 1
   {
     uint8_t i;
     unlock_eeprom();
@@ -4217,7 +5105,7 @@ void check_eeprom_settings(void)
     if (stored_options1 != i) stored_options1 = i;
     lock_eeprom();
   }
-#endif // BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
+#endif // BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE == 1
 
   Pending_config_settings = stored_config_settings;
 
@@ -4242,10 +5130,25 @@ void check_eeprom_settings(void)
 
 void apply_PCF8574_pin_settings(void)
 {
+// #if PCF8574_SUPPORT == 0
+//   // If PCF8574 support is not in the build this function will set the
+//   // pin_control bytes for the PCF8574 pins to the default (00). This
+//   // covers the case where the Network Module previously had code on it
+//   // that had PCF8574 support, but now is loaded with code that does not
+//   // have PCF8574 support.
+//   {
+//     int i;
+//     for (i=16; i<24; i++) {
+//       pin_control[i] = 0;
+//     }
+//   }
+// #endif // PCF8574_SUPPORT == 0
+
 #if PCF8574_SUPPORT == 1
-  // This function updates the PCF8574 pin settings in I2C EEPROM. The
-  // check_runtime_chages() function will be called from the main.c loop to
-  // actually write the Output pins on the STM8 and PCF8574.
+  // If PCF8574 support is in the build this function updates the PCF8574 pin
+  // settings in I2C EEPROM. The check_runtime_chages() function will be
+  // called from the main.c loop to actually write the Output pins on the STM8
+  // and PCF8574.
   
   // With the exception of a few lines of code at the very end of this
   // function this code is ONLY used when PCF8574_SUPPORT is compiled.
@@ -4310,7 +5213,7 @@ void apply_PCF8574_pin_settings(void)
       int i;
       int j;
       for (i=16; i<24; i++) {
-        memcpy(&temp, 0, 16); // Fill temp with null
+        memset(&temp, 0, 16); // Fill temp with null
         strcpy(temp, "IO");
         emb_itoa(i+1, OctetArray, 10, 2);
         strcat(temp, OctetArray);
@@ -4359,7 +5262,7 @@ void apply_PCF8574_pin_settings(void)
       
         if (fail) {
           // Build the default NAME
-          memcpy(&temp, 0, 16); // Fill temp with null
+          memset(&temp[0], 0, 16); // Fill temp with null
           strcpy(temp, "IO");
           emb_itoa(i+17, OctetArray, 10, 2);
           strcat(temp, OctetArray);
@@ -4405,6 +5308,66 @@ void apply_PCF8574_pin_settings(void)
     }
   }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+
+#if DOMOTICZ_SUPPORT == 1
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// If Domoticz Standard this shouldn't run ... run only if OB_EEPROM_SUPPORT
+// enabled. This is wrapped within PCF8574 enabled code ... so I don't think
+// it needs to be qualified.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  if (magic_number_missing_flag == 0) {
+    // Check the IO Names (used in Domoticz as IDX values) in I2C EEPROM to
+    // make sure they are not corrupted. The names must contain only 0-9.
+    // If any name is corrupted it is replaced with "0".
+    //   The IO Names might be corrupted if MQTT code is replaced with Browser
+    //   Code, leaving a Magic Number in place but failing to initialize the
+    //   IO Names storage area.
+    //   If there is already a valid IO Name stored this code will not change
+    //   it.
+    // There are 8 names, 16 bytes each.
+    {
+      int i;
+      int j;
+      int fail;
+      char temp[16];
+      for (i=0; i<8; i++) {
+        // Read NAME and check for corruption
+        fail = 0;
+        for (j=0; j<15; j++) {
+          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + (i * 16), 2);
+          temp[j] = I2C_read_byte(0);
+          if (temp[0] == 0) fail = 1;
+          if (is_digit(temp[i]) == 0) fail = 1;
+        }
+        temp[15] = I2C_read_byte(1);
+        if (is_digit(temp[15]) == 0) fail = 1;
+      
+        if (fail) {
+          // Build the default NAME
+          memset(&temp[0], 0, 16); // Fill temp with null
+          strcpy(temp, "0");
+          emb_itoa(i+17, OctetArray, 10, 2);
+          strcat(temp, OctetArray);
+          // Write the default NAME to I2C EEPROM      
+          I2C_control(I2C_EEPROM2_WRITE);
+          I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + (i * 16), 2);
+          for (j=0; j<16; j++) {
+            I2C_write_byte(temp[j]);
+          }
+          I2C_stop(); // Start the EEPROM internal write cycle
+          wait_timer(5000); // Wait 5ms
+        }
+      }
+    }
+  }
+#endif // DOMOTICZ_SUPPORT == 1
+
+
 
   // Read the pin_control bytes from I2C EEPROM for the PCF8574 pins
   {
@@ -4539,11 +5502,12 @@ void apply_PCF8574_pin_settings(void)
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-  // Initialize 16bit versions of the ON/OFF and Invert pin control
+  // Initialize bit register versions of the ON/OFF and Invert pin control
   // information
-  encode_16bit_registers(1);
+  encode_bit_registers(1);
     
-  // Initialize IO ON/OFF state tracking
+  // Initialize IO ON/OFF state tracking. ON_OFF_WORD was initialized in
+  // encode_bit_registers().
   ON_OFF_word_new1 = ON_OFF_word_new2 = ON_OFF_word_sent = ON_OFF_word;
     
   // Set Output pins
@@ -4561,6 +5525,19 @@ uint8_t is_allowed_char(uint8_t character)
    || (character == 45)                     // - (dash)
    || (character == 46)                     // . (period)
    || (character == 95)                     // _ (underbar)
+   || (character == 0)) {                   // NULL
+    return (1);
+   }
+  else return(0);
+}
+
+
+uint8_t is_digit(uint8_t character)
+{
+  // Checks that a character is permissible in a specific string.
+  // Return 1 if all digits or null
+  // Return 0 if test is not met
+  if ((character >= 48 && character <=57)   // 0 to 9
    || (character == 0)) {                   // NULL
     return (1);
    }
@@ -5056,9 +6033,27 @@ void check_runtime_changes(void)
 	    Pending_pin_control[i] |= 0x80;
 	    pin_control[i] |= 0x80;
 	  }
-          // Update the 16 bit registers with the changed Output pin states
-          encode_16bit_registers(0);
+          // Update the bit registers with the changed Output pin states
+          encode_bit_registers(0);
           // Update the Output pins
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("pin_control for IO16 = ");
+emb_itoa(pin_control[15], OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("   Invert_word = ");
+emb_itoa(Invert_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   ON_OFF_word = ");
+emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   stored_config_settings = ");
+emb_itoa(stored_config_settings, OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+
           write_output_pins();
         }
       }
@@ -5097,8 +6092,26 @@ void check_runtime_changes(void)
 	    pin_control[i] |= 0x80;
 	  }
           // Update the 16 bit registers with the changed Output pin states
-          encode_16bit_registers(0);
+          encode_bit_registers(0);
           // Update the Output pins
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("pin_control for IO16 = ");
+emb_itoa(pin_control[15], OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("   Invert_word = ");
+emb_itoa(Invert_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   ON_OFF_word = ");
+emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   stored_config_settings = ");
+emb_itoa(stored_config_settings, OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+
           write_output_pins();
         }
       }
@@ -5128,8 +6141,26 @@ void check_runtime_changes(void)
 	    pin_control[i] |= 0x80;
 	  }
           // Update the 16 bit registers with the changed Output pin states
-          encode_16bit_registers(0);
+          encode_bit_registers(0);
           // Update the Output pins
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("pin_control for IO16 = ");
+emb_itoa(pin_control[15], OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("   Invert_word = ");
+emb_itoa(Invert_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   ON_OFF_word = ");
+emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   stored_config_settings = ");
+emb_itoa(stored_config_settings, OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+
           write_output_pins();
 	}
       }
@@ -5169,8 +6200,26 @@ void check_runtime_changes(void)
 	    pin_control[i] |= 0x80;
 	  }
           // Update the 16 bit registers with the changed Output pin states
-          encode_16bit_registers(0);
+          encode_bit_registers(0);
           // Update the Output pins
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("pin_control for IO16 = ");
+emb_itoa(pin_control[15], OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("   Invert_word = ");
+emb_itoa(Invert_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   ON_OFF_word = ");
+emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   stored_config_settings = ");
+emb_itoa(stored_config_settings, OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+
           write_output_pins();
 	}
       }
@@ -5373,6 +6422,8 @@ void check_runtime_changes(void)
 
 
   if (parse_complete || mqtt_parse_complete) {
+  
+ 
     // Check for changes from the user via the GUI, MQTT, or REST commands.
     // If parse_complete == 1 all TCP Fragments have been received during
     // HTML POST processing, OR a REST command was processed.
@@ -5554,10 +6605,28 @@ void check_runtime_changes(void)
       }
     }
 
-    // Update the 16 bit registers with the changed Output pin states
-    encode_16bit_registers(0);
+    // Update the bit registers with the changed Output pin states
+    encode_bit_registers(0);
     
     // Update the Output pins
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("pin_control for IO16 = ");
+emb_itoa(pin_control[15], OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("   Invert_word = ");
+emb_itoa(Invert_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   ON_OFF_word = ");
+emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+UARTPrintf(OctetArray);
+UARTPrintf("   stored_config_settings = ");
+emb_itoa(stored_config_settings, OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+
     write_output_pins();
   }
 
@@ -5739,7 +6808,7 @@ void check_runtime_changes(void)
     // set (even through reboots) until cleared with the Clear Link Error
     // Statistics button or URL command.
     if (stack_error) {
-      debug[2] |= 0x80;
+      debug_bytes[2] |= 0x80;
       update_debug_storage1();
     }
   }
@@ -6109,7 +7178,7 @@ void init_IWDG(void)
 
 
 #if LINKED_SUPPORT == 0
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 void read_input_pins(uint8_t init_flag)
 {
   // This function reads and debounces the Input pins. It is called from the
@@ -6175,15 +7244,19 @@ void read_input_pins(uint8_t init_flag)
     }
   }
 }
-#endif // PCF8574_SUPPORT == 0
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 #endif // LINKED_SUPPORT == 0
 
 
 #if LINKED_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 // When the PCH8574 is present the ON_OFF words need to be 32 bit to
 // accommodate 24 pins of IO. But pins 1 to 16 need to be mapped to hardware
 // using the io.map, whereas pins 17 to 24 are directly read via the I2C bus.
+//
+// Domoticz creates a special case in that 32 bit words need to be used, so
+// this code is compiled. However, if PCF8574_SUPPORT == 0 the PCF8574 pins
+// will not be read.
 void read_input_pins(uint8_t init_flag)
 {
   // This function reads and debounces the Input pins. It is called from the
@@ -6222,7 +7295,7 @@ void read_input_pins(uint8_t init_flag)
     j = i + io_map_offset;
 #endif // SUPPORT_174 == 0
 #if SUPPORT_174 == 1
-    j = calc_PORT_BIT_index(i);
+    j = calc_PORT_BIT_index((uint8_t)i);
 #endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit)
 #endif // PINOUT_OPTION_SUPPORT == 1
@@ -6241,7 +7314,10 @@ void read_input_pins(uint8_t init_flag)
   }
 
 
+#if PCF8574_SUPPORT == 1
   // Read the pin states on the PCF8574
+  // Note: the non-upgradeable Domoticz build uses this code section, but the
+  // non-upgradeable build does not support the PCF8574.
   byte = PCF8574_read();
   for (i=16, mask = 0x00010000, byte_mask=1; i<24; i++, mask<<=1, byte_mask<<=1) {
     // Is the corresponding bit of the PCF8574 pin set?
@@ -6259,6 +7335,7 @@ void read_input_pins(uint8_t init_flag)
       }
     }
   }
+#endif // PCF8574_SUPPORT == 1
 
 
   // Copy _new1 to _new2 for the next round
@@ -6274,12 +7351,12 @@ void read_input_pins(uint8_t init_flag)
     }
   }
 }
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 #endif // LINKED_SUPPORT == 0
 
 
 #if LINKED_SUPPORT == 1
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 void read_input_pins(uint8_t init_flag)
 {
   // This function reads and debounces the Input pins. It is called from the
@@ -6362,17 +7439,20 @@ void read_input_pins(uint8_t init_flag)
     }
   }
 }
-#endif // PCF8574_SUPPORT == 0
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 #endif // LINKED_SUPPORT == 1
 
 
 #if LINKED_SUPPORT == 1
-#if PCF8574_SUPPORT == 1
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 void read_input_pins(uint8_t init_flag)
 {
   // This function reads and debounces the Input pins. It is called from the
   // check_runtime_changes() function, which is in turn called from the main
   // loop. Thus this function runs about once per millisecond.
+  //
+  // Domoticz creates a special case in that 32 bit words need to be used, so
+  // this code is compiled.
   //
   // The function works as follows:
   // - Pins are read and stored in the ON_OFF_word_new1 word.
@@ -6403,7 +7483,7 @@ void read_input_pins(uint8_t init_flag)
     j = i + io_map_offset;
 #endif // SUPPORT_174 == 0
 #if SUPPORT_174 == 1
-    j = calc_PORT_BIT_index(i);
+    j = calc_PORT_BIT_index((uint8_t)i);
 #endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 1
@@ -6438,7 +7518,10 @@ void read_input_pins(uint8_t init_flag)
   }
 
 
+#if PCF8574_SUPPORT == 1
   // Read the pin states on the PCF8574
+  // Note: the non-upgradeable Domoticz build uses this code section, but the
+  // non-upgradeable build does not support the PCF8574.
   byte = PCF8574_read();
   for (i=16, mask = 0x00010000, byte_mask=1, linked_mask=0x0100; i<24; i++, mask<<=1, byte_mask<<=1, linked_mask<<=1) {
     // Is the corresponding bit of the PCF8574 pin set?
@@ -6469,6 +7552,7 @@ void read_input_pins(uint8_t init_flag)
       }
     }
   }
+#endif // PCF8574_SUPPORT == 1
       
   for (i=0, mask=1; i<24; i++, mask<<=1) {
     if ((ON_OFF_word_new1 & mask) == (ON_OFF_word_new2 & mask)) {
@@ -6488,14 +7572,15 @@ void read_input_pins(uint8_t init_flag)
   // Copy _new1 to _new2 for the next round
   ON_OFF_word_new2 = ON_OFF_word_new1;  
 }
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 #endif // LINKED_SUPPORT == 1
 
 
-#if PCF8574_SUPPORT == 0
-void encode_16bit_registers(uint8_t sort_init)
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+void encode_bit_registers(uint8_t sort_init)
 {
-  // Function to sort the pin control bytes into the 16 bit registers.
+  // Function to sort the pin control bytes into the bit registers.
+  // sort_init == 1 indicates the function was called during initialization.
   int i;
   uint16_t j;
   i = 0;
@@ -6511,7 +7596,6 @@ void encode_16bit_registers(uint8_t sort_init)
     // should only sort the Output pins into the ON_OFF word, as the
     // read_input_pins() function will handle this for Input pins.
     if (sort_init == 1) {
-      // sort_init indicates the function was called during initialization.
       // All pin states are sorted into the ON_OFF_word.
       if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
       else                       ON_OFF_word = ON_OFF_word & ~j;
@@ -6538,13 +7622,14 @@ void encode_16bit_registers(uint8_t sort_init)
     j = j << 1;
   }
 }
-#endif // PCF8574_SUPPORT == 0
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 
 
-#if PCF8574_SUPPORT == 1
-void encode_16bit_registers(uint8_t sort_init)
+
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
+void encode_bit_registers(uint8_t sort_init)
 {
-  // Function to sort the pin control bytes into the 16 bit registers.
+  // Function to sort the pin control bytes into the bit registers.
   int i;
   uint32_t j;
   i = 0;
@@ -6587,10 +7672,10 @@ void encode_16bit_registers(uint8_t sort_init)
     j = j << 1;
   }
 }
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 
 
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 void write_output_pins(void)
 {
   // This function updates the Output GPIO pins to match the output pin
@@ -6658,10 +7743,10 @@ void write_output_pins(void)
 #endif // PINOUT_OPTION_SUPPORT == 1
   }
 }
-#endif // PCF8574_SUPPORT == 0
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 
 
-#if PCF8574_SUPPORT == 1
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 void write_output_pins(void)
 {
   // This function updates the Output GPIO pins to match the output pin
@@ -6716,8 +7801,9 @@ void write_output_pins(void)
 #endif // I2C_SUPPORT == 1
 #if DS18B20_SUPPORT == 1
     // If DS18B20 mode is enabled do not write Output 16
-    if (i == 15 && (stored_config_settings & 0x08))
+    if ((i == 15) && (stored_config_settings & 0x08)) {
       break;
+    }
 #endif // DS18B20_SUPPORT == 1
 
 #if PINOUT_OPTION_SUPPORT == 0
@@ -6734,7 +7820,7 @@ void write_output_pins(void)
     j = i + io_map_offset;
 #endif // SUPPORT_174 == 0
 #if SUPPORT_174 == 1
-    j = calc_PORT_BIT_index(i);
+    j = calc_PORT_BIT_index((uint8_t)i);
 #endif // SUPPORT_174 == 1
     if (xor_tmp & (1 << i)) {
       io_reg[ io_map[j].port ].odr |= io_map[j].bit;
@@ -6745,7 +7831,12 @@ void write_output_pins(void)
 #endif // PINOUT_OPTION_SUPPORT == 1
   }
 
+
+#if PCF8574_SUPPORT == 1
   // Write the PCF8574 pins
+  // Domoticz creates a special case in that the Domoticz non-upgradeable
+  // build will have DOMOTICZ_SUPPORT set to 1, but will have PCF8574_SUPPORT
+  // set to 0. So the PCF8574 pin writes are ommitted in that case.
   byte = (uint8_t)(xor_tmp >> 16);
   for (i=16, mask=1; i<24; i++, mask<<=1) {
   
@@ -6764,8 +7855,11 @@ void write_output_pins(void)
   // Write the resulting byte to the PCF8574. Output pins will be written as
   // defined in xor_temp. Input pins will always be written to "1".
   PCF8574_write(byte);
-}
 #endif // PCF8574_SUPPORT == 1
+}
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
+
+
 
 
 /*
@@ -6972,26 +8066,25 @@ void oneflash(void)
 
 void restore_eeprom_debug_bytes(void)
 {
-  // Restore debug bytes from EEPROM to RAM
+  // Restore debug_bytes from EEPROM to RAM
   
-  // debug[0]: Not currently used
-  
-  // debug[1]: Not currently used
+  debug_bytes[0] = stored_debug_bytes[0]; // debug[0]: Not currently used
+  debug_bytes[1] = stored_debug_bytes[1]; // debug[1]: Not currently used
   
   // debug[2]: The ENC28J60 revision part of debug[2] is restored in the
   // Enc28j60Init() function.
   // Restore the stack_error bit
-  if ((stored_debug[2] & 0x80) == 0x80) debug[2] |= 0x80;
+  if ((stored_debug_bytes[2] & 0x80) == 0x80) debug_bytes[2] |= 0x80;
   
   // While the following diagnostic counters are mostly useful for checking
   // for the need for Full Duplex in an MQTT setting, they may still be useful
   // in other scenarios, so they remain functional even if MQTT is not
   // enabled.
-  debug[3] = stored_debug[3];      // Restore the TXERIF error counter
-  debug[4] = stored_debug[4];      // Restore the RXERIF error counter
+  debug_bytes[3] = stored_debug_bytes[3];      // Restore the TXERIF error counter
+  debug_bytes[4] = stored_debug_bytes[4];      // Restore the RXERIF error counter
   
   // Restore the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
-  memcpy(&debug[5], &stored_debug[5], 5);
+  memcpy(&debug_bytes[5], &stored_debug_bytes[5], 5);
 }
 
 
@@ -7003,7 +8096,7 @@ void update_debug_storage1() {
   // EEPROM writes.
   unlock_eeprom();
   for (i = 0; i < 10; i++) {
-    if (stored_debug[i] != debug[i]) stored_debug[i] = debug[i];
+    if (stored_debug_bytes[i] != debug_bytes[i]) stored_debug_bytes[i] = debug_bytes[i];
   }
   lock_eeprom();  
 }

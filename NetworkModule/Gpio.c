@@ -322,7 +322,8 @@ void gpio_init(void)
 //      (stored_magic1 == 0xf0)) {
 
     // Create 16bit versions of the pin control information.
-    encode_16bit_registers(1);
+//    encode_16bit_registers(1);
+    encode_bit_registers(1);
     
     // Update the output pins
     // The write_output_pins() function uses the io_map table, which is part

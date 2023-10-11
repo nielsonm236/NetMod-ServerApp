@@ -64,9 +64,38 @@ extern uint8_t mqtt_start;        // Tracks the MQTT startup steps
 extern uint8_t OctetArray[14];    // Used in emb_itoa conversions and to
                                   // transfer short strings globally
 
+#if HOME_ASSISTANT_SUPPORT == 1
 uint8_t current_msg_length;		// Contains the length of the MQTT
 					// message currently being extracted
 					// from the uip_buf.
+#endif // HOME_ASSISTANT_SUPPORT == 1
+
+#if DOMOTICZ_SUPPORT == 1
+uint16_t current_msg_length;		// Contains the length of the MQTT
+					// message currently being extracted
+					// from the uip_buf.
+uint8_t remaining_length_captured_flag; // Indicates whether the MQTT message
+                                        // Remaining Length value has been
+					// captured.
+char parse_buffer[20];                  // For temporary storage of the idx
+                                        // or nvalue component of a domoticz/
+					// out MQTT message. It must be global
+					// in case message capture is broken
+					// up by a packet boundary.
+uint8_t parse_index;                    // Used to place characters in the
+                                        // parse_buffer.
+uint8_t filter_step;                    // Used to control steps in filtering
+                                        // a large MQTT message down to the
+					// needed components.
+char idx_string[7];                     // Used to communicate the idx_string
+                                        // value from the mqtt_sync() function
+					// to the publish_callback() function.
+char nvalue_string[2];                  // Used to communicate the nvalue_string
+                                        // value from the mqtt_sync() function
+					// to the publish_callback() function.
+#endif // DOMOTICZ_SUPPORT == 1
+
+
 uint8_t mqtt_partial_buffer_length;	// Trackes the length of data in the
 					// MQTT Partial Buffer so that we know
 					// how much of a partially received
@@ -82,171 +111,819 @@ uint8_t pbi;				// Partial Buffer Index - provides an
 // Implements the functionality of MQTT-C.
 
 
+#if HOME_ASSISTANT_SUPPORT == 1
 int16_t mqtt_sync(struct mqtt_client *client)
 {
-    // Check for incoming data (note there may not be any) and check
-    // if there is something that needs to be transmitted.
-    int16_t err;
-    
-    uint16_t total_msg_length;		// Contains the total length of the
-					// MQTT message(s) in the uip_buf
-    char *msgBuffer;			// A pointer used to read MQTT
-					// messages from the uip_buf
-    uint8_t outer_break;		// Used in breaking a double while()
-					// loop.
+  // Check for incoming data (note there may not be any) and check
+  // if there is something that needs to be transmitted.
+  
+  int16_t err;
+  
+  uint16_t total_msg_length;  // Contains the total length of the MQTT
+                              // message(s) in the uip_buf
+  char *msgBuffer;            // A pointer used to read MQTT messages from
+                              // the uip_buf
 
-    // Call receive
-    if ((uip_newdata() || uip_acked()) && uip_len > 0) {
-      // We got here because an incoming message was detected by the UIP
-      // code for the MQTT Port. The way to be sure that receive processing
-      // should occur is if uip_newdata() is true OR uip_acked() is true
-      // AND uip_len > 0.
-      //
-      // When a TCP Packet is received with MQTT messages (the datagram) in
-      // it the packet will be placed in the uip_buf startng at the location
-      // indicated by pointer uip_appdata. The datagram might have one MQTT
-      // messages, or it may have multiple MQTT messages, and any given MQTT
-      // message might be divided between two sequential packets. And, if a
-      // message is divided between sequential packets a new MQTT message
-      // might follow the remnant that starts the new packet.
-      //
-      // The code here will pull MQTT messages one at a time from the TCP
-      // packets and will call __mqtt_recv and __mqtt_send to interpret those
-      // messages and send a response to the originator (if needed). A concern
-      // is that there can be no actual transmission of of responses to
-      // messages until the uip_buf is emptied. There is very limited space in
-      // the mqtt_sendbuf, so responses need to accumulate there. Fortunately
-      // the following analysis shows that there should be very little
-      // response traffic filling the mqtt_sendbuf.
-      //
-      // The only MQTT messages that will be received AFTER boot initialization
-      // completes are:
-      // PUBLISH:
-      //   msg->state is not updated until __mqtt_send() is called.
-      // PINGRESP:
-      //   No transmit activity occurs. The message queue is updated with
-      //   msg->state = MQTT_QUEUED_COMPLETE. This allows the queue slot to be
-      //   reused if needed.
-      //
-      // Next __mqtt_send() is called to clean up message states after
-      // __mqtt_recv().
-      // DISCONNECT:
-      //   A transmit message can be placed in the mqtt_sendbuf by the
-      //   mqtt_disconnect() function. When __mqtt_send is run the transmit
-      //   queue is updated with msg->state = MQTT_QUEUED_COMPLETE. This
-      //   allows the queue slot to be reused is needed (although that won't
-      //   happen as Disconnect will be followed by a reboot).
-      // PUBLISH:
-      //   At QOS 0 no transmit activity occurs. Only publish_callback() is
-      //   called, which updates tracking variables which will later result in
-      //   generation of PUBLISH messages for transmit from the Network Module.
-      //   Those transmits will occur, at earliest, after the processing of the
-      //   current TCP packet is complete. The transmit queue is updated with
-      //   msg->state = MQTT_QUEUED_COMPLETE. allows the queue slot to be
-      //   reused is needed.
-      // PINGREQ:
-      //   At the end of __mqtt_send() at about a 30 second interval a PINGREQ
-      //   message gets placed in the transmit queue and the queue is updated
-      //   with msg->state = MQTT_QUEUED_AWAITING_ACK. Any subsequent call to
-      //   __mqtt_send() will transmit the message, resulting in a PINGRESP from
-      //   the host. A PINGREQ is a 2 byte message so it occupies very little
-      //   space in the mqtt_sendbuf.
+  // Call receive
+  if ((uip_newdata() || uip_acked()) && uip_len > 0) {
+    // We got here because an incoming message was detected by the UIP
+    // code for the MQTT Port. The way to be sure that receive processing
+    // should occur is if uip_newdata() is true OR uip_acked() is true
+    // AND uip_len > 0.
+    //
+    // This version of mqtt_sync will allow Nagle's Algorithm to be applied
+    // to incoming MQTT messages. Application of Nagle's Algorithm will
+    // allow 1 to many MQTT messages in a single TCP datagram. That being
+    // the case, this function will break down the TCP datagram into single
+    // MQTT messages, placeing those messages one at a time into the
+    // mqtt_partial_buffer, and when a single complete message is contained
+    // in the mqtt_partial_buffer the mqtt_recv() function is called to
+    // process that message. Note that the TCP datagram may be broken into
+    // multiple packets. This function will return for additional packets,
+    // and will reconstruct any MQTT message than may be split between TCP
+    // datagram packets.
+    //
+    // When a TCP Packet is received with MQTT messages (the datagram) in
+    // it the packet will be placed in the uip_buf startng at the location
+    // indicated by pointer uip_appdata. The datagram might have one MQTT
+    // messages, or it may have multiple MQTT messages, and any given MQTT
+    // message might be divided between two sequential packets. And, if a
+    // message is divided between sequential packets a new MQTT message
+    // might follow the remnant that starts the new packet.
+    //
+    // The code here will pull MQTT messages one at a time from the TCP
+    // packets and will call mqtt_recv and matt_send to interpret those
+    // messages and send a response to the originator (if needed). A concern
+    // is that there can be no actual transmission of of responses to
+    // messages until the uip_buf is emptied. There is very limited space in
+    // the mqtt_sendbuf, so responses need to accumulate there. Fortunately
+    // the following analysis shows that there should be very little
+    // response traffic filling the mqtt_sendbuf.
+    //
+    // The only MQTT messages that will be received AFTER boot initialization
+    // completes are:
+    // PUBLISH:
+    //   msg->state is not updated until matt_send() is called.
+    // PINGRESP:
+    //   No transmit activity occurs. The message queue is updated with
+    //   msg->state = MQTT_QUEUED_COMPLETE. This allows the queue slot to be
+    //   reused if needed.
+    //
+    // Next matt_send() is called to clean up message states after
+    // mqtt_recv().
+    // DISCONNECT:
+    //   A transmit message can be placed in the mqtt_sendbuf by the
+    //   mqtt_disconnect() function. When matt_send is run the transmit
+    //   queue is updated with msg->state = MQTT_QUEUED_COMPLETE. This
+    //   allows the queue slot to be reused is needed (although that won't
+    //   happen as Disconnect will be followed by a reboot).
+    // PUBLISH:
+    //   At QOS 0 no transmit activity occurs. Only publish_callback() is
+    //   called, which updates tracking variables which will later result in
+    //   generation of PUBLISH messages for transmit from the Network Module.
+    //   Those transmits will occur, at earliest, after the processing of the
+    //   current TCP packet is complete. The transmit queue is updated with
+    //   msg->state = MQTT_QUEUED_COMPLETE. allows the queue slot to be
+    //   reused is needed.
+    // PINGREQ:
+    //   At the end of matt_send() at about a 30 second interval a PINGREQ
+    //   message gets placed in the transmit queue and the queue is updated
+    //   with msg->state = MQTT_QUEUED_AWAITING_ACK. Any subsequent call to
+    //   matt_send() will transmit the message, resulting in a PINGRESP from
+    //   the host. A PINGREQ is a 2 byte message so it occupies very little
+    //   space in the mqtt_sendbuf.
+    
+    // Initialize the pointer for the uip_buf data and determine the
+    // total length of the data.
+    msgBuffer = uip_appdata;
+    total_msg_length = uip_len;
+    
+    while (total_msg_length > 0) {
+      // If total_msg_length is greater than zero then there is data in the
+      // uip_buf that needs to be read.
+      // This loop will move MQTT messages to the MQTT Partial Buffer one
+      // message at a time. When a complete message is constructed in the
+      // MQTT Partial Buffer the mqtt_recv() function will be called to
+      // interpret the message.
+      // This method of using a MQTT Partial Buffer is implemented to allow
+      // Home Assistant to batch MQTT messages per Nagles algorithm. Each
+      // MQTT messages is extracted from the "batch" and copied to the MQTT
+      // Partial Buffer one at a time for subsequent processing below. This
+      // process only works because it is known apriori that all complete
+      // messages are less than 60 bytes in length (at least for the Home
+      // Assistant environment).
       
-      // Initialize the pointer for the uip_buf data and determine the
-      // total length of the data.
-      msgBuffer = uip_appdata;
-      total_msg_length = uip_len;
-      outer_break = 0;
-
-      while (total_msg_length > 0) {
-        // If total_msg_length is greater than zero then there is data in
-	// the uip_buf that needs to be read.
-	// This loop will move MQTT messages to the MQTT Partial Buffer one
-	// message at a time. When a complete message is constructed in the
-	// MQTT Partial Buffer the __mqtt_recv() function will be called to
-	// interpret the message.
-	
-	// Capture a byte from the uip_buf
-        uip_buf[MQTT_PBUF + pbi++] = *msgBuffer;
-        mqtt_partial_buffer_length++;
-        msgBuffer++;
-        total_msg_length--;
-		  
-        if (mqtt_partial_buffer_length == 2) {
-	  // If mqtt_partial_buffer_length == 2 a new current_msg_length
-	  // (Remaining Lenght) is in the second byte.
-	  current_msg_length = uip_buf[MQTT_PBUF + 1];
-	}
-	
-        if (mqtt_partial_buffer_length > 2) {
-	  // If mqtt_partial_buffer_length > 2 then the Control Byte and
-	  // Remaining Lenght Byte have both been captured and we must 
-	  // decrement the current_msg_length with each additional byte read.
-	  current_msg_length--;
-	}
-	
-	if (mqtt_partial_buffer_length == 1) {
-	  if (total_msg_length == 0) {
-	    // Hit end of packet at first byte of new message. Leave _mqtt_sync
-	    // to collect another packet.
-	    return MQTT_OK;
-	  }
-	  // If not at the end of the packet continue to loop to collect one
-	  // byte (the Remaining Length) before further decisions.
-	  continue;
-	}
-	
-        if (current_msg_length == 0) {
-	  // Captured a complete message. Call __mqtt_recv() then clear the
-	  // MQTT Partial Buffer handling variables in case there are more
-	  // MQTT messages in the uip_buf after this message.
-          err = __mqtt_recv(client);
-	  mqtt_partial_buffer_length = 0;
-	  pbi = 0;
-          if (err != MQTT_OK) {
-            return err;
-	  }
-          // Call send
-	  // If we run __mqtt_recv() we need to follow that with a call to
-	  // __mqtt_send() so that each processed MQTT message finishes its
-	  // recv/send process (mostly making sure the message state is updated
-	  // correctly).
-          // mqtt_send() shouldn't actually transmit anything via the uip_buf
-	  // at this point. It should only update the msg->state of messages
-	  // as needed.
-          err = __mqtt_send(client);
-          // Set global MQTT error flag so GUI can show status
-          if (err == MQTT_OK) MQTT_error_status = 1;
-          else MQTT_error_status = 0;
-          if (err != MQTT_OK) {
-            return err;
-          }
-	}
-	
-        // At this point if total_msg_length == 0 then the MQTT message just
-	// extracted (or part thereof) was the end of the TCP packet. The
-	// while() loop will terminate so that another TCP packet can be
-	// collected.
-	// Note: the current_msg_length, mqtt_partial_buffer_length, and pbi
-	// are all retained in global memory so that the next packet starts
-	// where this one left off.
+      // Capture a byte from the uip_buf
+      uip_buf[MQTT_PBUF + pbi++] = *msgBuffer;
+      mqtt_partial_buffer_length++;
+      msgBuffer++;
+      total_msg_length--;
+      
+      if (mqtt_partial_buffer_length == 2) {
+        // If mqtt_partial_buffer_length == 2 a new current_msg_length
+        // (Remaining Length) is in the second byte.
+        current_msg_length = uip_buf[MQTT_PBUF + 1];
       }
-    }
-
-
-    // Call send
-    // mqtt_send() will check the send_buf to see if there are any queued
-    // messages to transmit. Since the mqtt_recv() call above will have
-    // cleared out any received messages the uip_buf is available for
-    // transmit messages.
-    err = __mqtt_send(client);
-    
-    // Set global MQTT error flag so GUI can show status
-    if (err == MQTT_OK) MQTT_error_status = 1;
-    else MQTT_error_status = 0;
-    
-    return err;
+      
+      if (mqtt_partial_buffer_length > 2) {
+        // If mqtt_partial_buffer_length > 2 then the Control Byte and
+        // Remaining Length Byte have both been captured and we must 
+        // decrement the current_msg_length with each additional byte read.
+        current_msg_length--;
+      }
+      
+      if (mqtt_partial_buffer_length == 1) {
+        if (total_msg_length == 0) {
+          // Hit end of packet at first byte of new message. Leave _mqtt_sync
+          // to collect another packet.
+          return MQTT_OK;
+        }
+        // If not at the end of the packet continue to loop to collect one
+        // byte (the Remaining Length) before further decisions.
+        continue;
+      }
+      
+      if (current_msg_length == 0) {
+        // Captured a complete message. Call mqtt_recv() then clear the
+        // MQTT Partial Buffer handling variables in case there are more
+        // MQTT messages in the uip_buf after this message.
+        err = mqtt_recv(client);
+        mqtt_partial_buffer_length = 0;
+        pbi = 0;
+        if (err != MQTT_OK) {
+          return err;
+        }
+        
+        // Call send
+        // If we run mqtt_recv() we need to follow that with a call to
+        // matt_send() so that each processed MQTT message finishes its
+        // recv/send process (mostly making sure the message state is updated
+        // correctly).
+        // mqtt_send() shouldn't actually transmit anything via the uip_buf
+        // at this point. It should only update the msg->state of messages
+        // as needed.
+        err = mqtt_send(client);
+        // Set global MQTT error flag so GUI can show status
+        if (err == MQTT_OK) MQTT_error_status = 1;
+        else MQTT_error_status = 0;
+        if (err != MQTT_OK) {
+          return err;
+        }
+      }
+      
+      // At this point if total_msg_length == 0 then the MQTT message just
+      // extracted (or part thereof) was the end of the TCP packet. The
+      // while() loop will terminate so that another TCP packet can be
+      // collected.
+      // Note: the current_msg_length, mqtt_partial_buffer_length, and pbi
+      // are all retained in global memory so that the next packet starts
+      // where this one left off.
+    } // end of while loop
+  }
+  
+  // Call send
+  // mqtt_send() will check the send_buf to see if there are any queued
+  // messages to transmit. Since the mqtt_recv() calls above will have
+  // cleared out any received messages the uip_buf is now available for
+  // transmit messages.
+  err = mqtt_send(client);
+  
+  // Set global MQTT error flag so GUI can show status
+  if (err == MQTT_OK) MQTT_error_status = 1;
+  else MQTT_error_status = 0;
+  
+  return err;
 }
+#endif // HOME_ASSISTANT_SUPPORT == 1
+
+
+#if DOMOTICZ_SUPPORT == 1
+int16_t mqtt_sync(struct mqtt_client *client)
+{
+  // Check for incoming data (note there may not be any) and check
+  // if there is something that needs to be transmitted.
+  
+  int16_t err;
+  
+  uint16_t total_msg_length;  // Contains the total length of the MQTT
+                              // message being received via the uip_buf
+  char *msgBuffer;            // A pointer used to read MQTT messages from
+                              // the uip_buf
+  
+  // Call receive
+  if ((uip_newdata() || uip_acked()) && uip_len > 0) {
+    // We got here because an incoming message was detected by the UIP
+    // code for the MQTT Port. The way to be sure that receive processing
+    // should occur is if uip_newdata() is true OR uip_acked() is true
+    // AND uip_len > 0.
+    //
+    // This version of mqtt_sync assumes that Nagle's Algorithm IS NOT used,
+    // thus only a single MQTT message is contained in a TCP datagram.
+    //
+    // This version of mqtt_sync is for Domoticz. It is assumed that only
+    // simple On/Off switch/light messaages are used to control the Network
+    // Module, and it is assumed that those simple messages are always small
+    // enough that they will fit in a single TCP packet. Having said that, it
+    // is possible that a MQTT message will be received that may span multiple
+    // packets for the following reasons:
+    // 1) The user has filled in "On Action" or "Description" fields for the
+    //    device in Domoticz. Those should be left blank.
+    // 2) The user has created a device using something other than the
+    //    "On/Off" switch/light format.
+    // 3) When "domoticz/out" is used as the Topic, the Network Module will
+    //    see ALL "domoticz/out" MQTT messages for ALL devices on the local
+    //    network. Those messages will all be thrown away, but they can easily
+    //    consist of formats that exceed a single TCP packet in length.
+    // 
+    // To handle the large MQTT messages the code must be able to receive
+    // multiple packets to completely receive the message. And if we had
+    // RAM we would simply store that large MQTT message for later processing
+    // in the publish_callback() function. HOWEVER, we DON'T have a lot of
+    // RAM, so Domoticz requires a special case implemented here. As the MQTT
+    // message is received this function will break down the TCP datagram to
+    // reduce the MQTT message Payload to the following components, placing
+    // those components in the MQTT Partial Buffer:
+    //   Control Byte
+    //   Remaining Length Byte *
+    //   Topic
+    //   Payload **
+    //
+    // * Remaining Length in the original message may have been up to two
+    //   bytes beecause the MQTT message may have been longer than 127 bytes.
+    //   As the message is received and decomponsed for placement in the
+    //   MQTT Partial Buffer it will result in a much smaller MQTT message
+    //   thus a single byte Remaining Length.
+    // ** The Payload will be reduced to the following components:
+    //     idx field
+    //     nvalue field
+    //   All other Payload components are discarded.
+    //
+    // Once the above disection is complete (all packets received for this
+    // MQTT message and required content reconstructed in the MQTT Partial
+    // Buffer) the mqtt_recv function is called to process that message.
+    // Within mqtt_recv the publish_callback() function is called to
+    // take action on the content of the MQTT message Payload.
+    //
+    // When a TCP Packet is received with an MQTT message (the datagram) in
+    // it the packet will be placed in the uip_buf startng at the location
+    // indicated by pointer uip_appdata. Any given MQTT message may span two
+    // or more sequential packets. When a TCP datagram spans multiple packets
+    // this function will return for additional packets, and will reconstruct
+    // any MQTT message than may be split between TCP datagram packets.
+    //
+    // The code here will call mqtt_recv and mqtt_send to interpret the
+    // MQTT message reconstructed in the mqtt_partial_buf and send a response
+    // to the originator (if needed). A concern is that there can be no actual
+    // transmission of responses to incoming MQTT messages until the uip_buf
+    // is emptied. There is very limited space in the mqtt_sendbuf and
+    // responses need to accumulate there. Fortunately the following analysis
+    // shows that there should be very little response traffic filling the
+    // mqtt_sendbuf.
+    //
+    // MQTT messages that will be received during boot initialization are:
+    // CONNACK
+    // SUBACK
+    // 
+    //
+    // The only MQTT messages that will be received AFTER boot initialization
+    // completes are:
+    // PUBLISH:
+    //   msg->state is not updated until mqtt_send() is called.
+    // PINGRESP:
+    //   No transmit activity occurs. The message queue is updated with
+    //   msg->state = MQTT_QUEUED_COMPLETE. This allows the queue slot to be
+    //   reused if needed.
+    //
+    // Next mqtt_send() is called to clean up message states after
+    // mqtt_recv().
+    // DISCONNECT:
+    //   A transmit message can be placed in the mqtt_sendbuf by the
+    //   mqtt_disconnect() function. When mqtt_send is run the transmit
+    //   queue is updated with msg->state = MQTT_QUEUED_COMPLETE. This
+    //   allows the queue slot to be reused is needed (although that won't
+    //   happen as Disconnect will be followed by a reboot).
+    // PUBLISH:
+    //   At QOS 0 no transmit activity occurs. Only publish_callback() is
+    //   called, which updates tracking variables which will later result in
+    //   generation of PUBLISH messages for transmit from the Network Module.
+    //   Those transmits will occur, at earliest, after the processing of the
+    //   current TCP packet is complete. The transmit queue is updated with
+    //   msg->state = MQTT_QUEUED_COMPLETE. allows the queue slot to be
+    //   reused is needed.
+    // PINGREQ:
+    //   At the end of mqtt_send() at about a 30 second interval a PINGREQ
+    //   message gets placed in the transmit queue and the queue is updated
+    //   with msg->state = MQTT_QUEUED_AWAITING_ACK. Any subsequent call to
+    //   mqtt_send() will transmit the message, resulting in a PINGRESP from
+    //   the host. A PINGREQ is a 2 byte message so it occupies very little
+    //   space in the mqtt_sendbuf.
+    
+    // Initialize the pointer for the uip_buf data and determine the
+    // total length of the data in this packet.
+    msgBuffer = uip_appdata;
+    total_msg_length = uip_len;
+    
+    while (total_msg_length > 0) {
+      // If total_msg_length is greater than zero then there is data in the
+      // uip_buf that needs to be read.
+      //
+      // Note: total_msg_length only tracks the length of the data in the
+      // packet currently being processed. current_msg_length tracks the
+      // length of the data in the MQTT message contained in the TCP
+      // datagram. So, if multiple packets are involved in the datagram
+      // we'll be able to continue capturing the MQTT message in subsequent
+      // packets because current_msg_length will indicate if the entire MQTT
+      // message has been received, or more data is needed from subsequent
+      // packets.
+      //
+      // PUBLISH message: This loop will disect the MQTT message Payload,
+      // moving bytes to the parse_buffer in order to find the idx and
+      // nvalue components.
+      // ALL OTHER messages: This loop will move the MQTT message to the MQTT
+      // Partial Buffer.
+      // When a complete MQTT Publish message has been interpreted OR a
+      // complete MQTT message has been moved to the MQTT Partial Buffer the
+      // the mqtt_recv() function will be called to further process the
+      // message.
+
+
+// IWDG_KR  = 0xaa; // Prevent the IWDG from firing. May need to uncomment
+                 // this during debug.
+
+
+      if (mqtt_partial_buffer_length == 0) {
+        // Starting a new MQTT message capture
+        idx_string[0] = '\0';
+        nvalue_string[0] = '\0';
+        remaining_length_captured_flag = 0;
+	filter_step = CAPTURE_VARIABLE_HEADER_BYTE1;
+      }
+
+      // Capture a byte from the uip_buf
+      uip_buf[MQTT_PBUF + pbi] = *msgBuffer;
+      mqtt_partial_buffer_length++;
+      pbi++;
+      msgBuffer++;
+      total_msg_length--;
+
+/*
+#if DEBUG_SUPPORT == 15
+UARTPrintf("READ BYTE = ");
+emb_itoa(uip_buf[MQTT_PBUF + pbi - 1], OctetArray, 16, 2);
+UARTPrintf(OctetArray);
+UARTPrintf("   mqtt_partial_buffer_length = ");
+emb_itoa(mqtt_partial_buffer_length, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("   total_msg_length = ");
+emb_itoa(total_msg_length, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("   current_msg_length = ");
+emb_itoa(current_msg_length, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("   pbi = ");
+emb_itoa(pbi, OctetArray, 10, 3);
+UARTPrintf(OctetArray);
+UARTPrintf("   ");
+{
+  if (uip_buf[MQTT_PBUF + pbi - 1] > 31 && uip_buf[MQTT_PBUF + pbi - 1] < 127) {
+    OctetArray[0] = uip_buf[MQTT_PBUF + pbi - 1];
+    OctetArray[1] = 0;
+    UARTPrintf(OctetArray);
+  }
+  else {
+    emb_itoa(uip_buf[MQTT_PBUF + pbi - 1], OctetArray, 16, 2);
+    UARTPrintf(OctetArray);
+  }
+}
+UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+*/
+
+      if (mqtt_partial_buffer_length == 1) {
+        // Continue loop to collect one more byte (the Remaining Length)
+	// before further decisions.
+        continue; // Go get another byte
+      }
+
+      if (mqtt_partial_buffer_length == 2) {
+        // If mqtt_partial_buffer_length == 2 a new current_msg_length
+        // (Remaining Length) is in the second byte.
+	// Note that if the MSBit of this byte is set then Remaining Length
+	// really consists of two bytes. We will go ahead and capture this
+	// first byte in current_msg_length because:
+	// a) If this MQTT message is a CONNACK, SUBACK, or PING_REQUEST then
+	//    the message is short, the Remaining Length will be used as is,
+	//    and the message will be copied to the MQTT Partial Buffer as is.
+	// b) If the MSBit of the byte is set we need to wait until the next
+	//    byte is captured in the MQTT Paritial Buffer to know the actual
+	//    Remaining Length.
+	// c) If the MSBit of the byte is NOT set then the Remaining Length is
+	//    contained within this single byte and the "captured flag" will
+	//    be set.
+        current_msg_length = (uint16_t)((uip_buf[MQTT_PBUF + 1]) & 0x7f);
+	if ((uip_buf[MQTT_PBUF + 1] & 0x80) == 0x00) {
+	  remaining_length_captured_flag = 1;
+        }
+	if (uip_buf[MQTT_PBUF + 1] != 0x00) {
+	  continue; // Go get another byte (the first byte of the Variable
+	            // Header) only if Remaining Length is not zero. If
+		    // Remaining Length IS zero we already have the entire
+		    // message.
+	}
+	// Else Remaining Length is zero (current_msg_length is zero) so we
+	// fall through to the "if (current_msg_length == 0)" decision point.
+      }
+      
+      if ((mqtt_partial_buffer_length == 3) && (remaining_length_captured_flag == 0)) {
+        // If the Remaining Length was not yet captured the current_msg_length
+	// requires special calculation utilizing the third byte, and the
+	// pointers into the MQTT Partial Buffer need to be moved back one
+	// byte so that the MQTT message starts at the third byte (instead of
+	// at the fourth byte as in the original MQTT message). Why? We are
+	// reducing the size of the orignal MQTT message to fit in the MQTT
+	// Partial Buffer and the two-byte Remaining Length value will be
+	// reduced to one byte.
+	//
+	// At this point an assumption was made that the Remaining Length was
+	// a single byte and that byte has already been copied to the MQTT
+	// Partial Buffer. However, if the MSBit of that single byte is set
+	// then there is a two byte Remaining Length in the original MQTT
+	// packet. So, we need to look at the third byte captured in the MQTT
+	// Partial Buffer to calculate the Remaining Length.
+	// Look at the MQTT spec for details, but that third byte is a
+	// essentially a multiplier and is used as follows:
+        //   Remaining Length = (byte2 & 0x7f) + (byte3 * 128)
+        //   For example, the value 321 will appear in the MQTT message as:
+        //   byte2 = 11000001 (remove MSBit and the remaining bits = 65)
+        //   byte3 = 00000010 (2 x 128 = 256)
+        //   Remaining Length = 65 + 256 = 321
+	//
+        // Since three bytes were collected and the seocnd byte (the first
+	// byte of the original Remaining Length) has the MSBit set (the
+	// Continuation bit) then we know the 3rd byte also contains
+	// Remaining Length data. The value needs to be placed in the
+	// current_msg_length variable so that we track collection of the
+	// entire MQTT message.
+	
+	// Calculate current_msg_length by adding the multiplier to the
+	// current_msg_length already captured.
+        current_msg_length += (uint16_t)(uip_buf[MQTT_PBUF + 2] * 128);
+	
+	// Since we're reducing the size of the Remaining Length from 2 bytes
+	// to 1 byte the pointer into the MQTT Partial Buffer needs to be
+	// reduced by 1 and the count of data in the MQTT Partial Buffer needs
+	// to be reduced by 1.
+	// Result:
+	// a) The MQTT Partial Buffer now only contains a Control Byte and a
+	//    single byte for Remaining Length. That Remaining Length byte is
+	//    still the Remaining Length byte from the original MQTT message,
+	//    but it will be replaced in the MQTT Partial Buffer once the
+	//    entire MQTT message is received and reduced in size.
+	// b) pbi is set to point at byte 3 of the MQTT Partial Buffer where
+	//    the first character of the MQTT message will be captured when
+	//    the loop continues.
+	// c) mqtt_partial_buffer_length is equal to 2.
+	// Given the above we know pbi = 2 and mqtt_partial_buffer_length = 2.
+	pbi = 2;
+        mqtt_partial_buffer_length = 2;
+	remaining_length_captured_flag = 1;
+	continue; // Go get another byte (it will be the first byte of the
+	          // Variable Header).
+      }
+
+      if (mqtt_partial_buffer_length > 2 && ((uip_buf[MQTT_PBUF] & 0xf0) == 0x30)) {
+        // If mqtt_partial_buffer_length > 2 and this is a PUBLISH message
+	// then the message must be filtered. The Control Byte and Remaining
+	// Length Byte(s) have all been captured in the MQTT Partial Buffer.
+	// From here on we must decrement the current_msg_length with each
+	// additional byte read from the incoming domoticz/out message so that
+	// we are assured of reading the entire incoming message.
+	//
+	// Since we know that this is a Domoticz Publish message we will
+	// walk through the TCP datagram and extract the "idx" and "nvalue"
+	// values, storing those values in globals idx_string and
+	// nvalue_string. This means that the publish_callback() function
+	// does not need the Publish message, still a properly formatted
+	// Publish message must be present in the MQTT Partial Buffer so
+	// that the mqtt_recv() function will work properly. This will be
+	// accomplished by faking a Publish message just before mqtt_recv()
+	// is called.
+	
+	// The following statements are added for code size reduction. In
+	// almost every step of the switch() below the character that was
+	// added to the MQTT Partial Buffer is "deleted". It isn't really
+	// deleted, but the pbi index and mqtt_partial_buffer_length counter
+	// are both decremented so that the added character is not "counted".
+	// The character is still there and can be referenced by manipulating
+	// the pbi value.
+	pbi--;
+        mqtt_partial_buffer_length--;
+
+        switch (filter_step) {
+	  case CAPTURE_VARIABLE_HEADER_BYTE1:
+	    // Replace the first Variable Header Length byte in the MQTT
+	    // Partial Buffer with 0.
+            uip_buf[MQTT_PBUF + pbi] = 0;
+            mqtt_partial_buffer_length++;
+            pbi++;
+	    filter_step = CAPTURE_VARIABLE_HEADER_BYTE2;
+            break;
+
+	  case CAPTURE_VARIABLE_HEADER_BYTE2:
+	    // Replace the second Variable Header Length byte in the MQTT
+	    // Partial Buffer with 1.
+            uip_buf[MQTT_PBUF + pbi] = 1;
+	    // Place character 'd' in the MQTT Partial Buffer to act as the
+	    // Variable Header. Any character will do as the message in the
+	    // MQTT Partial Buffer only needs to meet the Publish message
+	    // spec but won't be utilized further.
+            uip_buf[MQTT_PBUF + pbi + 1] = 'd';
+	    mqtt_partial_buffer_length += 2;
+            pbi += 2;
+	    filter_step = FIND_COMPONENT_START;
+	    // Initialize the parse_index to prepare for the idx and nvalue
+	    // search.
+            parse_index = 0;
+            break;
+
+	  case FIND_COMPONENT_START:
+	    // Search for LF character
+	    if (uip_buf[MQTT_PBUF + pbi] == 0x0a) {
+	      //Save the character in parse_buffer
+	      parse_buffer[parse_index++] = uip_buf[MQTT_PBUF + pbi];
+	      filter_step = CAPTURE_COMPONENT;
+	    }
+            break;
+
+	  case CAPTURE_COMPONENT:
+	    // Copy characters from the uip_buf to the parse_buffer until a
+	    // comma is found. If 19 characters are copied without finding the
+	    // comma this is not a compoent of interest and we will start over
+	    // looking for the start of the next component.
+	    
+	    // If a comma is found this might be a component of interest so it
+	    // will be examined to determine if it is a idx or nvalue
+	    // component.
+	    
+	    parse_buffer[parse_index++] = uip_buf[MQTT_PBUF + pbi];
+	    // We don't need to copy the captured idx component contained in
+	    // the parse_buffer to the MQTT Partial Buffer as all processing
+	    // of the content is handled here from what is contained in the
+	    // parse_buffer. When publish_callback() is called it won't look
+	    // at the payload content. publish_callback() will only look at
+	    // the idx_string and nvalue_string (globals).
+	    
+	    if (parse_buffer[parse_index - 1] == ',') {
+	      // Examine for idx or nvalue
+	      #define TEMPTEXT "\n\t\"idx\"\0"
+	      if (strncmp(parse_buffer, TEMPTEXT, 7) == 0) {
+	      #undef TEMPTEXT
+	        // Extract the idx value here to reduce code size in the
+	        // publish_callback() function. The parse_buffer will contain
+		// a string of this format (showing minimum and maximum idx
+		// value examples).
+	        //   nt"idx" : 1,
+	        //   nt"idx" : 999999,
+	        //  where nt are the Newline and Tab characters
+	        //  note there is a space before and after the : character
+	        // The above means the start of the idx value is always at
+	        // parse_buffer[11] and the end of the idx value is prior to
+	        // the comma.
+	        {
+	          int k;
+		  int m;
+	          m = 0;
+	          for (k=10; k<16; k++) {
+	            if (parse_buffer[k] == ',') break;
+	            idx_string[m++] = parse_buffer[k];
+	            idx_string[m] = '\0';
+	          }
+		}
+	        // idx always comes before nvalue in the MQTT message. Go back
+		// and look for nvalue.
+	        parse_index = 0;
+	        filter_step = FIND_COMPONENT_START;
+              }
+	      
+	      #define TEMPTEXT "\n\t\"nval\0"
+	      else if (strncmp(parse_buffer, TEMPTEXT, 7) == 0) {
+	      #undef TEMPTEXT
+	        // Extract the nvalue value here to reduce code size in the
+	        // publish_callback() function. The parse_buffer will contain
+	        // a string of this format with a single byte nvalue.
+	        // examples).
+	        //   nt"nvalue" : 1,
+	        //  where nt are the Newline and Tab characters
+	        //  note there is a space before and after the : character
+	        // The above means the nvalue is always at parse_buffer[13].
+	        nvalue_string[0] = parse_buffer[13];
+	        nvalue_string[1] = '\0';
+		
+	        // Add a '}' to the end of the MQTT message. This will be the
+		// sole character in the Payload.
+	        pbi++;
+                mqtt_partial_buffer_length++;
+	        uip_buf[MQTT_PBUF + pbi] = '}';
+		
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("idx_string = >");
+// UARTPrintf(idx_string);
+// UARTPrintf("<\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("nvalue_string = >");
+// UARTPrintf(nvalue_string);
+// UARTPrintf("<\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+	        // Now just spin until the end of the datagram is found.
+	        filter_step = COMPLETE_MSG_RECEIVE;
+              }
+	      
+	      else {
+	        // Didn't find a match to "idx" or "nval phrases. Continue the
+	        // search by going back to filter_step 3.
+	        parse_index = 0;
+	        filter_step = FIND_COMPONENT_START;
+	      }
+	    }
+	    
+	    if (parse_index == 19) {
+	      // Captured 19 characters but didn't find comman.
+	      // Go back to find the next component.
+	      parse_index = 0;
+	      filter_step = FIND_COMPONENT_START;
+	    }
+	    break;
+            
+	  case COMPLETE_MSG_RECEIVE:
+	    // Just looking for the end of the TCP datagram. Discard all further
+	    // characters found in the uip_buf.
+	    // Note: All characters found in the uip_buf are copied to the MQTT
+	    // Partial Buffer and the pbi and mqtt_partial_buffer_length are
+	    // incremented when that copy happens. To discard the characters pbi
+	    // and mqtt_partial_buffer_index must now be decremented.
+            break;
+	    
+	} // End switch
+	
+        current_msg_length--;
+		
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("current_msg_length = >");
+// emb_itoa(current_msg_length, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("<\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+
+	if (current_msg_length != 0) continue; // Go get another byte;
+      }
+
+
+
+      if (mqtt_partial_buffer_length > 2 && ((uip_buf[MQTT_PBUF] & 0xf0) != 0x30)) {
+        // This is not a PUBLISH, so we just copy all characters in the MQTT
+	// message to the MQTT Partial Buffer until current_msg_length = 0.
+	// The current character was already copied, so decrement the
+	// current_msg_length.
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        // Should I have a "break" to exit the while() loop (effectively
+	// aborting the MQTT message) if the length is >59? This would prevent
+	// over-run of the MQTT Partial Buffer. This shouldn't be necessary
+	// but I don't know Domoticz very well and don't know if there are any
+	// large non-PUBLISH messages that could be lurking out there.
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	if (current_msg_length > 59) {
+          // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          // A check is made to make sure non-PUBLISH messages cannot exceed
+	  // the size of the MQTT Partial Buffer. If the message is too bit
+	  // the message receive is aborted (message is simply ignored). I
+	  // don't think this can happen but I don't know Domoticz very well
+	  // and don't know if there are any large non-PUBLISH messages that
+	  // could be lurking out there.
+	  // Hmmmm ... what if the message is multi-packet? I don't think that
+	  // can happen so I won't try to figure that out for now.
+	  break;
+        }
+
+	current_msg_length--;
+      }
+      
+      // Note: If a 2-byte MQTT message was received (for example PINGREQ)
+      // then the Remaining Length will have started out as zero, the
+      // mqtt_partial_buffer_length will be 2, and current_msg_length will be
+      // zero.
+      
+
+      if (current_msg_length == 0) {
+        // Captured a complete message. Call mqtt_recv() then clear the
+        // MQTT Partial Buffer handling variables to prepare to capture the
+	// next one.
+	
+	// Copy the mqtt_partial_buffer_length to the Remaining Length byte of
+	// the MQTT message in the MQTT Partial Buffer. Remaining Length is in
+	// byte 2 of the buffer.
+	// Note: mqtt_partial_buffer_length includes everything copied to the
+	// MQTT Partial Buffer, including the Control and Remaining Length
+	// bytes. However, the Remaining Length byte does not include the
+	// Control and Remaining Length byte in its value. Thus, Remaining
+	// Length is (mqtt_partial_buffer_length - 2).
+	uip_buf[MQTT_PBUF + 1] = (uint8_t)(mqtt_partial_buffer_length - 2);
+
+/*
+#if DEBUG_SUPPORT == 15
+{
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // IMPORTANT: KEEP THESE DEBUG STATEMENTS FOR REFERENCE FOR VIEWING
+  // INCOMING MESSAGES IN THE UIP_BUFF AT THE APPDATA START POINT.
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // Display the contents of the uip_buf in text format 32
+  // bytes per row
+  int q;
+  int r;
+  char *qBuffer;
+
+  // Display the content of the uip_buf in text format
+  qBuffer = &uip_buf[MQTT_PBUF];
+  
+  for (r=0; r<2; r++) {
+    UARTPrintf("mqtt_sync - uip_buf txt = ");
+    for (q = 0; q<32; q++) {
+      if (*qBuffer > 31 && *qBuffer < 127) {
+        UARTPrintf(" ");
+        OctetArray[0] = *qBuffer;
+        OctetArray[1] = 0;
+        UARTPrintf(OctetArray);
+      }
+      else {
+        emb_itoa(*qBuffer, OctetArray, 16, 2);
+        UARTPrintf(OctetArray);
+      }
+      UARTPrintf(" ");
+      qBuffer++;
+    }
+    UARTPrintf("\r\n");
+  }
+}
+#endif // DEBUG_SUPPORT == 15
+*/
+	
+        err = mqtt_recv(client);
+        mqtt_partial_buffer_length = 0;
+        pbi = 0;
+	remaining_length_captured_flag = 0;
+        if (err != MQTT_OK) {
+          return err;
+        }
+        
+        // Call send
+        // If we run mqtt_recv() we need to follow that with a call to
+        // mqtt_send() so that each processed MQTT message finishes its
+        // recv/send process (mostly making sure the message state is updated
+        // correctly).
+        // mqtt_send() shouldn't actually transmit anything via the uip_buf
+        // at this point. It should only update the msg->state of messages
+        // as needed.
+        err = mqtt_send(client);
+        // Set global MQTT error flag so GUI can show status
+        if (err == MQTT_OK) MQTT_error_status = 1;
+        else MQTT_error_status = 0;
+        if (err != MQTT_OK) {
+          return err;
+        }
+      }
+      
+      // At this point if total_msg_length == 0 then the MQTT message just
+      // extracted (or part thereof) was the end of the TCP packet. The
+      // while() loop will terminate so that another TCP packet can be
+      // collected.
+      // Note: the current_msg_length, mqtt_partial_buffer_length, and pbi
+      // are all retained in global memory so that the next packet starts
+      // where this one left off.
+      
+    } // end of while loop
+  }
+  
+  // Call send
+  // mqtt_send() will check the send_buf to see if there are any queued
+  // messages to transmit. Since the mqtt_recv() calls above will have
+  // cleared out any received messages the uip_buf is now available for
+  // transmit messages.
+  err = mqtt_send(client);
+  
+  // Set global MQTT error flag so GUI can show status
+  if (err == MQTT_OK) MQTT_error_status = 1;
+  else MQTT_error_status = 0;
+  
+  return err;
+}
+#endif // DOMOTICZ_SUPPORT == 1
 
 
 uint16_t mqtt_check_sendbuf(struct mqtt_client *client)
@@ -262,7 +939,7 @@ uint16_t mqtt_check_sendbuf(struct mqtt_client *client)
 
 
 
-uint16_t __mqtt_next_pid(struct mqtt_client *client)
+uint16_t mqtt_next_pid(struct mqtt_client *client)
 {
     // This function generates a psudo random packet id (pid)
     int16_t pid_exists = 0;
@@ -296,8 +973,7 @@ int16_t mqtt_init(struct mqtt_client *client,
                uint8_t *recvbuf, uint16_t recvbufsz,
                void (*publish_response_callback)(void** state,struct mqtt_response_publish *publish))
 {
-    // Initialize variables used in extracting MQTT messages from batched /
-    // fragmented TCP packets
+    // Initialize variables used in extracting MQTT messages from the uip_buf.
     current_msg_length = 0;
     mqtt_partial_buffer_length = 0;
     pbi = 0;
@@ -306,14 +982,16 @@ int16_t mqtt_init(struct mqtt_client *client,
       return MQTT_ERROR_NULLPTR;
     }
 
+    // Initialize the transmit queue manager
     mqtt_mq_init(&client->mq, sendbuf, sendbufsz);
 
+    // Initialize variables used in extracting MQTT messages directly from
+    // the uip_buf. While appearing in all code revisions these next four
+    // variables are used only in Domoticz builds.
     client->recv_buffer.mem_start = recvbuf;
     client->recv_buffer.mem_size = recvbufsz;
-    // The .curr variables are not needed since the receive buffer is fed
-    // one message at a time.
-    // client->recv_buffer.curr = client->recv_buffer.mem_start;
-    // client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
+    client->recv_buffer.curr = client->recv_buffer.mem_start;
+    client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
 
     client->error = MQTT_ERROR_CONNECT_NOT_CALLED;
     client->response_timeout = 30;
@@ -325,70 +1003,6 @@ int16_t mqtt_init(struct mqtt_client *client,
     return MQTT_OK;
 }
 
-/*
-// A macro function that:
-//      1) Checks that the client isn't already in an error state.
-//      2) Attempts to pack to client's message queue.
-//          a) handles errors
-//          b) if mq buffer is too small (as indicated by tmp == 0),
-//             cleans it and tries again
-//      3) Upon successful pack, registers the new message.
-// Why is a macro used?
-// I think because the "pack_call" is a pointer to one of 5 functions each
-// of which has its own function call variables, both in terms of what the
-// variables are and how many there are. This compiles okay because macros
-// are not checked for variable types in the macro call.
-// Downside to using a macro?
-// Everywhere the macro is unsed the code below is replicated in-line. This
-// makes the compiled code larger.
-#define MQTT_CLIENT_TRY_PACK(tmp, msg, client, pack_call, release)  \
-    if (client->error < 0) {                                        \
-        return client->error;                                       \
-    }                                                               \
-    tmp = pack_call;                                                \
-    if (tmp < 0) {                                                  \
-        client->error = tmp;                                        \
-        return tmp;                                                 \
-    }                                                               \
-    else if (tmp == 0) {                                            \
-        mqtt_mq_clean(&client->mq);                                 \
-        tmp = pack_call;                                            \
-        if (tmp < 0) {                                              \
-            client->error = tmp;                                    \
-            return tmp;                                             \
-        } else if(tmp == 0) {                                       \
-            client->error = MQTT_ERROR_SEND_BUFFER_IS_FULL;         \
-            return MQTT_ERROR_SEND_BUFFER_IS_FULL;                  \
-        }                                                           \
-    }                                                               \
-    msg = mqtt_mq_register(&client->mq, tmp);                       \
-*/
-
-
-/*
-// A macro function that:
-//      1) Checks that the client isn't already in an error state.
-//      2) Attempts to pack to client's message queue.
-//          a) handles errors
-//          b) if mq buffer is too small (as indicated by tmp == 0),
-//             cleans it and tries again
-//      3) Upon successful pack, registers the new message.
-// Why is a macro used?
-// I think because the "pack_call" is a pointer to one of 5 functions each
-// of which has its own function call variables, both in terms of what the
-// variables are and how many there are. This compiles okay because macros
-// are not checked for variable types in the macro call.
-// Downside to using a macro?
-// Everywhere the macro is unsed the code below is replicated in-line. This
-// makes the compiled code larger.
-#define MQTT_CLIENT_TRY_PACK(tmp, msg, client, pack_call) \
-  tmp = pack_call;                                        \
-  if (tmp < 0) {                                          \
-    client->error = tmp;                                  \
-    return tmp;                                           \
-  }                                                       \
-  msg = mqtt_mq_register(&client->mq, tmp);               \
-*/
 
 int16_t mqtt_connect(struct mqtt_client *client,
                      const char* client_id,
@@ -416,22 +1030,6 @@ int16_t mqtt_connect(struct mqtt_client *client,
     }
     mqtt_mq_clean(&client->mq);
     
-//    MQTT_CLIENT_TRY_PACK(rv, msg, client, 
-//        mqtt_pack_connection_request(
-//          client->mq.curr,
-//	    client->mq.curr_sz,
-//          client_id,
-//	    will_topic,
-//	    will_message, 
-//          will_message_size,
-//	    user_name,
-//	    password, 
-//          connect_flags,
-//	    keep_alive
-//        ), 
-//        1
-//    );
-
     rv = mqtt_pack_connection_request(
             client->mq.curr,
             client->mq.curr_sz,
@@ -467,26 +1065,12 @@ int16_t mqtt_publish(struct mqtt_client *client,
     struct mqtt_queued_message *msg;
     int16_t rv;
     uint16_t packet_id;
-    packet_id = __mqtt_next_pid(client);
+    packet_id = mqtt_next_pid(client);
 
     if (client->error < 0) {
         return client->error;
     }
     mqtt_mq_clean(&client->mq);
-    
-    // try to pack the message
-//    MQTT_CLIENT_TRY_PACK(
-//      rv, msg, client, 
-//      mqtt_pack_publish_request(
-//        client->mq.curr, client->mq.curr_sz,
-//        topic_name,
-//        packet_id,
-//        application_message,
-//        application_message_size,
-//        publish_flags
-//        ), 
-//        1
-//      );
     
     rv = mqtt_pack_publish_request(
             client->mq.curr, client->mq.curr_sz,
@@ -518,24 +1102,12 @@ int16_t mqtt_subscribe(struct mqtt_client *client,
     int16_t rv;
     uint16_t packet_id;
     struct mqtt_queued_message *msg;
-    packet_id = __mqtt_next_pid(client);
+    packet_id = mqtt_next_pid(client);
 
     if (client->error < 0) {
         return client->error;
     }
     mqtt_mq_clean(&client->mq);
-    
-    // try to pack the message
-//    MQTT_CLIENT_TRY_PACK(
-//        rv, msg, client, 
-//        mqtt_pack_subscribe_request(
-//            client->mq.curr, client->mq.curr_sz,
-//            packet_id,
-//            topic_name,
-//            max_qos_level
-//        ), 
-//        1
-//    );
     
     rv = mqtt_pack_subscribe_request(
             client->mq.curr, client->mq.curr_sz,
@@ -560,29 +1132,12 @@ int16_t mqtt_subscribe(struct mqtt_client *client,
 int16_t mqtt_ping(struct mqtt_client *client)
 {
     int16_t rv;
-    rv = __mqtt_ping(client);
-    return rv;
-}
-
-
-int16_t __mqtt_ping(struct mqtt_client *client) 
-{
-    int16_t rv;
     struct mqtt_queued_message *msg;
 
     if (client->error < 0) {
         return client->error;
     }
     mqtt_mq_clean(&client->mq);
-    
-    // try to pack the message
-//    MQTT_CLIENT_TRY_PACK(
-//        rv, msg, client, 
-//        mqtt_pack_ping_request(
-//            client->mq.curr, client->mq.curr_sz
-//        ),
-//        0
-//    );
     
     rv = mqtt_pack_ping_request(
             client->mq.curr, client->mq.curr_sz
@@ -611,15 +1166,6 @@ int16_t mqtt_disconnect(struct mqtt_client *client)
     }
     mqtt_mq_clean(&client->mq);
     
-    // try to pack the message
-//    MQTT_CLIENT_TRY_PACK(
-//        rv, msg, client, 
-//        mqtt_pack_disconnect(
-//            client->mq.curr, client->mq.curr_sz
-//        ), 
-//        1
-//    );
-    
     rv = mqtt_pack_disconnect(
             client->mq.curr, client->mq.curr_sz
             );
@@ -637,7 +1183,7 @@ int16_t mqtt_disconnect(struct mqtt_client *client)
 }
 
 
-int16_t __mqtt_send(struct mqtt_client *client)
+int16_t mqtt_send(struct mqtt_client *client)
 {
     // Function to manage transfer of messages from the mqtt_sendbuf to the
     // uip_buf so that they will be transmitted on the ethernet.
@@ -763,11 +1309,6 @@ int16_t __mqtt_send(struct mqtt_client *client)
       break;
     }
 
-#if DEBUG_SUPPORT == 15
-// UARTPrintf(".");
-#endif // DEBUG_SUPPORT == 15
-
-
     // check for keep-alive
     {
       // At about 3/4 of the timeout period perform a ping. This calculation
@@ -776,26 +1317,16 @@ int16_t __mqtt_send(struct mqtt_client *client)
       // timeout should be at least 15 seconds).
       // Note that a ping is required only when the module is idle, as
       // indicated by checking against the time that the last command was
-      // sent (time_of_last_send).
+      // sent (time_of_last_send). For instance, if the module is reqularly
+      // transmitting a temperature sensor value it may never generate a
+      // ping.
       uint32_t keep_alive_timeout;
       int16_t rv;
       
       keep_alive_timeout = client->time_of_last_send + (uint32_t)((client->keep_alive * 3) / 4);
-
-#if DEBUG_SUPPORT == 15
-// UARTPrintf("sec ctr = ");
-// emb_itoa(second_counter, OctetArray, 10, 8);
-// UARTPrintf(OctetArray);
-// UARTPrintf("   kl_tout = ");
-// emb_itoa(keep_alive_timeout, OctetArray, 10, 8);
-// UARTPrintf(OctetArray);
-// if (mqtt_start == MQTT_START_COMPLETE) UARTPrintf("   mqtt sc");
-// UARTPrintf("\r\n");
-#endif // DEBUG_SUPPORT == 15
-
       
       if ((second_counter > keep_alive_timeout) && (mqtt_start == MQTT_START_COMPLETE)) {
-        rv = __mqtt_ping(client);
+        rv = mqtt_ping(client);
         if (rv != MQTT_OK) {
           client->error = rv;
           return rv;
@@ -807,12 +1338,18 @@ int16_t __mqtt_send(struct mqtt_client *client)
 }
 
 
-int16_t __mqtt_recv(struct mqtt_client *client)
+int16_t mqtt_recv(struct mqtt_client *client)
 {
     struct mqtt_response response;
     int16_t mqtt_recv_ret = MQTT_OK;
     int16_t rv, consumed;
     struct mqtt_queued_message *msg = NULL;
+    
+    
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("called mqtt_recv\r\n");
+#endif // DEBUG_SUPPORT == 15
+    
 
     // Read the input buffer and check for errors
 
@@ -822,14 +1359,12 @@ int16_t __mqtt_recv(struct mqtt_client *client)
     // check if there is any receive data in the uip_buf. To do this we
     // only need to check if uip_len is > 0. If it is not we need to
     // generate an error by setting rv = -1.
+
+    consumed = 0;
+
     if (mqtt_partial_buffer_length > 0) rv = mqtt_partial_buffer_length;
     else rv = -1;
-
-    client->recv_buffer.curr += rv;
-    client->recv_buffer.curr_sz -= rv;
-
-    // attempt to parse
-//    consumed = mqtt_unpack_response(&response, client->recv_buffer.mem_start, client->recv_buffer.curr - client->recv_buffer.mem_start);
+    // Attempt to parse
     consumed = mqtt_unpack_response(&response, &uip_buf[MQTT_PBUF], mqtt_partial_buffer_length);
 
     if (consumed < 0) {
@@ -943,29 +1478,21 @@ int16_t __mqtt_recv(struct mqtt_client *client)
             client->error = MQTT_ERROR_MALFORMED_RESPONSE;
             mqtt_recv_ret = MQTT_ERROR_MALFORMED_RESPONSE;
             break;
-    }
+    } // end switch
     
-    {
-        // Because we have the UIP code as the front end to MQTT there will
-        // never be more than one receive msg in the uip_buf, so the
-        // processing above will have "consumed" it. If a new receive message
-	// comes in on the ethernet while this code is operating it will be
-	// held in the enc28j60 hardware buffer until the application gets
-	// back around to receiving it.
-        //
-        // The original code was set up to let several messages get queued in
-        // the receive buffer, then those messages are read out. When a
-        // message is read the original code "cleans the buffer" by moving any
-        // remaining messages toward the beginning of the buffer, over-writing
-        // the messages consumed. Or at least that's what I think it was doing.
-        //
-	// Reset receive pointers to start of buffer. NO LONGER NEEDED: Due to
-	// lack of memory in this application the receive buffer is very small
-	// and is fed one message at a time.
-//	client->recv_buffer.curr = client->recv_buffer.mem_start;
-//	client->recv_buffer.curr_sz = client->recv_buffer.mem_size;
-    }
-
+    // Because we have the UIP code as the front end to MQTT there will
+    // never be more than one receive msg in the uip_buf, so the
+    // processing above will have "consumed" it. If a new receive message
+    // comes in on the ethernet while this code is operating it will be
+    // held in the enc28j60 hardware buffer until the application gets
+    // back around to receiving it.
+    //
+    // The original code was set up to let several messages get queued in
+    // the receive buffer, then those messages are read out. When a
+    // message is read the original code "cleans the buffer" by moving any
+    // remaining messages toward the beginning of the buffer, over-writing
+    // the messages consumed. Or at least that's what I think it was doing.
+    
     // In case there was some error handling the (well formed) message, we end
     // up here
     return mqtt_recv_ret;
@@ -1193,25 +1720,25 @@ int16_t mqtt_pack_connection_request(uint8_t* buf, uint16_t bufsz,
     // }
     
     // mqtt_string length is strlen + 2
-    remaining_length += __mqtt_packed_cstrlen(client_id);
+    remaining_length += (strlen(client_id) + 2);
 
     // This application always has a will_topic and will_message
     connect_flags |= MQTT_CONNECT_WILL_FLAG;
     connect_flags |= MQTT_CONNECT_WILL_RETAIN;
-    remaining_length += __mqtt_packed_cstrlen(will_topic);
+    remaining_length += (strlen(will_topic) + 2);
     remaining_length += 2 + will_message_size; // size of will_message
 
     if (user_name != NULL) {
         // a user name is present
         connect_flags |= MQTT_CONNECT_USER_NAME;
-        remaining_length += __mqtt_packed_cstrlen(user_name);
+        remaining_length += (strlen(user_name) + 2);
     }
     else connect_flags &= (uint8_t)(~MQTT_CONNECT_USER_NAME);
 
     if (password != NULL) {
         // a password is present
         connect_flags |= MQTT_CONNECT_PASSWORD;
-        remaining_length += __mqtt_packed_cstrlen(password);
+        remaining_length += (strlen(password) + 2);
     }
     else connect_flags &= (uint8_t)(~MQTT_CONNECT_PASSWORD);
 
@@ -1239,20 +1766,20 @@ int16_t mqtt_pack_connection_request(uint8_t* buf, uint16_t bufsz,
     *buf++ = (uint8_t) 'T';
     *buf++ = MQTT_PROTOCOL_LEVEL;
     *buf++ = connect_flags;
-    buf += __mqtt_pack_uint16(buf, keep_alive);
+    buf += mqtt_pack_uint16(buf, keep_alive);
 
     // pack the payload
-    buf += __mqtt_pack_str(buf, client_id);
+    buf += mqtt_pack_str(buf, client_id);
     if (connect_flags & MQTT_CONNECT_WILL_FLAG) {
-        buf += __mqtt_pack_str(buf, will_topic);
-        buf += __mqtt_pack_uint16(buf, (uint16_t)will_message_size);
+        buf += mqtt_pack_str(buf, will_topic);
+        buf += mqtt_pack_uint16(buf, (uint16_t)will_message_size);
         memcpy(buf, will_message, will_message_size);
         buf += will_message_size;
     }
     
-    if (connect_flags & MQTT_CONNECT_USER_NAME) buf += __mqtt_pack_str(buf, user_name);
+    if (connect_flags & MQTT_CONNECT_USER_NAME) buf += mqtt_pack_str(buf, user_name);
 
-    if (connect_flags & MQTT_CONNECT_PASSWORD) buf += __mqtt_pack_str(buf, password);
+    if (connect_flags & MQTT_CONNECT_PASSWORD) buf += mqtt_pack_str(buf, password);
 
     // return the number of bytes that were consumed
     return buf - start;
@@ -1330,7 +1857,7 @@ int16_t mqtt_pack_publish_request(uint8_t *buf, uint16_t bufsz,
     fixed_header.control_type = MQTT_CONTROL_PUBLISH;
     
     // calculate remaining length
-    remaining_length = (uint32_t)__mqtt_packed_cstrlen(topic_name);
+    remaining_length = (uint32_t)(strlen(topic_name) + 2);
 
     remaining_length += (uint32_t)application_message_size;
     fixed_header.remaining_length = remaining_length;
@@ -1351,7 +1878,7 @@ int16_t mqtt_pack_publish_request(uint8_t *buf, uint16_t bufsz,
     if (bufsz < remaining_length) return 0;
 
     // pack variable header
-    buf += __mqtt_pack_str(buf, topic_name);
+    buf += mqtt_pack_str(buf, topic_name);
     
     // pack payload
     memcpy(buf, application_message, application_message_size);
@@ -1381,7 +1908,7 @@ int16_t mqtt_unpack_publish_response(struct mqtt_response *mqtt_response, const 
     }
 
     // parse variable header
-    response->topic_name_size = __mqtt_unpack_uint16(buf);
+    response->topic_name_size = mqtt_unpack_uint16(buf);
     buf += 2;
     response->topic_name = buf;
     buf += response->topic_name_size;
@@ -1409,7 +1936,7 @@ int16_t mqtt_unpack_suback_response (struct mqtt_response *mqtt_response, const 
     }
 
     // unpack packet_id
-    mqtt_response->decoded.suback.packet_id = __mqtt_unpack_uint16(buf);
+    mqtt_response->decoded.suback.packet_id = mqtt_unpack_uint16(buf);
     buf += 2;
     remaining_length -= 2;
 
@@ -1434,7 +1961,7 @@ int16_t mqtt_pack_subscribe_request(uint8_t *buf, uint16_t bufsz, uint16_t packe
     fixed_header.control_flags = 2u;
     fixed_header.remaining_length = 2u; // size of variable header
     // payload is topic name + max qos (1 byte)
-    fixed_header.remaining_length += __mqtt_packed_cstrlen(topic) + 1;
+    fixed_header.remaining_length += (strlen(topic) + 2 + 1);
 
     // pack the fixed header
     rv = mqtt_pack_fixed_header(buf, bufsz, &fixed_header);
@@ -1446,10 +1973,10 @@ int16_t mqtt_pack_subscribe_request(uint8_t *buf, uint16_t bufsz, uint16_t packe
     if (bufsz < fixed_header.remaining_length) return 0;
         
     // pack variable header
-    buf += __mqtt_pack_uint16(buf, packet_id);
+    buf += mqtt_pack_uint16(buf, packet_id);
 
     // pack payload
-    buf += __mqtt_pack_str(buf, topic);
+    buf += mqtt_pack_str(buf, topic);
     *buf++ = (uint8_t)max_qos_level; //max_qos
 
     return buf - start;
@@ -1550,7 +2077,13 @@ struct mqtt_queued_message* mqtt_mq_find(struct mqtt_message_queue *mq, enum MQT
 int16_t mqtt_unpack_response(struct mqtt_response* response, const uint8_t *buf, uint16_t bufsz)
 {
     const uint8_t *const start = buf;
-    int16_t rv = mqtt_unpack_fixed_header(response, buf, bufsz);
+    int16_t rv;
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("called mqtt_unpack_response\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+    rv = mqtt_unpack_fixed_header(response, buf, bufsz);
     
     if (rv <= 0) return rv;
     else buf += rv;
@@ -1586,11 +2119,14 @@ int16_t mqtt_unpack_response(struct mqtt_response* response, const uint8_t *buf,
 // htons() does nothing more than swap the high order and low order
 // bytes of a 16 bit value based on whether or not the host endianess
 // and network endianess match. The network is BIG ENDIAN, and a host
-// can be either. In this application the host is also BIG ENDIAN, so
-// no swap is required. Still, the code makes this choice based on
-// a setting in the uipopt.h file (search for UIP_BYTE_ORDER).
+// can be either. In this application the host (the STM8 processor) is
+// also BIG ENDIAN, so no swap is required. Still, the code makes this
+// choice based on a setting in the uipopt.h file (search for
+// UIP_BYTE_ORDER).
 //
-int16_t __mqtt_pack_uint16(uint8_t *buf, uint16_t integer)
+// SINCE THE STM8 PROCESSOR IS BIG ENDIAN MIGHT BE ABLE TO REDUCE CODE SIZE A
+// SMALL AMOUNT BY NEVER CALLING mqtt_pack_uint16 and mqtt_unpack_uint16.
+int16_t mqtt_pack_uint16(uint8_t *buf, uint16_t integer)
 {
   uint16_t integer_htons = HTONS(integer);
   memcpy(buf, &integer_htons, 2);
@@ -1598,7 +2134,7 @@ int16_t __mqtt_pack_uint16(uint8_t *buf, uint16_t integer)
 }
 
 
-uint16_t __mqtt_unpack_uint16(const uint8_t *buf)
+uint16_t mqtt_unpack_uint16(const uint8_t *buf)
 {
   uint16_t integer_htons;
   memcpy(&integer_htons, buf, 2);
@@ -1606,12 +2142,12 @@ uint16_t __mqtt_unpack_uint16(const uint8_t *buf)
 }
 
 
-int16_t __mqtt_pack_str(uint8_t *buf, const char* str)
+int16_t mqtt_pack_str(uint8_t *buf, const char* str)
 {
     uint16_t length = (uint16_t)strlen(str);
     int16_t i = 0;
      // pack string length
-    buf += __mqtt_pack_uint16(buf, length);
+    buf += mqtt_pack_uint16(buf, length);
 
     // pack string
     for(; i < length; ++i) *(buf++) = str[i];

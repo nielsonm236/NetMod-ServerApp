@@ -277,7 +277,7 @@ uint8_t Read_Slave_NACKACK(void)
 void I2C_stop(void)
 {
   // Stop Condition
-  SDA_low();  // Drive SDA low, then wait 5us
+  SDA_low();  // Drive SDA low, then wait 5usdfu
   SCL_high(); // Float SCL high, then wait 5us
   SDA_high(); // Fload SDA high, then wait 5us
 }
@@ -347,9 +347,9 @@ void eeprom_copy_to_flash(void)
   // I2C EEPROM to RAM to Flash must contain the entire flash_update
   // segment and must fit safely in RAM. Since we must always copy 128 byte
   // blocks the flash_update segment copy requires 4 blocks, or 512 bytes,
-  // which is larger than the size of the uip_buf. So, the data will over-run
-  // the end of the RAM space allocated to the uip_buf RAM space. This will
-  // still work because of the following:
+  // which may be larger than the size of the uip_buf. So, the data may
+  // over-run the end of the uip_buf RAM space. This will still work because
+  // of the following:
   // a) The .lkf file is set up to place the memcpy_update code at the start
   //    of RAM. This is required for the next item to work. See the main.h
   //    file for proper settings in the .lkf file.
@@ -357,7 +357,7 @@ void eeprom_copy_to_flash(void)
   //    end of RAM ... and that turns out to be the uip_buf. This is why step
   //    (a) is critical: the memcpy_update code must not be placed in RAM
   //    after the uip_buf. Likewise, no other variables used in the copy
-  //    processes can appear in RAM after uip_buf as they will be over-written
+  //    processes can appear in RAM after uip_buf as they may be over-written
   //    when the copy processes run.
   // So, with (a) and (b) established, writes to the uip_buf can over-run the
   // end of RAM and can encroach on the Stack space without causing harm to
@@ -365,9 +365,8 @@ void eeprom_copy_to_flash(void)
   // thing to run before a reboot occurs we don't have to worry about inter-
   // ferring with operation of other runtime code.
   //
-  // I thought about simply making the uip_buf 512 bytes long, but that wastes
-  // RAM in the non-upgradeable versions. So since it doesn't matter that we
-  // encroach on the Stack area this seems the best solution.
+  // If RAM allocated to the uip_buf is larger than 512 bytes the above issues
+  // are not a concern.
   
   ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
   eeprom_index = eeprom_base;

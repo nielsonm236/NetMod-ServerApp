@@ -61,7 +61,7 @@ float shunt_voltage; // Shunt Voltage value reported by the INA226
 
 float current_lsb;
 
-
+extern uint8_t stored_options2; // Options stored in EEPROM
 
 
 // Operation of the INA226
@@ -110,21 +110,59 @@ void ina226_disable()
 
 void ina226_calibrate_all()
 {
+  float shunt_resistance;
+  float max_current;
+  
+  // Set default values
+  shunt_resistance = 0.002;
+  max_current = 20;
+
   // Calibrate all INA226 devices
-  ina226_calibrate(INA226_1_write, 0.002, 20);
-  ina226_calibrate(INA226_2_write, 0.002, 20);
-  ina226_calibrate(INA226_3_write, 0.002, 20);
-  ina226_calibrate(INA226_4_write, 0.002, 20);
-  ina226_calibrate(INA226_5_write, 0.002, 20);
+  // Comments:
+  //   Must limit voltage across shunt resistor to a max of 0.08192V.
+  //
+  //   The max_current value sets resolution of the device (see the spec).
+  //   In these calculations the max_current value is determined by
+  //   the voltage across the shunt resistor(which must not exceed
+  //   0.08192) and by limiting power dissipation in the shunt resistor
+  //   to a reasonable value (stay below 1W). Higher resolution can be
+  //   acheived by limiting max_current rather than simply selecting the
+  //   max_current based on the other considerations.
+  //
+  if (stored_options2 & 0x07 == 0x00) {
+    // Use shunt resistance value of 0.002 ohm
+    // Limit power dissipation of shunt resistor to 3W
+    // At 20 amps voltage across the resistor is 20A x 0.002 = 0.04V
+    // Power dissipated by the resistor is 20A x 0.04V = 0.8W
+    shunt_resistance = 0.002;
+    max_current = 20;
+  }
+  if (stored_options2 & 0x07 == 0x01) {
+    // Use shunt resistance value of 0.010 ohm
+    // Limit power dissipation of shunt resistor to 2W
+    // At 8 amps voltage across the resistor is 8A x 0.01 = 0.08V
+    // Power dissipated by the resistor is 8A x 0.08V = 0.64W
+    shunt_resistance = 0.01;
+    max_current = 8;
+  }
+  if (stored_options2 & 0x07 == 0x02) {
+    // Use shunt reistance value of 0.100 ohm
+    // Limit power dissipation of shunt resistor to 1W
+    // At 0.8 amps voltage across the resistor is 0.8A x 0.1 = 0.08V
+    // Power dissipated by the resistor is 0.8A x 0.08V = 0.064W
+    shunt_resistance = 0.1;
+    max_current = 0.8;
+  }
+  ina226_calibrate(INA226_1_write, shunt_resistance, max_current);
+  ina226_calibrate(INA226_2_write, shunt_resistance, max_current);
+  ina226_calibrate(INA226_3_write, shunt_resistance, max_current);
+  ina226_calibrate(INA226_4_write, shunt_resistance, max_current);
+  ina226_calibrate(INA226_5_write, shunt_resistance, max_current);
 }
 
 
 void ina226_calibrate(uint8_t write_command, float r_shunt, float max_current)
 {
-  //     r_shunt is a float and will be either 0.1 or 0.002
-  //     max_current is a float and will be 20 for the 0.002 r_shunt
-  //     max_current is a float and will be 0.4 for the 0.1 r_shunt
-  
   float calib;
   uint16_t calib_reg;
   
@@ -137,7 +175,7 @@ void ina226_calibrate(uint8_t write_command, float r_shunt, float max_current)
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // Register is a 16bit unsigned integer, thus convert and round above
+  // calib register is a 16bit unsigned integer, thus convert and round above
 //  calib_reg = (uint16_t) floorf(calib);
   // This simple recast can't be right even though I see it recommended in
   // in StackOverflow as long as the float is positive. To get a better

@@ -657,10 +657,10 @@ void uip_process(uint8_t flag)
               UIP_APPCALL(); // Call to get old data for retransmit.  uip_len
 	                     // was cleared above.
 #if DEBUG_SUPPORT == 15
- UARTPrintf("case UIP_ESTABLISHED - resend data   lport = ");
- emb_itoa(uip_connr->lport, OctetArray, 16, 4);
- UARTPrintf(OctetArray);
- UARTPrintf("\r\n");
+// UARTPrintf("case UIP_ESTABLISHED - resend data   lport = ");
+// emb_itoa(uip_connr->lport, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 15
               goto apprexmit;
 
@@ -1049,6 +1049,9 @@ void uip_process(uint8_t flag)
 /*
 #if DEBUG_SUPPORT == 15
 {
+  // IMPORTANT: KEEP THIS SET OF DEBUG PRINTS FOR REFERENCE IN SHOWING THE
+  // CONTENT OF THE UIP_BUF WHEN DEBUGGING.
+  
   // Display the first 20 bytes of the app_data
   int q;
   char *qBuffer;
@@ -1265,7 +1268,7 @@ void uip_process(uint8_t flag)
     // (hence the application goes directly from ESTABLISHED to LAST_ACK).
     case UIP_SYN_RCVD:
 #if DEBUG_SUPPORT == 15
-UARTPrintf("\r\n\r\n  uip.c: UIP_SYN_RCVD\r\n");
+// UARTPrintf("\r\n\r\n  uip.c: UIP_SYN_RCVD\r\n");
 #endif // DEBUG_SUPPORT == 15
       // In SYN_RCVD we have sent out a SYNACK in response to a SYN, and we
       // are waiting for an ACK that acknowledges the data we sent out the
@@ -1288,7 +1291,7 @@ UARTPrintf("\r\n\r\n  uip.c: UIP_SYN_RCVD\r\n");
 
     case UIP_SYN_SENT:
 #if DEBUG_SUPPORT == 15
-UARTPrintf("  uip.c: UIP_SYN_SENT\r\n");
+// UARTPrintf("  uip.c: UIP_SYN_SENT\r\n");
 #endif // DEBUG_SUPPORT == 15
       // In SYN_SENT, we wait for a SYNACK that is sent in response to our
       // SYN. The rcv_nxt is set to sequence number in the SYNACK plus one,
@@ -1382,7 +1385,7 @@ UARTPrintf("  uip.c: UIP_SYN_SENT\r\n");
 
     case UIP_ESTABLISHED:
 #if DEBUG_SUPPORT == 15
-UARTPrintf("  uip.c: UIP_ESTABLISHED\r\n");
+// UARTPrintf("  uip.c: UIP_ESTABLISHED\r\n");
 #endif // DEBUG_SUPPORT == 15
       // In the ESTABLISHED state, we call upon the application to feed data
       // into the uip_buf. If the UIP_ACKDATA flag is set, the application
@@ -1584,7 +1587,7 @@ UARTPrintf("  uip.c: UIP_ESTABLISHED\r\n");
       
     case UIP_LAST_ACK:
 #if DEBUG_SUPPORT == 15
-UARTPrintf("  uip.c: UIP_LAST_ACK\r\n");
+// UARTPrintf("  uip.c: UIP_LAST_ACK\r\n");
 #endif // DEBUG_SUPPORT == 15
       // We can close this connection if the peer has acknowledged our FIN.
       // This is indicated by the UIP_ACKDATA flag.
@@ -1698,7 +1701,7 @@ UARTPrintf("  uip.c: UIP_CLOSING\r\n");
       }
   } // end of switch
 #if DEBUG_SUPPORT == 15
-UARTPrintf("  uip.c: goto drop after switch\r\n");
+// UARTPrintf("  uip.c: goto drop after switch\r\n");
 #endif // DEBUG_SUPPORT == 15
   goto drop;
 

@@ -98,8 +98,8 @@
 
 
 // Variables used to store debug information
-extern uint8_t debug[10];
-extern uint8_t stored_debug[10];
+extern uint8_t debug_bytes[10];
+extern uint8_t stored_debug_bytes[10];
 
 #if DEBUG_SUPPORT == 15
 uint16_t rexmit_count; // Used only for sending the rexmit count via UART
@@ -107,27 +107,36 @@ uint16_t rexmit_count; // Used only for sending the rexmit count via UART
 
 extern uint16_t Port_Httpd;               // Port number in use
 
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 extern uint8_t pin_control[16];           // Per pin configuration byte
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 extern uint8_t pin_control[24];           // Per pin configuration byte when
                                           // PCF8574 is included in the
 					  // hardware configuration
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 
-#if PCF8574_SUPPORT == 0
+
+
+
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 extern uint16_t ON_OFF_word;              // ON/OFF states of pins in single
                                           // 16 bit word
 extern uint16_t Invert_word;              // Invert state of pins in single 16
                                           // bit word
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+extern uint8_t Pending_pin_control[16];   // Temp storage for new pin_control
+                                          // received from GUI
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 extern uint32_t ON_OFF_word;              // ON/OFF states of pins in single
                                           // 32 bit word
 extern uint32_t Invert_word;              // Invert state of pins in single 32
                                           // bit word
-#endif // PCF8574_SUPPORT == 1
+extern uint8_t Pending_pin_control[24];   // Temp storage for new pin_control
+                                          // received from the GUI when
+                                          // PCF8574 is included in the
+					  // hardware configuration
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 
 extern uint8_t Pending_hostaddr[4];       // Temp storage for new IP address
 extern uint8_t Pending_draddr[4];         // Temp storage for new Gateway
@@ -141,16 +150,10 @@ extern uint8_t Pending_devicename[20];    // Temp storage for new Device Name
 extern uint8_t Pending_config_settings;   // Temp storage for new Config
                                           // settings
 					  
-#if PCF8574_SUPPORT == 0
-extern uint8_t Pending_pin_control[16];   // Temp storage for new pin_control
-                                          // received from GUI
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
-extern uint8_t Pending_pin_control[24];   // Temp storage for new pin_control
-                                          // received from the GUI when
-                                          // PCF8574 is included in the
-					  // hardware configuration
-#endif // PCF8574_SUPPORT == 1
+
+
+
+
 
 extern uint8_t Pending_uip_ethaddr_oct[6]; // Temp storage for new MAC address
 
@@ -165,6 +168,8 @@ extern uint8_t stored_devicename[20];     // Device name stored in EEPROM
 extern uint8_t stored_config_settings;    // Config settings stored in EEPROM
 
 extern uint8_t stored_options1;           // Additional options stored in
+                                          // EEPROM
+extern uint8_t stored_options2;           // Additional options stored in
                                           // EEPROM
 
 extern char mac_string[13];		  // MAC Address in string format
@@ -290,8 +295,6 @@ uint8_t parse_GETcmd[11];     // Holds the GET cmd until the entire GET
 			      // 10 seconds.
 
 
-// uint8_t z_diag;               // The last value in a POST (hidden), used for
-                              // diagnostics
 uint16_t HtmlPageIOControl_size;     // Size of the IOControl template
 uint16_t HtmlPageConfiguration_size; // Size of the Configuration template
 uint16_t HtmlPageLoadUploader_size;  // Size of the Load Uploader template
@@ -337,8 +340,6 @@ extern uint32_t second_counter;           // Counts seconds since boot
 
 #if DS18B20_SUPPORT == 1
 // DS18B20 variables
-// extern uint8_t DS18B20_scratch[5][2];     // Stores the temperature measurement
-                                          // for the DS18B20s
 extern uint8_t FoundROM[5][8];            // Table of found ROM codes
                                           // [x][0] = Family Code
                                           // [x][1] = LSByte serial number
@@ -362,10 +363,18 @@ extern int32_t comp_data_humidity;    // Compensated humidity
 #endif // BME280_SUPPORT == 1
 
 
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+// Define Flash addresses for IDX values
+// Note: While IDX values are not used in all builds they are still defined
+// for all builds.
+extern uint8_t Sensor_IDX[6][8] @FLASH_START_SENSOR_IDX;
+
+
 // Define Flash addresses for IO Names and IO Timers
+// Note: While IO_NAME and IO_TIMER Flash space is not used in all builds it
+// is still defined for all builds.
 extern uint16_t IO_TIMER[16] @FLASH_START_IO_TIMERS;
 extern char IO_NAME[16][16] @FLASH_START_IO_NAMES;
+
 // Define RAM addresses for Pending timers
 #if PCF8574_SUPPORT == 0
 extern uint16_t Pending_IO_TIMER[16];
@@ -373,7 +382,7 @@ extern uint16_t Pending_IO_TIMER[16];
 #if PCF8574_SUPPORT == 1
 extern uint16_t Pending_IO_TIMER[24];
 #endif // PCF8574_SUPPORT == 1
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
 
 
 #if INA226_SUPPORT == 1;
@@ -497,9 +506,22 @@ extern uint8_t stored_latching_relay_state;
 
 
 
-//---------------------------------------------------------------------------//
-#if BUILD_SUPPORT == MQTT_BUILD
-// IO Control Template
+
+
+
+// #if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** MQTT IO Control Template                                             * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
 //
 // PARSE_BYTES calculation:
 // The form contained in this webpage will generate several data update
@@ -530,14 +552,16 @@ extern uint8_t stored_latching_relay_state;
 //
 #define WEBPAGE_IOCONTROL		1
 #define PARSEBYTES_IOCONTROL		42
-#define MQTT_WEBPAGE_IOCONTROL_BEGIN    90
+#define MQTT_WEBPAGE_IOCONTROL_BEGIN    1
 // The MQTT_WEBPAGE_IOCONTROL_BEGIN define is used only by the "prepsx"
-// strings pre-processor program. The define is used by the prepsx program as
-// a keyword for locating the webpage text contained in the static const
-// below. The prepsx program extracts the HTML "string" and places it in an
-// SREC (.sx) file. The HTML strings in the .sx file are uploaded into the I2C
-// EEPROM for subsequent use in generating webpages from the I2C EEPROM
-// instead of generating them from Flash.
+// strings pre-processor program. The value is not used as the "prepsx"
+// program only searches for the _BEGIN phrase. The _BEGIN phrase is used by
+// the prepsx program as a keyword for locating the webpage text contained in
+// the static const below. The prepsx program extracts the HTML "string" and
+// places it in a SREC (.sx) file. The HTML strings in the .sx file are
+// uploaded into the I2C EEPROM for subsequent use in generating webpages from
+// the I2C EEPROM instead of generating them from Flash.
+//
 // Next #if: Only place the HTML in Flash if the I2C EEPROM is not supported.
 #if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageIOControl[] =
@@ -689,11 +713,26 @@ const m = (data => {
 });
 
 */
-#endif // BUILD_SUPPORT == MQTT_BUILD
+// #endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
-// Configuration webpage Template
+
+
+
+
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** MQTT Home Assistant Configuration Template                           * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
 //
 // PARSE_BYTES calculation:
 // The form contained in this webpage will generate several data update
@@ -752,14 +791,16 @@ const m = (data => {
 //
 #define WEBPAGE_CONFIGURATION			2
 #define PARSEBYTES_CONFIGURATION		190
-#define MQTT_WEBPAGE_CONFIGURATION_BEGIN	91
+#define MQTT_WEBPAGE_CONFIGURATION_BEGIN	1
 // The MQTT_WEBPAGE_CONFIGURATION_BEGIN define is used only by the "prepsx"
-// strings pre-processor program. The define is used by the prepsx program as
-// a keyword for locating the webpage text contained in the static const
-// below. The prepsx program extracts the HTML "string" and places it in an
-// SREC (.sx) file. The HTML strings in the .sx file are uploaded into the I2C
-// EEPROM for subsequent use in generating webpages from the I2C EEPROM
-// instead of generating them from Flash.
+// strings pre-processor program. The value is not used as the "prepsx"
+// program only searches for the _BEGIN phrase. The _BEGIN phrase is used by
+// the prepsx program as a keyword for locating the webpage text contained in
+// the static const below. The prepsx program extracts the HTML "string" and
+// places it in a SREC (.sx) file. The HTML strings in the .sx file are
+// uploaded into the I2C EEPROM for subsequent use in generating webpages from
+// the I2C EEPROM instead of generating them from Flash.
+//
 // Next #if: Only place the HTML in Flash if the I2C EEPROM is not supported.
 #if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageConfiguration[] =
@@ -772,7 +813,7 @@ static const char g_HtmlPageConfiguration[] =
          "<table>"
             "<tr>"
                "<td>Name</td>"
-               "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'/></td>"
+               "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces'/></td>"
             "</tr>"
             "<tr class='hs'/>"
             "<tr>"
@@ -800,7 +841,7 @@ static const char g_HtmlPageConfiguration[] =
             "<tr>"
                "<td>MAC Address</td>"
                "<td>"
-                 "<input name='d00' required pattern='([0-9a-fA-F]{2}[:-]?){5}([0-9a-fA-F]{2})' title='aa:bb:cc:dd:ee:ff format' maxlength=17/>"
+                 "<input name='d00' required pattern='([0-9a-fA-F]{2}[:-]?){5}([0-9a-fA-F]{2})' title='aa:bb:cc:dd:ee:ff format'/>"
                "</td>"
             "</tr>"
             "<tr>"
@@ -845,37 +886,37 @@ static const char g_HtmlPageConfiguration[] =
          "<script>"
 "const m=(e=>{let t=['b00','b04','b08','b12'],$=['c00','c01'],r={'Full Duplex':1,'HA Aut"
 "o':6,MQTT:4,DS18B20:8,BME280:32,'Disable Cfg Button':16},n={disabled:0,input:1,output:3"
-",linked:2},o={retain:8,on:16,off:0},a=document,l=location,p=a.querySelector.bind(a),i=p"
-"('form'),d=Object.entries,c=parseInt,s=e=>a.write(e),_=(e,t)=>c(e).toString(16).padStar"
-"t(t,'0'),u=e=>e.map(e=>_(e,2)).join(''),f=e=>e.match(/.{2}/g).map(e=>c(e,16)),b=e=>enco"
+",linked:2},o={retain:8,on:16,off:0},l=document,a=location,p=l.querySelector.bind(l),i=p"
+"('form'),c=Object.entries,d=parseInt,_=e=>l.write(e),s=(e,t)=>d(e).toString(16).padStar"
+"t(t,'0'),u=e=>e.map(e=>s(e,2)).join(''),f=e=>e.match(/.{2}/g).map(e=>d(e,16)),b=e=>enco"
 "deURIComponent(e),h=e=>p(`input[name=${e}]`),g=(e,t)=>h(e).value=t,x=(e,t)=>{for(let $ "
-"of a.querySelectorAll(e))t($)},E=(e,t)=>{for(let[$,r]of d(t))e.setAttribute($,r)},y=(e,"
-"t)=>d(e).map(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join"
+"of l.querySelectorAll(e))t($)},E=(e,t)=>{for(let[$,r]of c(t))e.setAttribute($,r)},y=(e,"
+"t)=>c(e).map(e=>`<option value=${e[1]} ${e[1]==t?'selected':''}>${e[0]}</option>`).join"
 "(''),A=(e,t,$,r='')=>`<input type='checkbox' name='${e}' value=${t} ${($&t)==t?'checked"
-"':''}>${r}`,S=()=>{let r=new FormData(i),n=e=>r.getAll(e).map(e=>c(e)).reduce((e,t)=>e|"
-"t,0);return t.forEach(e=>r.set(e,u(r.get(e).split('.')))),$.forEach(e=>r.set(e,_(r.get("
+"':''}>${r}`,S=()=>{let r=new FormData(i),n=e=>r.getAll(e).map(e=>d(e)).reduce((e,t)=>e|"
+"t,0);return t.forEach(e=>r.set(e,u(r.get(e).split('.')))),$.forEach(e=>r.set(e,s(r.get("
 "e),4))),r.set('d00',r.get('d00').toLowerCase().replace(/[:-]/g,'')),r.set('h00',u(f(e.h"
 "00).map((e,t)=>{let $='p'+t,o=n($);return r.delete($),o}))),r.set('g00',u([n('g00')])),"
-"r},T=(e,t,$)=>{let r=new XMLHttpRequest;r.open(e,t,!1),r.send($)},j=()=>l.href='/60',k="
-"()=>l.href='/63',v=()=>l.href='/61',w=()=>{a.body.innerText='Wait 5s...',setTimeout(v,5"
+"r},T=(e,t,$)=>{let r=new XMLHttpRequest;r.open(e,t,!1),r.send($)},j=()=>a.href='/60',k="
+"()=>a.href='/63',v=()=>a.href='/61',w=()=>{l.body.innerText='Wait 5s...',setTimeout(v,5"
 "e3)},B=()=>{T('GET','/91'),w()},D=e=>{e.preventDefault();let t=Array.from(S().entries()"
 ",([e,t])=>`${b(e)}=${b(t)}`).join('&');T('POST','/',t+'&z00=0'),w()},q=f(e.g00)[0],z={r"
 "equired:!0};return x('.ip',e=>{E(e,{...z,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0"
 "-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}'})}),x('.port',e=>{E(e,{...z,type:'number',min"
 ":10,max:65535})}),x('.up input',e=>{E(e,{title:'0 to 10 letters, numbers, and -_*. no s"
 "paces. Blank for no entry.',maxlength:10,pattern:'[0-9a-zA-Z-_*.]{0,10}$'})}),t.forEach"
-"(t=>g(t,f(e[t]).join('.'))),$.forEach(t=>g(t,c(e[t],16))),g('d00',e.d00.replace(/[0-9a-"
+"(t=>g(t,f(e[t]).join('.'))),$.forEach(t=>g(t,d(e[t],16))),g('d00',e.d00.replace(/[0-9a-"
 "z]{2}(?!$)/g,'$&:')),f(e.h00).forEach((e,t)=>{let $=(3&e)!=0?A('p'+t,4,e):'',r=(3&e)==3"
-"||(3&e)==2&&t>7?`<select name='p${t}'>${y(o,24&e)}</select>`:'',a='#d'==l.hash?`<td>${e"
-"}</td>`:'';s(`<tr><td>#${t+1}</td><td><select name='p${t}'>${y(n,3&e)}</select></td><td"
-">${$}</td><td>${r}</td>${a}</tr>`)}),p('.f').innerHTML=Array.from(d(r),([e,t])=>A('g00'"
-",t,q,e)).join('</br>'),{r:B,s:D,l:v,i:j,p:k}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%"
-"c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00'});"
+"||(3&e)==2&&t>7?`<select name='p${t}'>${y(o,24&e)}</select>`:'';_(`<tr><td>#${t+1}</td>"
+"<td><select name='p${t}'>${y(n,3&e)}</select></td><td>${$}</td><td>${r}</td></tr>`)}),p"
+"('.f').innerHTML=Array.from(c(r),([e,t])=>A('g00',t,q,e)).join('</br>'),{r:B,s:D,l:v,i:"
+"j,p:k}})({b00:'%b00',b04:'%b04',b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',"
+"h00:'%h00',g00:'%g00'});"
       "%y01"
       "<p>"
       "Pinout Option %w01<br/>"
       "Code Revision %w00<br/>"
-      "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
+      "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki' target='_blank'>Help Wiki</a>"
       "</p>"
       "%y02'm.r()'>Reboot</button>"
       "<br><br>"
@@ -1004,9 +1045,11 @@ const m = (data => {
     convert_from_hex(data.h00).forEach((n, i) => {
         const
             invert_checkbox = (n & 3) != 0 ? make_checkbox('p'+i, 4, n) : '',
-            make_select = (n & 3) == 3 || ((n & 3) == 2 && i > 7) ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '',
-            debug_column = (loc.hash == '#d'?`<td>${n}</td>`:'');
-        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${invert_checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
+//            make_select = (n & 3) == 3 || ((n & 3) == 2 && i > 7) ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '',
+//            debug_column = (loc.hash == '#d'?`<td>${n}</td>`:'');
+//        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${invert_checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
+            make_select = (n & 3) == 3 || ((n & 3) == 2 && i > 7) ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '';
+        document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td>${invert_checkbox}</td><td>${make_select}</td></tr>`);
     });
     
     selector(".f").innerHTML = Array.from(
@@ -1029,14 +1072,688 @@ const m = (data => {
 });
 
 */
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
 
-//---------------------------------------------------------------------------//
+
+
+
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** MQTT Domoticz IO Control Template                                    * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+//
+// PARSE_BYTES calculation:
+// The form contained in this webpage will generate several data update
+// replies. These replies need to be parsed to extract the data from them. We
+// need to stop parsing the reply POST data after all update bytes are parsed.
+// The formula for determining the stop value is as follows:
+//   For 1 of the replies (Pin Control):
+//   POST consists of a ParseCmd (a "h" in this case) in 1 byte
+//     Followed by the ParseNum in 2 bytes
+//     Followed by an equal sign in 1 byte
+//     Followed by a state value in 32 bytea
+//     Followed by a parse delimiter in 1 byte
+//   PLUS
+//   POST consists of a ParseCmd (a "H" in this case) in 1 byte
+//     Followed by the ParseNum in 2 bytes
+//     Followed by an equal sign in 1 byte
+//     Followed by a state value in 16 bytea
+//     Followed by a parse delimiter in 1 byte
+//   PLUS
+//   For 1 of the replies (hidden):
+//   POST consists of a ParseCmd (a "z" in this case) in 1 byte
+//     Followed by the ParseNum in 2 bytes
+//     Followed by an equal sign in 1 byte
+//     Followed by a state value in 1 byte
+//     Note: No trailing parse delimiter
+// THUS
+// For 1 of the replies there are 37 bytes in the reply
+// For 1 of the replies there are 6 bytes per reply
+// The formula in this case is
+//     PARSEBYTES = (1 x 37)
+//                + (1 x 21)
+//                + (1 x 5)
+//     PARSEBYTES = 37
+//                + 21
+//                + 5 = 63
+//
+#define WEBPAGE_IOCONTROL			1
+#define PARSEBYTES_IOCONTROL			63
+#define MQTT_DOMO_WEBPAGE_IOCONTROL_BEGIN    	1
+// The MQTT_DOMO_WEBPAGE_IOCONTROL_BEGIN define is used only by the "prepsx"
+// strings pre-processor program. The value is not used as the "prepsx"
+// program only searches for the _BEGIN phrase. The _BEGIN phrase is used by
+// the prepsx program as a keyword for locating the webpage text contained in
+// the static const below. The prepsx program extracts the HTML "string" and
+// places it in a SREC (.sx) file. The HTML strings in the .sx file are
+// uploaded into the I2C EEPROM for subsequent use in generating webpages from
+// the I2C EEPROM instead of generating them from Flash.
+//
+// Next #if: Only place the HTML in Flash if the I2C EEPROM is not supported.
+#if OB_EEPROM_SUPPORT == 0
+static const char g_HtmlPageIOControl[] =
+"%y04%y05"
+      "<title>%a00: IO Control</title>"
+   "</head>"
+   "<body>"
+      "<h1>IO Control</h1>"
+      "<form onsubmit='return m.s(event);return false'>"
+         "<table>"
+            "<tr>"
+               "<th>Name:</th>"
+               "<td colspan=2 style='text-align: left'>%a00</td>"
+            "</tr>"
+            "<script>"
+"const m=(t=>{let e=document,r=location,$=e.querySelector.bind(e),n=$('form'),a=(Object."
+"entries,parseInt),h=t=>e.write(t),l=(t,e)=>a(t).toString(16).padStart(e,'0'),s=t=>t.map"
+"(t=>l(t,2)).join(''),d=t=>t.match(/.{2}/g).map(t=>a(t,16)),o=t=>encodeURIComponent(t),p"
+"=[],c=[],u=(t,e,r)=>{var $;return`<label><input type=radio name=o${e} value=${t} ${r==t"
+"?'checked':''}/>${(t?'on':'off').toUpperCase()}</label>`},i=()=>{let e=new FormData(n);"
+"return e.set('h00',s(d(t.h00).map((t,r)=>{let $='o'+r,n=e.get($)<<7;return e.delete($),"
+"n}))),e},f=d(t.g00)[0];return cfg_page=16&f?()=>r.href='/60':()=>r.href='/61',reload_pa"
+"ge=()=>r.href='/60',submit_form=t=>{t.preventDefault();let e=new XMLHttpRequest,r=Array"
+".from(i().entries(),([t,e])=>`${o(t)}=${o(e)}`).join('&');e.open('POST','/',!1),e.send("
+"r+'&z00=0'),reload_page()},d(t.h00).forEach((t,e)=>{(3&t)==3?c.push(`<tr><td>Output #${"
+"e+1}</td><td class='s${t>>7} t3'></td><td class=c>${u(1,e,t>>7)}${u(0,e,t>>7)}</td></tr"
+">`):(3&t)==1&&p.push(`<tr><td>Input #${e+1}</td><td class='s${t>>7} t3'></td><td/></tr>"
+"`)}),h(p.join('')),h(`<tr><th></th><th></th>${c.length>0?'<th class=c>SET</th>':''}</tr"
+">`),h(c.join('')),h('</table>'),{s:submit_form,l:reload_page,c:cfg_page}})({h00:'%h00',"
+"g00:'%g00'});"
+      "%y00"
+      "%y02'm.l()'>Refresh</button>"
+      "<br><br>"
+      "%y02'm.c()'>Configuration</button> "
+      "<pre>%t00%t01%t02%t03%t04%t05</pre>"
+   "</body>"
+"</html>";
+#endif // OB_EEPROM_SUPPORT == 0
+
+#if OB_EEPROM_SUPPORT == 1
+// Declared short static const here so that common code can be used for Flash
+// and I2C EEPROM webpage sources.
+static const char g_HtmlPageIOControl[] = " ";
+#endif // OB_EEPROM_SUPPORT == 1
+
+// Important: Don't mess with the order of the variable definitions that look
+// somethings like this:
+// ({
+//   h00: '00010305070b0f131781018303000000',
+//   g00: "14",
+// });
+// It is important that the "h00" definition be first in the sequence for
+// IOControl pages as that is how the POST interpreter determines that the
+// POST is from an IOControl page. The order doesn't matter so much in a
+// Configuration page as the HTML code inserts a "a00" definition first in
+// the POST, and that is used to determine that the POST came from a
+// Configuration page.
+
+/*
+// Credit to Jevgeni Kiski for the javascript work and html improvements.
+// Below is the raw script used above before minify.
+// 1) Copy raw script to minify website, for example https://javascript-minifier.com/
+// 2) Replace the variable definition test placeholders with "replaceable fields", for
+//    example:
+//    The line
+//      h00: '00010305070b0f131781018303000000',
+//    Should be replaced with
+//      h00: '%h00',
+// 3) Copy the resulting minified script to an editor and replace all double quotes with
+//    single quotes. THIS STEP IS VERY IMPORTANT.
+// 4) Copy the result to the above between the <script> and </script> lines.
+// 5) Add double quotes at the start and end of the minfied script to make it part of the
+//    constant string.
+// 6) It is OK to break up the minified script into lines enclosed by double quotes (just
+//    to make it all visible in the code editors). But make sure no spaces are inadvertantly
+//    removed from the minified script.
+
+const m = (data => {
+    const doc = document,
+        loc = location,
+        selector = doc.querySelector.bind(doc),
+        form = selector('form'),
+        get_entries = Object.entries,
+        parse_int = parseInt,
+        document_write = text => doc.write(text),
+        pad_hex = (s, l) => parse_int(s).toString(16).padStart(l, '0'),
+        convert_to_hex = v => v.map(p => pad_hex(p, 2)).join(''),
+        convert_from_hex = v => v.match(/.{2}/g).map(p => parse_int(p, 16)),
+        encode = v => encodeURIComponent(v),
+        stm_inputs = [],
+        stm_outputs = [],
+        pcf_inputs = [],
+        pcf_outputs = [],
+        make_radio_input = (type, id, checked_type) => {
+            var type_str = type ? 'on' : 'off';
+            return `<label><input type=radio name=o${id} value=${type} ${checked_type == type ? 'checked' : ''}/>${type_str.toUpperCase()}</label>`;
+        },
+        get_form_data = () => {
+            const form_data = new FormData(form);
+            form_data.set('h00', convert_to_hex(convert_from_hex(data.h00).map((_, i) => {
+                const name = 'o' + i,
+                    result = form_data.get(name) << 7;
+                form_data.delete(name);
+                return result;
+            })));
+//            form_data.set('H00', convert_to_hex(convert_from_hex(data.H00).map((_, i) => {
+//                const name = 'p' + i,
+//                    result = form_data.get(name) << 7;
+//                form_data.delete(name);
+//                return result;
+//            })));
+            return form_data;
+        },
+        features_data = convert_from_hex(data.g00)[0],
+        common_attributes = {required: true};
+        
+        if (features_data & 0x10) { // Disable Config Button
+          cfg_page = () => loc.href = '/60';
+        } else {
+          cfg_page = () => loc.href = '/61';
+        }
+
+        reload_page = () => loc.href = '/60',
+        submit_form = (event) => {
+        	event.preventDefault();
+
+          const request = new XMLHttpRequest(),
+              string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join('&');
+          request.open('POST', '/', false);
+          request.send(string_data + '&z00=0');
+          reload_page();
+        };
+        
+
+    convert_from_hex(data.h00).forEach((cfg, i) => {
+        if ((cfg & 3) == 3) { //output
+            stm_outputs.push(`<tr><td>Output #${i + 1}</td><td class='s${cfg >> 7} t3'></td><td class=c>${make_radio_input(1, i, cfg >> 7)}${make_radio_input(0, i, cfg >> 7)}</td></tr>`);
+        } else if ((cfg & 3) == 1) { // input
+            stm_inputs.push(`<tr><td>Input #${i + 1}</td><td class='s${cfg >> 7} t3'></td><td/></tr>`);
+        }
+    });
+
+//    convert_from_hex(data.H00).forEach((cfg, i) => {
+//        if ((cfg & 3) == 3) { //output
+//            pcf_outputs.push(`<tr><td>Output #${i + 17}</td><td class='s${cfg >> 7} t3'></td><td class=c>${make_radio_input(1, i, cfg >> 7)}${make_radio_input(0, i, cfg >> 7)}</td></tr>`);
+//        } else if ((cfg & 3) == 1) { // input
+//            pcf_inputs.push(`<tr><td>Input #${i + 17}</td><td class='s${cfg >> 7} t3'></td><td/></tr>`);
+//        }
+//    });
+
+    document_write(stm_inputs.join(''));
+    document_write(`<tr><th></th><th></th>${stm_outputs.length > 0 ? '<th class=c>SET</th>' : ''}</tr>`);
+    document_write(stm_outputs.join(''));
+    document_write(`</table>`);
+
+//    document_write(`<br><h1>PCF8574 IO Control</h1>`);
+
+//    document_write(`<table>`);
+//    document_write(pcf_inputs.join(''));
+//    document_write(`<tr><th></th><th></th>${pcf_outputs.length > 0 ? '<th class=c>SET</th>' : ''}</tr>`);
+//    document_write(pcf_outputs.join(''));
+//    document_write(`</table>`);
+    
+    return {s: submit_form, l:reload_page, c:cfg_page}
+})
+({
+//  h00: '00010305070b0f131781018303000000',
+//  H00: '81010305078b0f13',
+  h00: '00010305070b0f13178101830300000081010305078b0f13',
+  g00: '14',
+});
+
+*/
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+
+
+
+
+
+
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** MQTT Domoticz Configuration Template                                 * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+//
+// PARSE_BYTES calculation:
+// The form contained in this webpage will generate several data update
+// replies. These replies need to be parsed to extract the data from them. We
+// need to stop parsing the reply POST data after all update bytes are parsed.
+// The formula for determining the stop value is as follows:
+//     For 1 of the replies (device name):
+//     example: a00=xxxxxxxxxxxxxxxxxxx&
+//     where xxxxxxxxxxxxxxxxxxx is 1 to 19 bytes
+//   PLUS
+//     For 4 of the replies (HTML IP, MQTT IP, Gateway, and Netmask fields):
+//     example: b00=xxxxxxxx&
+//     where xxxxxxxx is 8 bytes
+//   PLUS
+//     For 2 of the replies (HTML and MQTT Port numbers):
+//     example: c00=xxxx&
+//     where xxxx is 4 bytes
+//   PLUS
+//     For 1 of the replies (MAC):
+//     example: d00=xxxxxxxxxxxx&
+//     where xxxxxxxxxxxx is 12 bytes
+//   PLUS
+//   For 1 of the replies (Config):
+//     example: g00=xx&
+//     where xx is 2 bytes
+//   PLUS
+//   For 2 of the replies (MQTT Username and Password):
+//     example: m00=xxxxxxxxxx&
+//     where xxxxxxxxxx is 1 to 10 bytes
+//   PLUS
+//   For 1 of the replies (Pin Control):
+//     example: h00=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&
+//     where xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx is 32 bytes
+//   PLUS
+//   For 1 of the replies (PCF8574 Pin Control):
+//     example: H00=xxxxxxxxxxxxxxxx&
+//     where xxxxxxxxxxxxxxxx is 16 bytes
+//   PLUS
+//     For 16 of the replies (IO Name, repurposed for IDX):
+//     example: j00=xxxxxxxxxxxxxxx& where xxxxxxxxxxxxxxx is 15 bytes
+//     POST consists of 15 bytes data plus 5 byte wrapper (20 bytes)
+//   PLUS
+//     For 8 of the replies (PCF8574 IO Name, repurposed for IDX):
+//     example: J00=xxxxxx& where xxxxxx is 6 bytes
+//     POST consists of 6 bytes data plus 5 byte wrapper (11 bytes)
+//   PLUS
+//     For 6 of the replies (Sensor IDX value):
+//     example: T20=xxxxxx& where xxxxxx is 6 bytes
+//     POST consists of 6 bytes data plus 5 byte wrapper (11 bytes)
+//   PLUS
+//   For 1 of the replies (hidden):
+//   POST consists of a ParseCmd (a "z" in this case) in 1 byte
+//     example: z00=x (note no &)
+//     where x is 1 byte
+// The formula in this case is
+//     PARSEBYTES = (1 x 24)
+//                + (4 x 13)
+//                + (2 x 9)
+//                + (1 x 17) 
+//                + (1 x 7) 
+//                + (2 x 15)
+//                + (1 x 37)
+//                + (1 x 21)
+//                + (16 x 20)
+//                + (8 x 11)
+//                + (6 x 11)
+//                + (1 x 5)
+//     PARSEBYTES = 24
+//                + 52
+//                + 18
+//                + 17
+//                + 7
+//                + 30
+//                + 37
+//                + 21
+//                + 320
+//                + 88
+//                + 66
+//                + 5 = 685
+//
+#define WEBPAGE_CONFIGURATION			2
+#define PARSEBYTES_CONFIGURATION		685
+#define MQTT_DOMO_WEBPAGE_CONFIGURATION_BEGIN	1
+// The MQTT_DOMO_WEBPAGE_CONFIGURATION_BEGIN define is used only by the "prepsx"
+// strings pre-processor program. The value is not used as the "prepsx"
+// program only searches for the _BEGIN phrase. The _BEGIN phrase is used by
+// the prepsx program as a keyword for locating the webpage text contained in
+// the static const below. The prepsx program extracts the HTML "string" and
+// places it in a SREC (.sx) file. The HTML strings in the .sx file are
+// uploaded into the I2C EEPROM for subsequent use in generating webpages from
+// the I2C EEPROM instead of generating them from Flash.
+//
+// Next #if: Only place the HTML in Flash if the I2C EEPROM is not supported.
+#if OB_EEPROM_SUPPORT == 0
+static const char g_HtmlPageConfiguration[] =
+"%y04%y05"
+      "<title>%a00: Configuration</title>"
+   "</head>"
+   "<body>"
+      "<h1> Configuration</h1>"
+      "<form onsubmit='return m.s(event);return false'>"
+         "<table>"
+            "<tr>"
+               "<td>Name</td>"
+               "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces'/></td>"
+            "</tr>"
+            "<tr class='hs'/>"
+            "<tr>"
+               "<td>IP Address</td>"
+               "<td>"
+                 "<input name='b00' class='ip'/>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Gateway</td>"
+               "<td>"
+                 "<input name='b04' class='ip'/>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Netmask</td>"
+               "<td>"
+                 "<input name='b08' class='ip'/>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Port</td>"
+               "<td><input name='c00' class='t8 port'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>MAC Address</td>"
+               "<td>"
+                 "<input name='d00' required pattern='([0-9a-fA-F]{2}[:-]?){5}([0-9a-fA-F]{2})' title='aa:bb:cc:dd:ee:ff format'/>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>Features</td>"
+               "<td class='f'></td>"
+            "</tr>"
+            "<tr class='hs'/>"
+            "<tr>"
+               "<td>MQTT Server</td>"
+               "<td>"
+                 "<input name='b12' class='ip'/>"
+               "</td>"
+            "</tr>"
+            "<tr>"
+               "<td>MQTT Port</td>"
+               "<td><input name='c01' class='t8 port'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>MQTT Username</td>"
+               "<td class='up'><input name='l00' value='%l00'></td>"
+            "</tr>"
+            "<tr>"
+               "<td>MQTT Password</td>"
+               "<td class='up'><input name='m00' value='%m00'></td>"
+            "</tr>"
+            "<tr class='hs'/>"
+            "<tr>"
+               "<td>MQTT Status</td>"
+               "<td class='s'>"
+                 "<div class='s%n00'></div> <div class='s%n01'></div> <div class='s%n02'></div> <div class='s%n03'></div> <div class='s%n04'></div>"
+               "</td>"
+            "</tr>"
+            "<tr class='hs'/>"
+         "</table>"
+         "<script>"
+"const m=(t=>{let $=['b00','b04','b08','b12'],e=['c00','c01'],r={'Full Duplex':1,MQTT:4,"
+"DS18B20:8,BME280:32,'Disable Cfg Button':16},_={disabled:0,input:1,output:3,linked:2},n"
+"={retain:8,on:16,off:0},a=document,o=location,l=a.querySelector.bind(a),d=l('form'),i=O"
+"bject.entries,p=parseInt,T=t=>a.write(t),h=(t,$)=>p(t).toString(16).padStart($,'0'),u=t"
+"=>t.map(t=>h(t,2)).join(''),s=t=>t.match(/.{2}/g).map(t=>p(t,16)),b=t=>encodeURICompone"
+"nt(t),c=t=>l(`input[name=${t}]`),f=(t,$)=>c(t).value=$,g=(t,$)=>{for(let e of a.querySe"
+"lectorAll(t))$(e)},S=(t,$)=>{for(let[e,r]of i($))t.setAttribute(e,r)},v=(t,$)=>i(t).map"
+"(t=>`<option value=${t[1]} ${t[1]==$?'selected':''}>${t[0]}</option>`).join(''),x=(t,$,"
+"e,r='')=>`<input type='checkbox' name='${t}' value=${$} ${(e&$)==$?'checked':''}>${r}`,"
+"y=()=>{let r=new FormData(d),_=t=>r.getAll(t).map(t=>p(t)).reduce((t,$)=>t|$,0);return "
+"$.forEach(t=>r.set(t,u(r.get(t).split('.')))),e.forEach(t=>r.set(t,h(r.get(t),4))),r.se"
+"t('d00',r.get('d00').toLowerCase().replace(/[:-]/g,'')),r.set('h00',u(s(t.h00).map((t,$"
+")=>{let e='p'+$,n=_(e);return r.delete(e),n}))),r.set('g00',u([_('g00')])),r},D=(t,$,e)"
+"=>{let r=new XMLHttpRequest;r.open(t,$,!1),r.send(e)},E=()=>o.href='/60',q=()=>o.href='"
+"/61',B=()=>{a.body.innerText='Wait 5s...',setTimeout(q,5e3)},I=()=>{D('GET','/91'),B()}"
+",k=t=>{t.preventDefault();let $=Array.from(y().entries(),([t,$])=>`${b(t)}=${b($)}`).jo"
+"in('&');D('POST','/',$+'&z00=0'),B()},w=s(t.g00)[0],A={required:!0};g('.ip',t=>{S(t,{.."
+".A,title:'x.x.x.x format',pattern:'((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){"
+"4}'})}),g('.port',t=>{S(t,{...A,type:'number',min:10,max:65535})}),g('.up input',t=>{S("
+"t,{title:'0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.',pattern:'["
+"0-9a-zA-Z-_*.]{0,10}$'})}),$.forEach($=>f($,s(t[$]).join('.'))),e.forEach($=>f($,p(t[$]"
+",16))),f('d00',t.d00.replace(/[0-9a-z]{2}(?!$)/g,'$&:')),T('<table><tr><th>IO</th><th>T"
+"ype</th><th>IDX</th><th>Invert</th><th>Boot state</th></tr>'),s(t.h00).forEach(($,e)=>{"
+"let r=(3&$)!=0?x('p'+e,4,$):'',a=(''+e).padStart(2,'0'),l=(3&$)==3||(3&$)==2&&e>7?`<sel"
+"ect name='p${e}'>${v(n,24&$)}</select>`:'',d='#d'==o.hash?`<td>${$}</td>`:'';T(`<tr><td"
+">#${e+1}</td><td><select name='p${e}'>${v(_,3&$)}</select></td><td><input name='j${a}' "
+"value='${t['j'+a]}' pattern='[0-9]{1,6}' required title='1 to 6 numbers'/></td><td>${r}"
+"</td><td>${l}</td>${d}</tr>`)}),l('.f').innerHTML=Array.from(i(r),([t,$])=>x('g00',$,w,"
+"t)).join('</br>'),T('</table>'),T('<br><h1>Sensor IDX Configuration</h1>'),T('<table><t"
+"r><th>Sensor Ser #</th><th>IDX</th></tr>');for(var z=0;z<6;z++){let C=(''+z).padStart(2"
+",'0');input_nr=(''+(j=z+20)).padStart(2,'0'),T(`<tr><td>${t['T'+C]}</td><td><input name"
+"='T${input_nr}' value='${t['T'+input_nr]}' pattern='[0-9]{1,6}' required title='1 to 6 "
+"numbers'/></td></tr>`)}return T('</table>'),{r:I,s:k,l:q,i:E}})({b00:'%b00',b04:'%b04',"
+"b08:'%b08',c00:'%c00',d00:'%d00',b12:'%b12',c01:'%c01',h00:'%h00',g00:'%g00',j00:'%j00'"
+",j01:'%j01',j02:'%j02',j03:'%j03',j04:'%j04',j05:'%j05',j06:'%j06',j07:'%j07',j08:'%j08"
+"',j09:'%j09',j10:'%j10',j11:'%j11',j12:'%j12',j13:'%j13',j14:'%j14',j15:'%j15',j16:'%j1"
+"6',j17:'%j17',j18:'%j18',j19:'%j19',j20:'%j20',j21:'%j21',j22:'%j22',j23:'%j23',T00:'%T"
+"00',T01:'%T01',T02:'%T02',T03:'%T03',T04:'%T04',T05:'%T05',T20:'%T20',T21:'%T21',T22:'%"
+"T22',T23:'%T23',T24:'%T24',T25:'%T25'});"
+      "%y00"
+      "<p>"
+      "Pinout Option %w01<br/>"
+      "Code Revision %w00<br/>"
+      "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki' target='_blank'>Help Wiki</a>"
+      "</p>"
+      "%y02'm.r()'>Reboot</button>"
+      "<br><br>"
+      "%y02'm.l()'>Refresh</button>"
+      "<br><br>"
+      "%y02'm.i()'>IO Control</button> "
+   "</body>"
+"</html>";
+#endif // OB_EEPROM_SUPPORT == 0
+
+#if OB_EEPROM_SUPPORT == 1
+// Declared short static const here so that common code can be used for Flash
+// and I2C EEPROM webpage sources.
+static const char g_HtmlPageConfiguration[] = " ";
+#endif // OB_EEPROM_SUPPORT == 1
+
+
+// Important: Don't mess with the order of the variable definitions that look
+// somethings like this:
+// ({
+//   h00: '00010305070b0f131781018303000000',
+//   g00: "14",
+// });
+// It is important that the "h00" definition be first in the sequence for
+// IOControl pages as that is how the POST interpreter determines that the
+// POST is from an IOControl page. The order doesn't matter so much in a
+// Configuration page as the HTML code inserts a "a00" definition first in
+// the POST, and that is used to determine that the POST came from a
+// Configuration page.
+
+/*
+// Credit to Jevgeni Kiski for the javascript work and html improvements.
+// Below is the raw script used above before minify.
+// 1) Copy raw script to minify website, for example https://javascript-minifier.com/
+// 2) Replace the variable definition test placeholders with "replaceable fields", for
+//    example:
+//    The line
+//      h00: '00010305070b0f131781018303000000',
+//    Should be replaced with
+//      h00: '%h00',
+// 3) Copy the resulting minified script to an editor and replace all double quotes with
+//    single quotes. THIS STEP IS VERY IMPORTANT.
+// 4) Copy the result to the above between the <script> and </script> lines.
+// 5) Add double quotes at the start and end of the minfied script to make it part of the
+//    constant string.
+// 6) It is OK to break up the minified script into lines enclosed by double quotes (just
+//    to make it all visible in the code editors). But make sure no spaces are inadvertantly
+//    removed from the minified script.
+
+const m = (data => {
+    const ip_input_names = ['b00', 'b04', 'b08', 'b12'],
+        port_input_names = ['c00', 'c01'],
+        features = { "Full Duplex": 1, "MQTT": 4, "DS18B20": 8, "BME280": 32, "Disable Cfg Button": 16 },
+        pin_types = { "disabled": 0, "input": 1, "output": 3, "linked": 2 },
+        boot_state = { "retain": 8, "on": 16, "off": 0 },
+        doc=document,
+        loc=location,
+        selector=doc.querySelector.bind(doc),
+        form=selector('form'),
+        get_entries=Object.entries,
+        parse_int = parseInt,
+        document_write = text => doc.write(text),
+        pad_hex = (s, l) => parse_int(s).toString(16).padStart(l, '0'),
+        convert_to_hex = v => v.map(p => pad_hex(p, 2)).join(''),
+        convert_from_hex = v => v.match(/.{2}/g).map(p => parse_int(p, 16)),
+        encode = v => encodeURIComponent(v),
+        query_input_by_name = n => selector(`input[name=${n}]`),
+        set_input_value = (n, v) => query_input_by_name(n).value = v,
+        selector_apply_fn = (query, fn) => { for (const e of doc.querySelectorAll(query)) { fn(e) } },
+        set_attributes = (e, d) => { for (const [k, v] of get_entries(d)) { e.setAttribute(k, v); } },
+        make_options = (o, v) => get_entries(o).map((o) => `<option value=${o[1]} ${o[1] == v ? 'selected' : ''}>${o[0]}</option>`).join(''),
+        make_checkbox = (name, bit, value, title='') => `<input type="checkbox" name='${name}' value=${bit} ${(value & bit) == bit ? 'checked' : ''}>${title}`,
+        get_form_data = () => {
+            const form_data = new FormData(form),
+          	collect_bits = (name) => form_data.getAll(name).map(v => parse_int(v)).reduce((a, b) => a | b, 0);
+            ip_input_names.forEach((n) => form_data.set(n, convert_to_hex(form_data.get(n).split('.'))));
+            port_input_names.forEach((n) => form_data.set(n, pad_hex(form_data.get(n), 4)));
+            form_data.set('d00', form_data.get('d00').toLowerCase().replace(/[:-]/g, ''));
+            form_data.set('h00', convert_to_hex(convert_from_hex(data.h00).map((_, i) => {
+                const name = 'p' + i,
+                    result = collect_bits(name);
+                form_data.delete(name);
+                return result;
+            })));
+            form_data.set('g00', convert_to_hex([collect_bits('g00')]));
+            return form_data;
+        },
+        send_request = (method, url, data) => {
+        	const request = new XMLHttpRequest();
+          request.open(method, url, false);
+          request.send(data);
+        },
+        ioc_page = () => loc.href = '/60',
+        reload_page = () => loc.href = '/61',
+        wait_reboot = () => {
+          doc.body.innerText = "Wait 5s...";
+          setTimeout(reload_page, 5000);
+        },
+        reboot = () => {
+          send_request("GET", "/91");
+          wait_reboot();
+        },
+        submitForm = (event) => {
+        	event.preventDefault();
+          const string_data = Array.from(get_form_data().entries(), ([k, v]) => `${encode(k)}=${encode(v)}`).join("&");
+          send_request("POST", "/", string_data + '&z00=0');
+          wait_reboot();
+        },
+        features_data = convert_from_hex(data.g00)[0],
+        common_attributes = {required: true};
+    selector_apply_fn('.ip', (e) => { set_attributes(e, {...common_attributes, title: 'x.x.x.x format', pattern: '((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])([.](?!$)|$)){4}' }); });
+    selector_apply_fn('.port', (e) => { set_attributes(e, {...common_attributes, type: 'number', min: 10, max: 65535 }); });
+    selector_apply_fn('.up input', (e) => { set_attributes(e, {title: '0 to 10 letters, numbers, and -_*. no spaces. Blank for no entry.', pattern: '[0-9a-zA-Z-_*.]{0,10}$' }); });
+    ip_input_names.forEach((n) => set_input_value(n, convert_from_hex(data[n]).join('.')));
+    port_input_names.forEach((n) => set_input_value(n, parse_int(data[n], 16)));
+    set_input_value('d00', data.d00.replace(/[0-9a-z]{2}(?!$)/g, '$&:'));
+    document_write(`<table><tr><th>IO</th><th>Type</th><th>IDX</th><th>Invert</th><th>Boot state</th></tr>`);
+    convert_from_hex(data.h00).forEach((n, i) => {
+        const
+            invert_checkbox = (n & 3) != 0 ? make_checkbox('p'+i, 4, n) : '',
+            input_nr = (''+i).padStart(2, '0'),
+            make_select = (n & 3) == 3 || ((n & 3) == 2 && i > 7) ? `<select name='p${i}'>${make_options(boot_state, n & 24)}</select>` : '',
+            debug_column = (loc.hash == '#d'?`<td>${n}</td>`:'');
+            document_write(`<tr><td>#${i + 1}</td><td><select name='p${i}'>${make_options(pin_types, n & 3)}</select></td><td><input name='j${input_nr}' value='${data['j'+input_nr]}' pattern='[0-9]{1,6}' required title='1 to 6 numbers'/></td><td>${invert_checkbox}</td><td>${make_select}</td>${debug_column}</tr>`);
+    });
+    selector(".f").innerHTML = Array.from(get_entries(features), ([name, bit]) => make_checkbox('g00', bit, features_data, name)).join("</br>");
+    document_write(`</table>`);
+    document_write(`<br><h1>Sensor IDX Configuration</h1>`);
+    document_write(`<table><tr><th>Sensor Ser #</th><th>IDX</th></tr>`);
+    for (var i=0; i<6; i++) {
+        const
+            ser_num = (''+i).padStart(2, '0');
+            j = i + 20,
+            input_nr = (''+j).padStart(2, '0');
+            document_write(`<tr><td>${data['T'+ser_num]}</td><td><input name='T${input_nr}' value='${data['T'+input_nr]}' pattern='[0-9]{1,6}' required title='1 to 6 numbers'/></td></tr>`);
+    };
+    document_write(`</table>`);
+    
+    return {r:reboot, s: submitForm, l:reload_page, i:ioc_page};
+})
+({
+    b00: "c0a80004",
+    b04: "c0a80101",
+    b08: "ffffff00",
+    c00: "0050",
+    d00: "aabbccddeeff",
+    b12: "c0a80005",
+    c01: "075b",
+    h00: "00020305070b0f13161700000000000000020305070b0f13",
+    g00: "04",
+    j00: "0",
+    j01: "1",
+    j02: "2",
+    j03: "3",
+    j04: "4",
+    j05: "5",
+    j06: "6",
+    j07: "7",
+    j08: "8",
+    j09: "9",
+    j10: "10",
+    j11: "11",
+    j12: "12",
+    j13: "13",
+    j14: "14",
+    j15: "15",
+    j16: "20",
+    j17: "21",
+    j18: "22",
+    j19: "23",
+    j20: "24",
+    j21: "25",
+    j22: "26",
+    j23: "27",
+    T00: "3c01e076be0f",
+    T01: "------------",
+    T02: "------------",
+    T03: "------------",
+    T04: "------------",
+    T05: "BME280------",
+    T20: "30",
+    T21: "31",
+    T22: "32",
+    T23: "33",
+    T24: "34",
+    T25: "35",
+});
+
+*/
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+
+
+
+
+
+
+
+
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-// IO Control Template
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** Browser IO Control Template                                          * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
 //
 // PARSE_BYTES calculation:
 // The form contained in this webpage will generate several data update
@@ -1065,14 +1782,16 @@ const m = (data => {
 //
 #define WEBPAGE_IOCONTROL			1
 #define PARSEBYTES_IOCONTROL			42
-#define BROWSER_ONLY_WEBPAGE_IOCONTROL_BEGIN	92
+#define BROWSER_ONLY_WEBPAGE_IOCONTROL_BEGIN	1
 // The BROWSER_ONLY_WEBPAGE_IOCONTROL_BEGIN define is used only by the "prepsx"
-// strings pre-processor program. The define is used by the prepsx program as
-// a keyword for locating the webpage text contained in the static const
-// below. The prepsx program extracts the HTML "string" and places it in an
-// SREC (.sx) file. The HTML strings in the .sx file are uploaded into the I2C
-// EEPROM for subsequent use in generating webpages from the I2C EEPROM
-// instead of generating them from Flash.
+// strings pre-processor program. The value is not used as the "prepsx"
+// program only searches for the _BEGIN phrase. The _BEGIN phrase is used by
+// the prepsx program as a keyword for locating the webpage text contained in
+// the static const below. The prepsx program extracts the HTML "string" and
+// places it in a SREC (.sx) file. The HTML strings in the .sx file are
+// uploaded into the I2C EEPROM for subsequent use in generating webpages from
+// the I2C EEPROM instead of generating them from Flash.
+//
 // Next #if: Only place the HTML in Flash if the I2C EEPROM is not supported.
 #if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageIOControl[] =
@@ -1247,8 +1966,21 @@ const m = (data => {
 
 
 
+
+
+
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-// Configuration webpage Template
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** Browser Configuration Template                                       * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
 //
 // PARSE_BYTES calculation:
 // The form contained in this webpage will generate several data update
@@ -1320,14 +2052,16 @@ const m = (data => {
 //
 #define WEBPAGE_CONFIGURATION				2
 #define PARSEBYTES_CONFIGURATION			602
-#define BROWSER_ONLY_WEBPAGE_CONFIGURATION_BEGIN	93
+#define BROWSER_ONLY_WEBPAGE_CONFIGURATION_BEGIN	1
 // The BROWSER_ONLY_WEBPAGE_CONFIGURATION_BEGIN define is used only by the
-// "prepsx" strings pre-processor program. The define is used by the prepsx
-// program as a keyword for locating the webpage text contained in the static
-// const below. The prepsx program extracts the HTML "string" and places it in
-// an SREC (.sx) file. The HTML strings in the .sx file are uploaded into the
-// I2C EEPROM for subsequent use in generating webpages from the I2C EEPROM
-// instead of generating them from Flash.
+// "prepsx" strings pre-processor program. The value is not used as the
+// "prepsx" program only searches for the _BEGIN phrase. The _BEGIN phrase is
+// used by the prepsx program as a keyword for locating the webpage text
+// contained in the static const below. The prepsx program extracts the HTML
+// "string" and places it in a SREC (.sx) file. The HTML strings in the .sx
+// file are uploaded into the I2C EEPROM for subsequent use in generating
+// webpages from the I2C EEPROM instead of generating them from Flash.
+//
 // Next #if: Only place the HTML in Flash if the I2C EEPROM is not supported.
 #if OB_EEPROM_SUPPORT == 0
 static const char g_HtmlPageConfiguration[] =
@@ -1340,7 +2074,7 @@ static const char g_HtmlPageConfiguration[] =
          "<table>"
             "<tr>"
                "<td>Name</td>"
-               "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'/></td>"
+               "<td><input name='a00' value='%a00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces'/></td>"
             "</tr>"
             "<tr class='hs'/>"
             "<tr>"
@@ -1368,7 +2102,7 @@ static const char g_HtmlPageConfiguration[] =
             "<tr>"
                "<td>MAC Address</td>"
                "<td>"
-                 "<input name='d00' required pattern='([0-9a-fA-F]{2}[:-]?){5}([0-9a-fA-F]{2})' title='aa:bb:cc:dd:ee:ff format' maxlength=17/>"
+                 "<input name='d00' required pattern='([0-9a-fA-F]{2}[:-]?){5}([0-9a-fA-F]{2})' title='aa:bb:cc:dd:ee:ff format'/>"
                "</td>"
             "</tr>"
             "<tr>"
@@ -1427,7 +2161,7 @@ static const char g_HtmlPageConfiguration[] =
       "<p>"
       "Pinout Option %w01<br/>"
       "Code Revision %w00<br/>"
-      "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki'>Help Wiki</a>"
+      "<a href='https://github.com/nielsonm236/NetMod-ServerApp/wiki' target='_blank'>Help Wiki</a>"
       "</p>"
       "%y02'm.r()'>Reboot</button>"
       "<br><br>"
@@ -1620,19 +2354,23 @@ const m = (data => {
 
 
 
-//---------------------------------------------------------------------------//
-//---------------------------------------------------------------------------//
-//---------------------------------------------------------------------------//
-// Following are the webpages for the PCF8574 Configuration and IOControl
-//---------------------------------------------------------------------------//
-//---------------------------------------------------------------------------//
-//---------------------------------------------------------------------------//
 
 
 
-//---------------------------------------------------------------------------//
-#if BUILD_SUPPORT == MQTT_BUILD
-// IO Control Template for PCF8574
+// #if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** MQTT PCF8574 IO Control Template                                     * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+//
 // This template is only used when an I2C EEPROM is included in the hardware
 // configuration.
 //
@@ -1665,7 +2403,7 @@ const m = (data => {
 //
 #define WEBPAGE_PCF8574_IOCONTROL		21
 #define PARSEBYTES_PCF8574_IOCONTROL		26
-#define MQTT_WEBPAGE_PCF8574_IOCONTROL_BEGIN    95
+#define MQTT_WEBPAGE_PCF8574_IOCONTROL_BEGIN    1
 // The MQTT_WEBPAGE_PCF8574_IOCONTROL_BEGIN define is used only by the
 // "prepsx" strings pre-processor program. The define is used by the prepsx
 // program as a keyword for locating the webpage text contained in the static
@@ -1835,11 +2573,26 @@ const m = (data => {
 });
 
 */
-#endif // BUILD_SUPPORT == MQTT_BUILD
+// #endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
-#if BUILD_SUPPORT == MQTT_BUILD
-// Configuration webpage Template for PCF8574
+
+
+
+
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** MQTT Home Assistant PCF8574 Configuration Template                   * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
 //
 // PARSE_BYTES calculation:
 // The form contained in this webpage will generate several data update
@@ -1868,14 +2621,16 @@ const m = (data => {
 //
 #define WEBPAGE_PCF8574_CONFIGURATION			22
 #define PARSEBYTES_PCF8574_CONFIGURATION		50
-#define MQTT_WEBPAGE_PCF8574_CONFIGURATION_BEGIN	96
+#define MQTT_WEBPAGE_PCF8574_CONFIGURATION_BEGIN	1
 // The MQTT_WEBPAGE_PCF8574_CONFIGURATION_BEGIN define is used only by the
-// "prepsx" strings pre-processor program. The define is used by the prepsx
-// program as a keyword for locating the webpage text contained in the static
-// const below. The prepsx program extracts the HTML "string" and places it in
-// an SREC (.sx) file. The HTML strings in the .sx file are uploaded into the
-// I2C EEPROM for subsequent use in generating webpages from the I2C EEPROM
-// instead of generating them from Flash.
+// "prepsx" strings pre-processor program. The value is not used as the
+// "prepsx" program only searches for the _BEGIN phrase. The _BEGIN phrase is
+// used by the prepsx program as a keyword for locating the webpage text
+// contained in the static const below. The prepsx program extracts the HTML
+// "string" and places it in a SREC (.sx) file. The HTML strings in the .sx
+// file are uploaded into the I2C EEPROM for subsequent use in generating
+// webpages from the I2C EEPROM instead of generating them from Flash.
+//
 // Next #if: Only place the HTML in Flash if the I2C EEPROM is not supported.
 // Comment: This HTML is NEVER placed in Flash, as the PCF8574 is supported
 // only when the I2C EEPROM is present. Thus the build configuration will
@@ -1892,7 +2647,7 @@ static const char g_HtmlPagePCFConfiguration[] =
          "<table>"
             "<tr>"
                "<td>Name</td>"
-               "<td><input name='A00' value='%A00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'/></td>"
+               "<td><input name='A00' value='%A00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces'/></td>"
             "</tr>"
          "</table>"
          "<table>"
@@ -2051,14 +2806,28 @@ const m = (data => {
 });
 
 */
-#endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 
 
-//---------------------------------------------------------------------------//
+
+
+
+
+
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-// IO Control Template for PCF8574
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** Browser PCF8574 IO Control Template                                  * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
 //
 // PARSE_BYTES calculation:
 // The form contained in this webpage will generate several data update
@@ -2087,14 +2856,16 @@ const m = (data => {
 //
 #define WEBPAGE_PCF8574_IOCONTROL			21
 #define PARSEBYTES_PCF8574_IOCONTROL			26
-#define BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_BEGIN	97
+#define BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_BEGIN	1
 // The BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_BEGIN define is used only by the
-// "prepsx" strings pre-processor program. The define is used by the prepsx
-// program as a keyword for locating the webpage text contained in the static
-// const below. The prepsx program extracts the HTML "string" and places it in
-// an SREC (.sx) file. The HTML strings in the .sx file are uploaded into the
-// I2C EEPROM for subsequent use in generating webpages from the I2C EEPROM
-// instead of generating them from Flash.
+// "prepsx" strings pre-processor program. The value is not used as the
+// "prepsx" program only searches for the _BEGIN phrase. The _BEGIN phrase is
+// used by the prepsx program as a keyword for locating the webpage text
+// contained in the static const below. The prepsx program extracts the HTML
+// "string" and places it in a SREC (.sx) file. The HTML strings in the .sx
+// file are uploaded into the I2C EEPROM for subsequent use in generating
+// webpages from the I2C EEPROM instead of generating them from Flash.
+//
 // Next #if: Only place the HTML in Flash if the I2C EEPROM is not supported.
 // Comment: This HTML is NEVER placed in Flash, as the PCF8574 is supported
 // only when the I2C EEPROM is present. Thus the build configuration will
@@ -2269,8 +3040,21 @@ const m = (data => {
 
 
 
+
+
+
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-// Configuration webpage Template
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** Browser PCF8574 Configuration Template                               * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
 //
 // PARSE_BYTES calculation:
 // The form contained in this webpage will generate several data update
@@ -2318,14 +3102,16 @@ const m = (data => {
 //
 #define WEBPAGE_PCF8574_CONFIGURATION				22
 #define PARSEBYTES_PCF8574_CONFIGURATION			282
-#define BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_BEGIN	98
-// The BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_BEGIN define is used only by the
-// "prepsx" strings pre-processor program. The define is used by the prepsx
-// program as a keyword for locating the webpage text contained in the static
-// const below. The prepsx program extracts the HTML "string" and places it in
-// an SREC (.sx) file. The HTML strings in the .sx file are uploaded into the
-// I2C EEPROM for subsequent use in generating webpages from the I2C EEPROM
-// instead of generating them from Flash.
+#define BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_BEGIN	1
+// The BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_BEGIN define is used only by
+// the "prepsx" strings pre-processor program. The value is not used as the
+// "prepsx" program only searches for the _BEGIN phrase. The _BEGIN phrase is
+// used by the prepsx program as a keyword for locating the webpage text
+// contained in the static const below. The prepsx program extracts the HTML
+// "string" and places it in an SREC (.sx) file. The HTML strings in the .sx
+// file are uploaded into the I2C EEPROM for subsequent use in generating
+// webpages from the I2C EEPROM instead of generating them from Flash.
+//
 // Next #if: Only place the HTML in Flash if the I2C EEPROM is not supported.
 // Comment: This HTML is NEVER placed in Flash, as the PCF8574 is supported
 // only when the I2C EEPROM is present. Thus the build configuration will
@@ -2342,7 +3128,7 @@ static const char g_HtmlPagePCFConfiguration[] =
          "<table>"
             "<tr>"
                "<td>Name</td>"
-               "<td><input name='A00' value='%A00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces' maxlength='19'/></td>"
+               "<td><input name='A00' value='%A00' pattern='[0-9a-zA-Z-_*.]{1,19}' required title='1 to 19 letters, numbers, and -_*. no spaces'/></td>"
             "</tr>"
          "</table>"
          "<table>"
@@ -2531,6 +3317,11 @@ const m = (data => {
 
 */
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+
+
+
+
 
 
 #if NETWORK_STATISTICS == 1
@@ -2730,65 +3521,6 @@ static const char g_HtmlPageINA226[] =
 #endif // INA226_SUPPORT == 1
 
 
-#if SDR_POWER_RELAY_SUPPORT == 2
-// SDR Power Relay page Template
-// Part of the Software Defined Radio project
-// Browser Only builds
-// URL /77
-// It is assumed that the Configuration for all IO's is set as follows:
-// IO   Type     Name          Invert  Boot State   Timer
-// #1   Output   Relay 1 ON    No      Off          15  0.1s
-// #2   Output   Relay 1 OFF   No      Off          15  0.1s
-// #3   Output   Relay 2 ON    No      Off          15  0.1s
-// #4   Output   Relay 2 OFF   No      Off          15  0.1s
-// #5   Output   Relay 3 ON    No      Off          15  0.1s
-// #6   Output   Relay 3 OFF   No      Off          15  0.1s
-// #7   Output   Relay 4 ON    No      Off          15  0.1s
-// #8   Output   Relay 4 OFF   No      Off          15  0.1s
-// #9   Output   Relay 5 ON    No      Off          15  0.1s
-// #10  Output   Relay 5 OFF   No      Off          15  0.1s
-// #11  Output   Relay 6 ON    No      Off          15  0.1s
-// #12  Output   Relay 6 OFF   No      Off          15  0.1s
-// #13  Output   Relay 7 ON    No      Off          15  0.1s
-// #14  Output   Relay 7 OFF   No      Off          15  0.1s
-// #15  Output   Relay 8 ON    No      Off          15  0.1s
-// #16  Output   Relay 8 OFF   No      Off          15  0.1s
-// Note: "Name" can be anything, but the above is illustrative of what the
-// IO does.
-#define WEBPAGE_SDR_POWER_RELAY	20
-static const char g_HtmlPageSDRPowerRelay[] =
-"%y04%y05"
-  "<title>Keep Relays</title>"
-  "<style>"
-    "h1 { margin: 0; }"
-  "</style>"
-  "</head>"
-  "<body>"
-  "<p>"
-    "<h1>Keep Relays</h1>"
-    "Device: %a00<br>"
-  "</p>"
-  "<button onclick='location=`/01`'>%j00</button> "
-  "<button onclick='location=`/03`'>%j01</button><br><br>"
-  "<button onclick='location=`/05`'>%j02</button> "
-  "<button onclick='location=`/07`'>%j03</button><br><br>"
-  "<button onclick='location=`/09`'>%j04</button> "
-  "<button onclick='location=`/11`'>%j05</button><br><br>"
-  "<button onclick='location=`/13`'>%j06</button> "
-  "<button onclick='location=`/15`'>%j07</button><br><br>"
-  "<button onclick='location=`/17`'>%j08</button> "
-  "<button onclick='location=`/19`'>%j09</button><br><br>"
-  "<button onclick='location=`/21`'>%j10</button> "
-  "<button onclick='location=`/23`'>%j11</button><br><br>"
-  "<button onclick='location=`/25`'>%j12</button> "
-  "<button onclick='location=`/27`'>%j13</button><br><br>"
-  "<button onclick='location=`/29`'>%j14</button> "
-  "<button onclick='location=`/31`'>%j15</button><br><br>"
-  "</body>"
-  "</html>";
-#endif // SDR_POWER_RELAY_SUPPORT == 2
-
-
 #if SDR_POWER_RELAY_SUPPORT == 1
 // SDR Power Relay page Template
 // Part of the Software Defined Radio project
@@ -2942,14 +3674,16 @@ static const char g_HtmlPageSstate[] =
 // /72 command. It is stored in the I2C EEPROM and used only in upgradeable
 // builds, so it should never be compiled for storage in Flash.
 #define WEBPAGE_LOADUPLOADER		12
-#define WEBPAGE_LOADUPLOADER_BEGIN	94
-// The WEBPAGE_LOADUPLOADER_BEGIN define is used only by the
-// "prepsx" strings pre-processor program. The define is used by the prepsx
+#define WEBPAGE_LOADUPLOADER_BEGIN	1
+// The WEBPAGE_LOADUPLOADER_BEGIN define is used only by the "prepsx" strings
+// pre-processor program. The value is not used as the "prepsx" program only
+// searches for the _BEGIN phrase. The _BEGIN phrase is used by the prepsx
 // program as a keyword for locating the webpage text contained in the static
 // const below. The prepsx program extracts the HTML "string" and places it in
 // an SREC (.sx) file. The HTML strings in the .sx file are uploaded into the
 // I2C EEPROM for subsequent use in generating webpages from the I2C EEPROM
 // instead of generating them from Flash.
+//
 // Next #if: This HTML is NEVER placed in Flash, so OB_EEPROM_SUPPORT = 2
 // (which can never occur) is used to prevent a compiler include for the HTML
 // in Flash.
@@ -3214,8 +3948,9 @@ static const char g_HtmlPageEEPROMMissing[] =
 // is needed it often has 4 subtracted (as the strings are replacing the 4
 // character placeholder), so that subtraction is done once here.
 // Notes for Flash optimization:
-// 1) Strings must be > 4 characters in length because the size of the string
-//    (less 5) is stored as an integer in the string structure defined below.
+// 1) Strings must be at least 5 characters in length because the size of the
+//    string (less 5) is stored as an integer in the string structure defined
+//    below.
 // 2) Strings must be < 256 characters.
 // 3) If two strings are identical the compiler optimizer will creae a single
 //    string and point to that string.
@@ -3228,17 +3963,38 @@ static const char g_HtmlPageEEPROMMissing[] =
 // The following creates an array of strings of variable lengths.
 
 // String for %y00 replacement in web page templates.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// CLEAN THIS UP. Should be able to make y00 and y01 the same thing but requires
+// that /table be in the MQTT and Browser javascript instead of the HTML ... OR requres that
+// /table be taken out of the Domoticz Javascript.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#if DOMOTICZ_SUPPORT == 0
 #define s0 "" \
   "not used"
+#endif // DOMOTICZ_SUPPORT == 0
+#if DOMOTICZ_SUPPORT == 1
+#define s0 "" \
+  "</script>" \
+  "<p>" \
+  "<button type=submit>Save</button> <button type=reset onclick='m.l()'>Undo All</button>" \
+  "</p>" \
+  "</form>"
+#endif // DOMOTICZ_SUPPORT == 1
 
 // String for %y01 replacement in web page templates
+#if DOMOTICZ_SUPPORT == 0
 #define s1 "" \
   "</script>" \
   "</table>" \
   "<p>" \
   "<button type=submit>Save</button> <button type=reset onclick='m.l()'>Undo All</button>" \
-  "</form>" \
-  "</p>"
+  "</p>" \
+  "</form>"
+#endif // DOMOTICZ_SUPPORT == 0
+#if DOMOTICZ_SUPPORT == 1
+#define s1 "" \
+  "not used"
+#endif // DOMOTICZ_SUPPORT == 1
 
 // String for %y02 replacement in web page templates
 #define s2 "" \
@@ -3267,10 +4023,13 @@ static const char g_HtmlPageEEPROMMissing[] =
   ".t8{width:60px;}" \
   ".c{text-align:center;}" \
   ".ip input{width:27px;}" \
-  ".mac input{width:14px;}" \
   ".s div{width:13px;height:13px;display:inline-block;}" \
   ".hs{height:9px;}" \
   "</style>"
+//  ".mac input{width:14px;}" \
+
+
+
 
 #if RF_ATTEN_SUPPORT == 1
 // String for %y06 replacement in web page templates
@@ -3368,92 +4127,100 @@ void HttpDStringInit() {
   // If an upgradeable build the IOControl and Configuration webpage sizes are
   // obtained from the I2C EEPROM where the webpage strings are stored.
   
+#if OB_EEPROM_SUPPORT == 0
   // ---------------------------------------------------------------------- //
   // Initialize size for Flash based IOControl and Configuration pages
   // ---------------------------------------------------------------------- //
-#if OB_EEPROM_SUPPORT == 0
   // Webpage sizes for non-upgradeable builds
   HtmlPageIOControl_size = (uint16_t)(sizeof(g_HtmlPageIOControl) - 1);
   HtmlPageConfiguration_size = (uint16_t)(sizeof(g_HtmlPageConfiguration) - 1);
 #endif // OB_EEPROM_SUPPORT == 0
 
 
+#if OB_EEPROM_SUPPORT == 1
   // ---------------------------------------------------------------------- //
   // Initialize size for I2C EEPROM based IOControl and Configuration pages
   // ---------------------------------------------------------------------- //
-#if OB_EEPROM_SUPPORT == 1
-#if BUILD_SUPPORT == MQTT_BUILD
-  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
+// #if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
   prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_SIZE_LOCATION, 2);
-#endif // BUILD_SUPPORT == MQTT_BUILD
-
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_IOCONTROL_SIZE_LOCATION, 2);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-
-  // Read 2 bytes from I2C EEPROM and save in the _size word.
   HtmlPageIOControl_size = read_two_bytes();
-  
-#if BUILD_SUPPORT == MQTT_BUILD
-  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_CONFIGURATION_SIZE_LOCATION, 2);
-#endif // BUILD_SUPPORT == MQTT_BUILD
+// #endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_DOMO_WEBPAGE_IOCONTROL_SIZE_LOCATION, 2);
+  HtmlPageIOControl_size = read_two_bytes();
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_CONFIGURATION_SIZE_LOCATION, 2);
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_IOCONTROL_SIZE_LOCATION, 2);
+  HtmlPageIOControl_size = read_two_bytes();
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-  // Read 2 bytes from I2C EEPROM and save in the _size word.
+  
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_CONFIGURATION_SIZE_LOCATION, 2);
   HtmlPageConfiguration_size = read_two_bytes();
-#endif // OB_EEPROM_SUPPORT == 1
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_DOMO_WEBPAGE_CONFIGURATION_SIZE_LOCATION, 2);
+  HtmlPageConfiguration_size = read_two_bytes();
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_CONFIGURATION_SIZE_LOCATION, 2);
+  HtmlPageConfiguration_size = read_two_bytes();
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
   // ---------------------------------------------------------------------- //
   // Initialize size for I2C EEPROM based PCF8574 IOControl and
   // Configuration pages
   // ---------------------------------------------------------------------- //
-#if OB_EEPROM_SUPPORT == 1
 #if PCF8574_SUPPORT == 1
-#if BUILD_SUPPORT == MQTT_BUILD
-  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
+// #if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
   prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_PCF8574_IOCONTROL_SIZE_LOCATION, 2);
-#endif // BUILD_SUPPORT == MQTT_BUILD
-
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_SIZE_LOCATION, 2);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-
-  // Read 2 bytes from I2C EEPROM and save in the _size word.
   HtmlPagePCFIOControl_size = read_two_bytes();
-  
-#if BUILD_SUPPORT == MQTT_BUILD
-  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_PCF8574_CONFIGURATION_SIZE_LOCATION, 2);
-#endif // BUILD_SUPPORT == MQTT_BUILD
+// #endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_SIZE_LOCATION, 2);
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_SIZE_LOCATION, 2);
+  HtmlPagePCFIOControl_size = read_two_bytes();
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
-  // Read 2 bytes from I2C EEPROM and save in the _size word.
+  
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_PCF8574_CONFIGURATION_SIZE_LOCATION, 2);
   HtmlPagePCFConfiguration_size = read_two_bytes();
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
+  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_SIZE_LOCATION, 2);
+  HtmlPagePCFConfiguration_size = read_two_bytes();
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 #endif // PCF8574_SUPPORT == 1
-#endif // OB_EEPROM_SUPPORT == 1
 
 
   // ---------------------------------------------------------------------- //
   // Initialize size for I2C EEPROM based LoadUploader page
   // ---------------------------------------------------------------------- //
-#if OB_EEPROM_SUPPORT == 1
   // This is always performed if an upgradeable build
-  // Prepare to read 2 bytes from I2C EEPROM and convert to uint16_t.
+  // Read 2 bytes from I2C EEPROM and convert to uint16_t.
   prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, WEBPAGE_LOADUPLOADER_SIZE_LOCATION, 2);
-
-  // Read 2 bytes from I2C EEPROM and save in the _size word.
   HtmlPageLoadUploader_size = read_two_bytes();
 #endif // OB_EEPROM_SUPPORT == 1
 }
@@ -3472,80 +4239,112 @@ void init_off_board_string_pointers(struct tHttpD* pSocket) {
   // ********************************************************************** //
   if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
 
-#if BUILD_SUPPORT == MQTT_BUILD
+// #if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
     // Prepare to read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
     prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_IOCONTROL_ADDRESS_LOCATION, 2);
-#endif // BUILD_SUPPORT == MQTT_BUILD
+    off_board_eeprom_index = read_two_bytes() - 0x8000;
+// #endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+    // Prepare to read the two byte string address from I2C EEPROM and
+    // convert to uint16_t.
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_DOMO_WEBPAGE_IOCONTROL_ADDRESS_LOCATION, 2);
+    off_board_eeprom_index = read_two_bytes() - 0x8000;
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
     // Prepare to read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
     prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_IOCONTROL_ADDRESS_LOCATION, 2);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-
-    // Read 2 bytes
     off_board_eeprom_index = read_two_bytes() - 0x8000;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
   }
   
   // ********************************************************************** //
   if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
   
-#if BUILD_SUPPORT == MQTT_BUILD
-    // Prepare to read the two byte string address from I2C EEPROM and
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+    // Read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
     prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION, 2);
-#endif // BUILD_SUPPORT == MQTT_BUILD
+    off_board_eeprom_index = read_two_bytes() - 0x8000;
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+    // Read the two byte string address from I2C EEPROM and
+    // convert to uint16_t.
+    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_DOMO_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION, 2);
+    off_board_eeprom_index = read_two_bytes() - 0x8000;
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-    // Prepare to read the two byte string address from I2C EEPROM and
+    // Read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
     prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_CONFIGURATION_ADDRESS_LOCATION, 2);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-
-    // Read 2 bytes
     off_board_eeprom_index = read_two_bytes() - 0x8000;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
   }
 
+
 #if PCF8574_SUPPORT == 1
+#if DOMOTICZ_SUPPORT == 0
   // ********************************************************************** //
   if (pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL) {
 
-#if BUILD_SUPPORT == MQTT_BUILD
-    // Prepare to read the two byte string address from I2C EEPROM and
+// #if BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+    // Read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
     prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_PCF8574_IOCONTROL_ADDRESS_LOCATION, 2);
-#endif // BUILD_SUPPORT == MQTT_BUILD
+    off_board_eeprom_index = read_two_bytes() - 0x8000;
+// #endif // BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == MQTT_BUILD && HOME_ASSISTANT_SUPPORT == 1
+
+#if BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
+    // Read the two byte string address from I2C EEPROM and
+    // convert to uint16_t.
+//    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_DOMO_WEBPAGE_PCF8574_IOCONTROL_ADDRESS_LOCATION, 2);
+//    off_board_eeprom_index = read_two_bytes() - 0x8000;
+#endif // BUILD_SUPPORT == MQTT_BUILD && DOMOTICZ_SUPPORT == 1
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-    // Prepare to read the two byte string address from I2C EEPROM and
+    // Read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
     prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_ADDRESS_LOCATION, 2);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-
-    // Read 2 bytes
     off_board_eeprom_index = read_two_bytes() - 0x8000;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
   }
-  
+#endif // DOMOTICZ_SUPPORT == 0
+#endif // PCF8574_SUPPORT == 1
+
+
+
+#if PCF8574_SUPPORT == 1
+#if DOMOTICZ_SUPPORT == 0
   // ********************************************************************** //
   if (pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION) {
   
 #if BUILD_SUPPORT == MQTT_BUILD
-    // Prepare to read the two byte string address from I2C EEPROM and
+    // Read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
     prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, MQTT_WEBPAGE_PCF8574_CONFIGURATION_ADDRESS_LOCATION, 2);
+    off_board_eeprom_index = read_two_bytes() - 0x8000;
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-    // Prepare to read the two byte string address from I2C EEPROM and
+    // Read the two byte string address from I2C EEPROM and
     // convert to uint16_t.
     prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_ADDRESS_LOCATION, 2);
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-
-    // Read 2 bytes
     off_board_eeprom_index = read_two_bytes() - 0x8000;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
   }
+#endif // DOMOTICZ_SUPPORT == 0
 #endif // PCF8574_SUPPORT == 1
+
+
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   if (pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
@@ -3758,12 +4557,22 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + (1 x (-2));
     size = size - 2;
 
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
     // Account for pin control field %h00
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances x (32 - 4));
     // size = size + (1 x 28);
     size = size + 28;
- 
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
+
+#if DOMOTICZ_SUPPORT == 1
+    // Account for pin control field %h00
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (48 - 4));
+    // size = size + (1 x 44);
+    size = size + 44;
+#endif // DOMOTICZ_SUPPORT == 1
+
     // Account for Temperature Sensor insertion %t00 to %t04
     // Each of these insertions can have a different length due to the
     // text around them. If DS18B20 is NOT enabled we only need to
@@ -3776,6 +4585,16 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
       //    40 bytes of text plus 27 bytes of data = 67
       //    size = size + 67 - 4
       size = size + 63;
+
+// TRYING TO FIGURE OUT HOW TO GIVE A "HEADER" LOOK TO THE TEMPERATURE SENSORS
+// DISPLAY IN IOCONTROL
+//      //  %t00 "<p style='{height:32px;}'>Temperature Sensors</p><p><br> xxxxxxxxxxxx "
+//      //      plus 13 bytes of data and degC characters (-000.0&#8451;)
+//      //      plus 14 bytes of data and degF characters ( -000.0&#8457;)
+//      //    69 bytes of text plus 27 bytes of data = 96
+//      //    size = size + 96 - 4
+//      size = size + 92;
+      
       //
       //  %t01 "<br> xxxxxxxxxxxx " 
       //      plus 13 bytes of data and degC characters (-000.0&#8451;)
@@ -3842,12 +4661,23 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // are inserted on the fly when the web page is sent to the browser, so
     // they have to be accounted for in the size of the web page.
     
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
     // String for %y01 in web page template
     // There is 1 instance for the Save and Undo All buttons
     // size = size + (#instances) x (ps[1].size - marker_field_size);
     // size = size + ps[1].size_less4;
     size = size + ps[1].size_less4;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
 
+#if DOMOTICZ_SUPPORT == 1
+    // String for %y00 in web page template
+    // There is 1 instance for the Save and Undo All buttons
+    // size = size + (#instances) x (ps[1].size - marker_field_size);
+    // size = size + ps[0].size_less4;
+    size = size + ps[0].size_less4;
+#endif // DOMOTICZ_SUPPORT == 1
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
     // String for %y02 in web page template
     // There 3 instances:
     //   Refresh button
@@ -3856,6 +4686,17 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + (#instances) x (ps[2].size - marker_field_size);
     // size = size + (3 x ps[2].size_less4);
     size = size + (3 * ps[2].size_less4);
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
+
+#if DOMOTICZ_SUPPORT == 1
+    // String for %y02 in web page template
+    // There 2 instances:
+    //   Refresh button
+    //   Configuration button
+    // size = size + (#instances) x (ps[2].size - marker_field_size);
+    // size = size + (3 x ps[2].size_less4);
+    size = size + (2 * ps[2].size_less4);
+#endif // DOMOTICZ_SUPPORT == 1
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
     // Account for IO Name fields %j00 to %j15
@@ -3867,9 +4708,10 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
         size = size + (strlen(IO_NAME[i]) - 4);
       }
     }
-    
-    // The TIMER fields have no size change impact
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+    // The TIMER fields have no size change impact as the value displayed is
+    // equal in size to the placeholder.
   }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
@@ -3884,6 +4726,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if DOMOTICZ_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
   else if (pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL) {
     size = HtmlPagePCFIOControl_size;
@@ -3962,6 +4805,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
   }
 #endif // PCF8574_SUPPORT == 1
+#endif // DOMOTICZ_SUPPORT == 0
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
@@ -4018,18 +4862,36 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + (1 x (-2));
     size = size - 2;
 
-    // Account for Code Revision + Code Type insertion %w00
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (26 - 4));
-    // size = size + (1 x 22);
-    size = size + 22;
-
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
     // Account for pin control field %h00
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances x (32 - 4));
     // size = size + (1 x 28);
     size = size + 28;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
 
+#if DOMOTICZ_SUPPORT == 1
+    // Account for pin control field %h00
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (48 - 4));
+    // size = size + (1 x 44);
+    size = size + 44;
+#endif // DOMOTICZ_SUPPORT == 1
+
+    // Account for Code Revision + Code Type insertion %w00
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (36 - 4));
+    // size = size + (1 x 32);
+    size = size + 32;
+    
+    // Account for Pinout Option field %w01
+    // Looks like "Pinout Option 1"
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (1 - 4));
+    // size = size + (1 x -3);
+    size = size - 3;
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
     // Account for Text Replacement insertion
     // Some strings appear frequently in the templates - things like the
     // button titles which appear when hovering over a button. These strings
@@ -4041,7 +4903,23 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + (#instances) x (ps[1].size - marker_field_size);
     // size = size + ps[1].size_less4;
     size = size + ps[1].size_less4;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
 
+#if DOMOTICZ_SUPPORT == 1
+    // Account for Text Replacement insertion
+    // Some strings appear frequently in the templates - things like the
+    // button titles which appear when hovering over a button. These strings
+    // are inserted on the fly when the web page is sent to the browser, so
+    // they have to be accounted for in the size of the web page.
+    
+    // String for %y00 in web page template
+    // There is 1 instance for the Save and Undo All buttons
+    // size = size + (#instances) x (ps[1].size - marker_field_size);
+    // size = size + ps[1].size_less4;
+    size = size + ps[0].size_less4;
+#endif // DOMOTICZ_SUPPORT == 1
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
     // String for %y02 in web page templates
     // There are 4 instances:
     //   Reboot button
@@ -4052,14 +4930,29 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + (#instances) x (ps[2].size - 4);
     // size = size + (4) x ps[2].size_less4;
     size = size + (4 * ps[2].size_less4);
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
     
-    // Account for Pinout Option field %w01
-    // Looks like "Pinout Option 1"
+#if DOMOTICZ_SUPPORT == 1
+    // String for %y02 in web page templates
+    // There are 3 instances:
+    //   Reboot button
+    //   Refresh button
+    //   IOControl button
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (1 - 4));
-    // size = size + (1 x -3);
-    size = size - 3;
-    
+    // size = size + (#instances) x (ps[2].size - 4);
+    // size = size + (4) x ps[2].size_less4;
+    size = size + (3 * ps[2].size_less4);
+#endif // DOMOTICZ_SUPPORT == 1
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    // Account for IO Timer field %i00 to %i15
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (#instances x (4 - 4));
+    // size = size + (16 x 0);
+    // size = size + 0;
+    // The Timer fields have no size change impact
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
     // Account for IO Name fields %j00 to %j15
     // Each can be variable in size during run time so we have to calculate
@@ -4070,14 +4963,78 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
         size = size + (strlen(IO_NAME[i]) - 4);
       }
     }
-
-    // Account for IO Timer field %i00 to %i15
-    // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (4 - 4));
-    // size = size + (16 x 0);
-    // size = size + 0;
-    // The Timer fields have no size change impact
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+#if DOMOTICZ_SUPPORT == 1
+    // Account for IO Name fields %j00 to %j15
+    // Each can be variable in size during run time so we have to calculate
+    // them  each time we display the web page.
+    {
+      int i;
+      for (i=0; i<16; i++) {
+        size = size + (strlen(IO_NAME[i]) - 4);
+      }
+    }
+
+#if PCF8574_SUPPORT == 1
+    // Account for IO Name fields %j16 to %j23 (repurposed as IDX fields).
+    // Each can be variable in size during run time so we have to calculate
+    // them  each time we display the web page.
+    // For the PCF8574 these names are stored in I2C EEPROM and must be read
+    // from there to determine their size.
+    {
+      int i;
+      int j;
+      char temp_byte[16];
+      for (i=16; i<24; i++) {
+        // Read a PCF8574_IO_NAMES value from I2C EEPROM
+        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + ((i - 16) * 16), 2);
+        for (j=0; j<15; j++) {
+          temp_byte[j] = I2C_read_byte(0);
+        }
+        temp_byte[15] = I2C_read_byte(1);
+        size = size + (strlen(temp_byte) - 4);
+      }
+    }
+#endif // PCF8574_SUPPORT == 1
+
+#if PCF8574_SUPPORT == 0
+    // Account for IO Name fields %j16 to %j23
+    // If PCF8574 is not supported the Configuration page will still display
+    // the IDX configuration fields, however they will all contain "0".
+    // There are 8 instances
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (8) x (1 - 4);
+    // size = size + (8) x (-3);
+    // size = size - 24
+    size = size - 24;
+#endif // PCF8574_SUPPORT == 0
+#endif // DOMOTICZ_SUPPORT == 1
+
+#if DOMOTICZ_SUPPORT == 1
+    // Account for Sensor Name fields %T00 to %T05
+    // These fields are displayed even if no sensors are present.
+    // There are 6 instances, each 12 characters in size.
+    // size = size + (#instances x (value_size - marker_field_size));
+    // size = size + (6) x (12 - 4);
+    // size = size + (6) x (8);
+    // size = 48
+    size += 48;
+#endif // DOMOTICZ_SUPPORT == 1
+
+#if DOMOTICZ_SUPPORT == 1
+    // Account for Sensor IDX fields %T20 to %T25
+    // These fields are displayed even if no sensors are present.
+    // There are 6 instances.
+    // Each can be variable in size during run time so we have to calculate
+    // them  each time we display the web page.
+    {
+      int i;
+      for (i=0; i<6; i++) {
+        size = size + (strlen(Sensor_IDX[i]) - 4);
+      }
+    }
+#endif // DOMOTICZ_SUPPORT == 1
  
 #if BUILD_SUPPORT == MQTT_BUILD
     // Account for MQTT IP Address field %b12
@@ -4125,7 +5082,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
 #if PCF8574_SUPPORT == 1
   else if (pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION) {
     size = HtmlPagePCFConfiguration_size;
@@ -4183,6 +5140,8 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // them  each time we display the web page.
     // For the PCF8574 these names are stored in I2C EEPROM and must be read
     // from there to determine their size.
+    // Note: Domoticz support re-uses the "%Jxx" values to store IDX values
+    // unique to Domoticz.
     {
       int i;
       int j;
@@ -4197,6 +5156,9 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
         size = size + (strlen(temp_byte) - 4);
       }
     }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
     // Account for IO Timer field %I16 to %I23
     // size = size + (#instances x (value_size - marker_field_size));
     // size = size + (#instances x (4 - 4));
@@ -4204,10 +5166,17 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     // size = size + 0;
     // The Timer fields have no size change impact
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
- 
-  }
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Adjusted size of WEBPAGE_PCF8574_CONFIGURATION = ");
+// emb_itoa(size, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+}
 #endif // PCF8574_SUPPORT == 1
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
 
 
   //-------------------------------------------------------------------------//
@@ -4256,16 +5225,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
 #if LINK_STATISTICS == 1
   else if (pSocket->current_webpage == WEBPAGE_STATS2) {
     size = (uint16_t)(sizeof(g_HtmlPageStats2) - 1);
-
-    // Account for header replacement strings %y04 %y05
-//    size = size + ps[4].size_less4
-//                + ps[5].size_less4;
-
-    // Account for Device Name field %a00 in <title>
-    // This can be variable in size during run time so we have to calculate it
-    // each time we display the web page.
-//    size = size + strlen_devicename_adjusted;
-
     // Account for Statistics fields %e31, %e32, %e33, %e34, %e35
     // There are 5 instances of these fields
     // size = size + (#instances x (value_size - marker_field_size));
@@ -4335,32 +5294,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
-#if SDR_POWER_RELAY_SUPPORT == 2
-  else if (pSocket->current_webpage == WEBPAGE_SDR_POWER_RELAY) {
-    size = (uint16_t)(sizeof(g_HtmlPageSDRPowerRelay) - 1);
-
-    // Account for header replacement strings %y04 %y05
-    size = size + ps[4].size_less4
-                + ps[5].size_less4;
-
-    // Account for Device Name field %a00
-    // This can be variable in size during run time so we have to calculate it
-    // each time we display the web page.
-    size = size + strlen_devicename_adjusted;
-
-    // Account for IO Name fields %j00 to %j15
-    // Each can be variable in size during run time so we have to calculate
-    // them  each time we display the web page.
-    {
-      int i;
-      for (i=0; i<16; i++) {
-        size = size + (strlen(IO_NAME[i]) - 4);
-      }
-    }
-  }
-#endif // SDR_POWER_RELAY_SUPPORT == 2
-
-
 #if SDR_POWER_RELAY_SUPPORT == 1
   else if (pSocket->current_webpage == WEBPAGE_SDR_POWER_RELAY) {
     size = (uint16_t)(sizeof(g_HtmlPageSDRPowerRelay) - 1);
@@ -4536,9 +5469,9 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
     
     // Account for Code Revision + Code Type insertion %w00
     // size = size + (#instances x (value_size - marker_field_size));
-    // size = size + (#instances x (26 - 4));
-    // size = size + (1 x 22);
-    size = size + 22;
+    // size = size + (#instances x (36 - 4));
+    // size = size + (1 x 32);
+    size = size + 32;
   }
 
 
@@ -4621,26 +5554,6 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 
-/*
-#if OB_EEPROM_SUPPORT == 1
-  //-------------------------------------------------------------------------//
-  //-------------------------------------------------------------------------//
-  //-------------------------------------------------------------------------//
-  //-------------------------------------------------------------------------//
-  // Adjust the size reported by the WEBPAGE_EEPROM_MISSING template
-  //-------------------------------------------------------------------------//
-  //-------------------------------------------------------------------------//
-  //-------------------------------------------------------------------------//
-  //-------------------------------------------------------------------------//
-  else if (pSocket->current_webpage == WEBPAGE_EEPROM_MISSING) {
-    size = (uint16_t)(sizeof(g_HtmlPageEEPROMMissing) - 1);
-    
-    // Account for header replacement strings %y04 %y05
-    size = size + ps[4].size_less4
-                + ps[5].size_less4;    
-  }
-#endif // OB_EEPROM_SUPPORT == 1
-*/
 #if OB_EEPROM_SUPPORT == 1
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
@@ -4813,38 +5726,6 @@ uint8_t int2nibble(uint8_t j)
   else return (uint8_t)(j - 10 + 'a');
 }
 
-/*
-static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen)
-{
-  uint16_t nBytes;
-  int i;
-  
-  static const char http_string1[] = 
-    "HTTP/1.1 200 OK\r\n"
-    "Content-Length:";
-  static const char http_string2[] = 
-    "\r\n"
-    "Cache-Control: no-cache, no-store\r\n"
-    "Content-Type: text/html; charset=utf-8\r\n"
-    "Connection:close\r\n\r\n";
-
-  nBytes = 0;
-
-  pBuffer = stpcpy(pBuffer, http_string1);
-  nBytes += strlen(http_string1);
-
-  // This creates the "xxxxx" part of a 5 character "Content-Length:xxxxx"
-  // field in the pBuffer.
-  emb_itoa(nDataLen, OctetArray, 10, 5);
-  pBuffer = stpcpy(pBuffer, OctetArray);
-  nBytes += 5;
-
-  pBuffer = stpcpy(pBuffer, http_string2);
-  nBytes += strlen(http_string2);
-  
-  return nBytes;
-}
-*/
 static uint16_t CopyHttpHeader(uint8_t* pBuffer, uint16_t nDataLen, uint8_t header_type)
 {
   uint16_t nBytes;
@@ -4997,8 +5878,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
   if (pSocket->current_webpage == WEBPAGE_IOCONTROL
    || pSocket->current_webpage == WEBPAGE_CONFIGURATION
 #if PCF8574_SUPPORT == 1
+#if DOMOTICZ_SUPPORT == 0
    || pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL
    || pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION
+#endif // DOMOTICZ_SUPPORT == 0
 #endif // PCF8574_SUPPORT == 1
    || pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
     // This code is applicable only when the I2C EERPOM is used to store
@@ -5020,6 +5903,9 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
     //    values. To account for this aliasing the buffer will get refilled
     //    a few bytes before it is completely empty (see the refill code
     //    further below).
+    //  - "off_board_eeprom_index" is a global value that was filled in prior
+    //    to the call to CopyHttpData() by the init_off_board_string_pointers()
+    //    function (which was called when determining which page to display).
     
     {
       uint16_t i;
@@ -5098,8 +5984,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
         if (pSocket->current_webpage == WEBPAGE_IOCONTROL
 	 || pSocket->current_webpage == WEBPAGE_CONFIGURATION
 #if PCF8574_SUPPORT == 1
+#if DOMOTICZ_SUPPORT == 0
          || pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL
 	 || pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION
+#endif // DOMOTICZ_SUPPORT == 0
 #endif // PCF8574_SUPPORT == 1
 	 || pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
           {
@@ -5157,8 +6045,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	//      Assistant Auto Discovery Enable. Input and Output.
 	// %h - Pin Control string - The pin control string is defined as 32
 	//      characters representing 16 hex bytes of information in text
-	//      format. Each byte is the pin_control character for each IO
-	//      pin. Input and Output.
+	//      format. Each byte is the pin_control byte for each IO pin.
+	//      Input and Output.
 	// %H - Pin Control string for PCF8574 - The pin control string is
 	//      defined as 16 characters representing 16 hex bytes of
 	//      information in text format. Each byte is the pin_control
@@ -5180,13 +6068,26 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	//        only to special Software Defined Radio builds.
 	// %s - I2C EEPROM presence status. Output only.
 	// %t - I2C Sensor data
-	//        00 - 18B20 Temperature Sensor 1 data. Output only.
-	//        01 - 18B20 Temperature Sensor 2 data. Output only.
-	//        02 - 18B20 Temperature Sensor 3 data. Output only.
-	//        03 - 18B20 Temperature Sensor 4 data. Output only.
-	//        04 - 18B20 Temperature Sensor 5 data. Output only.
+	//        00 - DS18B20 Temperature Sensor 1 data. Output only.
+	//        01 - DS18B20 Temperature Sensor 2 data. Output only.
+	//        02 - DS18B20 Temperature Sensor 3 data. Output only.
+	//        03 - DS18B20 Temperature Sensor 4 data. Output only.
+	//        04 - DS18B20 Temperature Sensor 5 data. Output only.
 	//        05 - BME280 Temperature, Humidity, Pressure sensor data. Output only.
 	//        06 - INA226 Current, Voltage, Wattage sensor data. Output only.
+	// %T - I2C Sensor Serial Number and IDX (IDX used in Domoticz builds only).
+	//        00 - DS18B20 Sensor 1 Serial Number (MAC)
+	//        01 - DS18B20 Sensor 2 Serial Number (MAC)
+	//        02 - DS18B20 Sensor 3 Serial Number (MAC)
+	//        03 - DS18B20 Sensor 4 Serial Number (MAC)
+	//        04 - DS18B20 Sensor 5 Serial Number (MAC)
+	//        05 - BME280 Sensor Serial Number (Just reports "BME280"))
+	//        20 - DS18B20 Sensor 1 IDX value (user supplied)
+	//        21 - DS18B20 Sensor 2 IDX value (user supplied)
+	//        22 - DS18B20 Sensor 3 IDX value (user supplied)
+	//        23 - DS18B20 Sensor 4 IDX value (user supplied)
+	//        24 - DS18B20 Sensor 5 IDX value (user supplied)
+	//        25 - BME280 Sensor IDX value (user supplied)
 	// %w - General purpose output strings:
 	//        00 - Code Revision
 	//        01 - Pinout Option
@@ -5205,8 +6106,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
           if (pSocket->current_webpage == WEBPAGE_IOCONTROL
 	   || pSocket->current_webpage == WEBPAGE_CONFIGURATION
 #if PCF8574_SUPPORT == 1
+#if DOMOTICZ_SUPPORT == 0
            || pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL
-           || pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION
+	   || pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION
+#endif // DOMOTICZ_SUPPORT == 0
 #endif // PCF8574_SUPPORT == 1
 	   || pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
 	    off_board_eeprom_index++;
@@ -5224,8 +6127,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
           if (pSocket->current_webpage == WEBPAGE_IOCONTROL
 	   || pSocket->current_webpage == WEBPAGE_CONFIGURATION
 #if PCF8574_SUPPORT == 1
+#if DOMOTICZ_SUPPORT == 0
            || pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL
 	   || pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION
+#endif // DOMOTICZ_SUPPORT == 0
 #endif // PCF8574_SUPPORT == 1
 	   || pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
 	    // Read 1 byte from pre_buf
@@ -5248,8 +6153,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
           if (pSocket->current_webpage == WEBPAGE_IOCONTROL
 	   || pSocket->current_webpage == WEBPAGE_CONFIGURATION
 #if PCF8574_SUPPORT == 1
+#if DOMOTICZ_SUPPORT == 0
            || pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL
 	   || pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION
+#endif // DOMOTICZ_SUPPORT == 0
 #endif // PCF8574_SUPPORT == 1
 	   || pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
 	    // Read 1 byte from pre_buf
@@ -5273,8 +6180,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
           if (pSocket->current_webpage == WEBPAGE_IOCONTROL
 	   || pSocket->current_webpage == WEBPAGE_CONFIGURATION
 #if PCF8574_SUPPORT == 1
+#if DOMOTICZ_SUPPORT == 0
            || pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL
 	   || pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION
+#endif // DOMOTICZ_SUPPORT == 0
 #endif // PCF8574_SUPPORT == 1
 	   || pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
 	    // Read 1 byte from pre_buf
@@ -5302,6 +6211,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
         if ((nParsedMode == 'a') || (nParsedMode == 'A')) {
 #endif // PCF8574_SUPPORT == 1
 	  // This displays the device name (up to 19 characters)
+	  // %axx %Axx
           pBuffer = stpcpy(pBuffer, stored_devicename);
 	}
 
@@ -5311,6 +6221,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // We need to get the 32 bit values for IP Address, Gateway Address, and
 	  // Netmask and send them as text strings of hex characters (8 characters
 	  // for a 32 bit number, for example "c0a80004").
+	  // %bxx
 	  {
 	    uint32_t temp32;
 	    uip_ipaddr_t * uip_ptr = NULL;
@@ -5352,6 +6263,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // In both cases we need to get a single 16 bit integer from storage
 	  // but put it in the transmission buffer as 5 alpha characters in
 	  // hex format.
+	  // %cxx
 
 	  // Write the 5 digit Port value in hex
 	  if (nParsedNum == 0) emb_itoa(stored_port, OctetArray, 16, 5);
@@ -5366,6 +6278,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // octet). We send the 12 characters in the mac_string (rather
 	  // than from the uip_ethaddr bytes) as the mac_string is already
 	  // in alphanumeric format.
+	  // %dxx
           pBuffer = stpcpy(pBuffer, mac_string);
 	}
 	
@@ -5398,6 +6311,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // uip_stat.tcp.rexmit    Number of retransmitted TCP segments.
 	  // uip_stat.tcp.syndrop   Number of dropped SYNs due to too few connections avaliable.
 	  // uip_stat.tcp.synrst    Number of SYNs for closed ports, triggering a RST.
+	  // %exx
 	  
           switch (nParsedNum)
 	  {
@@ -5433,6 +6347,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 #if LINK_STATISTICS == 1
         else if ((nParsedMode == 'e') && (nParsedNum >= 30) && (nParsedNum < 40)) {
 	  // This displays the Link Error Statistics
+	  // %exx
           if (nParsedNum == 31) {
 	    // Display Seconds Counter
 	    emb_itoa(second_counter, OctetArray, 10, 10);
@@ -5447,14 +6362,14 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	    // Display Stack Overflow Error, ENC28J60 revision, TXERIF Error
 	    // Count and RXERIF Error Count
 	    for (i=0; i<5; i++) {
-              int2hex(stored_debug[i]);
+              int2hex(stored_debug_bytes[i]);
               pBuffer = stpcpy(pBuffer, OctetArray);
 	    }
 	  }
           else if (nParsedNum == 34) {
 	    for (i=5; i<10; i++) {
 	      // Display EMCF, SWIMF, ILLOPF,IWDGF and WWDGF Counters
-              int2hex(stored_debug[i]);
+              int2hex(stored_debug_bytes[i]);
               pBuffer = stpcpy(pBuffer, OctetArray);
 	    }
 	  }
@@ -5479,6 +6394,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // in the compile options. This displays the Temperature Sensor
 	  // Serial Numbers and was made necessary due to some suppliers
 	  // providing DS18B20 devices with identical serial numbers.
+	  // %exx
           if ((nParsedNum - 40) <= numROMs) {
 	    {
               int n;
@@ -5508,6 +6424,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // Pin 1 last.
 	  // If stored_options1 bit 0x10 is set then any Disabled pin must be
 	  // shown as '-'. Otherwise the last known pin state is displayed.
+	  // %fxx
 
 #if PCF8574_SUPPORT == 0
 	  i = 15;
@@ -5564,6 +6481,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // This is a special case utilized only for the RF Attenuator
 	  // special build. This will display IO bits 6 to 2 (5 bits) as a
 	  // decimal number.
+	  // %fxx
 	  {
 	    uint16_t pinstates;
 	    pinstates = (uint16_t)ON_OFF_word;
@@ -5595,6 +6513,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
           // Bit 0: Duplex
           //        1 = Full, 0 = Half
 	  // There is only 1 'g' ID so we don't need to check the nParsedNum.
+	  // %gxx
 	  
 	  // Convert Config settngs byte into two hex characters
           int2hex(stored_config_settings);
@@ -5603,24 +6522,27 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	
 	
 #if LINKED_SUPPORT == 0
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
         else if (nParsedMode == 'h') {
-	  // This sends the Pin Control String, defined as follows:
+	  // This sends the Pin Control String for non-Domoticz builds,
+	  // defined as follows:
 	  // 32 characters
 	  // The 32 characters represent 16 hex bytes of information in text
-	  // format. Each byte is the pin_control character for each IO pin
+	  // format. Each byte is the pin_control byte for each IO pin 
 	  // starting with pin 01 on the left.
 	  // Just a reminder: The code calls the first pin "00", but the GUI
 	  // shows it as Pin 1.
 	  // Note: Input pins need to have the ON/OFF bit inverted if the
 	  //   Invert bit is set.
-	  	  
+	  // %hxx
+	  
 	  // Insert pin_control bytes
 	  {
 	    int i;
 	    uint8_t j;
 	    for (i = 0; i <16; i++) {
 	      j = pin_control[i];
-	      if ((j & 0x02) == 0x00) {
+	      if ((j & 0x03) == 0x01) {
 	        // This is an input pin - check the invert bit
 	        if (j & 0x04) { // Invert is set - flip the ON/OFF bit
 		  if (j & 0x80) j &= 0x7f;
@@ -5632,24 +6554,28 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
             }
 	  }
 	}
+
 #if PCF8574_SUPPORT == 1
         else if (nParsedMode == 'H') {
 	  // This sends the Pin Control String to the PCF8574 Configuration
-	  // and IOControl pages, defined as follows:
+	  // and IOControl pages (note: these separate pages are not part of
+	  // the Domoticz builds).
+	  // String is defined as follows:
 	  // 16 characters
 	  // The 16 characters represent 8 hex bytes of information in text
 	  // format. Each byte is the pin_control character for each IO
 	  // starting with IO 17 on the left.
 	  // Note: Input pins need to have the ON/OFF bit inverted if the
 	  //   Invert bit is set.
-	  	  
+	  // %Hxx
+	  
 	  // Insert pin_control bytes
 	  {
 	    int i;
 	    uint8_t j;
 	    for (i = 16; i <24; i++) {
 	      j = pin_control[i];
-	      if ((j & 0x02) == 0x00) {
+	      if ((j & 0x03) == 0x01) {
 	        // This is an input pin - check the invert bit
 	        if (j & 0x04) { // Invert is set - flip the ON/OFF bit
 		  if (j & 0x80) j &= 0x7f;
@@ -5663,11 +6589,65 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  }
 	}
 #endif // PCF8574_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
+
+#if DOMOTICZ_SUPPORT == 1
+        else if (nParsedMode == 'h') {
+	  // This sends the Pin Control String for Domoticz builds, defined as
+	  // follows:
+	  // 48 characters
+	  // The 48 characters represent 24 hex bytes of information in text
+	  // format. Each byte is the pin_control character for each IO pin
+	  // starting with pin 01 on the left.
+	  // Just a reminder: The code calls the first pin "00", but the GUI
+	  // shows it as Pin 1.
+	  // Note: Input pins need to have the ON/OFF bit inverted if the
+	  //   Invert bit is set.
+	  // %hxx
+	  
+	  // Insert pin_control bytes
+	  {
+	    int i;
+	    uint8_t j;
+
+            j = 0;
+	    
+	    for (i = 0; i <24; i++) {
+#if PCF8574_SUPPORT == 1
+	      j = pin_control[i];
+#endif // PCF8574_SUPPORT == 1
+#if PCF8574_SUPPORT == 0
+              if (i < 16) {
+	        j = pin_control[i];
+	      }
+              if (i > 15) {
+	        // No PCF8574
+		j = 0;
+	      }
+#endif // PCF8574_SUPPORT == 0
+              if (j != 0) {
+	        if ((j & 0x03) == 0x01) {
+	          // This is an input pin - check the invert bit
+	          if (j & 0x04) { // Invert is set - flip the ON/OFF bit
+		    if (j & 0x80) j &= 0x7f;
+		    else j |= 0x80;
+		  }
+	        }
+	      }
+	      int2hex(j);
+	      pBuffer = stpcpy(pBuffer, OctetArray);
+            }
+	  }
+	}
+#endif // DOMOTICZ_SUPPORT == 1
 #endif // LINKED_SUPPORT == 0
 
+
 #if LINKED_SUPPORT == 1
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
         else if (nParsedMode == 'h') {
-	  // This sends the Pin Control String, defined as follows:
+	  // This sends the Pin Control String for non-Domoticz builds,
+	  // defined as follows:
 	  // 32 characters
 	  // The 32 characters represent 16 hex bytes of information in text
 	  // format. Each byte is the pin_control character for each IO pin
@@ -5683,7 +6663,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  //   fact that the Linked pin types have been altered to look like
 	  //   Input or Output pin types for the GUI display will not upset
 	  //   the rest of the code.
-          	  	  
+	  // %hxx
+          
 	  // Insert pin_control bytes
 	  {
 	    int i;
@@ -5716,10 +6697,13 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
             }
 	  }
 	}
+	
 #if PCF8574_SUPPORT == 1
         else if (nParsedMode == 'H') {
 	  // This sends the Pin Control String to the PCF8574 Configuration
-	  // and IOControl pages, defined as follows:
+	  // and IOControl pages (note: these separate pages are not part of
+	  // the Domoticz builds).
+	  // The string is defined as follows:
 	  // 16 characters
 	  // The 16 characters represent 8 hex bytes of information in text
 	  // format. Each byte is the pin_control character for each IO pin
@@ -5735,25 +6719,24 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  //   fact that the Linked pin types have been altered to look like
 	  //   Input or Output pin types for the GUI display will not upset
 	  //   the rest of the code.
-          	  	  
+	  // %Hxx
+          
 	  // Insert pin_control bytes
 	  {
 	    int i;
 	    uint8_t j;
 	    for (i = 16; i <24; i++) {
 	      j = pin_control[i];
-	      if (pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL) {
-	        if (chk_iotype(j, i, 0x03) == 0x03) {
-                  // This is an Output. Make sure the Pin Type bits are set to
-		  // Output (in case they were set to Linked.
-		  j |= 0x03;
-		}
-	        if (chk_iotype(j, i, 0x03) == 0x01) {
-                  // This is an Input. Make sure the Pin Type bits are set to
-		  // Input (in case they were set to Linked.
-		  j = (uint8_t)(j & 0xfc);
-		  j |= 0x01;
-		}
+	      if (chk_iotype(j, i, 0x03) == 0x03) {
+                // This is an Output. Make sure the Pin Type bits are set to
+	        // Output (in case they were set to Linked.
+		j |= 0x03;
+	      }
+	      if (chk_iotype(j, i, 0x03) == 0x01) {
+                // This is an Input. Make sure the Pin Type bits are set to
+		// Input (in case they were set to Linked.
+		j = (uint8_t)(j & 0xfc);
+		j |= 0x01;
 	      }
 
               if (chk_iotype(j, i, 0x03) == 0x01) {
@@ -5770,6 +6753,83 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  }
 	}
 #endif // PCF8574_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
+
+#if DOMOTICZ_SUPPORT == 1
+        else if (nParsedMode == 'h') {
+	  // This sends the Pin Control String for Domoticz builds,
+	  // defined as follows:
+	  // 48 characters
+	  // The 48 characters represent 24 hex bytes of information in text
+	  // format. Each byte is the pin_control character for each IO pin
+	  // starting with pin 01 on the left.
+	  // Note1: Input pins need to have the ON/OFF bit inverted if the
+	  //   Invert bit is set.
+	  // Note2: A special case applies to the IOCONTROL webpages. For pins
+	  //   to display properly when Linked pins are being used the linked
+	  //   pins must be translated into Input or Output pin types for
+	  //   display in the IOControl GUI.
+	  // Note 3: The IOCONTROL page returns the hxx values but the code
+	  //   only looks at the ON/OFF bit of the returned hxx values. So the
+	  //   fact that the Linked pin types have been altered to look like
+	  //   Input or Output pin types for the GUI display will not upset
+	  //   the rest of the code.
+	  // Note 4: If PCF8574 is not supported the hxx values for pins 16 to
+	  //   24 need to be transmitted as 0x00 (disabled). This is to cover
+	  //   the case where a build that does not include PCF8574 is
+	  //   programmed into the device AFTER a build that did support
+	  //   PCF8574.
+	  // %hxx
+          
+	  // Insert pin_control bytes
+	  {
+	    int i;
+	    uint8_t j;
+	    j = 0;
+	    
+	    for (i = 0; i <24; i++) {
+#if PCF8574_SUPPORT == 1
+	      j = pin_control[i];
+#endif // PCF8574_SUPPORT == 1
+#if PCF8574_SUPPORT == 0
+              if (i < 16) {
+	        j = pin_control[i];
+	      }
+              if (i > 15) {
+	        // No PCF8574
+		j = 0;
+	      }
+#endif // PCF8574_SUPPORT == 0
+              if (j != 0) {
+	        // If pin is not disabled check it for input/output
+	        if (pSocket->current_webpage == WEBPAGE_IOCONTROL) {
+	          if (chk_iotype(j, i, 0x03) == 0x03) {
+                    // This is an Output. Make sure the Pin Type bits are set to
+		    // Output (in case they were set to Linked.
+		    j |= 0x03;
+		  }
+	          if (chk_iotype(j, i, 0x03) == 0x01) {
+                    // This is an Input. Make sure the Pin Type bits are set to
+		    // Input (in case they were set to Linked.
+		    j = (uint8_t)(j & 0xfc);
+		    j |= 0x01;
+		  }
+		}
+                if (chk_iotype(j, i, 0x03) == 0x01) {
+	          // This is an input pin - check the invert bit
+	          if (j & 0x04) { // Invert is set - flip the ON/OFF bit
+		    if (j & 0x80) j &= 0x7f;
+		    else j |= 0x80;
+		  }
+		}
+	      }
+	      int2hex(j);
+	      pBuffer = stpcpy(pBuffer, OctetArray);
+            }
+	  }
+	}
+#endif // DOMOTICZ_SUPPORT == 1
+
 #endif // LINKED_SUPPORT == 1
 
 
@@ -5781,6 +6841,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // 2 bytes represented as hex encoded strings (4 nibbles)
 	  // Upper 2 bits are units
 	  // Lower 14 bits are value
+	  // %ixx
 	  {
 	    uint8_t j;
 	    j = (uint8_t)((IO_TIMER[nParsedNum] & 0xff00) >> 8);
@@ -5799,6 +6860,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // 2 bytes represented as hex encoded strings (4 nibbles)
 	  // Upper 2 bits are units
 	  // Lower 14 bits are value
+	  // %Ixx
 	  {
 	    uint8_t j;
             uint16_t IO_timer_value;
@@ -5814,18 +6876,28 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
           }
 	}
 #endif // PCF8574_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+
+
+
+
+
 	
-	
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
         else if (nParsedMode == 'j') {
 	  // This displays IO Names in user friendly format (1 to 15
 	  // characters)
+          // These names are for IO 1 to 16 (nParsedNum 0 to 15)
+	  // %jxx
           pBuffer = stpcpy(pBuffer, IO_NAME[nParsedNum]);
 	}
 #if PCF8574_SUPPORT == 1
         else if (nParsedMode == 'J') {
           // This displays PCF8574 IO Names in user friendly format (1 to 15
           // characters)
-          // These names are for IO 17 to 24 (nParsedNum 17 to 24)
+          // These names are for IO 17 to 24 (nParsedNum 16 to 23)
+	  // %Jxx
 	  {
 	    int i;
 	    char temp_byte[16];
@@ -5842,15 +6914,65 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
+#if DOMOTICZ_SUPPORT == 1
+        else if (nParsedMode == 'j' && nParsedNum < 16) {
+	  // This displays IO Names in user friendly format (1 to 15
+	  // characters). These fields have been repurposed to contain the
+	  // IDX values for the IO pins.
+          // These names are for IO 1 to 16 (nParsedNum 0 to 15)
+	  // %jxx
+          pBuffer = stpcpy(pBuffer, IO_NAME[nParsedNum]);
+	}
+#if PCF8574_SUPPORT == 1
+        else if (nParsedMode == 'j' && nParsedNum > 15) {
+          // This displays PCF8574 IO Names in user friendly format (1 to 15
+	  // characters). These fields have been repurposed to contain the
+	  // IDX values for the IO pins.
+          // These names are for IO 17 to 24 (nParsedNum 16 to 23)
+	  // %Jxx
+	  {
+	    int i;
+	    char temp_byte[16];
+            // Read a PCF8574_IO_NAMES value from I2C EEPROM
+            prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + ((nParsedNum - 16) * 16), 2);
+            for (i=0; i<15; i++) {
+              temp_byte[i] = I2C_read_byte(0);
+            }
+            temp_byte[15] = I2C_read_byte(1);
+            pBuffer = stpcpy(pBuffer, temp_byte);
+          }
+	}
+#endif // PCF8574_SUPPORT == 1
+#if PCF8574_SUPPORT == 0
+        else if (nParsedMode == 'j' && nParsedNum > 15) {
+          // This is a special case where Domoticz is supported but the
+	  // PCF8574 is not. The Domoticz Configuration page still needs to
+	  // receive and display 'j' values. In this special case the values
+	  // will all be "0".
+          // These names are for IO 17 to 24 (nParsedNum 17 to 24)
+	  // %Jxx
+	  {
+            pBuffer = stpcpy(pBuffer, "0");
+          }
+	}
+#endif // PCF8574_SUPPORT == 0
+#endif // DOMOTICZ_SUPPORT == 1
+
+
+
+
+
         else if (nParsedMode == 'l') {
 	  // This displays MQTT Username information (0 to 10 characters)
           pBuffer = stpcpy(pBuffer, stored_mqtt_username);
+	  // %lxx
 	}
 
 
         else if (nParsedMode == 'm') {
 	  // This displays MQTT Password information (0 to 10 characters)
           pBuffer = stpcpy(pBuffer, stored_mqtt_password);
+	  // %mxx
 	}
 
 
@@ -5858,6 +6980,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // This displays the MQTT Start Status information as five
 	  // red/green boxes showing Connections available, ARP status,
 	  // TCP status, MQTT Connect status, and MQTT Error status.
+	  // %nxx
 	  no_err = 0;
 
           switch (nParsedNum)
@@ -5897,7 +7020,8 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // only to Software Defined Radio builds. If a relay is indicated as
 	  // ON a green box is displaed. If a relay is indicated as OFF a red
 	  // box is displayed.
-
+	  // %nxx
+          
           switch (nParsedNum)
 	  {
 	    case 10:
@@ -5949,6 +7073,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 
 #if OB_EEPROM_SUPPORT == 1
         else if (nParsedMode == 's') {
+	  // %sxx
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
 	  if (nParsedNum == 2) {
 	    // This sends the Parse Fail reason code. %s02
@@ -5978,10 +7103,15 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // This displays temperature sensor data for 5 sensors and the
 	  // text fields around that data IF DS18B20 mode is enabled. The
 	  // possible nParsedNum values for DS18B20 sensors are 0, 1, 2, 3, 4.
+	  // %txx
 	  
 	  if (nParsedNum == 0) {
 	    #define TEMPTEXT "<p>Temperature Sensors<br>"
-	    pBuffer = stpcpy(pBuffer, TEMPTEXT);
+// THE NEXT DEFINES WERE PART OF AN ATTEMPT TO GIVE A "HEADER" LOOP TO THE
+// TEMPERATURE SENSOR TEXT IN THE IOCONTROL PAGE.
+//	    #define TEMPTEXT "<p style='hh'>Temperature Sensors</p><p><br>"
+//	    #define TEMPTEXT "<p style='{height:32px;}'>Temperature Sensors</p><p><br>" 
+            pBuffer = stpcpy(pBuffer, TEMPTEXT);
 	    #undef TEMPTEXT
 	  }
 	  
@@ -6021,6 +7151,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // This displays temperature, pressure, and humidity data from the
 	  // BME280 sensor and the text fields around that data IF BME280
 	  // mode is enabled. It also shows the user entered altitude.
+	  // %txx
 	  if (nParsedNum == 5) {
             // Output Temperature, Pressure, Humidity, and Altitude data
             pBuffer = show_BME280_PTH_string(pBuffer);
@@ -6033,6 +7164,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
         else if ((nParsedMode == 't') && (nParsedNum > 5) && (nParsedNum < 11)) {
 	  // This displays Current, Voltage, and Wattage data from the
 	  // INA226-1 sensor. Also shows the text fields around that data.
+	  // %txx
 	  
 	  // Collect data
           // Call ina226_conversion_ready() to determine if a conversion is
@@ -6054,43 +7186,107 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 #endif // INA226_SUPPORT == 1
 
 
+#if DOMOTICZ_SUPPORT == 1
+        else if (nParsedMode == 'T') {
+	  // For DS18B20 this displays the Serial Number (MAC) of up to 5
+	  // devices. If a device does not exist "------------" is displayed.
+	  // For BME280 there is no serial number so this simply displays
+	  // "BME280------". If a device does not exist "------------" is
+	  // displayed.
+	  // %Txx
+
+#if DS18B20_SUPPORT == 1
+	  // Output the sensor ID numbers for DS18B20 devices only if the
+	  // DS18B20 feature is enabled.
+	  // For display we output the MSByte first followed by remaining
+	  // bytes. A total of 6 bytes are displayed in hex encoded format.
+	  if (nParsedNum <= numROMs && (stored_config_settings & 0x08)) {
+	    {
+	      int i;
+	      for (i=6; i>0; i--) {
+	        int2hex(FoundROM[nParsedNum][i]);
+	        pBuffer = stpcpy(pBuffer, OctetArray);
+	      }
+	    }
+	  }
+	  // If the sensor does not exist or DS18B20 feature is not enabled:
+	  else if (nParsedNum <= 4) {
+	    pBuffer = stpcpy(pBuffer, "------------");
+	  }
+#endif // DS18B20_SUPPORT == 1
+
+#if DS18B20_SUPPORT == 0
+	  if (nParsedNum <= 4) pBuffer = stpcpy(pBuffer, "------------");
+#endif // DS18B20_SUPPORT == 0
+
+#if BME280_SUPPORT == 1
+	  // Instead of a serial numeber for BME280 output "BME280" instead
+	  // only if the BME280 feature is enabled.
+	  if (nParsedNum == 5 && (stored_config_settings & 0x20)) pBuffer = stpcpy(pBuffer, "BME280------");
+#endif // BME280_SUPPORT == 1
+
+#if BME280_SUPPORT == 0
+	  if (nParsedNum == 5) pBuffer = stpcpy(pBuffer, "------------");
+#endif // BME280_SUPPORT == 0
+          
+	  // Now output the IDX values stored in Flash
+          if (nParsedNum >= 20 && nParsedNum <= 25) {
+	    pBuffer = stpcpy(pBuffer, Sensor_IDX[nParsedNum - 20]);
+	  }
+        }
+#endif // DOMOTICZ_SUPPORT == 1
+
+
         else if (nParsedMode == 'w') {
 	  // This displays Code Revision information (13 characters) plus Code
-	  // Type (13 characters, '.' characters are added to make sure the
-	  // length is always 13)
+	  // Type (23 characters, '.' characters are added to make sure the
+	  // length is always 23)
+	  // %wxx
 	  if (nParsedNum == 0) {
             pBuffer = stpcpy(pBuffer, code_revision);
 	  
-#if BUILD_TYPE_BROWSER_STANDARD == 1
-            pBuffer = stpcpy(pBuffer, " Browser Only");
+#if BUILD_TYPE_MQTT_HOME_STANDARD == 1
+            pBuffer = stpcpy(pBuffer, " MQTT Home ............");
 #endif
 
-#if BUILD_TYPE_MQTT_STANDARD == 1
-            pBuffer = stpcpy(pBuffer, " MQTT .......");
+#if BUILD_TYPE_MQTT_HOME_UPGRADEABLE == 1
+            pBuffer = stpcpy(pBuffer, " MQTT Home UPG ........");
+#endif
+
+#if BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE == 1
+            pBuffer = stpcpy(pBuffer, " MQTT Home BME UPG ....");
+#endif
+	  
+#if BUILD_TYPE_MQTT_DOMO_STANDARD == 1
+            pBuffer = stpcpy(pBuffer, " MQTT Domo ............");
+#endif
+
+#if BUILD_TYPE_MQTT_DOMO_UPGRADEABLE == 1
+            pBuffer = stpcpy(pBuffer, " MQTT Domo UPG ........");
+#endif
+
+#if BUILD_TYPE_MQTT_DOMO_BME280_UPGRADEABLE == 1
+            pBuffer = stpcpy(pBuffer, " MQTT Domo BME UPG ....");
+#endif
+	  
+#if BUILD_TYPE_BROWSER_STANDARD == 1
+            pBuffer = stpcpy(pBuffer, " Browser ..............");
 #endif
 
 #if BUILD_TYPE_BROWSER_UPGRADEABLE == 1
-            pBuffer = stpcpy(pBuffer, " Browser UPG ");
+            pBuffer = stpcpy(pBuffer, " Browser UPG ..........");
 #endif
 
-#if BUILD_TYPE_MQTT_UPGRADEABLE == 1
-            pBuffer = stpcpy(pBuffer, " MQTT UPG ...");
-#endif
-
-#if BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
-            pBuffer = stpcpy(pBuffer, " MQTT UPG BME");
-#endif
-	  
 #if BUILD_TYPE_BROWSER_STANDARD_RFA == 1
-            pBuffer = stpcpy(pBuffer, " Browser RFA ");
+            pBuffer = stpcpy(pBuffer, " Browser RFA ..........");
 #endif
 	  
 #if BUILD_TYPE_BROWSER_UPGRADEABLE_RFA == 1
-            pBuffer = stpcpy(pBuffer, " Browser URFA");
+            pBuffer = stpcpy(pBuffer, " Browser RFA UPG.......");
 #endif
 	  
 #if BUILD_TYPE_CODE_UPLOADER == 1
-            pBuffer = stpcpy(pBuffer, " Uploader ...");
+            pBuffer = stpcpy(pBuffer, " Uploader .............");
 #endif
           }
 	  
@@ -6109,6 +7305,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 	  // page templates stored in flash memory by storing the strings once,
 	  // then inserting them in the web page template as that template is
 	  // sent to the browser for display.
+	  // %yxx
 	  //
 	  // Processing of a long string insertion is a special case and may
 	  // bridge over more than one call to the CopyHttpData() function. This
@@ -6190,8 +7387,10 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
         if (pSocket->current_webpage == WEBPAGE_IOCONTROL
 	 || pSocket->current_webpage == WEBPAGE_CONFIGURATION
 #if PCF8574_SUPPORT == 1
-         || pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL
-	 || pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION
+#if DOMOTICZ_SUPPORT == 0
+           || pSocket->current_webpage == WEBPAGE_PCF8574_IOCONTROL
+	   || pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION
+#endif // DOMOTICZ_SUPPORT == 0
 #endif // PCF8574_SUPPORT == 1
 	 || pSocket->current_webpage == WEBPAGE_LOADUPLOADER) {
           off_board_eeprom_index++;
@@ -6311,7 +7510,9 @@ char *show_BME280_PTH_string(char *pBuffer)
   
   // Convert altitude to meters
   temp_whole = stored_altitude;
-  temp_whole = ((temp_whole * 3048) / 10000);
+//  temp_whole = ((temp_whole * 3048) / 10000);
+  temp_whole = (temp_whole * 3048) + 5000; // Adding 5000 handles truncation roundoff
+  temp_whole = temp_whole / 10000;
   // Handle negative altitudes
   if (stored_altitude < 0) {
     temp_whole = (uint32_t)(temp_whole * -1);
@@ -6402,7 +7603,7 @@ void FloatToString(float fVal)
   // Converts a float value to a string in global OctetArray.
   // The string consists of a number with 3 digits following the decimal
   // place.
-  // Creates the string backwards before copyint it character-by-character
+  // Creates the string backwards before copying it character-by-character
   // from the end to the start.
   char result[8];
   int16_t dVal, i, j, k;
@@ -6429,8 +7630,8 @@ void FloatToString(float fVal)
 // UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 15
 
-  // Fill the result varoab;e with null
-  memset(result, 0, 8);
+  // Fill the result varoable with null
+  memset(&result[0], 0, 8);
   
   // Convert the decimal part of the value to string characters
   result[0] = (char)((dec % 10) + '0');
@@ -6443,18 +7644,6 @@ void FloatToString(float fVal)
   result[3] = '.';
 
   // Convert the number part of the value to string characters.
-
-//   i = 4;
-//   if (dVal == 0) result[i] = '0';
-//   else {
-//     while (dVal > 0) {
-//       result[i] = (char)((dVal % 10) + '0');
-//       dVal /= 10;
-//       i++;
-//       if (i == 7) break;
-//     }
-//   }
-  
   result[4] = (char)((dVal % 10) + '0');
   dVal /= 10;
   result[5] = (char)((dVal % 10) + '0');
@@ -6464,20 +7653,8 @@ void FloatToString(float fVal)
   // Reverse the order of the characters in the string.
   k = strlen(result);
   j = 0;
-  memset(OctetArray, 0, 8);
+  memset(&OctetArray[0], 0, 8);
   for (i = k-1; i >= 0; ) OctetArray[j++] = result[i--];
-  
-//   // Insert '0' at the start of the string if needed.
-//   while (strlen(OctetArray) < 7) {
-//     OctetArray[6] = OctetArray[5];
-//     OctetArray[5] = OctetArray[4];
-//     OctetArray[4] = OctetArray[3];
-//     OctetArray[3] = OctetArray[2];
-//     OctetArray[2] = OctetArray[1];
-//     OctetArray[1] = OctetArray[0];
-//     OctetArray[0] = '0';
-//   }
-
 }
 #endif // INA226_SUPPORT == 1
 
@@ -6632,7 +7809,8 @@ void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
   pSocket->current_webpage = WEBPAGE_NULL;
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-  
+
+/*
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
   pSocket->current_webpage = WEBPAGE_UPLOADER;
   // If the SWIM interface is used to install a Code Uploader, but no EEPROM
@@ -6641,14 +7819,28 @@ void init_tHttpD_struct(struct tHttpD* pSocket, int i) {
     pSocket->current_webpage = WEBPAGE_EEPROM_MISSING;
   }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+*/
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+  pSocket->current_webpage = WEBPAGE_UPLOADER;
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+#if OB_EEPROM_SUPPORT == 1
+  // If the SWIM interface is used to install any build that requires the
+  // I2C EEPROM, but no EEPROM is present, switch to the EEPROM missing page.
+  if (eeprom_detect == 0) {
+    pSocket->current_webpage = WEBPAGE_EEPROM_MISSING;
+  }
+  else {
+    init_off_board_string_pointers(pSocket);
+  }
+#endif // OB_EEPROM_SUPPORT == 1
 
   pSocket->nState = STATE_NULL;
   pSocket->ParseState = PARSE_NULL;
   pSocket->nNewlines = 0;
   pSocket->insertion_index = 0;
-#if OB_EEPROM_SUPPORT == 1
-  init_off_board_string_pointers(pSocket);
-#endif // OB_EEPROM_SUPPORT == 1
+// #if OB_EEPROM_SUPPORT == 1
+//   init_off_board_string_pointers(pSocket);
+// #endif // OB_EEPROM_SUPPORT == 1
 }
 
 
@@ -6659,7 +7851,8 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   uint8_t j;
   char compare_buf[32];
   uint8_t GET_response_type = 200;
-
+  uint32_t parse_file_time_start;
+  
   // HttpDCall() is used to:
   // a) Receive a request or data from the Browser:
   //    In the form of a GET if the Browser is requesting a web page or other
@@ -6732,7 +7925,7 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 #endif // DEBUG_SUPPORT == 15
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("Entering uip_connected()\r\n");
+// UARTPrintf("Entering uip_connected()\r\n");
 #endif // DEBUG_SUPPORT == 15
 
 
@@ -6886,14 +8079,14 @@ UARTPrintf("Entering uip_connected()\r\n");
     
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("Entering uip_acked()\r\n");
+// UARTPrintf("Entering uip_acked()\r\n");
 #endif // DEBUG_SUPPORT == 15
 
     // How a webpage is transmitted to the Browser: At the end of GET or POST
     // processing the webpage header is sent (see STATE_SENDHEADER200 and
     // STATE_SENDHEADER204). Sending the header will start the transmission
     // process which will result in a connection being established. After that
-    // All data following the header is sent with uip_acked() which calls the
+    // all data following the header is sent with uip_acked() which calls the
     // senddata: process.
     
     // If uip_acked() is true we will be in the STATE_SENDDATA state and
@@ -6911,12 +8104,12 @@ UARTPrintf("Entering uip_acked()\r\n");
     // This is a "receive data from the Browser" function.
 
 #if DEBUG_SUPPORT == 15
-if (uip_newdata()) {
-  UARTPrintf("Entering uip_newdata(). nBytes = ");
-  emb_itoa(nBytes, OctetArray, 10, 3);
-  UARTPrintf(OctetArray);
-  UARTPrintf("\r\n");
-}
+// if (uip_newdata()) {
+//   UARTPrintf("Entering uip_newdata(). nBytes = ");
+//   emb_itoa(nBytes, OctetArray, 10, 3);
+//   UARTPrintf(OctetArray);
+//   UARTPrintf("\r\n");
+// }
 #endif // DEBUG_SUPPORT == 15
 
     //
@@ -7248,35 +8441,37 @@ if (uip_newdata()) {
     if (pSocket->nState == STATE_GOTGET && parse_GETcmd[0] != '\0') {
       // If we are in state GOTGET but we are already processing a GET Request
       // we need to throw away the new request and return a 429 response.
-      pSocket->nState == STATE_SENDHEADER429;
+      pSocket->nState = STATE_SENDHEADER429;
       pSocket->nDataLeft = 0;
     }
 
 
-//    if (pSocket->nState == STATE_GOTGET) {
     if (pSocket->nState == STATE_GOTGET && parse_GETcmd[0] == '\0') {
       // The GET request is processed only if no GET request is already being
       // processed (as indicated by NULL in the first character of the
       // parse_GETcmd).
-      // Save the 10 characters that follow "GET " in the first packet in
+      // Save the 11 characters that follow "GET " in the first packet in
       // global parse_GETcmd[11]. These will be parsed later after the entire
       // GET request is read. This is only to allow the Browser to finish
       // sending the entire request.
-      for (i = 0; i < 10; i++) {
+      // Once all characters of the GET command are captured parse_GETcmd[]
+      // should contain something like "/filename" where the longest command
+      // is one of the /50 /51 /52 commands like "/51mmmmpppp". That command
+      // type is 11 characters long and will completely fill parse_GETcmd[].
+      for (i = 0; i < 11; i++) {
         parse_GETcmd[i] = *pBuffer;
         pBuffer++;
       }
-      parse_GETcmd[10] = '\0';
       // Reset pBuffer back to the end of the "GET " indentifier so that the
       // search performed in STATE_GOTGET2 will work properly. nBytes is
       // already set properly for that location.
-      pBuffer -= 10;
+      pBuffer -= 11;
       pSocket->nState = STATE_GOTGET2;
     }
 
     if (pSocket->nState == STATE_GOTGET2) {
 #if DEBUG_SUPPORT == 15
-UARTPrintf("Entering STATE_GOTGET2\r\n");
+// UARTPrintf("Entering STATE_GOTGET2\r\n");
 #endif // DEBUG_SUPPORT == 15
       // Receive the entire GET request. We don't use any of the remaining
       // content in the GET request so just keep returning for more packets
@@ -7320,7 +8515,7 @@ UARTPrintf("Entering STATE_GOTGET2\r\n");
             // Didn't find the "\r\n\r\n" yet but we hit end of fragment, so
 	    // we exit and will come back to the loop with the next fragment.
 #if DEBUG_SUPPORT == 15
-UARTPrintf("Reading GET header - hit end of fragment\r\n");
+// UARTPrintf("Reading GET header - hit end of fragment\r\n");
 #endif // DEBUG_SUPPORT == 15
             return;
           }
@@ -7332,10 +8527,10 @@ UARTPrintf("Reading GET header - hit end of fragment\r\n");
 	  pSocket->nNewlines = 0;
 	  
 #if DEBUG_SUPPORT == 15
-UARTPrintf("End of GET header found. nBytes = ");
-emb_itoa(nBytes, OctetArray, 10, 3);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("End of GET header found. nBytes = ");
+// emb_itoa(nBytes, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 15
 
           // Start parsing the GET command
@@ -7355,6 +8550,12 @@ UARTPrintf("\r\n");
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
     if (pSocket->nState == STATE_PARSEPOST) {
+      // Once STATE_PARSEPOST is entered we remain in that state until the
+      // entire POST is received and processed. So this loop could be
+      // repeated, repeating the call to parsepost(), until all packets are
+      // received and parsed. Once all POST data is received the parsepost()
+      // function will set pSocket->nState = STATE_SENDHEADER204 to end the
+      // process.
 
 #if DEBUG_SUPPORT == 15
 // UARTPrintf("\r\n");
@@ -7373,7 +8574,12 @@ UARTPrintf("\r\n");
     if (pSocket->nState == STATE_PARSEGET) {
       // Parse the GET command and identify the webpage to be copied to the
       // body of the GET response.
-//      parseget(pSocket, pBuffer, nBytes);
+      // Once STATE_PARSEGET is entered we remain in that state until the
+      // entire GET is received and processed. So this loop could be
+      // repeated, repeating the call to parseget(), until all packets are
+      // received and parsed. Once all GET data is received the parseget()
+      // function will set pSocket->nState = STATE_SENDHEADER200 (or 204) to
+      // end the process.
       parseget(pSocket, pBuffer);
     }
 
@@ -7414,10 +8620,16 @@ UARTPrintf("\r\n");
       //   with every possible fart. The invalid SREC file will likely be
       //   loaded into Flash and reprogramming via the SWIM interface may be
       //   necessary.
+      // - It is possible that communications are so poor that the conditions
+      //   of the various "while" loops below cannot be met. I've found this
+      //   is particularly true on really bad WiFi connections. A timeout
+      //   funcction is used to cause a "parse fail" exit if the file transfer
+      //   is not completed in 60 seconds.
       // nBytes is tracked in this function using the global file_nBytes to
       // enable shared use of the nBytes value in this function and the
       // read_two_characters function.
       file_nBytes = nBytes;
+      parse_file_time_start = second_counter;
 
       // This function uses a step by step state machine to read the data file
 
@@ -7491,6 +8703,16 @@ UARTPrintf("\r\n");
             // of the local while loop so the next packet will be read.
             break; // Break out of the local while loop
           }
+	  
+	  if (parse_file_time_start > (second_counter + 60)) {
+	    // If a timeout occurs assume the connection is too poor to
+	    // complete the file transfer and simply abort the connection.
+            pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Timeout: goto PARSE_FILE_FAIL_EXIT\r\n");
+#endif // DEBUG_SUPPORT == 15
+	    break; // Break out of the local while loop
+	  }
         } // End of local while loop
       }
 
@@ -7930,9 +9152,18 @@ UARTPrintf("\r\n");
                 // of the local while loop so the next packet will be read.
                 break;
               }
+	      
+	      if (parse_file_time_start > (second_counter + 60)) {
+	        // If a timeout occurs assume the connection is too poor to
+	        // complete the file transfer and simply abort the connection.
+                pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Timeout: goto PARSE_FILE_FAIL_EXIT\r\n");
+#endif // DEBUG_SUPPORT == 15
+	        break; // Break out of the local while loop
+	      }
 	    } // End of local while() loop
 	  }
-
 
           if (pSocket->ParseState == PARSE_FILE_SEQUENTIAL) {
 	    // This parse is entered knowing that the next two characters are a
@@ -8072,6 +9303,16 @@ UARTPrintf("\r\n");
                 // of the local while loop so the next packet will be read.
                 break;
               }
+	      
+	      if (parse_file_time_start > (second_counter + 60)) {
+	        // If a timeout occurs assume the connection is too poor to
+	        // complete the file transfer and simply abort the connection.
+                pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Timeout: goto PARSE_FILE_FAIL_EXIT\r\n");
+#endif // DEBUG_SUPPORT == 15
+	        break; // Break out of the local while loop
+	      }
 	    } // End of local while() loop
 	  }
 
@@ -8297,6 +9538,16 @@ UARTPrintf("\r\n");
                 // of the local while loop so the next packet will be read.
                 break;
               }
+	      
+	      if (parse_file_time_start > (second_counter + 60)) {
+	        // If a timeout occurs assume the connection is too poor to
+	        // complete the file transfer and simply abort the connection.
+                pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Timeout: goto PARSE_FILE_FAIL_EXIT\r\n");
+#endif // DEBUG_SUPPORT == 15
+	        break; // Break out of the local while loop
+	      }
 	    } // End of local while loop
 	  }
 	
@@ -8332,13 +9583,25 @@ UARTPrintf("\r\n");
 	        // All packets read.
                 break; // Break out of the local while loop
               }
+	      
               if (file_nBytes == 0) {
                 // The read_two_characters() function will set file_nBytes to
 	        // zero if an end of packet occurred. If so break out of the
 	        // local while loop so the next packet will be read.
                 break; // Break out of the local while loop
 	      }
+	      
+	      if (parse_file_time_start > (second_counter + 60)) {
+	        // If a timeout occurs assume the connection is too poor to
+	        // complete the file transfer and simply abort the connection.
+                pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Timeout: goto PARSE_FILE_FAIL_EXIT\r\n");
+#endif // DEBUG_SUPPORT == 15
+	        break; // Break out of the local while loop
+	      }
 	    } // End of local while loop
+	    
 	    if (file_length == 0) {
 	      // All packets read. Go on to the PARSE_FILE_FAIL_EXIT routine.
 	      pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
@@ -8355,6 +9618,16 @@ UARTPrintf("\r\n");
             // of the main while loop so the next packet will be read.
             break; // Break out of main while loop
           }
+	  
+	  if (parse_file_time_start > (second_counter + 60)) {
+	    // If a timeout occurs assume the connection is too poor to
+	    // complete the file transfer and simply abort the connection.
+            pSocket->ParseState = PARSE_FILE_FAIL_EXIT;
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Timeout: goto PARSE_FILE_FAIL_EXIT\r\n");
+#endif // DEBUG_SUPPORT == 15
+	    break; // Break out of the main while loop
+	  }
         } // End of main while loop
       }
     
@@ -8610,109 +9883,8 @@ UARTPrintf("\r\n");
 
 
 
-#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-char *read_two_characters(char *pBuffer)
-{
-  // This function attempts to read two bytes from the SREC file.
-  // - Normal function is that two bytes are read.
-  // - The function must also handle the case where we only need to read one
-  //   byte because a byte was already read at the tail of a previous packet.
-  // - The function must also handle the case where we can only read one byte
-  //   because it is the last remaining byte in a packet.
-  // - The function discards any CR or LF character
-  //
-  // The function updates and returns the pBuffer pointer as bytes are consum-
-  // ed from the incoming data buffer.
-  //
-  // The function updates the byte_tail string with the bytes read from the
-  // incoming data buffer.
-  //
-  // The function updates the nParseLeft and file_nBytes counters.
-
-  if ((byte_tail[0] != '\0') && (byte_tail[1] == '\0')) {
-    // This is a check for TCP Fragmentation during a prior packet. byte_tail
-    // will have length 0 if no prior fragmentation occurred. If TCP Fragment-
-    // ation DID occur then byte_tail[0] will contain the last byte read from the
-    // SREC file and byte_tail[1] will contain NULL.
-    // Note that the SREC file is read one byte at a time, but a two byte pair
-    // is needed for any processing to occur. So, if only one byte of the two
-    // byte pair is captured when a packet boundary is encountered that byte
-    // must be saved in byte_tail so that the two bye pair can be completed
-    // and processed when the next packet is received.
-    // We have to account for the case where the single byte read in the
-    // previous packet is followed by CR or LF. In that case we discard the
-    // CR and LF and go on to read the next valid character.
-    
-    while (1) {
-      if (*pBuffer != '\r' && *pBuffer != '\n') {
-        byte_tail[1] = *pBuffer;
-        pBuffer++;
-        file_nBytes--;
-	file_length--; // Decrement the file_length for every character read
-	break;
-      }
-      else {
-        // Ignore the CR or LF
-        pBuffer++;
-        file_nBytes--;
-	file_length--; // Decrement the file_length for every character read
-	if (file_nBytes == 0) break;
-      }
-    }
-    byte_tail[2] = '\0';
-    return pBuffer;
-  }
-
-  else {
-    // We are starting with an empty byte_tail. Fill with any remaining bytes
-    // in the packet, but ignore CR and LF.
-    if (file_nBytes != 0) {
-      while (1) {
-        if (*pBuffer != '\r' && *pBuffer != '\n') {
-          byte_tail[0] = *pBuffer;
-          pBuffer++;
-          file_nBytes--;
-          file_length--; // Decrement the file_length for every character read
-          break;
-        }
-        else {
-          // Ignore the CR or LF
-          pBuffer++;
-          file_nBytes--;
-          file_length--; // Decrement the file_length for every character read
-  	  if (file_nBytes == 0) break;
-        }
-      }
-    }
-    
-    if (file_nBytes != 0) {
-      while (1) {
-        if (*pBuffer != '\r' && *pBuffer != '\n') {
-          byte_tail[1] = *pBuffer;
-          pBuffer++;
-          file_nBytes--;
-          file_length--; // Decrement the file_length for every character read
-          break;
-        }
-        else {
-          // Ignore the CR or LF
-          pBuffer++;
-          file_nBytes--;
-          file_length--; // Decrement the file_length for every character read
-  	  if (file_nBytes == 0) break;
-        }
-      }
-    }
-    byte_tail[2] = '\0';
-    return pBuffer;
-  }
-}
-#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
-
-
-
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
-uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
+void parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
   // This function parses data the user entered in the GUI.
   
   // Parse pre-process
@@ -8963,7 +10135,7 @@ uint16_t parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
       continue;
     }
   }
-  return nBytes;
+  return;
 }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
@@ -9061,53 +10233,68 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
       // 'j' and 'J' is POST data for the IO Names
       // 'l'         is POST data for the MQTT Username
       // 'm'         is POST data for the MQTT Password
+      // 'T'         is POST data for the IDX values (Domoticz Sensor)
       // 'z'         is POST data for used as an end-of-POST indicator
       
-      // Parse 'a' 'A' 'l' 'm' 'j' 'J' --------------------------------------//
+      // Parse 'a' 'A' 'l' 'm' 'j' 'J' 'T' ---------------------------------//
       if (pSocket->ParseCmd == 'a'
        || pSocket->ParseCmd == 'A'
        || pSocket->ParseCmd == 'l'
        || pSocket->ParseCmd == 'm'
        || pSocket->ParseCmd == 'j'
-       || pSocket->ParseCmd == 'J' ) {
+       || pSocket->ParseCmd == 'J'
+       || pSocket->ParseCmd == 'T' ) {
         // a = Update the Device Name field
         // A = Update the Device Name field (PCF8574)
         // l = Update the MQTT Username field
         // m = Update the MQTT Password field
         // j = Update the IO Name field
         // J = Update the IO Name field (PCF8574)
+        // T = Update the IDX field (Domoticz Sensor)
         
 	// Notes on the "current_webpage" logic.
 	// When parsing a POST we need to know if the POST came from a
-	// IOControl page or from a Configuation page. The following
-	// applies:
+	// IOControl page or from a Configuation page. This can be determined
+	// from the first POST variable returned. The following applies:
 	// a) On entry to the process current_webpage is set to WEBPAGE_NULL.
-	// b) The IOControl page always starts with a a 'h' value if a
-	//    IOControl for the IO on the STM8 device, OR it starts with
-	//    a "H" if a IOControl for the PCF8574. If current_webpage is
-	//    WEBPAGE_NULL we set the current_webpage to WEBPAGE_IOCONTROL
-	//    if a 'h' value, OR WEBPAGE_PCF8574_IOCONTROL if a 'H' value.
-	// c) The Configuration page starts with a 'a' value if a top level
-	//    Configuration page, OR it starts with a "A" value if a
-	//    Configuration for the PCF8574. Since the IOControl pages never
-	//    return a 'a' or 'A' value we are assured the we are at the start
-	//    of receiving a POST from a Configuration page.
-#if PCF8574_SUPPORT == 0
+	// b) The IOControl page always starts with a 'h' ParseCmd if a
+	//    IOControl for the IO on the STM8 device, OR it starts with a "H"
+	//    ParseCmd if a IOControl for the PCF8574. If current_webpage is
+	//    WEBPAGE_NULL we set the current_webpage to WEBPAGE_IOCONTROL if
+	//    a 'h' ParseCmd, OR WEBPAGE_PCF8574_IOCONTROL if a 'H' ParseCmd.
+	// c) The Configuration page starts with a 'a' ParseCmd if a top level
+	//    Configuration page, OR it starts with a "A" ParseCmd if a
+	//    Configuration for the PCF8574, OR it starts with a "T" ParseCmd
+	//    if a Configuration for the Sensor IDX values. Since the
+	//    IOControl pages never return a 'a', 'A', or 'T' ParseCmd we are
+	//    assured the we are at the start of receiving a POST from a
+	//    Configuration page.
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// The above seems a bit clunky. Need a better way of determining
+	// what page sent the POST. One part of the "clunky" is that I have
+	// the DeviceName as an edit field in the PCF8574 Configuration page,
+	// but only so that it is a POST value to allow me to detect the
+	// PCF8574 Configuration page as the data source. Must be a better
+	// way. I would like to find a way to return a POST value without
+	// having it display on the page.
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
         if (pSocket->ParseCmd == 'a') {
           pSocket->current_webpage = WEBPAGE_CONFIGURATION;
           pSocket->nParseLeft = PARSEBYTES_CONFIGURATION - 4;
 	}
-#endif // PCF8574_SUPPORT == 0
 
 #if PCF8574_SUPPORT == 1
-        if (pSocket->ParseCmd == 'a') {
-          pSocket->current_webpage = WEBPAGE_CONFIGURATION;
-          pSocket->nParseLeft = PARSEBYTES_CONFIGURATION - 4;
-	}
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
         if (pSocket->ParseCmd == 'A') {
           pSocket->current_webpage = WEBPAGE_PCF8574_CONFIGURATION;
           pSocket->nParseLeft = PARSEBYTES_PCF8574_CONFIGURATION - 4;
 	}
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
 #endif // PCF8574_SUPPORT == 1
 
         {
@@ -9116,7 +10303,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
           char tmp_Pending[20];
           int num_chars;
 	  
-	  num_chars = 0;
+	  num_chars = 0; // Max number of characters in string
           
           switch (pSocket->ParseCmd) {
             case 'a':
@@ -9131,6 +10318,9 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             case 'J':
 	      num_chars = 15;
 	      break;
+            case 'T':
+	      num_chars = 6;
+	      break;
           }
           
           // This function processes POST data for one of several string fields:
@@ -9138,13 +10328,14 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
           //   MQTT Username field
           //   MQTT Password field
           //   IO Name field
+	  //   Sensor IDX field
           //
           // POST data for strings are a special case case in that the resulting
           // string can consist of anything from 0 to X number of characters. So, we
           // have to parse until the POST delimiter '&' is found.
           //
           amp_found = 0;
-          memset(tmp_Pending, '\0', 20);
+          memset(&tmp_Pending[0], '\0', 20);
 
           for (i = 0; i < num_chars; i++) {
             // Collect characters until num_chars are collected or '&' is
@@ -9192,6 +10383,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	    case 'm':
 	      memcpy(Pending_mqtt_password, tmp_Pending, num_chars);
 	      break;
+	      
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 	    case 'j':
 	      unlock_flash();
@@ -9208,25 +10400,85 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	          i += 4;
 	        }
               }
-	      lock_flash();
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("parse_post IO_NAME = ");
+// UARTPrintf(IO_NAME[pSocket->ParseNum]);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+              lock_flash();
 	      break;
+	      
 #if PCF8574_SUPPORT == 1
 	    case 'J':
 	      // 'J' indicates an IO_NAME for a PCF8574 pin. These are stored
 	      // in I2C EEPROM.
-              // Read the existing name from the I2C EEPROM
+              // There is not much concern for I2C EEPROM write wearout, so
+	      // the name is written regardless of whether is it already the
+	      // same. This saves code space in Flash.
 	      {
-	        int i;
 		int j;
-		char temp_byte[16];
-                prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + ((pSocket->ParseNum - 16) * 16), 2);
-                for (i=0; i<15; i++) {
-                  temp_byte[i] = I2C_read_byte(0);
+                I2C_control(I2C_EEPROM2_WRITE);
+                I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + ((pSocket->ParseNum - 16) * 16), 2);
+		for (j=0; j<16; j++) {
+                  I2C_write_byte(tmp_Pending[j]);
+		}
+                I2C_stop(); // Start the EEPROM internal write cycle
+                wait_timer(5000); // Wait 5ms
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("parse_post PCF8574 IO_NAME = ");
+// UARTPrintf(temp_byte);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+	      }
+	      break;
+#endif // PCF8574_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+	      
+
+
+
+#if DOMOTICZ_SUPPORT == 1
+	    case 'j':
+	      // These are the IO_NAMEs. For ParseNum 0 to 15 these are
+	      // written to Flash. For ParseNum 16 to 23 these are written
+	      // to I2C Flash.
+	      if (pSocket->ParseNum < 16) {
+	        unlock_flash();
+	        if (strcmp(IO_NAME[pSocket->ParseNum], tmp_Pending) != 0) {
+	          // The write to Flash will occur 4 bytes at a time to
+		  // reduce Flash wear. All 16 bytes reserved in the Flash
+		  // for a given IO Name will be written at one time in a
+		  // sequence of 4 byte "word" writes.
+	          i = 0;
+	          while(i<16) {
+	            FLASH_CR2 = 0x40;
+	            FLASH_NCR2 = 0xBF;
+	            memcpy(&IO_NAME[pSocket->ParseNum][i], &tmp_Pending[i], 4);
+	            i += 4;
+	          }
                 }
-                temp_byte[15] = I2C_read_byte(1);
-	        if (strcmp(temp_byte, tmp_Pending) != 0) {
-	          // Name is not the same. Write the Pending name to the I2C
-		  // EEPROM.
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("parse_post IO_NAME = ");
+// UARTPrintf(IO_NAME[pSocket->ParseNum]);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+                lock_flash();
+	      }
+
+	      if (pSocket->ParseNum > 15) {
+	        // If PCF8574 is supported it implies that the I2C EEPROM is
+		// present. In that case the received values are written to
+		// the I2C EEPROM. If PCF8574 is not supported nothing needs
+		// to be done with the received value.
+#if PCF8574_SUPPORT == 1
+                // There is not much concern for I2C EEPROM write wearout, so
+	        // the name is written regardless of whether is it already the
+	        // same. This saves code space in Flash.
+	        {
+		  int j;
                   I2C_control(I2C_EEPROM2_WRITE);
                   I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + ((pSocket->ParseNum - 16) * 16), 2);
 		  for (j=0; j<16; j++) {
@@ -9235,11 +10487,51 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
                   I2C_stop(); // Start the EEPROM internal write cycle
                   wait_timer(5000); // Wait 5ms
                 }
-	      }
-	      break;
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+// UARTPrintf("parse_post PCF8574 IO_NAME = ");
+// UARTPrintf(temp_byte);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
 #endif // PCF8574_SUPPORT == 1
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-	  }
+	      }
+              break;
+#endif // DOMOTICZ_SUPPORT == 1
+
+
+
+#if DOMOTICZ_SUPPORT == 1
+	    case 'T':
+	      // 'T' indicates an IDX value for a Sensor. These are stored in Flash.
+	      // Flash is written 4 bytes at a time.
+              
+              unlock_flash();
+	      {
+	        int i;
+		int j;
+	        i = 0;
+		tmp_Pending[6] = 0; // Make sure the IDX value is a maximum
+		                    // of 6 characters. This helps protect
+				    // against stale values in memory when
+				    // builds are replaced with different
+				    // build types.
+		if (pSocket->ParseNum > 19 && pSocket->ParseNum < 26) {
+		  j = pSocket->ParseNum - 20;
+	          while(i<8) {
+	            FLASH_CR2 = 0x40;
+	            FLASH_NCR2 = 0xBF;
+	            memcpy(&Sensor_IDX[j][i], &tmp_Pending[i], 4);
+	            i += 4;
+		  }
+	        }
+	      }
+              lock_flash();
+	      break;
+#endif // DOMOTICZ_SUPPORT == 1
+
+	  } // end of switch
         }
       }
 
@@ -9379,6 +10671,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
       }
 
 
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
       // Parse 'h' ------------------------------------------------------//
       else if (pSocket->ParseCmd == 'h') {
         // This code sets the Pending_pin_control bytes based on the
@@ -9481,8 +10774,13 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
           int j;
           uint8_t k;
 
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Hxx = ");
+#endif // DEBUG_SUPPORT == 15
+
+
           // Sort the alpha characters into the pin control bytes
-          i = 0; // Look counter to sort through the 16 hex nibbles
+          i = 0; // Counter to sort through the 16 hex nibbles
           j = 16; // Index to the 8 pending_pin_control bytes [16] to [23]
           while( i<16 ) {
             // The Configuration page updates all bits except the
@@ -9496,6 +10794,12 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 	    lbi +=2;
             pSocket->nParseLeft -= 2;
 	    i += 2;
+
+#if DEBUG_SUPPORT == 15
+// emb_itoa(k, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf(" ");
+#endif // DEBUG_SUPPORT == 15
 
             if (pSocket->current_webpage == WEBPAGE_PCF8574_CONFIGURATION) {
               // Keep the ON/OFF bit as-is
@@ -9514,11 +10818,113 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
             Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] | k);
             j++;
           }
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
         }
 
 #if DEBUG_SUPPORT == 15
 // Debug notes:
 // Turn on these debug statements to verify that the "H00=" POST component is
+// being detected properly. This is an important check to verify that the
+// nParseLeft variable is being set properly.
+// UARTPrintf("\r\n");
+// UARTPrintf("Parsed H command. nParseLeft = ");
+// emb_itoa(pSocket->nParseLeft, OctetArray, 10, 3);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+      }
+#endif // PCF8574_SUPPORT == 1
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
+
+
+
+
+
+#if DOMOTICZ_SUPPORT == 1
+      // Parse 'h' ------------------------------------------------------//
+      else if (pSocket->ParseCmd == 'h') {
+        // This code sets the Pending_pin_control bytes based on the
+        // information in the 48 character string sent in the h00 field.
+        //
+	// Notes on the "current_webpage" logic.
+	// If we got to this point and current_webpage == WEBPAGE_NULL
+	// then we know we did not encounter a POST from a 
+	// Configuration page so this must be a POST from an IOControl page.
+	if (pSocket->current_webpage == WEBPAGE_NULL) {
+          pSocket->current_webpage = WEBPAGE_IOCONTROL;
+	  pSocket->nParseLeft = PARSEBYTES_IOCONTROL - 4;
+	}
+	
+        // There are always 48 characters in the string in 24 pairs of
+        // hex encoded nibbles, each pair representing a hex encoded pin
+        // control byte. The character pairs are extracted one set at a
+        // time, converted to a numeric byte, and stored in their
+        // corresponding Pending_pin_control byte.
+	// If PCF8574 is included in the build all 24 pairs are extracted
+	// and stored in the Pending_pin_control bytes.
+	// If PCF8574 is NOT included in the build only the first 16 pairs
+	// are extracted and stored in the Pending_pin_control bytes.
+        {
+          int i;
+          int j;
+          uint8_t k;
+
+          // Sort the alpha characters into the pin control bytes
+          i = 0;
+          j = 0;
+          while( i<48 ) {
+            // The Configuration page updates all bits except the
+            // ON/OFF bit
+            // The IOControl page only updates the ON/OFF bit
+            Pending_pin_control[j] = pin_control[j];
+            // Convert the pin control string into numeric bytes
+            // two characters at a time. "k" will contain the byte
+            // after conversion.
+            k = two_hex2int(local_buf[lbi], local_buf[lbi+1]);
+	    lbi += 2;
+            pSocket->nParseLeft -= 2;
+	    i += 2;
+
+#if PCF8574_SUPPORT == 0
+            if (j < 16) {
+	      // If PCF8574 IS NOT in the build update Pending_pin_control
+	      // only for the STM8 pins. Leave the Pending_pin_control
+	      // equal to the pin_control for the PCF8574 pins. They are
+	      // unused but must be processed here.
+#endif // PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 1
+            if (j < 24) {
+	      // If PCF8574 IS in the build update Pending_pin_control for
+	      // all 24 pins.
+#endif // PCF8574_SUPPORT == 1
+              if (pSocket->current_webpage == WEBPAGE_CONFIGURATION) {
+                // Keep the ON/OFF bit as-is
+                Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x80);
+                // Mask out the ON/OFF bit in the temp variable
+                k = (uint8_t)(k & 0x7f);
+              }
+              else {
+                // current_webpage is WEBPAGE_IOCONTROL
+                // Keep the configuration bits as-is
+                Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] & 0x7f);
+                // Mask out the configuration bits in the temp variable
+                k = (uint8_t)(k & 0x80);
+              }
+              // "OR" in the changed bits
+              Pending_pin_control[j] = (uint8_t)(Pending_pin_control[j] | k);
+            }
+            j++;
+          }
+        }
+
+#if DEBUG_SUPPORT == 15
+// Debug notes:
+// Turn on these debug statements to verify that the "h00=" POST component is
 // being detected properly. This is an important check to verify that the
 // nParseLeft variable is being set properly.
 // UARTPrintf("\r\n");
@@ -9529,7 +10935,9 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
 #endif // DEBUG_SUPPORT == 15
 
       }
-#endif // PCF8574_SUPPORT == 1
+#endif // DOMOTICZ_SUPPORT == 1
+
+
 
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
@@ -9576,7 +10984,7 @@ void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max)
       // Parse 'z' ------------------------------------------------------//
       else if (pSocket->ParseCmd == 'z') {
         // This POST value signals that the "hidden" post was received. This
-        // is an indicaor that the entire POST was received. There is no '&'
+        // is an indicator that the entire POST was received. There is no '&'
 	// delimiter after this POST value.
         //
 	// If all has executed properly pSocket->nParseLeft will be equal to
@@ -9827,7 +11235,6 @@ void update_ON_OFF(uint8_t i, uint8_t j)
 
 
 
-// void parseget(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes)
 void parseget(struct tHttpD* pSocket, char *pBuffer)
 {
   uint8_t GET_response_type;
@@ -9956,10 +11363,10 @@ void parseget(struct tHttpD* pSocket, char *pBuffer)
 
 #if RESPONSE_LOCK_SUPPORT == 1
 #if DEBUG_SUPPORT == 15
-UARTPrintf("Command = 0x");
-emb_itoa(pSocket->ParseNum, OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("Command = 0x");
+// emb_itoa(pSocket->ParseNum, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 15
 #endif // RESPONSE_LOCK_SUPPORT == 1
 
@@ -10105,7 +11512,6 @@ UARTPrintf("\r\n");
       // http://IP/a0  Turn the Response Lock on or off
 
 
-//      GET_response_type = 200; // Default response type
       switch(pSocket->ParseNum)
       {
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
@@ -10208,10 +11614,10 @@ UARTPrintf("\r\n");
 	    mmmm = 0;
             pppp = 0;
             k = 0;
+            m = 3;
 	    
             while (k < 2) {
               i = 4;
-              m = 3;
               while (i > 0) {
                 if (hex2int(parse_GETcmd[m]) != -1) {
                   nibble = (uint16_t)hex2int(parse_GETcmd[m]);
@@ -10223,6 +11629,11 @@ UARTPrintf("\r\n");
                   // Something out of sync or invalid filename. Indicate
                   // parse failure and break out of while(i) loop.
                   pSocket->ParseState = PARSE_FAIL;
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Set PARSE_FAIL 1\r\n");
+#endif // DEBUG_SUPPORT == 15
+
                   break;
                 }
               } // end of while(i) loop
@@ -10235,6 +11646,17 @@ UARTPrintf("\r\n");
                 break;
               }
             } // end of while(k) loop
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Mask = ");
+// emb_itoa(mmmm, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   Pins = ");
+// emb_itoa(pppp, OctetArray, 16, 4);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
+#endif // DEBUG_SUPPORT == 15
+
              
 	    // An additional syntax check could be added here to make sure
 	    // the command is followed by " H" (space followed by letter H).
@@ -10254,6 +11676,13 @@ UARTPrintf("\r\n");
             
             bit_ptr = 1;
             for (i=0; i<16; i++) {
+
+#if DEBUG_SUPPORT == 15
+// UARTPrintf("Pin# = ");
+// emb_itoa(i, OctetArray, 10, 2);
+// UARTPrintf(OctetArray);
+#endif // DEBUG_SUPPORT == 15
+
               if ((mmmm & bit_ptr) != 0) {
                 // If the Mask for this pin is non-zero check if the pin
 	        // is an enabled output. If yes, uptate the pin state.
@@ -10273,6 +11702,17 @@ UARTPrintf("\r\n");
 		  }
                 }
               }
+
+#if DEBUG_SUPPORT == 15
+// if ((Pending_pin_control[i] & 0x80) == 0) {
+// UARTPrintf("  State = 0\r\n");\
+// }
+// else {
+// UARTPrintf("  State = 1\r\n");
+// }
+#endif // DEBUG_SUPPORT == 15
+
+
 	      // Shift the bit pointer and check the next pin
  	      bit_ptr = bit_ptr << 1;
             }
@@ -10313,16 +11753,15 @@ UARTPrintf("\r\n");
 	case 0x61: // Show Configuration page
 	  pSocket->current_webpage = WEBPAGE_CONFIGURATION;
           pSocket->pData = g_HtmlPageConfiguration;
-          pSocket->nDataLeft = HtmlPageConfiguration_size;
-          
+          pSocket->nDataLeft = HtmlPageConfiguration_size;          
 #if OB_EEPROM_SUPPORT == 1
           init_off_board_string_pointers(pSocket);
 #endif // OB_EEPROM_SUPPORT == 1
-          
 	  break;
 
 
 #if PCF8574_SUPPORT == 1
+#if BUILD_TYPE_BROWSER_UPGRADEABLE == 1 || HOME_ASSISTANT_SUPPORT == 1
 	case 0x62: // Show PCF8574 IO Control page
 	  if (stored_options1 & 0x08) {
 	    pSocket->current_webpage = WEBPAGE_PCF8574_IOCONTROL;
@@ -10332,7 +11771,7 @@ UARTPrintf("\r\n");
 	  }
 	  else pSocket->ParseState = PARSE_FAIL;
 	  break;
-	      
+
 	case 0x63: // Show PCF8574 Configuration page
 	  if (stored_options1 & 0x08) {
 	    pSocket->current_webpage = WEBPAGE_PCF8574_CONFIGURATION;
@@ -10340,10 +11779,35 @@ UARTPrintf("\r\n");
             pSocket->nDataLeft = HtmlPagePCFConfiguration_size;
             init_off_board_string_pointers(pSocket);
 	  }
-	  else pSocket->ParseState = PARSE_FAIL;
+	  else {
+	    pSocket->ParseState = PARSE_FAIL;
+	  }
 	  break;
+#endif // BUILD_TYPE_BROWSER_UPGRADEABLE == 1 || HOME_ASSISTANT_SUPPORT == 1
+
+// #if DOMOTICZ_SUPPORT == 1
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// Is this really needed? Seems like I should just fall through to the default
+// IOControl page ... you'll only get here if someone enters /63 in the REST
+// commands.
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// 	case 0x63: // PCF8574 Configuration page requested - instead show
+// 	           // the Domoticz Configuration page
+// 	  if (stored_options1 & 0x08) {
+// 	    pSocket->current_webpage = WEBPAGE_CONFIGURATION;
+//             pSocket->pData = g_HtmlPageConfiguration;
+//             pSocket->nDataLeft = HtmlPageConfiguration_size;          
+//             init_off_board_string_pointers(pSocket);
+// 	  }
+// 	  else {
+// 	    pSocket->ParseState = PARSE_FAIL;
+// 	  }
+// 	  break;
+// #endif // DOMOTICZ_SUPPORT == 1
+
 #endif // PCF8574_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+
 
 	case 0x65: // Flash LED for diagnostics
 	  debugflash();
@@ -10353,7 +11817,7 @@ UARTPrintf("\r\n");
 	  // Show default page
 	  // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
 	  // will accomplish what we want which is to display the
-	  // IO_Control page.
+	  // default page.
 	  pSocket->ParseState = PARSE_FAIL;
 	  break;
 
@@ -10366,15 +11830,17 @@ UARTPrintf("\r\n");
 	  
         case 0x67: // Clear Link Error Statistics
 	  // Clear the the Link Error Statistics bytes and Stack Overflow
-	  debug[2] = (uint8_t)(debug[2] & 0x7f); // Clear the Stack Overflow bit
-	  debug[3] = 0; // Clear TXERIF counter
-	  debug[4] = 0; // Clear RXERIF counter
-	  debug[5] = 0; // Clear EMCF counter
-	  debug[6] = 0; // Clear SWIMF counter
-	  debug[7] = 0; // Clear ILLOPF counter
-	  debug[8] = 0; // Clear IWDGF counter
-	  debug[9] = 0; // Clear WWDGF counter
-	  update_debug_storage1();
+	  debug_bytes[0] = 0; // Not used
+	  debug_bytes[1] = 0; // Not used
+	  debug_bytes[2] = (uint8_t)(debug_bytes[2] & 0x7f); // Clear the Stack Overflow bit
+	  debug_bytes[3] = 0; // Clear TXERIF counter
+	  debug_bytes[4] = 0; // Clear RXERIF counter
+	  debug_bytes[5] = 0; // Clear EMCF counter
+	  debug_bytes[6] = 0; // Clear SWIMF counter
+	  debug_bytes[7] = 0; // Clear ILLOPF counter
+	  debug_bytes[8] = 0; // Clear IWDGF counter
+	  debug_bytes[9] = 0; // Clear WWDGF counter
+	  update_debug_storage1(); // Update EEPROM
 	  TRANSMIT_counter = 0;
 	  MQTT_resp_tout_counter = 0;
 	  MQTT_not_OK_counter = 0;
@@ -10404,16 +11870,16 @@ UARTPrintf("\r\n");
         case 0x70: // Clear the "Reset Status Register" counters
 	  // Clear the counts for EMCF, SWIMF, ILLOPF, IWDGF, WWDGF
 	  // These only display via the UART
-	  debug[5] = 0; // Clear EMCF counter
-	  debug[6] = 0; // Clear SWIMF counter
-	  debug[7] = 0; // Clear ILLOPF counter
-	  debug[8] = 0; // Clear IWDGF counter
-	  debug[9] = 0; // Clear WWDGF counter
-	  update_debug_storage1();
+	  debug_bytes[5] = 0; // Clear EMCF counter
+	  debug_bytes[6] = 0; // Clear SWIMF counter
+	  debug_bytes[7] = 0; // Clear ILLOPF counter
+	  debug_bytes[8] = 0; // Clear IWDGF counter
+	  debug_bytes[9] = 0; // Clear WWDGF counter
+	  update_debug_storage1(); // Update EEPROM
 	  // Show default page
 	  // While NOT a PARSE_FAIL, going through the PARSE_FAIL logic
 	  // will accomplish what we want which is to display the
-	  // IO_Control page.
+	  // default webpage.
 	  pSocket->ParseState = PARSE_FAIL;
 	  break;
           
@@ -10448,7 +11914,9 @@ UARTPrintf("\r\n");
 	  }
 	  break;
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+#endif // OB_EEPROM_SUPPORT == 1
 	  
+#if OB_EEPROM_SUPPORT == 1
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
         case 0x73: // Reload firmware existing image
 	  // Load the existing firmware image from I2C EEPROM0,
@@ -10459,7 +11927,11 @@ UARTPrintf("\r\n");
           eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_REQUEST;
 	  upgrade_failcode = UPGRADE_OK;
 	  break;
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
+#endif // OB_EEPROM_SUPPORT == 1
           
+#if OB_EEPROM_SUPPORT == 1
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
         case 0x74: // Erase entire I2C EEPROM
           // Erase I2C EEPROM regions 0, 1, 2, and 3 to provide a clean
 	  // slate. Useful mostly during development for code debug.
@@ -10547,6 +12019,68 @@ UARTPrintf("\r\n");
 	  pSocket->ParseState = PARSE_FAIL;
 	  break;
 #endif // SDR_POWER_RELAY_SUPPORT == 1
+          
+           
+#if INA226_SUPPORT == 1
+        case 0x79:
+	  // User entered INA226 Shunt Resistance option.
+	  // User enters three digits to specify the shunt resistance.
+	  // For example, typical resistors are labled as follows:
+	  // R100 = 0.100 ohms. User should enter 100
+	  // R010 = 0.010 ohms. User should enter 010
+	  // R002 = 0.002 ohms. User should enter 002
+	  // 
+          // Example URL command
+          //   192.168.1.182/79100 to set shunt resistance to 0.100 ohm
+          //   192.168.1.182/79010 to set shunt resistance to 0.010 ohm
+          //   192.168.1.182/79002 to set shunt resistance to 0.002 ohm
+          {
+            uint8_t shunt_resistance_option;
+            uint8_t temp;
+	    
+	    // Accept the next three characters as the shunt resistance option.
+	    // The user can enter 002 for 0.002 ohm
+	    //           or enter 010 for 0.010 ohm
+	    //           or enter 2 for 0.100 ohm
+	    // Space is reserved in stored_options2 for 3 bits, or a total of
+	    // 7 possible options in case a future value is needed.
+	    if (parse_GETcmd[3] == '0'
+	     && parse_GETcmd[4] == '0'
+	     && parse_GETcmd[5] == '2') {
+	      shunt_resistance_option = 0x00; // 0.002 ohm
+	    }
+	    else if (parse_GETcmd[3] == '0'
+	     && parse_GETcmd[4] == '1'
+	     && parse_GETcmd[5] == '0') {
+	      shunt_resistance_option = 0x01; // 0.010 ohm
+	    }
+	    else if (parse_GETcmd[3] == '1'
+	     && parse_GETcmd[4] == '0'
+	     && parse_GETcmd[5] == '0') {
+	      shunt_resistance_option = 0x02; // 0.100 ohm
+	    }
+	    else {
+	      // No change will occur if the user made an invalid entry.
+	      shunt_resistance_option = (uint8_t)(stored_options2 & 0x07);
+	    }
+	    
+	    // Save to EEPROM.
+	    if ((stored_options2 & 0x07) != shunt_resistance_option) {
+	      unlock_eeprom();
+	      temp = (uint8_t)(((stored_options2) & 0xf8) | shunt_resistance_option);
+	      stored_options2 = temp;
+	      lock_eeprom();
+	    }
+	    // Request a reboot to re-initialize the INA226 devices.
+	    user_reboot_request = 1;
+	    // Set parse_complete for the check_runtime_changes() process
+            parse_complete = 1;
+            // Always display the IOControl page even if there is no parse
+	    // fail. The PARSE_FAIL state will cause this to happen.
+	    pSocket->ParseState = PARSE_FAIL;
+          }
+          break;
+#endif // INA226_SUPPORT == 1
            
            
 #if BME280_SUPPORT == 1
@@ -10650,7 +12184,10 @@ UARTPrintf("\r\n");
 	      }
 	      if (altitude_scale == 'M') {
 	        // 1 meter = 3.28084 feet
-	        altitude_local = (altitude_local * 328084) / 100000;
+//	        altitude_local = (altitude_local * 328084) / 100000;
+	        altitude_local = (altitude_local * 328084) + 50000; // Add 50000 to account
+		                                                    // for turncation rounding
+	        altitude_local = altitude_local / 100000;
 	      }
 	      if (digit_string[0] == '-') {
 	        altitude_local = altitude_local * -1;
@@ -10682,7 +12219,6 @@ UARTPrintf("\r\n");
 	  // Didn't break so far so parse was successful
 	  // Set parse_complete for the check_runtime_changes() process
           parse_complete = 1;
-//          GET_response_type = 204; // Send header but no webpage
            // While parsing was successful set PARSE_FAIL so the IOControl
 	   // page will be displayed.
  	   pSocket->ParseState = PARSE_FAIL;
@@ -11197,11 +12733,11 @@ UARTPrintf("\r\n");
       // default webpage.
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("\r\n");
-UARTPrintf("Executing PARSE_FAIL\r\n");
+// UARTPrintf("Executing PARSE_FAIL\r\n");
 #endif // DEBUG_SUPPORT == 15
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
+      // Default page for Browser and MQTT builds is the IOCONTROL page.
       pSocket->current_webpage = WEBPAGE_IOCONTROL;
       pSocket->pData = g_HtmlPageIOControl;
       pSocket->nDataLeft = HtmlPageIOControl_size;
@@ -11211,9 +12747,24 @@ UARTPrintf("Executing PARSE_FAIL\r\n");
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-      pSocket->current_webpage = WEBPAGE_UPLOADER;
-      pSocket->pData = g_HtmlPageUploader;
-      pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
+      // Default page for the Code Uploader build is the UPLOADER page.
+      // However, we need to verify that the EEPROM is present and display
+      // the EEPROM_MISSING page if it is not present. This is really just
+      // needed for the case where the SWIM interface was used to load the
+      // Code Uploader, and the I2C EEPROM was not attached. If someone used
+      // the /72 command and for some reason the I2C EEPROM went missing the
+      // problem would have been caught during GET processing.
+      if (eeprom_detect == 1) {
+        pSocket->current_webpage = WEBPAGE_UPLOADER;
+        pSocket->pData = g_HtmlPageUploader;
+        pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageUploader) - 1);
+      }
+      else {
+        // Fix for Issue #195
+        pSocket->current_webpage = WEBPAGE_EEPROM_MISSING;
+        pSocket->pData = g_HtmlPageEEPROMMissing;
+        pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageEEPROMMissing) - 1);
+      }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
       pSocket->nParseLeft = 0; // Set to 0 so we will go on to STATE_
@@ -11229,7 +12780,7 @@ UARTPrintf("Executing PARSE_FAIL\r\n");
         // Update GUI with appropriate webpage
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("STATE_SENDHEADER200\r\n");
+// UARTPrintf("STATE_SENDHEADER200\r\n");
 #endif // DEBUG_SUPPORT == 15
 
         pSocket->nState = STATE_SENDHEADER200;
@@ -11238,7 +12789,7 @@ UARTPrintf("STATE_SENDHEADER200\r\n");
         // No return webpage - send header 200 with Content-Length: 0
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("STATE_SENDHEADER204\r\n");
+// UARTPrintf("STATE_SENDHEADER204\r\n");
 #endif // DEBUG_SUPPORT == 15
 
         pSocket->nState = STATE_SENDHEADER204;
@@ -11286,3 +12837,111 @@ void parse_command_abort(struct tHttpD* pSocket)
   }
 #endif // RESPONSE_LOCK_SUPPORT == 1
 }
+
+
+
+
+
+
+
+
+
+
+#if BUILD_SUPPORT == CODE_UPLOADER_BUILD
+char *read_two_characters(char *pBuffer)
+{
+  // This function attempts to read two bytes from the SREC file.
+  // - Normal function is that two bytes are read.
+  // - The function must also handle the case where we only need to read one
+  //   byte because a byte was already read at the tail of a previous packet.
+  // - The function must also handle the case where we can only read one byte
+  //   because it is the last remaining byte in a packet.
+  // - The function discards any CR or LF character
+  //
+  // The function updates and returns the pBuffer pointer as bytes are consum-
+  // ed from the incoming data buffer.
+  //
+  // The function updates the byte_tail string with the bytes read from the
+  // incoming data buffer.
+  //
+  // The function updates the nParseLeft and file_nBytes counters.
+
+  if ((byte_tail[0] != '\0') && (byte_tail[1] == '\0')) {
+    // This is a check for TCP Fragmentation during a prior packet. byte_tail
+    // will have length 0 if no prior fragmentation occurred. If TCP Fragment-
+    // ation DID occur then byte_tail[0] will contain the last byte read from the
+    // SREC file and byte_tail[1] will contain NULL.
+    // Note that the SREC file is read one byte at a time, but a two byte pair
+    // is needed for any processing to occur. So, if only one byte of the two
+    // byte pair is captured when a packet boundary is encountered that byte
+    // must be saved in byte_tail so that the two bye pair can be completed
+    // and processed when the next packet is received.
+    // We have to account for the case where the single byte read in the
+    // previous packet is followed by CR or LF. In that case we discard the
+    // CR and LF and go on to read the next valid character.
+    
+    while (1) {
+      if (*pBuffer != '\r' && *pBuffer != '\n') {
+        byte_tail[1] = *pBuffer;
+        pBuffer++;
+        file_nBytes--;
+	file_length--; // Decrement the file_length for every character read
+	break;
+      }
+      else {
+        // Ignore the CR or LF
+        pBuffer++;
+        file_nBytes--;
+	file_length--; // Decrement the file_length for every character read
+	if (file_nBytes == 0) break;
+      }
+    }
+    byte_tail[2] = '\0';
+    return pBuffer;
+  }
+
+  else {
+    // We are starting with an empty byte_tail. Fill with any remaining bytes
+    // in the packet, but ignore CR and LF.
+    if (file_nBytes != 0) {
+      while (1) {
+        if (*pBuffer != '\r' && *pBuffer != '\n') {
+          byte_tail[0] = *pBuffer;
+          pBuffer++;
+          file_nBytes--;
+          file_length--; // Decrement the file_length for every character read
+          break;
+        }
+        else {
+          // Ignore the CR or LF
+          pBuffer++;
+          file_nBytes--;
+          file_length--; // Decrement the file_length for every character read
+  	  if (file_nBytes == 0) break;
+        }
+      }
+    }
+    
+    if (file_nBytes != 0) {
+      while (1) {
+        if (*pBuffer != '\r' && *pBuffer != '\n') {
+          byte_tail[1] = *pBuffer;
+          pBuffer++;
+          file_nBytes--;
+          file_length--; // Decrement the file_length for every character read
+          break;
+        }
+        else {
+          // Ignore the CR or LF
+          pBuffer++;
+          file_nBytes--;
+          file_length--; // Decrement the file_length for every character read
+  	  if (file_nBytes == 0) break;
+        }
+      }
+    }
+    byte_tail[2] = '\0';
+    return pBuffer;
+  }
+}
+#endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD

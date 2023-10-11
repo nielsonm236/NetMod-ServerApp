@@ -563,6 +563,7 @@ void init_DS18B20(void)
   // Initialize temperature sensor arrays
   memset(&DS18B20_scratch[0][0], 0, 10);
   memset(&FoundROM[0][0], 0, 40);
+  numROMs = -1; // -1 indicates no devices. FindDevices will update this value.
 }
 
 
@@ -591,7 +592,7 @@ void FindDevices(void)
   int i;
   int m;
   
-  numROMs = -1; // -1 indicates no devices
+//  numROMs = -1; // -1 indicates no devices
   if (!reset_pulse()) {  //Begins when a presence is detected
     if (First()) {       //Begins when at least one part is found
       do {

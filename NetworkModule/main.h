@@ -87,16 +87,32 @@
 #define FLASH_START_PROGRAM_MEMORY 		0x8000
 
 // Start of flash_update segment
-#define FLASH_START_FLASH_UPDATE_SEGMENT	0xfc80
+// 512 bytes
+#define FLASH_START_FLASH_UPDATE_SEGMENT	0xfc80 // 0xfc80 to 0xfe7f
 
 // Start of user reserved area
 #define FLASH_START_USER_RESERVE		0xfe80
 #define OFFSET_TO_FLASH_START_USER_RESERVE	FLASH_START_USER_RESERVE - FLASH_START_PROGRAM_MEMORY
 
+// IDX values for Sensors (used only in Domoticz builds)
+// Allow 8 bytes for each IDX value.
+// 5 are needed for DS18B20 sensors
+// 1 is needed for BME280 sensor
+// Total 6 x 8 = 48 bytes
+#define FLASH_START_SENSOR_IDX		0xfe80 // 0xfe80 to 0xfeaf
+
+// Empty space starting at 0xfeb0 to 0xfebf (16 bytes)
+
 // Start of IO_TIMER storage in Flash
+// There are 16 timers, each 2 bytes, for a total of 32 bytes
+// Flash space occupied is 0xfec0 to 0xfedf
 #define FLASH_START_IO_TIMERS	0xfec0
 
+// Empty space starting at 0xfee0 to feff (32 bytes)
+
 // Start of IO_NAME storage in Flash
+// There are 16 IO_NAMEs, each 16 bytes, for a total of 256 bytes
+// Flash used is 0xff00 to 0xffff
 #define FLASH_START_IO_NAMES	0xff00
 
 
@@ -164,9 +180,7 @@
 #define MQTT_START_VERIFY_SUBSCRIBE2    23
 #define MQTT_START_QUEUE_SUBSCRIBE3	24
 #define MQTT_START_VERIFY_SUBSCRIBE3    25
-// #define MQTT_START_QUEUE_SUBSCRIBE4	26
-// #define MQTT_START_VERIFY_SUBSCRIBE4    27
- #define MQTT_START_QUEUE_PUBLISH_ON	30
+#define MQTT_START_QUEUE_PUBLISH_ON	30
 #define MQTT_START_QUEUE_PUBLISH_AUTO   31
 #define MQTT_START_QUEUE_PUBLISH_PINS	32
 #define MQTT_START_COMPLETE		40
@@ -243,11 +257,12 @@ void upgrade_EEPROM(void);
 void check_eeprom_settings(void);
 void apply_PCF8574_pin_settings(void);
 uint8_t is_allowed_char(uint8_t character);
+uint8_t is_digit(uint8_t character);
 void update_mac_string(void);
 void check_runtime_changes(void);
 uint8_t chk_iotype(uint8_t pin_byte, int pin_index, uint8_t chk_mask);
 void read_input_pins(uint8_t init_flag);
-void encode_16bit_registers(uint8_t sort_init);
+void encode_bit_registers(uint8_t sort_init);
 void write_output_pins(void);
 void check_reset_button(void);
 void check_restart_reboot(void);
@@ -279,12 +294,12 @@ void mqtt_sanity_check(struct mqtt_client *client);
 void publish_callback(void** unused, struct mqtt_response_publish *published);
 void publish_outbound(void);
 
-#if PCF8574_SUPPORT == 0
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 void publish_pinstate(uint8_t direction, uint8_t pin, uint16_t value, uint16_t mask);
-#endif // PCF8574_SUPPORT == 0
-#if PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+#if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t mask);
-#endif // PCF8574_SUPPORT == 1
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 
 void publish_pinstate_all(uint8_t type);
 void publish_temperature(uint8_t sensor);

@@ -258,25 +258,29 @@
 //  - Controls "MQTT" vs "Browser Only" vs "Code Uploader" build type
 
 // Guide for Production Builds
-//                          MQTT  Browser  MQTT     Browser  MQTT     Code
-//                                Only     Upgrade  Only     Upgrade  Uploader
-//                                                  Upgrade  BME280
+//                          MQTT  MQTT  Browser  MQTT     MQTT     Browser  MQTT     MQTT     Code
+//                          Home  Domo  Only     Home     Domo     Only     Home     Domo     Uploader
+//                                               Upgrade  Upgrade  Upgrade  BME280   BME280
+//                                                                          Upgrade  Upgrade  
 //
-// BUILD_SUPPORT            *     **       *        **       *        ***
-// NETWORK_STATISTICS       0     1        0        1        0        0
-// DEBUG_SUPPORT            11    11       11       11       11       11
-// IWDG_ENABLE              1     1        1        1        1        1
-// I2C_SUPPORT              0     0        1        1        1        1
-// OB_EEPROM_SUPPORT        0     0        1        1        1        1
+// BUILD_SUPPORT            *     *     **       *        *        **       *        *        ***
+// NETWORK_STATISTICS       0     0     1        0        0        1        0        0        0
+// DEBUG_SUPPORT            11    11    11       11       11       11       11       11       11
+// IWDG_ENABLE              1     1     1        1        1        1        1        1        1
+// I2C_SUPPORT              0     0     0        1        1        1        1        1        1
+// OB_EEPROM_SUPPORT        0     0     0        1        1        1        1        1        1
 //
-// DEBUG_SENSOR_SERIAL      0     0        0        0        0        0
-// LINKED_SUPPORT           1     1        1        1        0        0
-// DS18B20_SUPPORT          1     1        1        1        0        0
-// BME280_SUPPORT           0     0        0        0        1        0
-// TEMP_DEBUG_EXCLUDE       0     0        0        0        1        0
-// HTTPD_DIAGNOSTIC_SUPPORT 0     0        0        0        0        0
-// PINOUT_OPTION_SUPPORT    1     1        0        0        0        0
-// PCF8574_SUPPORT          0     0        1        1        0        0
+// DEBUG_SENSOR_SERIAL      0     0     0        0        0        0        0        0        0
+// LINKED_SUPPORT           1     1     1        1        1        1        0        0        0
+// DS18B20_SUPPORT          1     1     1        1        1        1        0        0        0
+// BME280_SUPPORT           0     0     0        0        0        0        1        1        0
+// TEMP_DEBUG_EXCLUDE       0     0     0        0        0        0        1        1        0
+// HTTPD_DIAGNOSTIC_SUPPORT 0     0     0        0        0        0        0        0        0
+// PINOUT_OPTION_SUPPORT    1     1     1        0        0        0        0        0        0
+// PCF8574_SUPPORT          0     0     0        1        1        1        0        0        0
+// RESPONSE_LOCK_SUPPORT    0     0     1        1        1        1        1        1        0
+// HOME_ASSISTANT_SUPPORT   1     0     0        1        0        0        1        0        0
+// DOMOTICZ_SUPPORT         0     1     0        0        1        0        0        1        0
 //
 // *   = #define BUILD_SUPPORT     MQTT_BUILD
 // **  = #define BUILD_SUPPORT     BROWSER_ONLY_BUILD
@@ -284,11 +288,14 @@
 // Be sure to put the appropriate revision (date/time) in the main.c file
 
 // Enable ONLY ONE of the following to select the build type
-#define BUILD_TYPE_MQTT_STANDARD			1
+#define BUILD_TYPE_MQTT_HOME_STANDARD			0
+#define BUILD_TYPE_MQTT_DOMO_STANDARD			0
 #define BUILD_TYPE_BROWSER_STANDARD			0
-#define BUILD_TYPE_MQTT_UPGRADEABLE			0
+#define BUILD_TYPE_MQTT_HOME_UPGRADEABLE		0
+#define BUILD_TYPE_MQTT_DOMO_UPGRADEABLE		0
 #define BUILD_TYPE_BROWSER_UPGRADEABLE			0
-#define BUILD_TYPE_MQTT_UPGRADEABLE_BME280		0
+#define BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE		0
+#define BUILD_TYPE_MQTT_DOMO_BME280_UPGRADEABLE		1
 #define BUILD_TYPE_BROWSER_STANDARD_RFA			0
 #define BUILD_TYPE_BROWSER_UPGRADEABLE_RFA		0
 #define BUILD_TYPE_CODE_UPLOADER			0
@@ -301,7 +308,7 @@
 #define CODE_UPLOADER_BUILD	2
 
 // MQTT Standard
-#if BUILD_TYPE_MQTT_STANDARD == 1
+#if BUILD_TYPE_MQTT_HOME_STANDARD == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
   #define LINK_STATISTICS		1
@@ -321,7 +328,34 @@
   #define RESPONSE_LOCK_SUPPORT         0
   #define INA226_SUPPORT                0
   #define SDR_POWER_RELAY_SUPPORT       0
-#endif // BUILD_TYPE_MQTT_STANDARD == 1
+  #define HOME_ASSISTANT_SUPPORT        1
+  #define DOMOTICZ_SUPPORT              0
+#endif
+
+// MQTT Domoticz Standard
+#if BUILD_TYPE_MQTT_DOMO_STANDARD == 1
+  #define BUILD_SUPPORT			MQTT_BUILD
+  #define DEBUG_SUPPORT			11
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		0
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			0
+  #define OB_EEPROM_SUPPORT		0
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		1
+  #define DS18B20_SUPPORT		1
+  #define BME280_SUPPORT		0
+  #define TEMP_DEBUG_EXCLUDE		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
+  #define PINOUT_OPTION_SUPPORT		1
+  #define PCF8574_SUPPORT               0
+  #define RF_ATTEN_SUPPORT              0
+  #define RESPONSE_LOCK_SUPPORT         0
+  #define INA226_SUPPORT                0
+  #define SDR_POWER_RELAY_SUPPORT       0
+  #define HOME_ASSISTANT_SUPPORT        0
+  #define DOMOTICZ_SUPPORT              1
+#endif
 
 // Browser Standard
 #if BUILD_TYPE_BROWSER_STANDARD == 1
@@ -344,10 +378,12 @@
   #define RESPONSE_LOCK_SUPPORT         1
   #define INA226_SUPPORT                0
   #define SDR_POWER_RELAY_SUPPORT       0
+  #define HOME_ASSISTANT_SUPPORT        0
+  #define DOMOTICZ_SUPPORT              0
 #endif
 
 // MQTT Upgradeable
-#if BUILD_TYPE_MQTT_UPGRADEABLE == 1
+#if BUILD_TYPE_MQTT_HOME_UPGRADEABLE == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
   #define LINK_STATISTICS		1
@@ -367,6 +403,33 @@
   #define RESPONSE_LOCK_SUPPORT         1
   #define INA226_SUPPORT                0
   #define SDR_POWER_RELAY_SUPPORT       0
+  #define HOME_ASSISTANT_SUPPORT        1
+  #define DOMOTICZ_SUPPORT              0
+#endif
+
+// MQTT Domoticz Upgradeable
+#if BUILD_TYPE_MQTT_DOMO_UPGRADEABLE == 1
+  #define BUILD_SUPPORT			MQTT_BUILD
+  #define DEBUG_SUPPORT			11
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		0
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			1
+  #define OB_EEPROM_SUPPORT		1
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		1
+  #define DS18B20_SUPPORT	        1
+  #define BME280_SUPPORT		0
+  #define TEMP_DEBUG_EXCLUDE		0
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
+  #define PINOUT_OPTION_SUPPORT		0
+  #define PCF8574_SUPPORT               1
+  #define RF_ATTEN_SUPPORT              0
+  #define RESPONSE_LOCK_SUPPORT         1
+  #define INA226_SUPPORT                0
+  #define SDR_POWER_RELAY_SUPPORT       0
+  #define HOME_ASSISTANT_SUPPORT        0
+  #define DOMOTICZ_SUPPORT              1
 #endif
 
 // Browser Upgradeable
@@ -390,10 +453,12 @@
   #define RESPONSE_LOCK_SUPPORT         1
   #define INA226_SUPPORT                0
   #define SDR_POWER_RELAY_SUPPORT       0
+  #define HOME_ASSISTANT_SUPPORT        0
+  #define DOMOTICZ_SUPPORT              0
 #endif
 
 // MQTT Upgradeable w/ BME280
-#if BUILD_TYPE_MQTT_UPGRADEABLE_BME280 == 1
+#if BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
   #define LINK_STATISTICS		1
@@ -413,6 +478,33 @@
   #define RESPONSE_LOCK_SUPPORT         1
   #define INA226_SUPPORT                0
   #define SDR_POWER_RELAY_SUPPORT       0
+  #define HOME_ASSISTANT_SUPPORT        1
+  #define DOMOTICZ_SUPPORT              0
+#endif
+
+// MQTT Domoticz Upgradeable w/ BME280
+#if BUILD_TYPE_MQTT_DOMO_BME280_UPGRADEABLE == 1
+  #define BUILD_SUPPORT			MQTT_BUILD
+  #define DEBUG_SUPPORT			11
+  #define LINK_STATISTICS		1
+  #define NETWORK_STATISTICS		0
+  #define IWDG_ENABLE			1
+  #define I2C_SUPPORT			1
+  #define OB_EEPROM_SUPPORT		1
+  #define DEBUG_SENSOR_SERIAL		0
+  #define LINKED_SUPPORT		0
+  #define DS18B20_SUPPORT		0
+  #define BME280_SUPPORT		1
+  #define TEMP_DEBUG_EXCLUDE		1
+  #define HTTPD_DIAGNOSTIC_SUPPORT	0
+  #define PINOUT_OPTION_SUPPORT		0
+  #define PCF8574_SUPPORT               0
+  #define RF_ATTEN_SUPPORT              0
+  #define RESPONSE_LOCK_SUPPORT         1
+  #define INA226_SUPPORT                0
+  #define SDR_POWER_RELAY_SUPPORT       0
+  #define HOME_ASSISTANT_SUPPORT        0
+  #define DOMOTICZ_SUPPORT              1
 #endif
 
 // Code Uploader
@@ -436,6 +528,8 @@
   #define RESPONSE_LOCK_SUPPORT         0
   #define INA226_SUPPORT                0
   #define SDR_POWER_RELAY_SUPPORT       0
+  #define HOME_ASSISTANT_SUPPORT        0
+  #define DOMOTICZ_SUPPORT              0
 #endif
 
 // Browser (standard) with RF Attenuator
@@ -459,6 +553,8 @@
   #define RESPONSE_LOCK_SUPPORT         1
   #define INA226_SUPPORT                1
   #define SDR_POWER_RELAY_SUPPORT       1
+  #define HOME_ASSISTANT_SUPPORT        0
+  #define DOMOTICZ_SUPPORT              0
 #endif
 
 // Browser Upgradeable with RF Attenuator
@@ -482,11 +578,14 @@
   #define RESPONSE_LOCK_SUPPORT         1
   #define INA226_SUPPORT                1
   #define SDR_POWER_RELAY_SUPPORT       1
+  #define HOME_ASSISTANT_SUPPORT        0
+  #define DOMOTICZ_SUPPORT              0
 #endif
 
 
 // APPROXIMATE sizes of various build options
-//  LINK_STATISTICS		
+//  BUILD_SUPPORT == 15		600 to 900 bytes typical
+//  LINK_STATISTICS		376 bytes
 //  NETWORK_STATISTICS		3122 bytes
 //  IWDG_ENABLE			
 //  I2C_SUPPORT			
@@ -547,9 +646,9 @@
 
   // BUILD_SUPPORT
   // Determines the type of code build to create:
-  // MQTT_BUILD includes MQTT support and Home Assistant support, but excludes
-  //   the Browser Only IO Names and IO Timers. This build selection will
-  //   over-ride the NETWORK_STATISTICS setting forcing it to be disabled.
+  // MQTT_BUILD includes basic MQTT support but excludes the Browser Only IO
+  //   Names and IO Timers. This build selection will over-ride the
+  //   NETWORK_STATISTICS setting forcing it to be disabled.
   // BROWSER_ONLY_BUILD excludes MQTT support but includes the extra Browser
   //   only features like IO Names and IO Timers.
   // CODE_UPLOADER_BUILD excludes all Browser Only and MQTT features. It
@@ -558,6 +657,12 @@
   //   off-board I2C EEPROM, thus OB_EEPROM_SUPPORT and I2C_SUPPORT must be
   //   enabled.
 
+  // HOME_ASSISTANT_SUPPORT
+  // Adds Home Assistant support to the basic MQTT_BUILD
+  
+  // DOMOTICZ_SUPPORT
+  // Adds Domoticz support to the basic MQTT_BUILD
+  
   // DEBUG_SUPPORT
   // Determines if DEBUG code is compiled in
   //
@@ -571,12 +676,12 @@
   // setting for production code.
   //
   // 11 = USE FOR PRODUCTION BUILDS.
-  //      10 bytes of debug allocated to specific debug data*
+  //      10 bytes of debug_bytes allocated to specific debug data*
   //      No UART
-  // 15 = 10 bytes of debug allocated to specific debug data*
+  // 15 = 10 bytes of debug_bytes allocated to specific debug data*
   //      UART TX enabled on IO pin 11
   //      USAGE: Provides the most run time error data and UART display.
-  // * Specific debug data: Reset Status Register counters, TXERIF counter,
+  // * Specific debug_bytes data: Reset Status Register counters, TXERIF counter,
   //   RXERIF counter, Stack Overflow bit, and ENC28J60 revision level.
 
   // NETWORK_STATISTICS
@@ -718,6 +823,25 @@
   // 0 = No support
   // 1 = Supported
 
+  // RESPONSE_LOCK_SUPPORT
+  // Enables the ability to lock out all responses to commands sent to the
+  // Network Module. This is implemented as a security feature for users that
+  // have exposed the Network Module to the internet. When Lock is enabled
+  // the Network Module will not respond to any command except the unlock
+  // command. See the Manual for additional information.
+  // 0 = No support
+  // 1 = Supported
+  
+  // INA226_SUPPORT
+  // Enables support of up to 5 INA226 devices on the I2C bus
+  // 0 = No support
+  // 1 = Supported
+  
+  // SDR_POWER_RELAY_SUPPORT
+  // Enables support of 8 Latching (aka Keep) relays instead of regular
+  // relays. See the Manual for additional information.
+  // 0 = No support
+  // 1 = Supported
 
 
 

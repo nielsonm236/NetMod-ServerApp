@@ -11488,6 +11488,7 @@ void parseget(struct tHttpD* pSocket, char *pBuffer)
       // http://IP/67  Clear Link Error Statistics and refresh page
       // http://IP/68  Show Network Statistics page
       // http://IP/69  Clear Network Statistics and refresh page
+      //
       // http://IP/70  Clear the "Reset Status Register" counters
       // http://IP/71  Display the Temperature Sensor Serial Numbers
       // http://IP/72  Load the Code Uploader (works only in runtime
@@ -11498,6 +11499,8 @@ void parseget(struct tHttpD* pSocket, char *pBuffer)
       // http://IP/75  Show SDR RF Attenuator Settings page
       // http://IP/76  Show SDR INA226 Measurements page
       // http://IP/77  Show SDR Power Relay Control page
+      // http://IP/78  Turn off Latching Relay Mode
+      // http://IP/79  User entered INA226 Shunt Resistance option
       //
       // http://IP/80  Mask and Output Pin settings (deprecated)
       // http://IP/81  Altitude entry
@@ -11505,11 +11508,13 @@ void parseget(struct tHttpD* pSocket, char *pBuffer)
       // http://IP/83  User entered PCF8574 output byte (deprecated)
       // http://IP/84  Short Form Option
       // http://IP/85  Force HA Delete Msgs for PCF8574 pins
+      //
       // http://IP/91  Reboot
       // http://IP/98  Show Very Short Form IO States page
       // http://IP/99  Show Short Form IO States page
       //
-      // http://IP/a0  Turn the Response Lock on or off
+      // http://IP/a0  Turn Response Lock on or off
+      // http://IP/fa  Reserved to avoid "favicon.ico" issue
 
 
       switch(pSocket->ParseNum)

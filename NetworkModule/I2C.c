@@ -29,7 +29,6 @@
 extern uint8_t OctetArray[14];  // Used in emb_itoa conversions and to
                                 // transfer short strings globally
 
-uint8_t I2C_failcode;
 char * flash_ptr;
 char * ram_ptr;
 // uint16_t copy_ram_index;
@@ -89,6 +88,9 @@ uint8_t I2C_control(uint8_t control_byte)
   // The Control Byte addresses a device and provides the Read/Write bit to
   // the device
   
+  uint8_t rtn;
+  rtn = 0;
+  
   // Since the SDA and SCL pins are pulled high with a resistor to create a
   // "1" on the bus, the Output Data Register for the SDA and SCL pins is
   // written to 0, then a "1" on the pin is created by making the pin an input
@@ -111,10 +113,9 @@ uint8_t I2C_control(uint8_t control_byte)
   I2C_transmit_byte(control_byte);
   
   // Read NACK/ACK from slave
-  I2C_failcode = 0;
-  if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_CONTROL_BYTE;
+  rtn = Read_Slave_NACKACK(); // rtn 1 is an error
   
-  return I2C_failcode;
+  return rtn;
 }
 
 
@@ -136,14 +137,14 @@ void I2C_byte_address(uint16_t byte_address, uint8_t addr_size)
     I2C_transmit_byte((uint8_t)(byte_address >> 8));
   
     // Read NACK/ACK from slave
-    if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_BYTE_ADDRESS1;
+    Read_Slave_NACKACK();
   }
   
   // Output Byte Address bit 7 to 0
   I2C_transmit_byte((uint8_t)(byte_address));
   
   // Read NACK/ACK from slave
-  if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_BYTE_ADDRESS2;
+  Read_Slave_NACKACK();
 }
 
 
@@ -257,7 +258,6 @@ void I2C_transmit_byte(uint8_t I2C_transmit_data)
 uint8_t Read_Slave_NACKACK(void)
 {
   uint8_t rtn;
-
   rtn = 0;
   
   // Read NACK/ACK from slave
@@ -277,7 +277,7 @@ uint8_t Read_Slave_NACKACK(void)
 void I2C_stop(void)
 {
   // Stop Condition
-  SDA_low();  // Drive SDA low, then wait 5usdfu
+  SDA_low();  // Drive SDA low, then wait 5us
   SCL_high(); // Float SCL high, then wait 5us
   SDA_high(); // Fload SDA high, then wait 5us
 }
@@ -287,13 +287,14 @@ void I2C_stop(void)
 
 
 #if OB_EEPROM_SUPPORT == 1
-void eeprom_copy_to_flash(void)
+void copy_I2C_EEPROM_to_Flash(uint8_t maxblocks)
 {
   uint16_t eeprom_index;
-  uint16_t blocks;
+//  uint16_t blocks;
+  uint8_t blocks;
 
 #if DEBUG_SUPPORT == 15
-// UARTPrintf("eeprom_copy_to_flash\r\n");
+// UARTPrintf("copy_I2C_EEPROM_to_Flash\r\n");
 #endif // DEBUG_SUPPORT == 15
 
   // This function will copy a Flash image from the I2C EEPROM to the
@@ -306,14 +307,13 @@ void eeprom_copy_to_flash(void)
   //
   // In this application there are four image locations in the I2C
   // EEPROM:
-  //   1) I2C EEPROM Region 0 (EEPROM0) of the I2C EEPROM contains an image
-  //      of new Runtime code.
-  //   2) I2C EEPROM Region 1 (EEPROM1) of the I2C EEPROM contans an image
-  //      of the Code Uploader. The Code Uploader provides a GUI to allow the
-  //      user to specify the file location of a new Runtime image.
-  //   3) I2C EEPROM Region 2 (EEPROM2) of the I2C EEPROM contains an image
-  //      of the large strings used for html population of the GUI.
-  //   4) I2C EEPROM Region 3 (EEPROM3) - not currently used.
+  //   1) I2C EEPROM Region 0 contains an image of new Runtime code.
+  //   2) I2C EEPROM Region 1 contains an image of the Code Uploader. The Code
+  //      Uploader provides a GUI to allow the user to specify the file
+  //      location of a new Runtime image.
+  //   3) I2C EEPROM Region 2 contains an image of the large strings used for
+  //      html population of the GUI.
+  //   4) I2C EEPROM Region 3 - not currently used.
   //
   // Copying data from the I2C EEPROM to Flash needs to be done using 128
   // byte block programming.
@@ -383,7 +383,7 @@ void eeprom_copy_to_flash(void)
   //    only written when the user makes GUI input changes.
   
   blocks = 0;
-  while (blocks < 249 ) {
+  while (blocks < maxblocks ) {
     // In this application the main code area is always 249 blocks of 128
     // bytes per block. Copy that first.
     // Note: This routine is only run to replace the code in Flash.
@@ -408,8 +408,8 @@ void eeprom_copy_to_flash(void)
 
     // Copy data from RAM to Flash
     ram_ptr = &uip_buf[0]; // Reset the ram_ptr to the start of the uip_buf
-    copy_ram_to_flash(); // As part of the copy the flash_ptr will be
-                         // incremented to the start of the next 64 byte
+    copy_RAM_to_Flash(); // As part of the copy the flash_ptr will be
+                         // incremented to the start of the next 128 byte
                          // block.
     eeprom_index += 128; // Increment the eeprom_index to the start of the
                          // next block.
@@ -433,7 +433,7 @@ void eeprom_copy_to_flash(void)
   // using those functions at the time they are over-written in Flash. So, in
   // this final step we use the I2C functions to copy the entire flash_update
   // segment to RAM, then the memcpy_update function runs in RAM to write the
-  // segment from RAM to Flash. Then, we just wait for an IDWG to reboot the
+  // segment from RAM to Flash. Then, we just wait for an IWDG to reboot the
   // STM8.
   ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
   
@@ -450,7 +450,7 @@ void eeprom_copy_to_flash(void)
     // bytes).
     //
     // First the segment is copied to RAM. This will occupy four 128 byte
-    // blocks. The blocks are copied to RAM, then copy_ram_to_flash() is
+    // blocks. The blocks are copied to RAM, then copy_RAM_to_Flash() is
     // called to copy the data from RAM to Flash. Note that the copy to RAM
     // may exceed the size allocated to the uip_buf. This is OK as the uip_buf
     // RAM area (and beyond) is no longer being used by regular runtime code
@@ -464,17 +464,15 @@ void eeprom_copy_to_flash(void)
     }
     *ram_ptr = I2C_read_byte(1); // Final read with I2C_last_flag set
   }
-
-
   // Prevent the IWDG hardware watchdog from firing.
   IWDG_KR = 0xaa;
   
   // Copy 512 bytes of data from RAM to Flash
   ram_ptr = &uip_buf[0]; // Set ram_ptr to the start of the uip_buf
-  copy_ram_to_flash(); // Each call to copy_ram_to_flash updates the pointers
-  copy_ram_to_flash(); // so the next call writes the next contiguous 128 byte
-  copy_ram_to_flash(); // block.
-  copy_ram_to_flash(); //
+  copy_RAM_to_Flash(); // Each call to copy_ram_to_flash updates the pointers
+  copy_RAM_to_Flash(); // so the next call writes the next contiguous 128 byte
+  copy_RAM_to_Flash(); // block.
+  copy_RAM_to_Flash(); //
   
   // Lock the Flash
   FLASH_IAPSR &= (uint8_t)(~0x02);
@@ -485,15 +483,14 @@ void eeprom_copy_to_flash(void)
 
   // Set the Window Watchdog to reboot the module
   // WWDG is used here instead of the IWDG so that the cause of a reset can be
-  // differentiated. WWDG is used for a deliberate reset. IWDG is used to
-  // protect agains unintentional code or processor upsets.
+  // differentiated. WWDG is used for a deliberate reset whereas IWDG is used
+  // to protect agains unintentional code or processor upsets.
   WWDG_WR = (uint8_t)0x7f;     // Window register reset
   WWDG_CR = (uint8_t)0xff;     // Set watchdog to timeout in 49ms
   WWDG_WR = (uint8_t)0x60;     // Window register value - doesn't matter
                                // much as we plan to reset
   // Wait here for WWDG to reset the module.
   while(1);
-
 }
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -504,7 +501,7 @@ void eeprom_copy_to_flash(void)
 #pragma section (memcpy_update)
 
 #if OB_EEPROM_SUPPORT == 1
-void copy_ram_to_flash(void)
+void copy_RAM_to_Flash(void)
 {
   // This function copies 128 byte blocks of data from RAM to Flash as part of
   // the Flash update process.
@@ -547,20 +544,22 @@ void copy_ram_to_flash(void)
 
 
 
+// The following I2C code is not placed in separate pragma sections. It is
+// compiled into the normal code area.
 
 #if I2C_SUPPORT == 1
 void I2C_write_byte(uint8_t I2C_write_data)
 {
   // Write a single data byte on the I2C bus.  This function is not included
   // in the flash_update segment because it is never called again once the
-  // eeprom_copy_to_flash() function is called. This helps make the flash
+  // copy_I2C_EEPROM_to_Flash() function is called. This helps make the flash
   // update segment smaller.
   
   // Write Data bit 7 to 0
   I2C_transmit_byte(I2C_write_data);
   
   // Read NACK/ACK from slave
-  if (Read_Slave_NACKACK()) I2C_failcode = I2C_FAIL_NACK_WRITE_BYTE;
+  Read_Slave_NACKACK();
 }
 
 
@@ -570,7 +569,7 @@ void I2C_reset(void)
   
   // This function generates an I2C bus reset. This function is not included
   // in the flash_update segment because it is never called again once the
-  // eeprom_copy_to_flash function is called.
+  // copy_I2C_EEPROM_to_Flash() function is called.
   
   // The function:
   // Floats SDA high
@@ -605,6 +604,78 @@ void I2C_reset(void)
   SDA_low();  // "
   SCL_high();
   SDA_high(); // Stop condition
+}
+
+
+void copy_I2C_EEPROM_bytes_to_RAM(uint8_t *destination,
+                           uint8_t num_bytes,
+                           uint8_t control_write,
+                           uint8_t control_read,
+                           uint16_t start_address,
+                           uint8_t addr_size)
+{
+  // Function to copy a number of bytes of data from the I2C EEPROM
+  // to variables in RAM.
+
+  int i;
+
+  prep_read(control_write, control_read, start_address, addr_size);
+  for (i=0; i<(num_bytes-1); i++) {
+    *destination = I2C_read_byte(0);
+    destination++;
+  }
+  *destination = I2C_read_byte(1);
+}
+
+
+/*
+void copy_I2C_EEPROM_words_to_RAM(uint16_t *destination,
+                           uint8_t num_words,
+                           uint8_t control_write,
+                           uint8_t control_read,
+                           uint16_t start_address,
+                           uint8_t addr_size)
+{
+  // Function to copy a number of words of data from the I2C EEPROM
+  // to variables in RAM.
+  int i;
+  uint8_t j;
+  uint16_t temp;
+    
+  j = 0;
+  prep_read(control_write, control_read, start_address, addr_size);
+  for (i=0; i<num_words; i++) {
+    temp = I2C_read_byte(j);         // Read upper byte
+    temp = temp << 8;
+    if (i == (num_words - 1)) j = 1; // Signal read of last byte
+    temp |= I2C_read_byte(j);        // Read lower byte
+    *destination = temp;
+    destination += 2;
+  }
+}
+*/
+
+
+void copy_STM8_bytes_to_I2C_EEPROM(uint8_t *source,
+                           uint8_t num_bytes,
+                           uint8_t control_write,
+                           uint16_t start_address,
+                           uint8_t addr_size)
+{
+  // Function to copy a number of bytes of data from STM8 RAM or STM8 Flash to
+  // the I2C EEPROM.
+  // control_write identifies the EEPROM region to write to.
+  // start_address identifies the address within the EERPROM region that
+  //   starts a single or multi-byte write.
+  uint8_t j;
+  I2C_control(control_write);
+  I2C_byte_address(start_address, 2);
+  for (j=0; j<num_bytes; j++) {
+    I2C_write_byte(*source);
+    source++;
+  }
+  I2C_stop(); // Start the EEPROM internal write cycle
+  wait_timer(5000); // Wait 5ms
 }
 
 #endif // I2C_SUPPORT == 1

@@ -434,7 +434,7 @@ void Enc28j60Init(void)
   Enc28j60WriteReg(BANK0_ERDPTL, (uint8_t) (ENC28J60_RXSTART >> 0));
   Enc28j60WriteReg(BANK0_ERDPTH, (uint8_t) (ENC28J60_RXSTART >> 8));
   // Errata Workaround: ERXRDPT should not be programmed with an even address
-  // so we choose RXSTART-1 which is equal to RXEND 
+  // so code chooses RXSTART-1 which is equal to RXEND 
   Enc28j60WriteReg(BANK0_ERXRDPTL, (uint8_t) (ENC28J60_RXEND >> 0));
   Enc28j60WriteReg(BANK0_ERXRDPTH, (uint8_t) (ENC28J60_RXEND >> 8));
   // and Transmit Pointer
@@ -579,7 +579,7 @@ void Enc28j60Init(void)
   // Bank 3 initializations
   Enc28j60SwitchBank(BANK3);
 
-  // Initialize MAC-adress
+  // Initialize MAC-address
   Enc28j60WriteReg(BANK3_MAADR5, stored_uip_ethaddr_oct[5]);  // MAC MSB
   Enc28j60WriteReg(BANK3_MAADR4, stored_uip_ethaddr_oct[4]);
   Enc28j60WriteReg(BANK3_MAADR3, stored_uip_ethaddr_oct[3]);
@@ -600,8 +600,8 @@ void Enc28j60Init(void)
   if (!(stored_config_settings & 0x01)) {
     // Half duplex
     // Errata Workaround: Because the LED-Polarity detection circuit does not
-    // function properly we clear the FullDuplex Bit ourself. MACON3.FULDPX is
-    // cleared anyway.
+    // function properly code clears the FullDuplex Bit ourself. MACON3.FULDPX
+    // is ncleared anyway.
     Enc28j60WritePhy(PHY_PHCON1, 0x0000);
   }
   
@@ -612,10 +612,10 @@ void Enc28j60Init(void)
   debug_bytes[2] = (uint8_t)(debug_bytes[2] & 0x80);
 
 #if DEBUG_SUPPORT == 15
-// if (debug_bytes[2] & 0x80) {
-// UARTPrintf("\r\n");
-// UARTPrintf("Enc28j60Init: Stack Error is set!!!\r\n");
-// }
+//if (debug_bytes[2] & 0x80) {
+//UARTPrintf("\r\n");
+//UARTPrintf("Enc28j60Init: Stack Error is set!!!\r\n");
+//}
 #endif // DEBUG_SUPPORT == 15
 
   debug_bytes[2] = (uint8_t)(debug_bytes[2] | ((Enc28j60ReadReg(BANK3_EREVID)) & 0x07));
@@ -672,9 +672,9 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   SpiReadByte();
 
   // Frame-Data
-  //   Comment: MAXFRAME is set larger than the MSS value we communicate to any
-  //   host or client we connect to. For this reason we know we can throw away
-  //   any packet that exceeds MAXFRAME.
+  //   Comment: MAXFRAME is set larger than the MSS value communicated to any
+  //   host or client that is connected. For this reason code knows it can
+  //   throw away any packet that exceeds MAXFRAME.
   //
   if (nBytes <= ENC28J60_MAXFRAME) {
     SpiReadChunk(pBuffer, nBytes);
@@ -692,8 +692,9 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
   Enc28j60WriteReg(BANK0_ERDPTL , (uint8_t) (nNextPacket >> 0));
   Enc28j60WriteReg(BANK0_ERDPTH , (uint8_t) (nNextPacket >> 8));
 
-  // Errata Workaround: ERXRDPT should never be programmed with an even value
-  // Because the NextPacket will always point to an even value, we can subtract 1 from it
+  // Errata Workaround: ERXRDPT should never be programmed with an even value.
+  // Because the NextPacket will always point to an even value, code can
+  // subtract 1 from it.
   nNextPacket -= 1;
   if (nNextPacket == ( ((uint16_t)ENC28J60_RXSTART) - 1 )) {
     // Underflow occured while subtracting 1? Use RXEND then. The ENC28J60 logic will
@@ -840,6 +841,12 @@ void Enc28j60Send(uint8_t* pBuffer, uint16_t nBytes)
   // time a transmit occurred. If no error just start the transmission.
   if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF)) {
     // Count TXERIF error
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("\r\n");
+UARTPrintf("TXERIF error 1\r\n");
+#endif // DEBUG_SUPPORT == 15
+
     debug_bytes[3]++;
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
@@ -855,12 +862,12 @@ wait_timer(10);  // Wait 10 uS
   // Wait for transmission complete
   txerif_temp = wait_for_xmit_complete();
     
-  // If a TXERIF error is present we need to enter a loop to retry
+  // If a TXERIF error is present code enters a loop to retry
   if (txerif_temp) {
 
 #if DEBUG_SUPPORT == 15
 UARTPrintf("\r\n");
-UARTPrintf("TXERIF first error\r\n");
+UARTPrintf("TXERIF error 2\r\n");
 #endif // DEBUG_SUPPORT == 15
 
     // Count TXERIF error
@@ -870,7 +877,7 @@ wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       
     for (i = 0; i < 16; i++) {
-      // Developer comment: We need to check for a Late Collision and retry
+      // Developer comment: Code needs to check for a Late Collision and retry
       // the transmission if there is a Late Collision. A method for checking
       // for Late Collision is to read the Transmit Status Vector (TSV) and
       // then look at the Late Collision bit in the TSV. However it looks like
@@ -897,6 +904,12 @@ wait_timer(10);  // Wait 10 uS
       // transmission.
       if (txerif_temp && late_collision) {
         // Count TXERIF error
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("\r\n");
+UARTPrintf("TXERIF error 3\r\n");
+#endif // DEBUG_SUPPORT == 15
+
         debug_bytes[3]++;
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 wait_timer(10);  // Wait 10 uS
@@ -948,8 +961,8 @@ uint8_t wait_for_xmit_complete()
   
   // Wait for transmission complete ... or collision error ... or
   // timeout.
-  timeout = 200; // Timeout added so we don't get stuck here. Wait a max of
-                 // 100ms for completion.
+  timeout = 200; // Timeout added so code doesn't get stuck here. Wait a max
+                 // of 100ms for completion.
   while (!(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXIF))
       && !(Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_EIR_TXERIF))) {
     wait_timer(500);  // Wait 500 uS
@@ -1009,7 +1022,7 @@ void read_TSV(void)
   
   // Read 7 bytes of TSV
   {
-    uint8_t i;
+    int i;
     for (i=0; i<7; i++) {
       tsv_byte[i] = SpiReadByte(); // Bits 7-0
     }

@@ -83,6 +83,11 @@
 //---------------------------------------------------------------------------//
 
 
+
+//---------------------------------------------------------------------------//
+// Flash Variable Storage Defines
+//---------------------------------------------------------------------------//
+
 // Start of flash program memory segment
 #define FLASH_START_PROGRAM_MEMORY 		0x8000
 
@@ -116,10 +121,50 @@
 #define FLASH_START_IO_NAMES	0xff00
 
 
+
+
+//---------------------------------------------------------------------------//
+// I2C EEPROM Variable Storage Defines for I2C EEPROM Region 1
+//---------------------------------------------------------------------------//
+// The Region 1 address range is 0x8000 to 0xFFFF.
+
+// Defines to identify the locations in I2C EEPROM Region 1 for variable
+// storage. I2C EEPROM Region 1 is mostly used for storing the Code Uploader
+// firmware image. However, the Code Uploader firmware is smaller than most
+// builds, alweays occupying less than 0x5FFF bytes. HOWEVER - don't forget
+// that the Code Uploader must also use the flash_update segment which is
+// placed in memory from 0xfc80 to 0xfe7f, both in Flash and in I2C EEPROM.
+// So we really can't use the "empty" space in I2C EEPROM Region 1 between
+// 0x5fff and 0xfc80 without risk of over-writing it when "copy to I2C EEPROM"
+// processes run. The space from 0xfe80 and up IS available for variable
+// storage.
+//   Note: It might be possible to use the space from 0x5fff to 0xfc80 for
+//   variable storage, but it would require adding some code to make sure
+//   that:
+//   a) Code upload via ethernet does not write to the Region 1 area from
+//      0x5fff to 0xfc80.
+//   b) When the Code Uploader is copied from Flash to Region 1 the copy
+//      does not write to the Region 1 area from 0x5fff to 0xfc80.
+#define I2C_EEPROM_R1_START_VARIABLE_RESERVE	0xfe80 // 0xfe80-0xffff
+                                                       // = 384 bytes
+#define I2C_EEPROM_R1_FOUNDROM		0xff40 // 64 bytes
+#define I2C_EEPROM_R1_LOGIN_PASSPHRASE	0xff80 // 16 bytes
+
+
+//---------------------------------------------------------------------------//
+// I2C EEPROM Variable Storage Defines for I2C EEPROM Region 2
+//---------------------------------------------------------------------------//
+// The Region 2 address range is 0x0000 to 0x7FFF.
+//
+// Defines to identify the locations in I2C EEPROM Region 2 for variable
+// storage. I2C EEPROM Region 2 is mostly used for storing the Strings that
+// define the Web pages. Some of the region is used to store variables as
+// defined here.
+//
 // Defines to identify the locations in I2C EEPROM Region 2 for IO_NAMES and
 // IO_TIMERS associated with the PCF8574 IO pins.
-#define PCF8574_I2C_EEPROM_START_IO_TIMERS	0x7ec0
-#define PCF8574_I2C_EEPROM_START_IO_NAMES	0x7f00
+#define PCF8574_I2C_EEPROM_R2_START_IO_TIMERS	0x7ec0
+#define PCF8574_I2C_EEPROM_R2_START_IO_NAMES	0x7f00
 // The PCF8574 IO TIMER and IO NAME values for the PCF8574 IO pins are stored
 // in the I2C EEPROM because there is no room left in Flash. The I2C EEPROM is
 // always present if the PCF8574 is present.
@@ -127,41 +172,49 @@
 // IO_TIMERS: Each pin requires 2 bytes. There are 8 pins so this is 16 bytes.
 // A 32 byte block is allocated in anticipation of adding more pins. So,
 // addresses 0x7ec0 to 0x7edf are considered allocated.
-
+//
 // To write a PCF8574_IO_TIMER value:
-//   I2C_control(I2C_EEPROM2_WRITE);
-//   I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_TIMERS + (index * 2), 2);
+//   I2C_control(I2C_EEPROM_R2_WRITE);
+//   I2C_byte_address(PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + (index * 2), 2);
 //   I2C_write_byte(msbyte);
 //   I2C_write_byte(lsbyte);
 //   I2C_stop(); // Start the EEPROM internal write cycle
 //   wait_timer(5000); // Wait 5ms
 // To read a PCF8574_IO_TIMER value:
-//   prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + (index * 2), 2);
+//   prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + (index * 2), 2);
 //   IO_timer_value = read_two_bytes();
 //
 // IO_NAMES: Each pin requires 16 bytes. There are 8 pins so this is 128
 // bytes. A 256 byte block is allocated in anticipation of adding more pins.
 // So, addresses 0x7f00 to 0x7fff are considered allocated.
 // To write a PCF8574_IO_NAME value:
-//   I2C_control(I2C_EEPROM2_WRITE);
-//   I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + (index * 16), 2);
+//   I2C_control(I2C_EEPROM_R2_WRITE);
+//   I2C_byte_address(PCF8574_I2C_EEPROM_R2_START_IO_NAMES + (index * 16), 2);
 //   for (i=0; i<16; i++) {
 //     I2C_write_byte(Pending_IO_Name[i]);
 //   }
 //   I2C_stop(); // Start the EEPROM internal write cycle
 //   wait_timer(5000); // Wait 5ms
 // To read a PCF8574_IO_NAMES value:
-//   prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + (index * 16), 2);
+//   prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + (index * 16), 2);
 //   for (i=0; i<15; i++) {
 //     temp_byte[i] = I2C_read_byte(0);
 //   }
 //   temp_byte[15] = I2C_read_byte(1);
-
+//
 // Defines to identify the location in I2C EEPROM Region 2 for non-volatile
 // storage of PCF8574 IO pin_control values. There are 8 pins, thus 8 bytes
 // are required. 16 bytes are allocated in anticipation of adding more pins
 // in the future, thus addresses 0x7ee0 to 0x7eef are considered allocated.
-#define PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE	 0x7ee0
+#define PCF8574_I2C_EEPROM_R2_PIN_CONTROL_STORAGE	 0x7ee0
+
+
+//---------------------------------------------------------------------------//
+// I2C EEPROM Variable Storage Defines for I2C EEPROM Region 3
+//---------------------------------------------------------------------------//
+// The Region 3 address range is 0x8000 to 0xFFFF.
+// Region 3 is unused at this time.
+
 
 
 
@@ -245,17 +298,25 @@
 #define RESTART_REBOOT_TCPWAIT		7
 #define RESTART_REBOOT_FINISH		8
 
+// Defines for update_settings_options() function
+#define UPDATE_CONFIG_SETTINGS		1
+#define UPDATE_OPTIONS1			2
+#define UPDATE_OPTIONS2			3
+
 
 int main(void);
 void periodic_service(void);
 void init_IWDG(void);
 void unlock_eeprom(void);
 void lock_eeprom(void);
+void update_settings_options(uint8_t select, uint8_t value);
 void unlock_flash(void);
 void lock_flash(void);
 void upgrade_EEPROM(void);
 void check_eeprom_settings(void);
+void apply_EEPROM_settings(void);
 void apply_PCF8574_pin_settings(void);
+void initialize_pins(void);
 uint8_t is_allowed_char(uint8_t character);
 uint8_t is_digit(uint8_t character);
 void update_mac_string(void);
@@ -273,15 +334,16 @@ void fastflash(void);
 void debugflash(void);
 void restore_eeprom_debug_bytes(void);
 void update_debug_storage1(void);
+void check_rst_sr(void);
 uint8_t off_board_EEPROM_detect(void);
 
-void write_one(uint8_t byte);
+// void write_one(uint8_t byte);
 void prep_read(uint8_t control_write, uint8_t control_read,
                uint16_t start_address, uint8_t addr_size);
-uint8_t compare_flash_to_EEPROM0(void);
-void copy_flash_to_EEPROM0(void);
-uint8_t compare_flash_to_EEPROM1(void);
-void copy_code_uploader_to_EEPROM1(void);
+uint8_t compare_flash_to_EEPROM_R0(void);
+void copy_flash_to_EEPROM_R0(void);
+uint8_t compare_flash_to_EEPROM_R1(void);
+void copy_code_uploader_to_EEPROM_R1(void);
 
 uint32_t calculate_timer(uint16_t timer_value);
 void decrement_pin_timers(void);

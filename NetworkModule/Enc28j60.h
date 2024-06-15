@@ -77,9 +77,11 @@
 #define ENC28J60_LEDA		1
 #define ENC28J60_LEDB		12
 
-// Maximum frame length in bytes to prevent possible buffer overflows
-// The factor pushing the MAXFRAME is the size of the largest Home Assistant
-// Config message plus headers.
+// Maximum frame length in bytes to prevent possible buffer overflows.
+// The factors pushing the MAXFRAME size are:
+// a) The size of the largest Home Assistant Config message plus headers
+// b) The copy_I2C_EEPROM_to_Flash() function which requires the uip_buf to be
+//    at least 512 bytes. The uip_buf size is based on MAXFRAME.
 // #define ENC28J60_MAXFRAME	500
 #define ENC28J60_MAXFRAME	550
 

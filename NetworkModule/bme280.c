@@ -80,6 +80,9 @@ extern int16_t stored_altitude; // User entered altitude used for BME280
 extern uint8_t OctetArray[14];  // Used in emb_itoa conversions and to
                                 // transfer short strings globally
 
+extern uint8_t BME280_found;    // Used to indicate that that a BME280 device
+                                // was found on the I2C bus.
+
 // Create globals for use of these values in the httpd.c code
 int32_t comp_data_temperature;
 int32_t comp_data_pressure;

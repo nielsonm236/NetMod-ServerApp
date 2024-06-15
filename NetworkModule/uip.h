@@ -632,9 +632,16 @@ void uip_send(const char *data, int len);
  * addr2 - The third octet of the IP address.
  * addr3 - The forth octet of the IP address.
  */
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+// #define uip_ipaddr(addr, addr0,addr1,addr2,addr3) do { \
+//                      ((uint16_t *)(addr))[0] = (uint16_t)(HTONS(((addr0) << 8) | (addr1))); \
+//                      ((uint16_t *)(addr))[1] = (uint16_t)(HTONS(((addr2) << 8) | (addr3))); \
+//                   } while(0)
 #define uip_ipaddr(addr, addr0,addr1,addr2,addr3) do { \
-                     ((uint16_t *)(addr))[0] = (uint16_t)(HTONS(((addr0) << 8) | (addr1))); \
-                     ((uint16_t *)(addr))[1] = (uint16_t)(HTONS(((addr2) << 8) | (addr3))); \
+                     ((uint16_t *)(addr))[0] = (uint16_t)((((addr0) << 8) | (addr1))); \
+                     ((uint16_t *)(addr))[1] = (uint16_t)((((addr2) << 8) | (addr3))); \
                   } while(0)
 
 
@@ -746,7 +753,11 @@ void uip_send(const char *data, int len);
  *
  * In the example above, the variable "octet" will contain the value 1.
  */
-#define uip_ipaddr1(addr) (htons(((uint16_t *)(addr))[0]) >> 8)
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+// #define uip_ipaddr1(addr) (htons(((uint16_t *)(addr))[0]) >> 8)
+#define uip_ipaddr1(addr) ((((uint16_t *)(addr))[0]) >> 8)
 
 
 /**
@@ -762,7 +773,11 @@ void uip_send(const char *data, int len);
  *
  * In the example above, the variable "octet" will contain the value 2.
  */
-#define uip_ipaddr2(addr) (htons(((uint16_t *)(addr))[0]) & 0xff)
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+// #define uip_ipaddr2(addr) (htons(((uint16_t *)(addr))[0]) & 0xff)
+#define uip_ipaddr2(addr) ((((uint16_t *)(addr))[0]) & 0xff)
 
 
 /**
@@ -778,7 +793,11 @@ void uip_send(const char *data, int len);
  *
  * In the example above, the variable "octet" will contain the value 3.
  */
-#define uip_ipaddr3(addr) (htons(((uint16_t *)(addr))[1]) >> 8)
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+// #define uip_ipaddr3(addr) (htons(((uint16_t *)(addr))[1]) >> 8)
+#define uip_ipaddr3(addr) ((((uint16_t *)(addr))[1]) >> 8)
 
 
 /**
@@ -794,39 +813,48 @@ void uip_send(const char *data, int len);
  *
  * In the example above, the variable "octet" will contain the value 4.
  */
-#define uip_ipaddr4(addr) (htons(((uint16_t *)(addr))[1]) & 0xff)
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+// #define uip_ipaddr4(addr) (htons(((uint16_t *)(addr))[1]) & 0xff)
+#define uip_ipaddr4(addr) ((((uint16_t *)(addr))[1]) & 0xff)
 
 
-/**
- * Convert 16-bit quantity from host byte order to network byte order.
- * This macro is primarily used for converting constants from host byte order
- * to network byte order. For converting >variables< to network byte order,
- * use the htons() function instead.
- */
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+// Convert 16-bit quantity from host byte order to network byte order.
+// This macro is primarily used for converting constants from host byte order
+// to network byte order. For converting >variables< to network byte order,
+// use the htons() function instead.
+/*
 #ifndef HTONS
 #   if UIP_BYTE_ORDER == UIP_BIG_ENDIAN
 #      define HTONS(n) (n)
-#   else /* UIP_BYTE_ORDER == UIP_BIG_ENDIAN */
+#   else // UIP_BYTE_ORDER == UIP_BIG_ENDIAN
 #      define HTONS(n) (uint16_t)((((uint16_t) (n)) << 8) | (((uint16_t) (n)) >> 8))
-#   endif /* UIP_BYTE_ORDER == UIP_BIG_ENDIAN */
+#   endif // UIP_BYTE_ORDER == UIP_BIG_ENDIAN
 #else
 #error "HTONS already defined!"
-#endif /* HTONS */
+#endif // HTONS
+*/
 
 
-/**
- * Convert 16-bit quantity from host byte order to network byte order.
- * This function is primarily used for converting variables from host byte
- * order to network byte order. For converting >constants< to network byte
- * order, use the HTONS() macro instead.
- */
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+/*
+// Convert 16-bit quantity from host byte order to network byte order.
+// This function is primarily used for converting variables from host byte
+// order to network byte order. For converting >constants< to network byte
+// order, use the HTONS() macro instead.
 #ifndef htons
 uint16_t htons(uint16_t val);
-#endif /* htons */
+#endif // htons
 #ifndef ntohs
 #define ntohs htons
 #endif
-
+*/
 
 /**
  * Pointer to the application data in the packet buffer.

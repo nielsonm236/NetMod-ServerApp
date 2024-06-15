@@ -48,7 +48,7 @@ SOFTWARE.
 
 #if BUILD_SUPPORT == MQTT_BUILD
 
-extern uint32_t second_counter;
+extern uint32_t second_counter;   // Counts seconds since boot
 extern uint16_t uip_slen;
 extern uint8_t MQTT_error_status; // Global so GUI can show error status
                                   // indicator
@@ -1772,7 +1772,9 @@ int16_t mqtt_pack_connection_request(uint8_t* buf, uint16_t bufsz,
     buf += mqtt_pack_str(buf, client_id);
     if (connect_flags & MQTT_CONNECT_WILL_FLAG) {
         buf += mqtt_pack_str(buf, will_topic);
+	
         buf += mqtt_pack_uint16(buf, (uint16_t)will_message_size);
+	
         memcpy(buf, will_message, will_message_size);
         buf += will_message_size;
     }
@@ -1909,6 +1911,7 @@ int16_t mqtt_unpack_publish_response(struct mqtt_response *mqtt_response, const 
 
     // parse variable header
     response->topic_name_size = mqtt_unpack_uint16(buf);
+    
     buf += 2;
     response->topic_name = buf;
     buf += response->topic_name_size;
@@ -1937,6 +1940,7 @@ int16_t mqtt_unpack_suback_response (struct mqtt_response *mqtt_response, const 
 
     // unpack packet_id
     mqtt_response->decoded.suback.packet_id = mqtt_unpack_uint16(buf);
+    
     buf += 2;
     remaining_length -= 2;
 
@@ -2110,7 +2114,7 @@ int16_t mqtt_unpack_response(struct mqtt_response* response, const uint8_t *buf,
 }
 
 
-/* EXTRA DETAILS */
+// EXTRA DETAILS
 // MN: The original code used the definitions in arpa/inet.h. The
 // original code also used both htons() and ntohs(), which are really
 // the same function (defined with a weak alias).
@@ -2124,21 +2128,35 @@ int16_t mqtt_unpack_response(struct mqtt_response* response, const uint8_t *buf,
 // choice based on a setting in the uipopt.h file (search for
 // UIP_BYTE_ORDER).
 //
-// SINCE THE STM8 PROCESSOR IS BIG ENDIAN MIGHT BE ABLE TO REDUCE CODE SIZE A
-// SMALL AMOUNT BY NEVER CALLING mqtt_pack_uint16 and mqtt_unpack_uint16.
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+// int16_t mqtt_pack_uint16(uint8_t *buf, uint16_t integer)
+// {
+//   uint16_t integer_htons = HTONS(integer);
+//   memcpy(buf, &integer_htons, 2);
+//   return 2;
+// }
 int16_t mqtt_pack_uint16(uint8_t *buf, uint16_t integer)
 {
-  uint16_t integer_htons = HTONS(integer);
-  memcpy(buf, &integer_htons, 2);
+  memcpy(buf, &integer, 2);
   return 2;
 }
 
-
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+// uint16_t mqtt_unpack_uint16(const uint8_t *buf)
+// {
+//   uint16_t integer_htons;
+//   memcpy(&integer_htons, buf, 2);
+//   return HTONS(integer_htons);
+// }
 uint16_t mqtt_unpack_uint16(const uint8_t *buf)
 {
-  uint16_t integer_htons;
-  memcpy(&integer_htons, buf, 2);
-  return HTONS(integer_htons);
+  uint16_t integer;
+  memcpy(&integer, buf, 2);
+  return integer;
 }
 
 
@@ -2146,7 +2164,8 @@ int16_t mqtt_pack_str(uint8_t *buf, const char* str)
 {
     uint16_t length = (uint16_t)strlen(str);
     int16_t i = 0;
-     // pack string length
+    
+    // pack string length
     buf += mqtt_pack_uint16(buf, length);
 
     // pack string

@@ -35,8 +35,9 @@
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-// IMPORTANT: The code_revision must be exactly 13 characters
-const char code_revision[] = "20231009 1022"; // Normal Release Revision
+// IMPORTANT: The code_revision must be exactly 13 characters. A Space
+// character is allowed, but there cannot be two or more consecutive spaces.
+const char code_revision[] = "20240612 0226"; // Normal Release Revision
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -86,7 +87,6 @@ uint8_t stack_limit2;
 // settings when they reprogram their devices.
 // 
 // EEPROM Variables:
-
 // >>> Add new variables HERE <<<
 // 110 bytes used below
 @eeprom int16_t stored_altitude;           // Byte 109-110
@@ -117,19 +117,13 @@ uint8_t stack_limit2;
 					   //        1 = Full, 0 = Half
 @eeprom uint8_t stored_prior_config;       // Copy of stored_config_settings
                                            // prior to reboot
-@eeprom uint8_t stored_unused6;            // Byte 80 unused
-@eeprom uint8_t stored_unused5;            // Byte 79 unused
-@eeprom uint8_t stored_options2;           // Byte 78 Additional Options
-                                           // Bit 7: not used
-					   // Bit 6: not used
-					   // Bit 5: not used
-					   // Bit 4: not used
-					   // Bit 3: not used
-					   // Bits 0-2: INA226 Shunt Resistor Options
+@eeprom uint8_t unused80;                  // Byte 80 unused
+@eeprom uint8_t unused79;                  // Byte 79 unused
+@eeprom uint8_t stored_shunt_res;          // Byte 78 INA226 Shunt Resistor
+                                           //   Value:
+					   //   001 to 255 for resistors from
+					   //   0.001 to 0.255 ohms
 					   //   See Manual
-					   //   000 = 0.002 ohm
-					   //   001 = 0.010 ohm
-					   //   010 = 0.100 ohm
 @eeprom uint8_t stored_latching_relay_state; // Byte 77 latching_relay_state
                                            // is used to store the last known
 					   // state that latching relays were
@@ -145,9 +139,24 @@ uint8_t stack_limit2;
 					   // Bit 2: Relay 2 state
 					   // Bit 1: Relay 1 state
 					   // Bit 0: Relay 0 state
-@eeprom uint8_t stored_rotation_ptr;       // Byte 76 rotation_ptr is used to
-                                           // select an alternate local MQTT
-					   // port number on successive boots
+@eeprom uint8_t stored_options2;           // Byte 76
+                                           // Bit 7: Undefined, 0 only
+                                           // Bit 6: Login Enable
+					   //        0 = Disabled
+					   //        1 = Enabled
+                                           // Bit 5: Undefined, 0 only
+                                           // Bit 4: Undefined, 0 only
+                                           // Bit 3: Undefined, 0 only
+                                           // Bit 0-2: Rotation Pointer used
+					   // to select an alternate local
+					   // MQTT port number on each
+					   // successive boot.
+                                           //   See Manual
+					   //   000 ALTERNATE_PORT00
+					   //   001 ALTERNATE_PORT01
+					   //   010 ALTERNATE_PORT02
+					   //   011 ALTERNATE_PORT03
+					   //   100 ALTERNATE_PORT04
 @eeprom char stored_mqtt_password[11];     // Byte 65-75 MQTT Password
 @eeprom char stored_mqtt_username[11];     // Byte 54-64 MQTT Username
 @eeprom uint8_t stored_mqttserveraddr[4];  // Bytes 50-53 mqttserveraddr
@@ -192,7 +201,7 @@ uint8_t stack_limit2;
 					   //   010 Pinout Option 2
 					   //   011 Pinout Option 3
 					   //   100 Pinout Option 4
-@eeprom uint8_t stored_devicename[20];     // Byte 01 Device name @4000
+@eeprom uint8_t stored_devicename[20];     // Bytes 1 - 20 Device name @4000
 //---------------------------------------------------------------------------//
 
 
@@ -216,6 +225,7 @@ uint8_t Sensor_IDX[6][8] @FLASH_START_SENSOR_IDX;
 // is still defined for all builds.
 uint16_t IO_TIMER[16] @FLASH_START_IO_TIMERS;
 char IO_NAME[16][16] @FLASH_START_IO_NAMES;
+
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 // Define RAM for IO Timers
 #if PCF8574_SUPPORT == 0
@@ -225,7 +235,6 @@ uint16_t Pending_IO_TIMER[16];
 uint16_t Pending_IO_TIMER[24];
 #endif // PCF8574_SUPPORT == 1
 uint8_t timer_flags; // Flags to aid in timer decrementing
-
 
 // Define pin_timers
 #if PCF8574_SUPPORT == 0
@@ -299,12 +308,20 @@ uint8_t magic_number_missing_flag;      // Indicates a missing Magic Number
 uint8_t reboot_request;                 // Signals the need for a reboot
 uint8_t user_reboot_request;            // Signals a user request for a reboot
 uint8_t restart_request;                // Signals the need for a restart
-uint8_t mqtt_close_tcp;                 // Signals the need to close the MQTT TCP
-                                        // connection
-uint8_t parse_complete;                 // Signals the completion of POST parsing
-uint8_t mqtt_parse_complete;            // Signals the completion of MQTT parsing
-
-
+uint8_t user_restart_request;           // Signals a user request for a restart
+uint8_t mqtt_close_tcp;                 // Signals the need to close the MQTT
+                                        // TCP connection
+uint8_t parse_complete;                 // Signals completion of POST parsing
+uint8_t mqtt_parse_complete;            // Signals completion of MQTT parsing
+uint8_t uart_init_complete;		// Signals completion of UART initial-
+                                        // izaion. This is primarily used to
+					// allow use of debug statements in
+					// functions that may run before UART
+					// initialization is complete (where
+					// you can't use the UART) but you want
+					// to have UART printouts in that
+					// function AFTER initializaion is
+					// complete.
 
 
 //---------------------------------------------------------------------------//
@@ -313,17 +330,17 @@ uint8_t mqtt_parse_complete;            // Signals the completion of MQTT parsin
 // "pending" values to determine if any changes occurred, and if so code will
 // update the "in use" values and will restart the firmware if needed.
 
-uint8_t Pending_hostaddr[4];
-uint8_t Pending_draddr[4];
-uint8_t Pending_netmask[4];
+//uint8_t Pending_hostaddr[4];
+//uint8_t Pending_draddr[4];
+//uint8_t Pending_netmask[4];
 
-uint16_t Pending_port;
+//uint16_t Pending_port;
 
-uint8_t Pending_devicename[20];
+//uint8_t Pending_devicename[20];
 
 uint8_t Pending_config_settings;
 
-uint8_t Pending_uip_ethaddr_oct[6];
+//uint8_t Pending_uip_ethaddr_oct[6];
 
 
 
@@ -340,14 +357,19 @@ uint16_t Port_Httpd;            // HTTP port number
 uip_ipaddr_t IpAddr;
 
 uint32_t t100ms_ctr1;           // Timer used in restart/reboot function
-extern uint32_t second_counter; // Time in seconds
+
+// Initialize timer counters used in timer.c
+extern uint8_t periodic_timer;       // Peroidic_timer counter
+extern uint8_t mqtt_timer;           // MQTT_timer counter
+extern uint16_t arp_timer;           // arp_timer counter
+extern uint8_t t100ms_timer;         // 100ms timer counter
+extern uint16_t second_toggle;       // Used in developing a 1 second counter
+extern uint32_t second_counter;      // Counts seconds since boot
+extern uint16_t ms_counter;          // Free running ms counter
+
 
 extern uint8_t OctetArray[14];  // Used in emb_itoa conversions and to
                                 // transfer short strings globally
-
-#if SUPPORT_174 == 0
-int8_t io_map_offset;           // Used in pinout options
-#endif // SUPPORT_174 == 0
 
 
 #if LINKED_SUPPORT == 1
@@ -448,12 +470,12 @@ extern char nvalue_string[2];
 uint8_t mqtt_start_status;            // Error (or success) status for startup
                                       // steps
 uint8_t MQTT_error_status;            // For MQTT error status display in GUI
-uint8_t Pending_mqttserveraddr[4];    // Holds a new user entered MQTT Server
-                                      // IP address
-uint16_t Pending_mqttport;            // Holds a new user entered MQTT Host Port
-                                      // number
-char Pending_mqtt_username[11];       // Holds a new user entered MQTT username
-char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
+//uint8_t Pending_mqttserveraddr[4];    // Holds a new user entered MQTT Server
+//                                      // IP address
+//uint16_t Pending_mqttport;            // Holds a new user entered MQTT Host Port
+//                                      // number
+//char Pending_mqtt_username[11];       // Holds a new user entered MQTT username
+//char Pending_mqtt_password[11];       // Holds a new user entered MQTT password
 uint16_t mqttport;             	      // MQTT host port number
 uint16_t mqtt_local_port;             // MQTT local port number
 uint16_t Port_Mqttd;                  // In use MQTT host port number
@@ -476,6 +498,8 @@ int8_t send_mqtt_temperature;    // Indicates if a new temperature measurement
 				 // to 4 will cause all 5 to transmit (4,3,2,1,0).
 				 // -1 indicates nothing to transmit.
 int numROMs;                     // Count of DS18B20 devices found.
+#if OB_EEPROM_SUPPORT == 0
+// FoundROM is located in a global RAM location if there is no I2C EEPROM
 extern uint8_t FoundROM[5][8];   // Table of found ROM codes
                                  // [x][0] = Family Code
                                  // [x][1] = LSByte serial number
@@ -485,6 +509,7 @@ extern uint8_t FoundROM[5][8];   // Table of found ROM codes
                                  // [x][5] = byte 5 serial number
                                  // [x][6] = MSByte serial number
                                  // [x][7] = CRC
+#endif // OB_EEPROM_SUPPORT == 0
 #endif // DS18B20_SUPPORT == 1
 
 
@@ -492,7 +517,7 @@ extern uint8_t FoundROM[5][8];   // Table of found ROM codes
 // BME280 variables
 struct bme280_dev dev;        // Structure to store the device calibration
                               // data and device settings.
-int8_t rslt;		      // Variable to report BME280 function results.
+// int8_t rslt;		      // Variable to report BME280 function results.
 uint32_t check_BME280_ctr;    // Time counter to determine when to collect the
                               // BME280 measurements.
 struct bme280_data comp_data; // Structure to collect the compensated
@@ -520,10 +545,9 @@ extern int32_t comp_data_humidity;    // Compensated humidity
 
 #if INA226_SUPPORT == 1;
 // INA226 variables
-extern float voltage;       // Voltage value reported by the INA226
-extern float current;       // Current value reported by the INA226
-extern float power;         // Power value reported by the INA226
-extern float shunt_voltage; // Shunt Voltage value reported by the INA226
+extern int32_t voltage;       // Voltage value (x1000) reported by the INA226
+extern int32_t current;       // Current value (x1000) reported by the INA226
+extern int32_t power;         // Power value (x1000) reported by the INA226
 #endif // INA226_SUPPORT == 1;
 
 
@@ -549,16 +573,22 @@ uint8_t eeprom_detect;               // Used in code update routines
 #endif // OB_EEPROM_SUPPORT == 1
 
 
-#if I2C_SUPPORT == 1
-extern uint8_t I2C_failcode;         // Used in monitoring I2C transactions
-#endif // I2C_SUPPORT == 1
+#if LOGIN_SUPPORT == 1
+extern uint8_t Login_Tracker[4];              // Login Indicators and Attempt
+extern uint8_t Auto_Log_Out_Timer[4];         // Auto Log Out Timers for 4 Browsers
+extern uint8_t Response_Lockout_Cancel_Timer; // Response Lockout Cancel Timer
+extern uint32_t ripaddr_table[4];             // ripaddr table (4 bytes per Browser)
+uint32_t login_update_timer;                  // Timer to update Login timers
+#endif // LOGIN_SUPPORT == 1
+
+
+
 
 
 //---------------------------------------------------------------------------//
 int main(void)
 {
   uip_ipaddr_t IpAddr;
-  uint8_t flash_mismatch;
   extern uint16_t uip_slen;
 
   // Initialize and enable clocks and timers. This must be done first to let
@@ -570,8 +600,6 @@ int main(void)
   // that no other code runs until the device is actually released from reset.
   wait_timer(50000); // Wait 50ms
   wait_timer(50000); // Wait 50ms
-  
-  
 
   parse_complete = 1; // parse_complete is set to 1 so that the first time
                       // check_runtime_changes is called it will sync the
@@ -579,14 +607,18 @@ int main(void)
   reboot_request = 0;
   user_reboot_request = 0;
   restart_request = 0;
+  user_restart_request = 0;
   t100ms_ctr1 = 0;
   restart_reboot_step = RESTART_REBOOT_IDLE;
   stack_error = 0;
-  
+  uart_init_complete = 0;
+
+
 #if IWDG_ENABLE == 1
   init_IWDG();      // Initialize the Independant Watchdog
 #endif // IWDG_ENABLE
   
+
 #if BUILD_SUPPORT == MQTT_BUILD
   // Initialize MQTT variables
   mqtt_parse_complete = 0;
@@ -601,19 +633,27 @@ int main(void)
   mqtt_restart_step = MQTT_RESTART_IDLE; // Step counter for MQTT restart
   state_request = STATE_REQUEST_IDLE;    // Set the state request received to
                                          // idle
-  // Increment the stored_rotation_ptr to be sure that we won't encounter the
+  // If the MQTT Enable bit is set in the Config settings set the mqtt_enabled
+  // bit so that the MQTT feature is enabled. This is needed even if no pins
+  // are enabled so that the temperature sensor reporting will work.
+  if (stored_config_settings & 0x04) mqtt_enabled = 1;
+  
+  // Increment the Rotation Pointer to be sure that we won't encounter the
   // TCP connection TIME_WAIT issue in the MQTT server when reboot occurs.
+  // Note: This is only needed for MQTT builds but is included in all builds
+  // to simplify code.
   {
     uint8_t i;
     unlock_eeprom();
-    i = stored_rotation_ptr;
+    i = (uint8_t)(stored_options2 & 0x07);
     if (i < 4) i++;
     else i = 0;
-    stored_rotation_ptr = i;
+    stored_options2 = (uint8_t)((stored_options2 & 0xf8) | i);
     lock_eeprom();
   }
 #endif // BUILD_SUPPORT == MQTT_BUILD
 
+  
   // The following variables are only used for tracking MQTT startup status,
   // but they must always be compiled for both the MQTT_BUILD and the
   // BROWSER_ONLY_BUILD to maintain a common user interface between the MQTT
@@ -629,47 +669,58 @@ int main(void)
   MQTT_broker_dis_counter = 0;           // Initialize the MQTT broker
                                          // disconnect event counter
 
+
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
   timer_flags = 0x07; // Set all timer_flags to 1 to support IO_TIMER decrementing
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-
-#if I2C_SUPPORT == 1
-  // Initialize error reporting for I2C
-  I2C_failcode = I2C_FAIL_NULL;
-#endif // I2C_SUPPORT == 1
 
 
 #if OB_EEPROM_SUPPORT == 1
   // Intialize the Update Support variables
   eeprom_copy_to_flash_request = I2C_COPY_EEPROM_IDLE;
   check_I2C_EEPROM_ctr = 0;
-  flash_mismatch = 0;
 #endif // OB_EEPROM_SUPPORT == 1
 
 
+  // Check for down revision EEPROM and upgrade if needed.
+  upgrade_EEPROM();
 
-  upgrade_EEPROM();        // Check for down revision EEPROM and upgrade if
-                           // needed.
-
-  check_eeprom_settings(); // Apply settings stored in EEPROM such as IP
-                           // Address, Gateway Address, Netmask, Port number,
-			   // etc. If there are no previously stored settings
-			   // in the EEPROM then use defaults.
-			   // This must occur before gpio_init() because
-			   // gpio_init() uses settings in the EEPROM and we
-			   // need to make sure it is up to date.
+  // Apply settings stored in EEPROM such as IP Address, Gateway Address,
+  // Netmask, Port number, etc. If there are no previously stored settings
+  // in the EEPROM then use defaults. This must occur before gpio_init()
+  // because gpio_init() uses settings in the EEPROM and we need to make
+  // sure it is up to date.
+  check_eeprom_settings();
 			   
-  gpio_init();             // Initialize and enable gpio pins
+  // Apply the EEPROM settings to runtime variables
+  apply_EEPROM_settings();
+			   
+  // Initialize and enable STM8 gpio pins. This must be done before attempting
+  // access to the PCF8574.
+  gpio_init();
 
-  apply_PCF8574_pin_settings(); // Initialize the PCF8574 settings and pins
-                                // stored in I2C EEPROM. This must occur after
-				// gpio_init() because the PCF8574 settings are
-				// stored in I2C EEPROM which uses IO pins 14
-				// and 15 to implement the I2C bus.
+  // Initialize the PCF8574 settings and pins stored in I2C EEPROM. This must
+  // occur after gpio_init() because the PCF8574 settings are stored in I2C
+  // EEPROM which uses IO pins 14 and 15 to implement the I2C bus.
+  apply_PCF8574_pin_settings();
+
+  // Initialize pins and IO trackers for the first time after validation of
+  // EEPROM contents. This operates on STM8 and PCF8574 pins.
+  initialize_pins();
+  
+#if BME280_SUPPORT == 1
+  // Initialize the BME280
+  BME280_found = 0;
+//  rslt = bme280_init(&dev);
+//  if (rslt == BME280_OK) {
+  if (bme280_init(&dev) == BME280_OK) {
+    BME280_found = 1;
+  }
+#endif // BME280_SUPPORT == 1
 
 
-
-  TRANSMIT_counter = 0;    // Initialize the TRANSMIT counter
+  // Initialize the TRANSMIT counter
+  TRANSMIT_counter = 0;
   
   // Restore the saved debug statistics
   restore_eeprom_debug_bytes();
@@ -681,6 +732,7 @@ int main(void)
   // Initialize the UART for debug output
   // Note: gpio_init() must be called prior to this call
   InitializeUART();
+  uart_init_complete = 1;
   UARTPrintf("\r\n\n\n\n\nBooting Rev ");
   UARTPrintf(code_revision);
   
@@ -693,6 +745,7 @@ int main(void)
 #endif // BUILD_TYPE_CODE_UPLOADER == 1
 #endif // DEBUG_SUPPORT == 15
 
+
 #if BUILD_TYPE_CODE_UPLOADER == 1
 #if RESPONSE_LOCK_SUPPORT == 1
   // If starting the Code Uploader make sure the Response Lock is turned OFF.
@@ -703,15 +756,12 @@ int main(void)
   // will interfere with operation of the Code Uploader.
   {
     uint8_t j;
-    j = (uint8_t)(stored_options1 & 0xbf); // Clear locked bit
-    if (stored_options1 != j) {
-      unlock_eeprom();
-      stored_options1 = j;
-      lock_eeprom();
-    }
+    j = (uint8_t)(stored_options1 & 0xbf); // Clear response locked bit
+    update_settings_options(UPDATE_OPTIONS1, j);
   }
 #endif // RESPONSE_LOCK_SUPPORT == 1
 #endif // BUILD_TYPE_CODE_UPLOADER == 1
+
 
   spi_init();              // Initialize the SPI bit bang interface to the
                            // ENC28J60 and perform hardware reset on ENC28J60
@@ -745,6 +795,7 @@ int main(void)
 #endif // LINKED_SUPPORT == 1
 
 
+
 #if DS18B20_SUPPORT == 1
   init_DS18B20();          // Initialize DS18B20 sensors
   // Initialize DS18B20 control variables used in main.c 
@@ -762,25 +813,48 @@ int main(void)
 #endif // DS18B20_SUPPORT == 1
 
 
+//#if BME280_SUPPORT == 1
+//  // Initialize the BME280
+//  BME280_found = 0;
+// //  rslt = bme280_init(&dev);
+// //  if (rslt == BME280_OK) {
+//  if (bme280_init(&dev) == BME280_OK) {
+//    BME280_found = 1;
+//    if (stored_config_settings & 0x20) {
+//      // If a BME280 sensor was found and the config_settings show the sensor
+//      // is enabled then collect the sensor data. This measurement at startup
+//      // is needed so that sensor data is available for display when the
+//      // IOControl page is shown at boot time.
+//      stream_sensor_data_forced_mode(&dev, &comp_data);
+//      send_mqtt_BME280 = 2; // Indicates we should send BME280 data as part of
+//                        // boot. Even though only 1 BME280 is supported
+//			// send_MQTT_BME280 is set to "2" so that all three
+//			// sensors (Temp, Humidity, Pressure) within the
+//			// BME280 are sent (2, 1, 0).
+//      check_BME280_ctr = second_counter;
+//    }
+//  }
+//#endif // BME280_SUPPORT == 1
+
+
 #if BME280_SUPPORT == 1
-  // Initialize the BME280
-  BME280_found = 0;
-//  send_mqtt_BME280 = -1; // Indicates nothing to send on MQTT yet.
-  send_mqtt_BME280 = 2; // Indicates we should send BME280 data as part of boot.
-  check_BME280_ctr = second_counter;
-  rslt = bme280_init(&dev);
-  if (rslt == BME280_OK) {
-    BME280_found = 1;
+  if (BME280_found == 1) {
     if (stored_config_settings & 0x20) {
       // If a BME280 sensor was found and the config_settings show the sensor
       // is enabled then collect the sensor data. This measurement at startup
       // is needed so that sensor data is available for display when the
       // IOControl page is shown at boot time.
       stream_sensor_data_forced_mode(&dev, &comp_data);
+      send_mqtt_BME280 = 2; // Indicates we should send BME280 data as part of
+                        // boot. Even though only 1 BME280 is supported
+			// send_MQTT_BME280 is set to "2" so that all three
+			// sensors (Temp, Humidity, Pressure) within the
+			// BME280 are sent (2, 1, 0).
+      check_BME280_ctr = second_counter;
     }
   }
-  else {
-    // If BME_280 sensor was not found then then force the BME280 Enable bit off.
+  if (BME280_found == 0) {
+    // If BME280 sensor was not found then then force the BME280 Enable bit off.
     // This will help reduce confusion on the part of the user that may think
     // they can enable BME280 support on the Config Page but they have not
     // connected a BME280 sensor.
@@ -812,7 +886,6 @@ int main(void)
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  
 #endif // PCF8574_SUPPORT == 1
 
 
@@ -826,6 +899,22 @@ int main(void)
 #endif // INA226_SUPPORT == 1
 
 
+#if LOGIN_SUPPORT == 1
+  // Initialize Login function variables. If the Login function is enabled
+  // this has the effect of logging out all browsers.
+  // Zero out the ripaddr table (four 32 bit values)
+  memset(ripaddr_table, 0, 16);
+  // Set Auto Log Out Timers to 0.
+  memset(Auto_Log_Out_Timer, 0, 4);
+  // Clear the Login Indicators and Login Attempt Counters.
+  memset(Login_Tracker, 0, 4);
+  // Set Response_Lockout_Cancel_Timer to 0.
+  Response_Lockout_Cancel_Timer = 0;
+  
+  // Initialize the login update timer.
+  login_update_timer = second_counter;
+#endif // LOGIN_SUPPORT == 1
+
 
   // The following initializes the stack over-run guardband variables. These
   // variables are monitored periodically and should never change unless
@@ -833,24 +922,14 @@ int main(void)
   // content).
   stack_limit1 = 0xaa;
   stack_limit2 = 0x55;
+  // Initialize debug[2] to reflect the stack overflow condition stored in
+  // EEPROM.
 
 
 #if DEBUG_SUPPORT == 15
-  // Check RST_SR (Reset Status Register)
-  if (RST_SR & 0x1f) {
-    // Bit 4 EMCF: EMC reset flag
-    if (RST_SR & 0x10) debug_bytes[5] = (uint8_t)(debug_bytes[5] + 1);
-    // Bit 3 SWIMF: SWIM reset flag
-    if (RST_SR & 0x08) debug_bytes[6] = (uint8_t)(debug_bytes[6] + 1);
-    // Bit 2 ILLOPF: Illegal opcode reset flag
-    if (RST_SR & 0x04) debug_bytes[7] = (uint8_t)(debug_bytes[7] + 1);
-    // Bit 1 IWDGF: Independent Watchdog reset flag
-    if (RST_SR & 0x02) debug_bytes[8] = (uint8_t)(debug_bytes[8] + 1);
-    // Bit 0 WWDGF: Window Watchdog reset flag
-    if (RST_SR & 0x01) debug_bytes[9] = (uint8_t)(debug_bytes[9] + 1);
-    update_debug_storage1();
-    RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
-  }
+  // Check RST_SR (Reset Status Register). This call will update the debug
+  // bytes associated with the RST_SR if any changes have occurred.
+  check_rst_sr();
 
 #if TEMP_DEBUG_EXCLUDE == 0
   UARTPrintf("ENC28J60 Rev Code ");
@@ -875,9 +954,13 @@ int main(void)
   UARTPrintf(OctetArray);
   UARTPrintf("\r\n");
   
-  if (debug_bytes[2] & 0x80) UARTPrintf("Stack Overflow ERROR!");
-  else UARTPrintf("Stack Overflow - none detected");
-  UARTPrintf("\r\n\r\n");
+  if (debug_bytes[2] & 0x80) UARTPrintf("Stack Overflow ERROR!\r\n");
+  else UARTPrintf("Stack Overflow - none detected\r\n");
+  
+  if (stored_options2 & 0x40) UARTPrintf("Login function enabled\r\n");
+  else UARTPrintf("Login function disabled\r\n");
+  
+  UARTPrintf("\r\n");
 #endif // TEMP_DEBUG_EXCLUDE == 0
 #endif // DEBUG_SUPPORT == 15
 
@@ -898,9 +981,14 @@ int main(void)
 
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-  // If a Code Uploader Build copy Flash to EEPROM1.
+  // If a Code Uploader Build copy Flash to EEPROM Region 1. While this runs
+  // with any Code Uploader boot, it is really only necessary if the Code
+  // Uploader was placed in Flash via the SWIM interface. This copy then makes
+  // sure that the Code Uploader version stored in I2C EEPROM matches what the
+  // user programmed into Flash (presumably the latest revision of the Code
+  // Uploader).
   if (eeprom_detect == 1) {
-    copy_code_uploader_to_EEPROM1();
+    copy_code_uploader_to_EEPROM_R1();
     // Flicker LED for 1 second to indicate I2C EEPROM write completion
     fastflash();
   }
@@ -913,13 +1001,14 @@ int main(void)
   // a) Have the Uploader installed in I2C EEPROM
   // b) Use SWIM to load a new runtime firmware
   // c) When they start the Uploader they select "reinstall".
-  // The above scenario fails because SWIM installed the runtime firmware
-  // rather than the Uploader. If the Uploader had been used to install the
-  // runtime firmware a copy of the firmware image would be in I2C EEPROM.
+  // The above scenario fails without the check coded here because SWIM
+  // installed the runtime firmware rather than the Uploader. If the Uploader
+  // had been used to install the runtime firmware a copy of the firmware
+  // image would be in I2C EEPROM.
   //
-  // Copy Flash to I2C EEPROM0.
+  // Copy Flash to I2C EEPROM Region 0.
   if (eeprom_detect == 1) {
-    copy_flash_to_EEPROM0();
+    copy_flash_to_EEPROM_R0();
     // Flicker LED for 1 second to indicate I2C EEPROM write completion
     fastflash();
   }
@@ -1036,7 +1125,11 @@ int main(void)
     uip_len = Enc28j60Receive(uip_buf); // Check for incoming packets
 
     if (uip_len > 0) {
-      if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
+      // Removed "htons" code to reduce Flash usage. This can be done as the
+      // SMT8 is "Big Endian". Keep the commented code in case the application
+      // is ported to a "Little Endian" architecture.
+      // if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_IP)) {
+      if (((struct uip_eth_hdr *) & uip_buf[0])->type == UIP_ETHTYPE_IP) {
         // This code is executed if incoming traffic is HTTP or MQTT (not ARP).
         // uip_len includes the headers, so it will be > 0 even if no TCP
         // payload.
@@ -1054,7 +1147,11 @@ int main(void)
           Enc28j60Send(uip_buf, uip_len);
         }
       }
-      else if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_ARP)) {
+      // Removed "htons" code to reduce Flash usage. This can be done as the
+      // SMT8 is "Big Endian". Keep the commented code in case the application
+      // is ported to a "Little Endian" architecture.
+      // else if (((struct uip_eth_hdr *) & uip_buf[0])->type == htons(UIP_ETHTYPE_ARP)) {
+      else if (((struct uip_eth_hdr *) & uip_buf[0])->type == UIP_ETHTYPE_ARP) {
         // This code is executed if incoming traffic is an ARP request.
         uip_arp_arpin();
         // If the above process resulted in data that should be sent out on
@@ -1076,11 +1173,13 @@ int main(void)
     // c) Not currently performing the restart steps
     // d) Not currently performing restart_reboot
     // e) A user requested reboot is not pending
+    // f) A user requested restart is not pending
     if (mqtt_enabled == 1
      && mqtt_start != MQTT_START_COMPLETE
      && mqtt_restart_step == MQTT_RESTART_IDLE
      && restart_reboot_step == RESTART_REBOOT_IDLE
-     && user_reboot_request == 0) {
+     && user_reboot_request == 0
+     && user_restart_request == 0) {
       mqtt_startup();
     }
     
@@ -1163,75 +1262,89 @@ int main(void)
     }
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-    // Check for a request to copy the I2C EEPROM0 to Flash.
+    // Check for a request to copy the I2C EEPROM Region 0 to Flash.
     // The request is automatically generated by the process that uploads the
     // user specified file after the file is copied to the I2C EEPROM.
     // The request is also generated if the user presses the Restore button
     // (generating a /73 command) while in the Uploader GUI.
-    if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_REQUEST) {
-      eeprom_copy_to_flash_request = I2C_COPY_EEPROM0_WAIT;
+    if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM_R0_REQUEST) {
+      eeprom_copy_to_flash_request = I2C_COPY_EEPROM_R0_WAIT;
       check_I2C_EEPROM_ctr = t100ms_ctr1;
     }
     // Give main loop 1000ms for browser update
-    if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM0_WAIT) &&
+    if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM_R0_WAIT) &&
         (t100ms_ctr1 > (check_I2C_EEPROM_ctr + 10))) {
       unlock_flash();
-      // eeprom_copy_to_flash will cause a reboot on completion of the
+      // copy_I2C_EEPROM_to_Flash() will cause a reboot on completion of the
       // function.
-      // Set values needed by eeprom_copy_to_flash()
-      eeprom_num_write = I2C_EEPROM0_WRITE;
-      eeprom_num_read = I2C_EEPROM0_READ;
-      eeprom_base = I2C_EEPROM0_BASE;
+      // Set values needed by copy_I2C_EEPROM_to_Flash()
+      eeprom_num_write = I2C_EEPROM_R0_WRITE;
+      eeprom_num_read = I2C_EEPROM_R0_READ;
+      eeprom_base = I2C_EEPROM_R0_BASE;
       flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
       
       // The _fctcpy function will copy the memcpy_update segment to RAM, then
-      // the eeprom_copy_to_flash() function will call the copy_ram_to_flash()
+      // the copy_I2C_EEPROM_to_Flash() function will call the copy_RAM_to_Flash()
       // function in the memcpy_update segment from RAM.
       _fctcpy('m');
 
       if (eeprom_detect == 1 && upgrade_failcode == UPGRADE_OK) {
-        // eeprom_copy_to_flash() will reprogram the Flash with the I2C EEPROM
+        // copy_I2C_EEPROM_to_Flash() will reprogram the Flash with the I2C EEPROM
 	// contents. On completion of the copy the module will reboot.
 
 #if DEBUG_SUPPORT == 15
-// UARTPrintf("Copying EEPROM0 to Flash\r\n");
+UARTPrintf("Copying EEPROM Region 0 to Flash\r\n");
 #endif // DEBUG_SUPPORT == 15
 
-        eeprom_copy_to_flash();
+        copy_I2C_EEPROM_to_Flash(249);
+      }
+      else if (eeprom_detect == 0) {
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("EEPROM Region 0 copy to Flash failed because eeprom_detect == 0\r\n");
+#endif // DEBUG_SUPPORT == 15
+
+      }
+      else if (upgrade_failcode != UPGRADE_OK) {
+
+#if DEBUG_SUPPORT == 15
+UARTPrintf("EEPROM Region 0 copy to Flash failed because upgrade_failcode != UPGRADE_OK\r\n");
+#endif // DEBUG_SUPPORT == 15
+
       }
       lock_flash();
     }
 #endif // BUILD_SUPPORT == CODE_UPLOADER_BUILD
 
 #if OB_EEPROM_SUPPORT == 1
-    // Check for a request to copy the I2C EEPROM1 to Flash. The request
-    // is generated when the user inputs a /72 command to start the Code
-    // Uploader.
-    if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_REQUEST) {
-      eeprom_copy_to_flash_request = I2C_COPY_EEPROM1_WAIT;
+    // Check for a request to copy the I2C EEPROM Region 1 to Flash. The
+    // request is generated when the user inputs a /72 command to start the
+    // Code Uploader.
+    if (eeprom_copy_to_flash_request == I2C_COPY_EEPROM_R1_REQUEST) {
+      eeprom_copy_to_flash_request = I2C_COPY_EEPROM_R1_WAIT;
       check_I2C_EEPROM_ctr = t100ms_ctr1;
     }
     // Give main loop 1000ms for browser update
-    if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM1_WAIT) &&
+    if ((eeprom_copy_to_flash_request == I2C_COPY_EEPROM_R1_WAIT) &&
         (t100ms_ctr1 > (check_I2C_EEPROM_ctr + 10))) {
       unlock_flash();
-      // eeprom_copy_to_flash will cause a reboot on completion of the
+      // copy_I2C_EEPROM_to_Flash() will cause a reboot on completion of the
       // function.
-      // Set values needed by eeprom_copy_to_flash()
-      eeprom_num_write = I2C_EEPROM1_WRITE;
-      eeprom_num_read = I2C_EEPROM1_READ;
-      eeprom_base = I2C_EEPROM1_BASE;
+      // Set values needed by copy_I2C_EEPROM_to_Flash()
+      eeprom_num_write = I2C_EEPROM_R1_WRITE;
+      eeprom_num_read = I2C_EEPROM_R1_READ;
+      eeprom_base = I2C_EEPROM_R1_BASE;
       flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
       
       // The _fctcpy function will copy the memcpy_update segment to RAM, then
-      // the eeprom_copy_to_flash() function will call the copy_ram_to_flash()
+      // the copy_I2C_EEPROM_to_Flash() function will call the copy_RAM_to_Flash()
       // function in the memcpy_update segment from RAM.
       _fctcpy('m');
       
       if (eeprom_detect) {
-        // eeprom_copy_to_flash() will reprogram the Flash with the I2C EEPROM
+        // copy_I2C_EEPROM_to_Flash() will reprogram the Flash with the I2C EEPROM
 	// contents. On completion of the copy the module will reboot.
-        eeprom_copy_to_flash();
+        copy_I2C_EEPROM_to_Flash(249);
       }
       lock_flash();
     }
@@ -1299,6 +1412,24 @@ int main(void)
       }
     }
 #endif // BME280_SUPPORT == 1
+    
+    
+#if LOGIN_SUPPORT == 1
+//    if ((second_counter > (login_update_timer + 60))) {
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // For development only the timer is reduced to 10 seconds to allow
+    // faster countdowns.
+    if ((second_counter > (login_update_timer + 10))) {
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      login_update_timer = second_counter;
+      // Call function to update login timers and manage timeouts.
+      login_timer_management();
+    }
+#endif // LOGIN_SUPPORT == 1
     
     
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
@@ -1390,16 +1521,22 @@ uint8_t off_board_EEPROM_detect(void)
   wait_timer(1000); // Wait 1 ms
   
   // Read 1 byte from I2C EEPROM.
-  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE, 2);
+  prep_read(I2C_EEPROM_R0_WRITE, I2C_EEPROM_R0_READ, I2C_EEPROM_R0_BASE, 2);
   byte = I2C_read_byte(1);
 
 
   // Write inverted byte to I2C EEPROM.
-  write_one((uint8_t)~byte);
+//  write_one((uint8_t)~byte);
+  {
+    uint8_t i;
+    i = (uint8_t)~byte;
+    // Write one byte to EEPROM Region 0 address 0x0000
+    copy_STM8_bytes_to_I2C_EEPROM(&i, 1, I2C_EEPROM_R0_WRITE, 0, 2);
+  }
 
 
   // Read and validate 1 byte from I2C EEPROM.
-  prep_read(I2C_EEPROM0_WRITE, I2C_EEPROM0_READ, I2C_EEPROM0_BASE, 2);
+  prep_read(I2C_EEPROM_R0_WRITE, I2C_EEPROM_R0_READ, I2C_EEPROM_R0_BASE, 2);
    
   if ((uint8_t)~byte == I2C_read_byte(1)) {
     eeprom_detect = 1;
@@ -1408,7 +1545,11 @@ uint8_t off_board_EEPROM_detect(void)
   }
     
   // Restore the original 1 byte to I2C EEPROM.
-  write_one(byte);
+//  write_one(byte);
+  {
+    // Write one byte to EEPROM Region 0 address 0x0000
+    copy_STM8_bytes_to_I2C_EEPROM(&byte, 1, I2C_EEPROM_R0_WRITE, 0, 2);
+  }
 
   return eeprom_detect;
 }
@@ -1419,30 +1560,26 @@ uint8_t off_board_EEPROM_detect(void)
 void prep_read(uint8_t control_write, uint8_t control_read, uint16_t start_address, uint8_t addr_size)
 {
   // Function to set up a read from I2C devices.
-  // control_write / control_read are the Control Bytes needed to address the
-  // I2C device.
-  // start_address identifies the address starting point in the I2C device.
-  // address_size indicates if the address is one byte or two bytes. 1 =
-  // single byte, 2 = two bytes.
+  //
+  // a) control_write / control_read are the Control Bytes needed to address
+  //    the I2C device.
+  // b) start_address identifies the address starting point in the I2C device.
+  // c) address_size indicates if the address is one byte or two bytes.
+  //    1 = single byte address (BME280 is always single byte)
+  //    2 = two byte address (I2C EEPROM is always two byte)
   //
   // I2C EEPROM:
-  // When setting up a sequential read from the I2C EEPROMs the
-  // following applies:
-  //   control_write / control_read are the Control Bytes needed to address
-  //   the I2C EEPROM.
+  // When setting up a sequential read from the I2C EEPROMs the following
+  // applies:
   //   start_address identifies the address starting point in the I2C 
   //   EEPROM and is typically the first (base) address of the region in the
   //   I2C EEPROM, although it can also be a specific address offset
   //   into the I2C EEPROM region. For example:
-  //     I2C EEPROM0 base address: 0x0000 using I2C EEPROM0 Control Bytes
-  //     I2C EEPROM1 base address: 0x8000 using I2C EEPROM1 Control Bytes
-  //     I2C EEPROM2 base address: 0x0000 using I2C EEPROM2 Control Bytes
-  //     I2C EEPROM3 base address: 0x8000 using I2C EEPROM3 Control Bytes
-  //   addr_size for I2C EEPROM access is always 2 bytes.
+  //     I2C EEPROM Region 0 base address: 0x0000 using I2C EEPROM_R0 Control Bytes
+  //     I2C EEPROM Region 1 base address: 0x8000 using I2C EEPROM_R1 Control Bytes
+  //     I2C EEPROM Region 2 base address: 0x0000 using I2C EEPROM_R2 Control Bytes
+  //     I2C EEPROM Region 3 base address: 0x8000 using I2C EEPROM_R3 Control Bytes
   //
-  // BME280:
-  // When setting up a read from the BME280 device the address_size is always
-  // 1 byte.
 
   // Initial write control byte to establish sequential read address
   I2C_control(control_write);
@@ -1452,42 +1589,45 @@ void prep_read(uint8_t control_write, uint8_t control_read, uint16_t start_addre
 #endif // I2C_SUPPORT == 1
 
 
+/*
 #if OB_EEPROM_SUPPORT == 1
 void write_one(uint8_t byte)
 {
   // Function to write one byte to the I2C EEPROM
   // This is only used for the I2C EEPROM detection routine, thus only
   // uses I2C EEPROM address 0x0000
-  I2C_control(I2C_EEPROM0_WRITE);
+  I2C_control(I2C_EEPROM_R0_WRITE);
   I2C_byte_address(0x0000, 2);
   I2C_write_byte(byte);
   I2C_stop();
   wait_timer(5000); // Wait 5ms
 }
 #endif // OB_EEPROM_SUPPORT == 1
+*/
 
 
 #if BUILD_SUPPORT == CODE_UPLOADER_BUILD
-void copy_code_uploader_to_EEPROM1(void)
+void copy_code_uploader_to_EEPROM_R1(void)
 {
-  // This function copies a Code Uploader build to I2C EEPROM1.
-  // The entire Flash is copied up to but not including the IO_TIMERS and
-  // IO_NAMES area of memory.
+  // This function copies a Code Uploader build from Flash to I2C EEPROM
+  // Region 1. The Region 1 adddress range matches that of Flash (0x8000
+  // to 0xFFFF).
   uint8_t i;
   uint16_t address_index;
   uint8_t I2C_last_flag;
   uint8_t temp_byte;
 
-  flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-  address_index = I2C_EEPROM1_BASE;
+  flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY; // Start = 0x8000
+  address_index = I2C_EEPROM_R1_BASE; // Base = 0x8000
   
   I2C_reset();
   wait_timer(1000); // Wait 1 ms
   
-  while (address_index < FLASH_START_USER_RESERVE) {
+//  while (address_index < FLASH_START_USER_RESERVE) {
+  while (address_index < I2C_EEPROM_R1_START_VARIABLE_RESERVE) {
     // Note for "while" statement: address_index will be incremented by 128
-    // with each loop.
-    I2C_control(I2C_EEPROM1_WRITE); // Send Write Control Byte for upper
+    // with each loop. This matches the 128 byte block size of the I2C EEPROM.
+    I2C_control(I2C_EEPROM_R1_WRITE); // Send Write Control Byte for upper
                                     // I2C EEPROM area
     I2C_byte_address(address_index, 2);
     for (i=0; i<128; i++) {
@@ -1505,9 +1645,9 @@ void copy_code_uploader_to_EEPROM1(void)
 
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 #if OB_EEPROM_SUPPORT == 1
-void copy_flash_to_EEPROM0(void)
+void copy_flash_to_EEPROM_R0(void)
 {
-  // This function copies a Browser Only or MQTT build to I2C EEPROM0.
+  // This function copies a Browser Only or MQTT build to I2C EEPROM Region 0.
   // The entire Flash is copied up to but not including the IO_TIMERS and
   // IO_NAMES area of memory.
   // The function should only be called to cover the case where the user has
@@ -1519,19 +1659,13 @@ void copy_flash_to_EEPROM0(void)
   uint8_t temp_byte;
 
   flash_ptr = (char *)FLASH_START_PROGRAM_MEMORY;
-  address_index = I2C_EEPROM0_BASE;
+  address_index = I2C_EEPROM_R0_BASE;
   I2C_reset();
   wait_timer(1000); // Wait 1 ms
   
   while (address_index < OFFSET_TO_FLASH_START_USER_RESERVE) {
-    I2C_control(I2C_EEPROM0_WRITE);
-    I2C_byte_address(address_index, 2);
-    for (i=0; i<128; i++) {
-      I2C_write_byte(*flash_ptr);
-      flash_ptr++;
-    }
-    I2C_stop();
-    wait_timer(5000); // Wait 5 ms
+    copy_STM8_bytes_to_I2C_EEPROM(flash_ptr, 128, I2C_EEPROM_R0_WRITE, address_index, 2);
+    flash_ptr += 128;
     address_index += 128;
     IWDG_KR = 0xaa; // Prevent the IWDG hardware watchdog from firing.
   }
@@ -1654,10 +1788,10 @@ void mqtt_startup(void)
     // between them to avoid encountering some other application that utilizes
     // a cluster of ports. The selections made here are arbitraty and can be
     // changed in the future as needed.
-    // Use the stored_rotation_ptr to select a local MQTT port.
+    // Use the Rotation Pointer to select a local MQTT port.
     {
-      mqtt_local_port = 49193;
-      switch (stored_rotation_ptr)
+//      mqtt_local_port = 49193;
+      switch (stored_options2 & 0x07)
       {
 	case 0: mqtt_local_port = ALTERNATE_PORT00; break;
 	case 1: mqtt_local_port = ALTERNATE_PORT01; break;
@@ -2359,8 +2493,9 @@ void mqtt_startup(void)
 #endif // DS18B20_SUPPORT == 1
 #if BME280_SUPPORT == 1
         define_BME280_sensors();  // define_BME280_sensors will be called
-	                          // repeatedly until all BME260 sensors are
-				  // defined. define_BME280_sensors will set
+	                          // repeatedly until all BME260 sensors
+				  // (Temp, Humidity, Pressure) are defined.
+				  // define_BME280_sensors will set
 				  // auto_discovery = AUTO_COMPLETE when
 	                          // all BME280 sensors are defined.
 #endif // BME280_SUPPORT == 1
@@ -2375,9 +2510,7 @@ void mqtt_startup(void)
 	if ((stored_options1 & 0x20) == 0x20) {
 	  j = stored_options1;
 	  j &= 0xdf; // 11011111
-	  unlock_eeprom();
-	  stored_options1 = j;
-	  lock_eeprom();
+          update_settings_options(UPDATE_OPTIONS1, j);
 	}
       }
     }
@@ -2593,6 +2726,32 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
+
+
+#if OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
+  // If I2C EEPROM is supported the FoundROM[][] table is located in I2C
+  // EEPROM. In this case a stack based FoundROM[][] array is created and the
+  // data is copied to that array.
+  uint8_t FoundROM[5][8];           // Table of ROM codes
+                                    // [x][0] = Family Code
+                                    // [x][1] = LSByte serial number
+                                    // [x][2] = byte 2 serial number
+                                    // [x][3] = byte 3 serial number
+                                    // [x][4] = byte 4 serial number
+                                    // [x][5] = byte 5 serial number
+                                    // [x][6] = MSByte serial number
+                                    // [x][7] = CRC
+#endif // OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
+
+      
+#if OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
+  // If I2C EEPROM is supported the FoundROM[][] array is stored in the I2C
+  // EEPROM and must be copied to a stack based FoundROM[][] array for use
+  // here. The I2C EEPROM copy of the FoundROM table starts at
+  // I2C_EEPROM_R1_FOUNDROM. There are 5 entries, each 8 bytes long, for a
+  // total of 40 bytes.
+  copy_I2C_EEPROM_bytes_to_RAM(&FoundROM[0][0], 40, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_READ, I2C_EEPROM_R1_FOUNDROM, 2);
+#endif // OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
 
   // Create the % marker in the payload template
   app_message[0] = '%';
@@ -3301,11 +3460,8 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       char temp_byte[16];
       for (i=16; i<24; i++) {
         // Read a PCF8574_IO_NAME value from I2C EEPROM
-        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + ((i - 16) * 16), 2);
-        for (j=0; j<15; j++) {
-          temp_byte[j] = I2C_read_byte(0);
-        }
-        temp_byte[15] = I2C_read_byte(1);
+        copy_I2C_EEPROM_bytes_to_RAM(&temp_byte[0], 16, I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + ((i - 16) * 16), 2);
+
 #if DEBUG_SUPPORT == 15
 // UARTPrintf("IO_NAME = ");
 // UARTPrintf(temp_byte);
@@ -3774,11 +3930,7 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
   else {
     // Collect idx for pin numbers from 16 to 24
     // Read a PCF8574_idx value from I2C EEPROM
-    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + ((pin - 16) * 16), 2);
-    for (j=0; j<7; j++) {
-      temp_idx[j] = I2C_read_byte(0);
-    }
-    temp_idx[7] = I2C_read_byte(1);
+    copy_I2C_EEPROM_bytes_to_RAM(&temp_idx[0], 8, I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + ((pin - 16) * 16), 2);
     strcat(app_message, temp_idx);
   }
 #endif // PCF8574_SUPPORT == 1
@@ -3942,7 +4094,35 @@ void publish_temperature(uint8_t sensor)
 				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
-  
+
+
+
+
+#if OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
+  // The FoundROM[][] array is located in I2C EEPROM if I2C EEPROM is
+  // supported. So it is copied to a local stack based FoundROM[][] array
+  // for use in this case.
+  uint8_t FoundROM[5][8];           // Table of ROM codes
+                                    // [x][0] = Family Code
+                                    // [x][1] = LSByte serial number
+                                    // [x][2] = byte 2 serial number
+                                    // [x][3] = byte 3 serial number
+                                    // [x][4] = byte 4 serial number
+                                    // [x][5] = byte 5 serial number
+                                    // [x][6] = MSByte serial number
+                                    // [x][7] = CRC
+#endif // OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
+
+      
+#if OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
+  // If I2C EEPROM is supported then the FoundROM table is stored in the
+  // I2C EEPROM and must be copied to a stack based RAM location for use
+  // here. The I2C EEPROM copy of the FoundROM table starts at
+  // I2C_EEPROM_R1_FOUNDROM. There are 5 entries, each 8 bytes long, for
+  // a total of 40 bytes.
+  copy_I2C_EEPROM_bytes_to_RAM(&FoundROM[0][0], 40, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_READ, I2C_EEPROM_R1_FOUNDROM, 2);
+#endif // OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
+
   if (sensor <= numROMs) {
     // Only Publish if the sensor number is one of the sensors found by
     // FindDevices as indicated by numROMs.
@@ -4070,23 +4250,26 @@ void publish_BME280(int8_t sensor)
 				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
-
   
-  if (BME280_found == 1) {
+  
+//  if (BME280_found == 1) {
+  if (stored_config_settings & 0x20) { // BME280 enabled?
     // Build the topic string
     strcpy(topic_base, devicetype);
     strcat(topic_base, stored_devicename);
     
-    if (sensor == 0) strcat(topic_base, "/temp/BME280-0");
-    if (sensor == 1) strcat(topic_base, "/pres/BME280-1");
-    if (sensor == 2) strcat(topic_base, "/hum/BME280-2");
-    
+    if (sensor == 0) strcat(topic_base, "/temp/");
+    if (sensor == 1) strcat(topic_base, "/pres/");
+    if (sensor == 2) strcat(topic_base, "/hum/");
+
+
     // Isolate the two least significant octets of the uip_hostaddr (the module
     // IP address). Convert these two octets into a 4 character hexidecimal and use
     // that to create a unique ID for the BME280 sensor.
-    int2hex(stored_hostaddr[1]);
-    strcat(topic_base, OctetArray);
-    int2hex(stored_hostaddr[0]);
+    create_sensor_ID(sensor); // This builds the sensor ID in OctetArray in
+                              // the format "BME280-yxxxx" where "y" is the
+			      // sensor number (0, 1 2) and xxxx is the two
+			      // least significant octets of the hostaddr.
     strcat(topic_base, OctetArray);
     
     // Build the application message
@@ -4127,83 +4310,84 @@ void publish_BME280(int8_t sensor)
   unsigned char topic_base[12]; // Used for building connect, subscribe,
                                 // and publish topic strings.
   unsigned char app_message[90]; // app_message (payload) is always of the form
-    // {"command":"udevice","idx":321,"svalue":"8.8;91;3;1029;0"}
-    // The svalue consists of fields in this order;
-    //   Temperature in C
-    //   Relative Humidity in %
-    //   Humidity Status
-    //   Barometric Pressure in HPa
-    //   Weather Prediction
-    
-    // Humidity Status can be one of 
-    //  HUM_NORMAL	value 0
-    //  HUM_COMFORTABLE	value 1
-    //  HUM_DRY		value 2
-    //  HUM_WET		value 3
-    // A suggested calculation from the Domoticz Forum:
-    //  if humidity <= 30 then HUM_DRY
-    //  else if humidity >= 70 then return HUM_WET
-    //  else if humidity >= 35 and
-    //    humidity <= 65 and
-    //    temperature >= 22 and
-    //    temperature <= 26 then HUM_COMFORTABLE
-    //  else HUM_NORMAL
-    
-    // Weather Prediction values:
-    // From the Domoticz Forum https://www.domoticz.com/forum/viewtopic.php?t=36921
-    // For dummy devices the list is
-    // 0 { bmpbaroforecast_stable, "Stable" },
-    // 1 { bmpbaroforecast_sunny, "Sunny" },
-    // 2 { bmpbaroforecast_cloudy, "Cloudy" },
-    // 3 { bmpbaroforecast_unstable, "Unstable" },
-    // 4 { bmpbaroforecast_thunderstorm, "Thunderstorm" },
-    // 5 { bmpbaroforecast_unknown, "Unknown" },
-    // 6 { bmpbaroforecast_rain, "Cloudy/Rain" },
-    // 
-    // For other baro devices in native integrations, like in buienradar the list is different....
-    // 0 { wsbaroforecast_heavy_snow, "Heavy Snow" },
-    // 1 { wsbaroforecast_snow, "Snow" },
-    // 2 { wsbaroforecast_heavy_rain, "Heavy Rain" },
-    // 3 { wsbaroforecast_rain, "Rain" },
-    // 4 { wsbaroforecast_cloudy, "Cloudy" },
-    // 5 { wsbaroforecast_some_clouds, "Some Clouds" },
-    // 6 { wsbaroforecast_sunny, "Sunny" },
-    // 7 { wsbaroforecast_unknown, "Unknown" },
-    // 8 { wsbaroforecast_unstable, "Unstable" },
-    // 9 { wsbaroforecast_stable, "Stable" },
-    //
-    // From the Domoticz Forum https://www.domoticz.com/forum/viewtopic.php?t=39655
-    // For "Barometer" and "Temperature + Barometer", the following "Prediction"
-    // is given (this matches the "dummy" list above):
-    // 0: Stable
-    // 1: Sunny
-    // 2: Cloudy
-    // 3: Unstable
-    // 4: Thunderstorm
-    // 5: Unknown
-    // 6: Cloudy/Rain
-    //
-    // For "Temperature + Humidity + Barometer", the following "Prediction" is
-    // given (this seems to match what is happening in this application, or at
-    // least "0" matches):
-    // 0: No Info
-    // 1: Sunny
-    // 2: Partly Cloudy
-    // 3: Cloudy
-    // 4: Rain
-    //
-    // Calculating a weather predition is discussed in this link:
-    // https://wiki.seeedstudio.com/Wio-Terminal-TinyML-TFLM-2/
-    // Since calculating a prediction requires retaiing several hours of data
-    // from the BME280 it seems beyond the scope of this application to do
-    // the calcuation, so 0 is always returned (No Info).
-    
-    // Note: In the Home Assistant environment the Temperature, Humidity, and
-    // Pressure values are sent as 3 separate MQTT messages. In the Domoticz
-    // environment the Temperature, Humidity, and Pressure values are sent as
-    // a single MQTT message.
+  // {"command":"udevice","idx":321,"svalue":"8.8;91;3;1029;0"}
+  // The svalue consists of fields in this order;
+  //   Temperature in C
+  //   Relative Humidity in %
+  //   Humidity Status
+  //   Barometric Pressure in HPa
+  //   Weather Prediction
+  
+  // Humidity Status can be one of 
+  //  HUM_NORMAL	value 0
+  //  HUM_COMFORTABLE	value 1
+  //  HUM_DRY		value 2
+  //  HUM_WET		value 3
+  // A suggested calculation from the Domoticz Forum:
+  //  if humidity <= 30 then HUM_DRY
+  //  else if humidity >= 70 then return HUM_WET
+  //  else if humidity >= 35 and
+  //    humidity <= 65 and
+  //    temperature >= 22 and
+  //    temperature <= 26 then HUM_COMFORTABLE
+  //  else HUM_NORMAL
+ 
+  // Weather Prediction values:
+  // From the Domoticz Forum https://www.domoticz.com/forum/viewtopic.php?t=36921
+  // For dummy devices the list is
+  // 0 { bmpbaroforecast_stable, "Stable" },
+  // 1 { bmpbaroforecast_sunny, "Sunny" },
+  // 2 { bmpbaroforecast_cloudy, "Cloudy" },
+  // 3 { bmpbaroforecast_unstable, "Unstable" },
+  // 4 { bmpbaroforecast_thunderstorm, "Thunderstorm" },
+  // 5 { bmpbaroforecast_unknown, "Unknown" },
+  // 6 { bmpbaroforecast_rain, "Cloudy/Rain" },
+  // 
+  // For other baro devices in native integrations, like in buienradar the list is different....
+  // 0 { wsbaroforecast_heavy_snow, "Heavy Snow" },
+  // 1 { wsbaroforecast_snow, "Snow" },
+  // 2 { wsbaroforecast_heavy_rain, "Heavy Rain" },
+  // 3 { wsbaroforecast_rain, "Rain" },
+  // 4 { wsbaroforecast_cloudy, "Cloudy" },
+  // 5 { wsbaroforecast_some_clouds, "Some Clouds" },
+  // 6 { wsbaroforecast_sunny, "Sunny" },
+  // 7 { wsbaroforecast_unknown, "Unknown" },
+  // 8 { wsbaroforecast_unstable, "Unstable" },
+  // 9 { wsbaroforecast_stable, "Stable" },
+  //
+  // From the Domoticz Forum https://www.domoticz.com/forum/viewtopic.php?t=39655
+  // For "Barometer" and "Temperature + Barometer", the following "Prediction"
+  // is given (this matches the "dummy" list above):
+  // 0: Stable
+  // 1: Sunny
+  // 2: Cloudy
+  // 3: Unstable
+  // 4: Thunderstorm
+  // 5: Unknown
+  // 6: Cloudy/Rain
+  //
+  // For "Temperature + Humidity + Barometer", the following "Prediction" is
+  // given (this seems to match what is happening in this application, or at
+  // least "0" matches):
+  // 0: No Info
+  // 1: Sunny
+  // 2: Partly Cloudy
+  // 3: Cloudy
+  // 4: Rain
+  //
+  // Calculating a weather predition is discussed in this link:
+  // https://wiki.seeedstudio.com/Wio-Terminal-TinyML-TFLM-2/
+  // Since calculating a prediction requires retaiing several hours of data
+  // from the BME280 it seems beyond the scope of this application to do
+  // the calcuation, so 0 is always returned (No Info).
+  
+  // Note: In the Home Assistant environment the Temperature, Humidity, and
+  // Pressure values are sent as 3 separate MQTT messages. In the Domoticz
+  // environment the Temperature, Humidity, and Pressure values are sent as
+  // a single MQTT message.
 
-  if (BME280_found == 1) {
+//  if (BME280_found == 1) {
+  if (stored_config_settings & 0x20) { // BME280 enabled?
 
     // Build the topic string
     strcpy(topic_base, "domoticz/in");
@@ -4245,7 +4429,7 @@ void publish_BME280(int8_t sensor)
       else if (hum_whole >= 70) hum_stat[0] = '3'; // HUM_WET
       else if (hum_whole >= 35 && hum_whole <= 65
             && comp_data_temperature >= 22 && comp_data_temperature <= 26)
-	    hum_stat[0] = '1'; // HUM_COMFORTABLE
+        hum_stat[0] = '1'; // HUM_COMFORTABLE
       else hum_stat[0] = '0'; // HUM_NORMAL
       strcat(app_message, hum_stat);
       strcat(app_message, ";");
@@ -4259,7 +4443,6 @@ void publish_BME280(int8_t sensor)
 
     // Add sensor pressure prediciton value. Use Default of 0 and add payload
     // termination.
-//    strcat(app_message, "0\",\"parse\":true}");
     strcat(app_message, "0\"}");
 
     // Queue publish message
@@ -4297,6 +4480,33 @@ void lock_eeprom(void)
 {
   // Lock the EEPROM so that it cannot be written. This clears the DUL bit.
   FLASH_IAPSR &= (uint8_t)(~0x08);
+}
+
+
+void update_settings_options(uint8_t select, uint8_t value)
+{
+  // Unlock the EEPROM, update the stored_config_settings or stored_options1
+  // or stored_options2, then Lock the EEPROM.
+  unlock_eeprom();
+  switch (select)
+  {
+    case UPDATE_CONFIG_SETTINGS: // Update stored_config_settings
+      if (value != stored_config_settings) {
+        stored_config_settings = value;
+      }
+      break;
+    case UPDATE_OPTIONS1: // Update stored_options1
+      if (value != stored_options1) {
+        stored_options1 = value;
+      }
+      break;
+    case UPDATE_OPTIONS2: // Update stored_options2
+      if (value != stored_options2) {
+        stored_options2 = value;
+      }
+      break;
+  }
+  lock_eeprom();
 }
 
 
@@ -4376,7 +4586,9 @@ void upgrade_EEPROM(void)
     stored_config_settings = 0;
     
     // Create default pin_control bytes
-    for (i=0; i<16; i++) stored_pin_control[i] = 0;
+    for (i=0; i<16; i++) {
+      stored_pin_control[i] = 0;
+    }
     
     // Set to the EEPROM revision for this code
     stored_EEPROM_revision1 = 0x01;
@@ -4390,11 +4602,6 @@ void upgrade_EEPROM(void)
 
 void check_eeprom_settings(void)
 {
-  int i;
-  char temp[20];
-  
-  i = 0;
-
   // Check magic number in EEPROM.
   //
   // If the magic number IS NOT found it is assumed that the EEPROM has never
@@ -4505,8 +4712,8 @@ void check_eeprom_settings(void)
     //   0 Invert set to Off
     //   0 | The two least significant bits define the pin type:
     //   0 | 00: Disabled  01: Input  10: Linked  11: Output
-    // THEN 16 bit registers are initialized
-    //   encode_16bit_registers()
+    // THEN bit registers are initialized
+    //   encode_bit_registers()
     // -------------------------------------------------------------------- //
     //
     // Write the default pin_control bytes to EEPROM
@@ -4520,11 +4727,11 @@ void check_eeprom_settings(void)
     //  Bytes 69 to 113:  Fill with zero
 
     {
-    // First 20 bytes - device name
-    static const uint8_t EEPROM_default_devicename[] = {
-    'N', 'e', 'w', 'D', 'e', 'v', 'i', 'c', 'e', '0', '0', '0', 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00 };
-    memcpy(&stored_devicename[0], EEPROM_default_devicename, 20);
+      // First 20 bytes - device name
+      static const uint8_t EEPROM_default_devicename[] = {
+      'N', 'e', 'w', 'D', 'e', 'v', 'i', 'c', 'e', '0', '0', '0', 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00 };
+      memcpy(&stored_devicename[0], EEPROM_default_devicename, 20);
     } // 20 bytes
     
     // 1 byte stored hardware options
@@ -4533,25 +4740,25 @@ void check_eeprom_settings(void)
     // Skip 2 bytes (the EEPROM revision bytes)
 
     {
-    // Next 30 bytes
-    static const uint8_t EEPROM_default_general[] = {
-    // 6 bytes MAC address (aka ethaddr)
-    0x00, 0x65, 0x6b, 0x69, 0x4d, 0xc2,
-    // 2 bytes HTML Port (8080)
-    0x1f, 0x90,
-    // 4 bytes Default Netmask (255.255.255.0)
-    0x00, 0xff, 0xff, 0xff,
-    // 4 bytes Default Gateway (192.168.1.1)
-    0x01, 0x01, 0xa8, 0xc0,
-    // 4 bytes Default IP Address (192.168.1.4)
-    0x04, 0x01, 0xa8, 0xc0,
-    // 4 bytes Magic Number
-    0xf0, 0x0f, 0xee, 0x55,
-    // 2 bytes MQTT Port (1883)
-    0x07, 0x5b,
-    // 4 bytes MQTT Server Address (0.0.0.0)
-    0x00, 0x00, 0x00, 0x00};
-    memcpy(&stored_uip_ethaddr_oct[0], EEPROM_default_general, 30);
+      // Next 30 bytes
+      static const uint8_t EEPROM_default_general[] = {
+      // 6 bytes MAC address (aka ethaddr)
+      0x00, 0x65, 0x6b, 0x69, 0x4d, 0xc2,
+      // 2 bytes HTML Port (8080)
+      0x1f, 0x90,
+      // 4 bytes Default Netmask (255.255.255.0)
+      0x00, 0xff, 0xff, 0xff,
+      // 4 bytes Default Gateway (192.168.1.1)
+      0x01, 0x01, 0xa8, 0xc0,
+      // 4 bytes Default IP Address (192.168.1.4)
+      0x04, 0x01, 0xa8, 0xc0,
+      // 4 bytes Magic Number
+      0xf0, 0x0f, 0xee, 0x55,
+      // 2 bytes MQTT Port (1883)
+      0x07, 0x5b,
+      // 4 bytes MQTT Server Address (0.0.0.0)
+      0x00, 0x00, 0x00, 0x00};
+      memcpy(&stored_uip_ethaddr_oct[0], EEPROM_default_general, 30);
     } // 30 bytes
     
     // Next 45 bytes are all 0
@@ -4561,16 +4768,14 @@ void check_eeprom_settings(void)
     //   Copy of Config settings 1 byte
     //   Config settings 1 byte
     //   STM8 pin_controls 16 bytes
-    memset(&stored_mqtt_username[0], 0, 45); // 45 bytes
+    memset(stored_mqtt_username, 0, 45); // 45 bytes
     
     // Skip 10 bytes (the debug_bytes)
     
     // Altitude 2 bytes
-    memset(&stored_altitude, 0, 2);
+    stored_altitude = 0;
 
     lock_eeprom();
-
-
   }
 
 
@@ -4580,7 +4785,7 @@ void check_eeprom_settings(void)
   //
   // The code above was run if the Magic Number did not match.
   //
-  // The next code is run regardless of matching Magic Number or not.
+  // The next code is run regardless of matching Magic Number.
   //
   // In the next code EEPROM content is copied to RAM variables.
   //
@@ -4589,7 +4794,649 @@ void check_eeprom_settings(void)
   // ********************************************************************** //
 
   // Read the values in the EEPROM to initialize the code variables.
+
+  // THE FOLLOWING IS NOW HANDLED IN apply_EEPROM_settings()
+//  // Read and use the IP Address from EEPROM
+//  uip_ipaddr(IpAddr,
+//             stored_hostaddr[3],
+//             stored_hostaddr[2],
+//             stored_hostaddr[1],
+//             stored_hostaddr[0]);
+//  uip_sethostaddr(IpAddr);
+//    
+//  // Read and use the Gateway Address from EEPROM
+//  uip_ipaddr(IpAddr,
+//             stored_draddr[3],
+//             stored_draddr[2],
+//             stored_draddr[1],
+//             stored_draddr[0]);
+//  uip_setdraddr(IpAddr);
+//    
+//  // Read and use the Netmask from EEPROM
+//  uip_ipaddr(IpAddr,
+//             stored_netmask[3],
+//             stored_netmask[2],
+//             stored_netmask[1],
+//             stored_netmask[0]);
+//  uip_setnetmask(IpAddr);
+//
+//  // Read and use the MQTT Server IP Address from EEPROM
+//  uip_ipaddr(IpAddr,
+//             stored_mqttserveraddr[3],
+//             stored_mqttserveraddr[2],
+//             stored_mqttserveraddr[1],
+//             stored_mqttserveraddr[0]);
+//  uip_setmqttserveraddr(IpAddr);
+//
+//
+//  // Read and use the MQTT Host Port from EEPROM
+//  Port_Mqttd = stored_mqttport;
+//
+//  // Read and use the HTTP Port from EEPROM
+//  Port_Httpd = stored_port;
+//    
+//  // Read and use the MAC from EEPROM
+//  // Set the MAC values used by the ARP code. Note the ARP code uses the
+//  // values in reverse order from all the other code.
+//  uip_ethaddr.addr[0] = stored_uip_ethaddr_oct[5]; // MSB
+//  uip_ethaddr.addr[1] = stored_uip_ethaddr_oct[4];
+//  uip_ethaddr.addr[2] = stored_uip_ethaddr_oct[3];
+//  uip_ethaddr.addr[3] = stored_uip_ethaddr_oct[2];
+//  uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
+//  uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
+
+
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+  {
+    // Check the IO Names in Flash to make sure they are not corrupted. The
+    // names must contain only * - . _ 0-9 A-Z a-z
+    // If any name is corrupted it is replaced with a name of format "IOxx"
+    // where xx is the pin number.  
+    //   IO Names might be corrupted if the device is programmed using
+    //   "Program/Current Tab" instead of "Program/Address Range".
+    //   "Program/Current Tab" will zero out the Flash area where these
+    //   variables are stored but will leave a valid magic number in
+    //   the EEPROM. If there is already an IO Name stored this code will
+    //   not change it. The IO Names might also be corrupted if MQTT code
+    //   is replaced with Browser Code, leaving a Magic Number in place but
+    //   failing to initialize the IO Names storage area.
+    // There are 16 names, 16 bytes each.
+    unlock_flash();
+    {
+      int i;
+      int j;
+      int fail;
+      char temp[16];
+      for (i=0; i<16; i++) {
+        // Build replacement name in case it is needed
+        memset(temp, 0, 16); // Fill temp with null
+        strcpy(temp, "IO");
+        emb_itoa(i+1, OctetArray, 10, 2);
+        strcat(temp, OctetArray);
+      
+        // Check name for corruption
+        fail = 0;
+        if (IO_NAME[i][0] == 0) fail = 1; // Name empty - not allowed
+        if (magic_number_missing_flag == 1) fail = 1; // New module - must init value.
+        for (j = 0; j < 16; j++) {
+          if (is_allowed_char(IO_NAME[i][j]) == 0) fail = 1;
+        }
+        if (fail == 1) {
+          // Write the default NAME to Flash
+          // Enable Word programming
+          FLASH_CR2 |= FLASH_CR2_WPRG;
+          FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+	  // Write word to Flash
+          memcpy(&IO_NAME[i][0], &temp[0], 4); // Write default name
+          // No "wait_timer" is needed. The spec says the CPU stalls
+          // while the word programming operates (takes about 6ms).
+	  
+	  // Fill the rest of the field with NULL
+          // Enable Word programming
+	  {
+	    int w;
+	    w = 4;
+	    while(w<16) {
+              FLASH_CR2 |= FLASH_CR2_WPRG;
+              FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+	      // Write word to Flash
+              memset(&IO_NAME[i][w], 0, 4); // Add NULL
+              // No "wait_timer" is needed. The spec says the CPU stalls
+              // while the word programming operates (takes about 6ms).
+	      w += 4;
+	    }
+	  }
+        }
+      }
+    }
     
+    // Initialize Flash memory that is used to store IO Timers for STM8 output
+    // pins.
+    // If the magic number didn't match all timers are set to zero.
+    // IO_TIMER bytes are written 4 bytes at a time to reduce Flash wear
+    if (magic_number_missing_flag == 1) {
+      int i;
+      i = 0;
+      while(i<16) {
+        // Enable Word programming
+        FLASH_CR2 |= FLASH_CR2_WPRG;
+        FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+	// Write word to Flash
+        memset(&IO_TIMER[i], 0, 4); // Fill with null
+        // No "wait_timer" is needed. The spec says the CPU stalls
+        // while the word programming operates (takes about 6ms).
+        i += 4;
+      }
+    }
+    else {
+      // If the magic number is present: Any 16 bit value is legitimate in the
+      // IO_TIMER values so it is not possible to check for corruption.
+    }
+    lock_flash();
+  
+  // THE FOLLOWING IS NOW HANDLED IN apply_EEPROM_settings()
+//  // Copy Flash IO_TIMER values to the Pending IO_TIMER variables for STM8
+//  // pins
+//  memcpy(&Pending_IO_TIMER[0], &IO_TIMER[0], 32);
+//
+//  // Zero out the pin_timer down counters. Leave the counter unit bits as-is.
+//  {
+//    int i;
+//    for (i=0; i<16; i++) {
+//      pin_timer[i] = pin_timer[i] & 0xc000;
+//    }
+//  }
+  }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+
+
+#if DOMOTICZ_SUPPORT == 1
+  {
+    // Domoticz code uses the IO NAME space in Flash to store Domoticz IDX
+    // values for the IO pins attached to the STM8 processor.
+    // Domoticz code also uses a separate Flash space to store the IDX values
+    // for the DS18B20 and BME280 Sensors.
+    // Domoticz code also uses the IO_NAME space in I2C EEPROM to store
+    // Domoticz IDX values for the IO pins attached to the PCF8574.
+    //
+    // The IO_NAME space allocates 16 bytes per pin for IO_NAME storage, or in
+    // this case for storage of the IDX values. Even though 16 bytes per pin is
+    // allocated, the IDX value is only allowed to be 6 bytes long.
+    //
+    // The Sensor_IDX space alloacated for the Sensors is 8 bytes per device,
+    // but again the IDX values are only allowed to be 6 bytes.
+    //
+    // The purpose of the code here is to make sure the IDX values stored in the
+    // IO_NAME space or in the Sensor_IDX sape are not corrupted. The names must
+    // contain only characters 0-9 and must be no longer than 6 bytes. If an IDX
+    // value does not meet this requirement it is replaced with a "0".
+    //
+    // Additionally, if it was determined that the magic number was missing at
+    // boot then it is assumed this is a new module and the IDX values will be
+    // initialized to "0".
+    //
+    // IDX values might be corrupted if the device is programmed using "Program/
+    // Current Tab" instead of "Program/Address Range 8000-FEBF". "Program/
+    // Current Tab" will zero out the Flash area where these variables are
+    // stored but will leave a valid magic number in the EEPROM.
+    //
+    // The IDX values might also be corrupted if Browser code is replaced with
+    // Domoticz MQTT Code, leaving a Magic Number in place but failing to
+    // initialize the IDX values storage area.
+    //
+    // If there is already an IDX value stored that meets the spec for an
+    // allowed name it will not be changed.
+    //
+    // Location of IDX storage space from main.h
+    // #define FLASH_START_IO_NAMES	0xff00 16x16 = 256 bytes
+    // #define FLASH_START_SENSOR_IDX	0xfe80 6x8 = 48 bytes
+ 
+ 
+    unlock_flash();
+    {
+      int i;
+      int j;
+      int fail;
+      char temp1[16];
+      char temp2[16];
+      
+      // Build replacement name in case it is needed
+      memset(temp1, 0, 16); // Fill temp1 with null
+      temp1[0] = '0';       // Set temp1 to string 0
+      
+      for (i=0; i<22; i++) {
+        // Check IDX storage for corruption.
+	// There are 16 IO_NAME fields associated with the STM8 IO pins.
+	// There are 6 Sensor_IDX fields associated with the Temperature
+	// sensors.
+	// The 16 IO_NAME fields are repurposed to contain IDX values and are
+	// each 16 bytes long, even thought the IDX value stored in the field
+	// is a maximum of 6 bytes.
+	// The 6 Sensor_IDX fields are dedicated for use as temperature sensor
+	// IDX values. The Sensor_IDX fiels are each 8 bytes long even though
+	// the IDX value stored in the field is a maximum of 6 bytes.
+	
+        memset(temp2, 0, 16); // Fill temp2 with null
+
+        if (i < 16) {
+	  // Retrieve STM8 IO pin IDX value contained in IO_NAME in Flash.
+	  memcpy(temp2, &IO_NAME[i][0], 16);
+//	  for (j=0; j<16; j++) {
+//	    temp2[j] = IO_NAME[i][j];
+//	  }
+	}
+        else {
+	  // Retrieve temperature Sensor IDX value contained in Sensor_ID in
+	  // Flash.
+          memcpy(temp2, &Sensor_IDX[i - 16][0], 8);
+//	  for (j=0; j<8; j++) {
+//	    temp2[j] = Sensor_IDX[i-16][j];
+//	  }
+	}
+
+        // Validate the retreived values.
+        fail = 0;
+        if (temp2[0] == 0) fail = 1; // Name is empty - not allowed.
+        if (temp2[6] != 0) fail = 1; // Name is too long - not allowed.
+        if (magic_number_missing_flag == 1) fail = 1; // New module - must init value.
+        for (j = 0; j < 16; j++) {
+          // Check for digits or NULL only
+          if (is_digit(temp2[j]) == 0) fail = 1;
+        }
+
+        if (fail == 1) {
+          int w;
+          // Write the default IDX value to Flash. 8 bytes are written even
+          // though we've already assured that the default value is a single
+          // character ("0") followed by a terminator.
+          // IDX bytes are written 4 bytes at a time to reduce Flash wear.
+          // Only 8 bytes need to be written regardless of whether they are
+          // stored in the repurposed IO_NAME space or in the Sensor_IDX space.
+          w = 0;
+	  
+	  if (i < 16) {
+	    // For IDX values stored in IO_NAME fields write 16 bytes to the
+	    // IO_NAME field.
+	    while(w < 16) {
+              // Enable Word programming
+              FLASH_CR2 |= FLASH_CR2_WPRG;
+              FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+	      // Write word to Flash
+	      memcpy(&IO_NAME[i][w], &temp1[w], 4);
+              // No "wait_timer" is needed. The spec says the CPU stalls
+              // while the word programming operates (takes about 6ms).
+              w += 4; // Loop runs twice
+	    }
+	  }
+	  
+	  else {
+	    // For IDX values stored in Sensor_IDX fields write 8 bytes to the
+	    // Sensor_IDX field.
+	    while (w < 8) {
+              // Enable Word programming
+              FLASH_CR2 |= FLASH_CR2_WPRG;
+              FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+	      // Write word to Flash
+	      memcpy(&Sensor_IDX[i - 16][w], &temp1[w], 4);
+              // No "wait_timer" is needed. The spec says the CPU stalls
+              // while the word programming operates (takes about 6ms).
+              w += 4; // Loop runs twice
+	    }
+	  }
+        }
+        else {
+          // Value already in the IDX Flash storage is valid and we don't need
+          // to do anything. Just go on to check the next value.
+        }
+      }
+    }
+    lock_flash();
+  }
+#endif // DOMOTICZ_SUPPORT == 1
+
+
+/*
+#if DOMOTICZ_SUPPORT == 1 && PCF8574_SUPPORT == 1
+  {
+    {
+      int i;
+      int j;
+      int w;
+      char temp1[8];
+      char temp2[8];
+      int fail;
+      
+      // Build replacement name in case it is needed
+      memset(temp1, 0, 8); // Fill temp with null
+      temp1[0] = '0');
+      
+      for (i=16; i<24; i++) {
+        // Read a PCF8574_IO_NAME value from I2C EEPROM. These are repurposed
+        // to contain IDX values.
+        // Checking the 8 IDX fields associated with the PCF8574 IO pins.
+        // Note: If PCF8574 is not supported (as in the MQTT Domoticz Standard
+        // build) then later code that attempts access to IO_NAME 16 to 23 will
+        // substitute "0" for the field.
+        copy_I2C_EEPROM_bytes_to_RAM(&temp2[0], 8, I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + ((i - 16) * 16), 2);
+        
+        // Check name for corruption
+        fail = 0;
+        if (temp2[0] == 0) fail = 1; // Name is empty - not allowed.
+        if (temp2[6] != 0) fail = 1; // Name is too long - not allowed.
+        if (magic_number_missing_flag == 1) fail = 1; // New module - must init value.
+        for (j = 0; j < 8; j++) {
+          // Check for digits or NULL only
+	  if (temp2[j] != 0) {
+            if (is_digit(temp2[j]) == 0) fail = 1;
+	  }
+        }
+      
+        if (fail == 1) {
+          // Write the default NAME to I2C EEPROM
+          copy_STM8_bytes_to_I2C_EEPROM(&temp1[0], 8, I2C_EEPROM_R2_WRITE, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + ((i - 16) * 16), 2);
+        }
+      }
+    }
+  }
+#endif // DOMOTICZ_SUPPORT == 1 && PCF8574_SUPPORT == 1
+*/
+
+
+#if LINKED_SUPPORT == 1
+  {
+    // Linked pin check:
+    //    Verify that there is no corruption in the EEPROM in the form of
+    //    Linked pins that do not have a partner (for example, pin 1 is
+    //    defined as Linked, but the partner pin 9 is not defined as Linked).
+    //    In such a case the EEPROM should have both pins set to Disabled.
+    //    Note: I think this could only happen if a user made manual edits to
+    //    the EEPROM, or if the GUI update process was interrupted by a power
+    //    fail.
+    int i;
+    for (i=0; i<8; i++) {
+      if (((stored_pin_control[i] & 0x03) == 0x02) || ((stored_pin_control[i+8] & 0x03) == 0x02)) {
+        // At least one pin is defined as Linked
+        if ((stored_pin_control[i] & 0x03) != (stored_pin_control[i+8] & 0x03)) {
+	  // One of the pins is not defined as Linked. Set both pins to Disabled.
+	  unlock_eeprom();
+	  stored_pin_control[i] = 0x00;
+	  stored_pin_control[i+8] = 0x00;
+	  lock_eeprom();
+	}
+        // else do nothing - the settings are OK.
+      }
+      // else do nothing - the settings are OK.
+    }
+  }
+#endif // LINKED_SUPPORT == 1
+
+
+  // Read the pin_control bytes from EEEPROM for STM8 pins
+  {
+    int i;
+    for (i=0; i<16; i++) pin_control[i] = stored_pin_control[i];
+  }
+
+
+#if LINKED_SUPPORT == 0
+  {
+    // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
+    // accordingly. Do this on Outputs only.
+    int i;
+    for (i=0; i<16; i++) {
+      if (((pin_control[i] & 0x08) == 0x00) && ((pin_control[i] & 0x03) == 0x03)) {
+        // Retain is not set and this is an output
+        if ((pin_control[i] & 0x10) == 0x00) {
+          // Force ON/OFF to zero
+          pin_control[i] &= 0x7f;
+        }
+        else if ((pin_control[i] & 0x10) == 0x10) {
+          // Force ON/OFF to one
+          pin_control[i] |= 0x80;
+        }
+        // else Retain the ON/OFF bit
+      }
+    }
+  }
+#endif // LINKED_SUPPORT == 0
+
+
+#if LINKED_SUPPORT == 1
+  {
+    // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
+    // accordingly. Do this on Outputs only.
+    int i;
+    for (i=0; i<16; i++) {
+      if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+        // Pin is an Output and Retain is not set
+        if ((pin_control[i] & 0x18) == 0x00) {
+          // Retain is not set, and Force Zero is indicated
+          pin_control[i] &= 0x7f;
+        }
+        else if ((pin_control[i] & 0x18) == 0x10) {
+          // Retain is not set, and Force One is indicated
+          pin_control[i] |= 0x80;
+        }
+      }
+      // else do nothing so that the ON/OFF bit is retained
+    }
+  }
+#endif // LINKED_SUPPORT == 1
+
+  // THE FOLLOWING IS NOW HANDLED IN apply_EEPROM_settings()
+//  // Update Pending_pin_control bytes
+//  // Do NOT update the stored_pin_control at this point as we've only
+//  // manipulated the output state and we don't want to update the output
+//  // state in the stored_pin_control if Retain is turned on. That will be
+//  // handled later in the check_runtime_changes() function.
+//  for (i=0; i<16; i++) Pending_pin_control[i] = pin_control[i];
+//
+//
+//  for (i=0; i<4; i++) {
+//    Pending_hostaddr[i] = stored_hostaddr[i];
+//    Pending_draddr[i] = stored_draddr[i];
+//    Pending_netmask[i] = stored_netmask[i];
+//    Pending_mqttserveraddr[i] = stored_mqttserveraddr[i];
+//  }
+//  
+//  Pending_port = stored_port;
+//  Pending_mqttport = stored_mqttport;
+//  
+//  memcpy(&Pending_devicename[0], &stored_devicename[0], 20);
+
+  // ---------------------------------------------------------------------- //
+  // Verify that the stored_config_settings and stored_options are
+  // compatible with the build selected. The reason for this is that a new
+  // code load can be applied and the previous code load may have used
+  // config_settings or options that are incompatible with the new code load.
+  // For instance, suppose that a standard MQTT build is used and Pinout
+  // Option 2 is selected. Then an upgradeable MQTT build is applied. Pinout
+  // Option 1 is the only Pinout Option allowed with an upgradeable MQTT
+  // build.
+  // ---------------------------------------------------------------------- //
+  
+#if BUILD_TYPE_MQTT_HOME_STANDARD == 1
+  {
+    uint8_t i;
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xdf; // Turn off BME280
+    update_settings_options(UPDATE_CONFIG_SETTINGS, i);
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xd7; // Turn off PCF8574
+    update_settings_options(UPDATE_OPTIONS1, i);
+  }
+#endif // BUILD_TYPE_MQTT_HOME_STANDARD == 1
+
+#if BUILD_TYPE_MQTT_DOMO_STANDARD == 1
+  {
+    uint8_t i;
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xdd; // Turn off BME280, turn off Home Assistant Auto Discovery
+    // stored_config_settings
+    // Bit 7: Undefined, 0 only
+    // Bit 6: Undefined, 0 only
+    // Bit 5: BME280
+    // Bit 4: Disable Cfg Button
+    // Bit 3: DS18B20
+    // Bit 2: MQTT
+    // Bit 1: Home Assistant Auto Discovery
+    // Bit 0: Duplex
+    update_settings_options(UPDATE_CONFIG_SETTINGS, i);
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xd7; // Turn off PCF8574
+    update_settings_options(UPDATE_OPTIONS1, i);
+  }
+#endif // BUILD_TYPE_MQTT_DOMO_STANDARD == 1
+
+#if BUILD_TYPE_BROWSER_STANDARD == 1
+  {
+    uint8_t i;
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xd9; // Turn off BME280, Turn off MQTT, Turn off HA
+    update_settings_options(UPDATE_CONFIG_SETTINGS, i);
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf7; // Turn off PCF8574
+    update_settings_options(UPDATE_OPTIONS1, i);
+  }
+#endif // BUILD_TYPE_BROWSER_STANDARD == 1
+
+#if BUILD_TYPE_MQTT_HOME_UPGRADEABLE == 1
+  {
+    uint8_t i;
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xdf; // Turn off BME280
+    update_settings_options(UPDATE_CONFIG_SETTINGS, i);
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf9; // Force to Pinout Option 1
+               // Note: Don't touch the PCF8574 enable bit. If already
+	       // enabled it can be left enabled. If not enabled, the
+	       // PCF8574_init() function in startup code will check if it
+	       // should be enabled or disabled.
+    update_settings_options(UPDATE_OPTIONS1, i);
+  }
+#endif // BUILD_TYPE_MQTT_HOME_UPGRADEABLE == 1
+
+#if BUILD_TYPE_MQTT_DOMO_UPGRADEABLE == 1
+  {
+    uint8_t i;
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xdd; // Turn off BME280, Turn off Home Assistant Auto Discovery
+    update_settings_options(UPDATE_CONFIG_SETTINGS, i);
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf9; // Force to Pinout Option 1
+               // Note: Don't touch the PCF8574 enable bit. If already
+	       // enabled it can be left enabled. If not enabled, the
+	       // PCF8574_init() function in startup code will check if it
+	       // should be enabled or disabled.
+    update_settings_options(UPDATE_OPTIONS1, i);
+  }
+#endif // BUILD_TYPE_MQTT_DOMO_UPGRADEABLE == 1
+
+#if BUILD_TYPE_BROWSER_UPGRADEABLE == 1
+  {
+    uint8_t i;
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xd9; // Turn off BME280, Turn off MQTT, Turn off HA
+    update_settings_options(UPDATE_CONFIG_SETTINGS, i);
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf9; // Force to Pinout Option 1
+               // Note: Don't touch the PCF8574 enable bit. If already
+	       // enabled it can be left enabled. If not enabled, the
+	       // PCF8574_init() function in startup code will check if it
+	       // should be enabled or disabled.
+    update_settings_options(UPDATE_OPTIONS1, i);
+  }
+#endif // BUILD_TYPE_BROWSER_UPGRADEABLE == 1
+
+#if BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE == 1
+  {
+    uint8_t i;
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xf7; // Turn off DS18B20
+    update_settings_options(UPDATE_CONFIG_SETTINGS, i);
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf1; // Turn off PCF8574, Force to Pinout Option 1
+    update_settings_options(UPDATE_OPTIONS1, i);
+  }
+#endif // BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE == 1
+
+#if BUILD_TYPE_MQTT_DOMO_BME280_UPGRADEABLE == 1
+  {
+    uint8_t i;
+    // Validate stored_config_settings
+    i = stored_config_settings;
+    i &= 0xf7; // Turn off DS18B20
+    update_settings_options(UPDATE_CONFIG_SETTINGS, i);
+    // Validate stored_options
+    i = stored_options1;
+    i &= 0xf1; // Turn off PCF8574, Force to Pinout Option 1
+    update_settings_options(UPDATE_OPTIONS1, i);
+  }
+#endif // BUILD_TYPE_MQTT_DOMO_BME280_UPGRADEABLE == 1
+
+#if BUILD_TYPE_CODE_UPLOADER == 1
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+//  {
+//    uint8_t i;
+//    // Validate stored_options2
+//    // If new code is loaded the Login function must be disabled to prevent
+//    // inadvertant lockout.
+//    i = stored_options2;
+//    i &= 0xbf; // Turn off the Login function
+//    update_settings_options(UPDATE_OPTIONS2, i);
+//  }
+#endif // BUILD_TYPE_MQTT_DOMO_BME280_UPGRADEABLE == 1
+
+  // THE FOLLOWING IS NOW HANDLED IN apply_EEPROM_settings()
+//  Pending_config_settings = stored_config_settings;
+//
+//  memcpy(&Pending_uip_ethaddr_oct[0], &stored_uip_ethaddr_oct[0], 6);
+//
+//  for (i=0; i<11; i++) {
+//    Pending_mqtt_username[i] = stored_mqtt_username[i];
+//    Pending_mqtt_password[i] = stored_mqtt_password[i];
+//  }
+//  
+//  // Update the MAC string. This updates a global.
+//  update_mac_string();
+//  
+//#if BUILD_SUPPORT == MQTT_BUILD
+//  // If the MQTT Enable bit is set in the Config settings set the mqtt_enabled
+//  // bit so that the MQTT feature is enabled. This is needed even if no pins
+//  // are enabled so that the temperature sensor reporting will work.
+//  if (stored_config_settings & 0x04) mqtt_enabled = 1;
+//#endif // BUILD_SUPPORT == MQTT_BUILD
+
+}
+
+
+
+
+
+
+
+void apply_EEPROM_settings(void)
+{
   // Read and use the IP Address from EEPROM
   uip_ipaddr(IpAddr,
              stored_hostaddr[3],
@@ -4638,494 +5485,72 @@ void check_eeprom_settings(void)
   uip_ethaddr.addr[3] = stored_uip_ethaddr_oct[2];
   uip_ethaddr.addr[4] = stored_uip_ethaddr_oct[1];
   uip_ethaddr.addr[5] = stored_uip_ethaddr_oct[0]; // LSB
-
-
-
+  
+  
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  // Check the IO Names in Flash to make sure they are not corrupted. The
-  // names must contain only * - . _ 0-9 A-Z a-z
-  // If any name is corrupted it is replaced with a name of format "IOxx"
-  // where xx is the pin number.  
-  //   IO Names might be corrupted if the device is programmed using
-  //   "Program/Current Tab" instead of "Program/Address Range".
-  //   "Program/Current Tab" will zero out the Flash area where these
-  //   variables are stored but will leave a valid magic number in
-  //   the EEPROM. If there is already an IO Name stored this code will
-  //   not change it. The IO Names might also be corrupted if MQTT code
-  //   is replaced with Browser Code, leaving a Magic Number in place but
-  //   failing to initialize the IO Names storage area.
-  // There are 16 names, 16 bytes each.
-  unlock_flash();
   {
-    int i;
-    int j;
-    int fail;
-    char temp[16];
-    for (i=0; i<16; i++) {
-      // Build replacement name in case it is needed
-      memset(&temp[0], 0, 16); // Fill temp with null
-      strcpy(temp, "IO");
-      emb_itoa(i+1, OctetArray, 10, 2);
-      strcat(temp, OctetArray);
+    // Copy Flash IO_TIMER values to the Pending IO_TIMER variables for STM8
+    // pins
+    memcpy(&Pending_IO_TIMER[0], &IO_TIMER[0], 32);
     
-      // Check name for corruption
-      fail = 0;
-      if (IO_NAME[i][0] == 0) fail = 1; // Name empty - not allowed
-      if (magic_number_missing_flag == 1) fail = 1; // New module - must init value.
-      for (j = 0; j < 16; j++) {
-        if (is_allowed_char(IO_NAME[i][j]) == 0) fail = 1;
-      }
-      if (fail == 1) {
-        // Write the default NAME to Flash
-        // Enable Word Write Once - enables a 4 byte write to Flash	
-        FLASH_CR2 |= FLASH_CR2_WPRG;
-        FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-        memcpy(&IO_NAME[i][0], &temp, 4); // Write default name
-        // Enable Word Write Once - enables a 4 byte write to Flash	
-        FLASH_CR2 |= FLASH_CR2_WPRG;
-        FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-        memset(&IO_NAME[i][4], 0, 4); // Add NULL
+    // Zero out the pin_timer down counters. Leave the counter unit bits as-is.
+    {
+      int i;
+      for (i=0; i<16; i++) {
+        pin_timer[i] = pin_timer[i] & 0xc000;
       }
     }
   }
-  
-  // Initialize Flash memory that is used to store IO Timers for STM8 output
-  // pins.
-  // If the magic number didn't match all timers are set to zero.
-  // IO_TIMER bytes are written 4 bytes at a time to reduce Flash wear
-  if (magic_number_missing_flag == 1) {
-    i = 0;
-    while(i<16) {
-      // Enable Word Write Once
-      FLASH_CR2 |= FLASH_CR2_WPRG;
-      FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-      memset(&IO_TIMER[i], 0, 4);
-      i += 4;
-    }
-  }
-  else {
-    // If the magic number is present: Any 16 bit value is legitimate in the
-    // IO_TIMER values so it is not possible to check for corruption.
-  }
-  lock_flash();
-  
-  // Copy Flash IO_TIMER values to the Pending IO_TIMER variables for STM8
-  // pins
-  memcpy(&Pending_IO_TIMER[0], &IO_TIMER[0], 32);
-
-  // Zero out the pin_timer down counters. Leave the counter unit bits as-is.
-  {
-    int i;
-    for (i=0; i<16; i++) {
-      pin_timer[i] = pin_timer[i] & 0xc000;
-    }
-  }
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
-
-
-#if DOMOTICZ_SUPPORT == 1
-  // Domoticz code uses the IO NAME space in Flash to store Domoticz IDX
-  // values for the IO pins attached to the STM8 processor.
-  // Domoticz code also uses a separate Flash space to store the IDX values
-  // for the DS18B20 and BME280 Sensors.
-  // Domoticz code also uses the IO_NAME space in I2C EEPROM to store
-  // Domoticz IDX values for the IO pins attached to the PCF8574.
-  //
-  // The IO_NAME space allocates 16 bytes per pin for IO_NAME storage, or in
-  // this case for storage of the IDX values. Even though 16 bytes per pin is
-  // allocated, the IDX value is only allowed to be 6 bytes long.
-  //
-  // The Sensor_IDX space alloacated for the Sensors is 8 bytes per device,
-  // but again the IDX values are only allowed to be 6 bytes.
-  //
-  // The purpose of the code here is to make sure the IDX values stored in the
-  // IO_NAME space or in the Sensor_IDX sape are not corrupted. The names must
-  // contain only characters 0-9 and must be no longer than 6 bytes. If an IDX
-  // value does not meet this requirement it is replaced with a "0".
-  //
-  // Additionally, if it was determined that the magic number was missing at
-  // boot then it is assumed this is a new module and the IDX values will be
-  // initialized to "0".
-  //
-  // IDX values might be corrupted if the device is programmed using "Program/
-  // Current Tab" instead of "Program/Address Range 8000-FEBF". "Program/
-  // Current Tab" will zero out the Flash area where these variables are
-  // stored but will leave a valid magic number in the EEPROM.
-  //
-  // The IDX values might also be corrupted if Browser code is replaced with
-  // Domoticz MQTT Code, leaving a Magic Number in place but failing to
-  // initialize the IDX values storage area.
-  //
-  // If there is already an IDX value stored that meets the spec for an
-  // allowed name it will not be changed.
-  //
-  // Location of IDX storage space from main.h
-  // #define FLASH_START_IO_NAMES	0xff00 16x16 = 256 bytes
-  // #define FLASH_START_SENSOR_IDX	0xfe80 6x8 = 48 bytes
-  
-  unlock_flash();
-  {
-    int i;
-    int j;
-    int fail;
-    char temp1[8];
-    char temp2[8];
-    
-    // Build replacement name in case it is needed
-    memset(&temp1[0], 0, 8); // Fill temp1 with null
-    temp1[0] = '0';       // Set temp1 to string 0
-    
-    for (i=0; i<22; i++) {
-      // Check name for corruption
-      // Checking the 16 IO_NAME fields associated with the IO pins and the
-      // 6 Sensor_IDX names associated with the Temperature sensors. The
-      // IO_NAME fields are repurposed to contain IDX values, and of course
-      // the Sensor_IDX fields are IDX values.
-      if (i < 16) memcpy(&temp2, &IO_NAME[i], 8);
-      else memcpy(&temp2, &Sensor_IDX[i - 16], 8);
-      fail = 0;
-      if (temp2[0] == 0) fail = 1; // Name is empty - not allowed.
-      if (temp2[6] != 0) fail = 1; // Name is too long - not allowed.
-      if (magic_number_missing_flag == 1) fail = 1; // New module - must init value.
-      for (j = 0; j < 6; j++) {
-	// Check for digits or NULL only
-        if (is_digit(temp2[j]) == 0) fail = 1;
-      }
-      if (fail == 1) {
-        int w;
-        // Write the default IDX value to Flash. 8 bytes are written even
-	// though we've already assured that the default value is a single
-	// character ("0") followed by a terminator.
-        // IDX bytes are written 4 bytes at a time to reduce Flash wear.
-	// Only 8 bytes need to be written regardless of whether they are
-	// stored in the repurposed IO_NAME space or in the Sensor_IDX space.
-        w = 0;
-        while(w < 8) {
-          // Enable Word Write Once - enables a 4 byte write to Flash
-          FLASH_CR2 |= FLASH_CR2_WPRG;
-          FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
-          if (i < 16) memcpy(&IO_NAME[i][w], &temp1[w], 4);
-          else memcpy(&Sensor_IDX[i - 16][w], &temp1[w], 4);
-          w += 4; // Loop runs twice
-        }
-      }
-      else {
-        // Value already in the IDX Flash storage is valid and we don't need
-	// to do anything. Just go on to check the next value.
-      }
-    }
-  }
-  lock_flash();
-  
-  
-#if PCF8574_SUPPORT == 1
-  {
-    int i;
-    int j;
-    int w;
-    char temp1[8];
-    char temp2[8];
-    int fail;
-    
-    // Build replacement name in case it is needed
-    memset(&temp1[0], 0, 8); // Fill temp with null
-    strcpy(temp1, "0");
-    
-    for (i=16; i<24; i++) {
-      // Read a PCF8574_IO_NAME value from I2C EEPROM. These are repurposed
-      // to contain IDX values.
-      // Checking the 8 IDX fields associated with the PCF8574 IO pins.
-      // Note: If PCF8574 is not supported (as in the MQTT Domoticz Standard
-      // build) then later code that attempts access to IO_NAME 16 to 23 will
-      // substitute "0" for the field.
-      prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + ((i - 16) * 16), 2);
-      for (j=0; j<8; j++) {
-        temp2[j] = I2C_read_byte(0);
-      }
-      temp2[8] = I2C_read_byte(1);
-      
-      // Check name for corruption
-      fail = 0;
-      if (temp2[0] == 0) fail = 1; // Name is empty - not allowed.
-      if (temp2[6] != 0) fail = 1; // Name is too long - not allowed.
-      if (magic_number_missing_flag == 1) fail = 1; // New module - must init value.
-      for (j = 0; j < 8; j++) {
-        // Check for digits or NULL only
-        if (is_digit(temp2[j]) == 0) fail = 1;
-      }
-      
-      if (fail == 1) {
-        // Write the default NAME to I2C EEPROM
-        I2C_control(I2C_EEPROM2_WRITE);
-        I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + ((i - 16) * 16), 2);
-        for (w=0; w<8; w++) {
-          I2C_write_byte(temp1[w]);
-        }
-        I2C_stop(); // Start the EEPROM internal write cycle
-        wait_timer(5000); // Wait 5ms
-      }
-    }
-  }
-#endif // PCF8574_SUPPORT == 1
-#endif // DOMOTICZ_SUPPORT == 1
-
-
-#if LINKED_SUPPORT == 1
-  {
-    // Linked pin check:
-    //    Verify that there is no corruption in the EEPROM in the form of
-    //    Linked pins that do not have a partner (for example, pin 1 is
-    //    defined as Linked, but the partner pin 9 is not defined as Linked).
-    //    In such a case the EEPROM should have both pins set to Disabled.
-    //    Note: I think this could only happen if a user made manual edits to
-    //    the EEPROM, or if the GUI update process was interrupted by a power
-    //    fail.
-    int i;
-    for (i=0; i<8; i++) {
-      if (((stored_pin_control[i] & 0x03) == 0x02) || ((stored_pin_control[i+8] & 0x03) == 0x02)) {
-        // At least one pin is defined as Linked
-        if ((stored_pin_control[i] & 0x03) != (stored_pin_control[i+8] & 0x03)) {
-	  // One of the pins is not defined as Linked. Set both pins to Disabled.
-	  unlock_eeprom();
-	  stored_pin_control[i] = 0x00;
-	  stored_pin_control[i+8] = 0x00;
-	  lock_eeprom();
-	}
-        // else do nothing - the settings are OK.
-      }
-      // else do nothing - the settings are OK.
-    }
-  }
-#endif // LINKED_SUPPORT == 1
-
-
-  // Read the pin_control bytes from EEEPROM for STM8 pins
-  for (i=0; i<16; i++) pin_control[i] = stored_pin_control[i];
-
-
-#if LINKED_SUPPORT == 0
-  // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
-  // accordingly. Do this on Outputs only.
-  for (i=0; i<16; i++) {
-    if (((pin_control[i] & 0x08) == 0x00) && ((pin_control[i] & 0x03) == 0x03)) {
-      // Retain is not set and this is an output
-      if ((pin_control[i] & 0x10) == 0x00) {
-        // Force ON/OFF to zero
-        pin_control[i] &= 0x7f;
-      }
-      else if ((pin_control[i] & 0x10) == 0x10) {
-        // Force ON/OFF to one
-        pin_control[i] |= 0x80;
-      }
-      // else Retain the ON/OFF bit
-    }
-  }
-#endif // LINKED_SUPPORT == 0
-
-
-#if LINKED_SUPPORT == 1
-  // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
-  // accordingly. Do this on Outputs only.
-  for (i=0; i<16; i++) {
-    if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
-      // Pin is an Output and Retain is not set
-      if ((pin_control[i] & 0x18) == 0x00) {
-        // Retain is not set, and Force Zero is indicated
-        pin_control[i] &= 0x7f;
-      }
-      else if ((pin_control[i] & 0x18) == 0x10) {
-        // Retain is not set, and Force One is indicated
-        pin_control[i] |= 0x80;
-      }
-    }
-    // else do nothing so that the ON/OFF bit is retained
-  }
-#endif // LINKED_SUPPORT == 1
-
+#endif BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
   // Update Pending_pin_control bytes
   // Do NOT update the stored_pin_control at this point as we've only
   // manipulated the output state and we don't want to update the output
   // state in the stored_pin_control if Retain is turned on. That will be
   // handled later in the check_runtime_changes() function.
-  for (i=0; i<16; i++) Pending_pin_control[i] = pin_control[i];
-
-
-  for (i=0; i<4; i++) {
-    Pending_hostaddr[i] = stored_hostaddr[i];
-    Pending_draddr[i] = stored_draddr[i];
-    Pending_netmask[i] = stored_netmask[i];
-    Pending_mqttserveraddr[i] = stored_mqttserveraddr[i];
-  }
-  
-  Pending_port = stored_port;
-  Pending_mqttport = stored_mqttport;
-  
-  memcpy(&Pending_devicename[0], &stored_devicename[0], 20);
-
-  // ---------------------------------------------------------------------- //
-  // Verify that the stored_config_settings and stored_options are
-  // compatible with the build selected. The reason for this is that a new
-  // code load can be applied and the previous code load may have used
-  // config_settings or options that are incompatible with the new code load.
-  // For instance, suppose that a standard MQTT build is used and Pinout
-  // Option 2 is selected. Then an upgradeable MQTT build is applied. Pinout
-  // Option 1 is the only Pinout Option allowed with an upgradeable MQTT
-  // build.
-  // ---------------------------------------------------------------------- //
-  
-#if BUILD_TYPE_MQTT_HOME_STANDARD == 1
   {
-    uint8_t i;
-    unlock_eeprom();
-    // Validate stored_config_settings
-    i = stored_config_settings;
-    i &= 0xdf; // Turn off BME280
-    if (stored_config_settings != i) stored_config_settings = i;
-    // Validate stored_options
-    i = stored_options1;
-    i &= 0xd7; // Turn off PCF8574
-    if (stored_options1 != i) stored_options1 = i;
-    lock_eeprom();
+    int i;
+    for (i=0; i<16; i++) Pending_pin_control[i] = pin_control[i];
   }
-#endif // BUILD_TYPE_MQTT_HOME_STANDARD == 1
 
-#if BUILD_TYPE_MQTT_DOMO_STANDARD == 1 
-  {
-    uint8_t i;
-    unlock_eeprom();
-    // Validate stored_config_settings
-    i = stored_config_settings;
-    i &= 0xdd; // Turn off BME280, turn off Home Assistant Auto Discovery
-    // stored_config_settings
-    // Bit 7: Undefined, 0 only
-    // Bit 6: Undefined, 0 only
-    // Bit 5: BME280
-    // Bit 4: Disable Cfg Button
-    // Bit 3: DS18B20
-    // Bit 2: MQTT
-    // Bit 1: Home Assistant Auto Discovery
-    // Bit 0: Duplex
-    if (stored_config_settings != i) stored_config_settings = i;
-    // Validate stored_options
-    i = stored_options1;
-    i &= 0xd7; // Turn off PCF8574
-    if (stored_options1 != i) stored_options1 = i;
-    lock_eeprom();
-  }
-#endif // BUILD_TYPE_MQTT_DOMO_STANDARD == 1 
 
-#if BUILD_TYPE_BROWSER_STANDARD == 1
-  {
-    uint8_t i;
-    unlock_eeprom();
-    // Validate stored_config_settings
-    i = stored_config_settings;
-    i &= 0xd9; // Turn off BME280, Turn off MQTT, Turn off HA
-    if (stored_config_settings != i) stored_config_settings = i;
-    // Validate stored_options
-    i = stored_options1;
-    i &= 0xf7; // Turn off PCF8574
-    if (stored_options1 != i) stored_options1 = i;
-    lock_eeprom();
-  }
-#endif // BUILD_TYPE_BROWSER_STANDARD == 1
+//  {
+//    int i;
+//    for (i=0; i<4; i++) {
+//      Pending_hostaddr[i] = stored_hostaddr[i];
+//      Pending_draddr[i] = stored_draddr[i];
+//      Pending_netmask[i] = stored_netmask[i];
+//      Pending_mqttserveraddr[i] = stored_mqttserveraddr[i];
+//    }
+//  }
+//  
+//  Pending_port = stored_port;
+//  Pending_mqttport = stored_mqttport;
+//  
+//  memcpy(&Pending_devicename[0], &stored_devicename[0], 20);
 
-#if BUILD_TYPE_MQTT_HOME_UPGRADEABLE == 1
-  {
-    uint8_t i;
-    unlock_eeprom();
-    // Validate stored_config_settings
-    i = stored_config_settings;
-    i &= 0xdf; // Turn off BME280
-    if (stored_config_settings != i) stored_config_settings = i;
-    // Validate stored_options
-    i = stored_options1;
-    i &= 0xf9; // Force to Pinout Option 1
-               // Note: Don't touch the PCF8574 enable bit. If already
-	       // enabled it can be left enabled. If not enabled, the
-	       // PCF8574_init() function in startup code will check if it
-	       // should be enabled or disabled.
-    if (stored_options1 != i) stored_options1 = i;
-    lock_eeprom();
-  }
-#endif // BUILD_TYPE_MQTT_HOME_UPGRADEABLE == 1
 
-#if BUILD_TYPE_MQTT_DOMO_UPGRADEABLE == 1
-  {
-    uint8_t i;
-    unlock_eeprom();
-    // Validate stored_config_settings
-    i = stored_config_settings;
-    i &= 0xdd; // Turn off BME280, Turn off Home Assistant Auto Discovery
-    if (stored_config_settings != i) stored_config_settings = i;
-    // Validate stored_options
-    i = stored_options1;
-    i &= 0xf9; // Force to Pinout Option 1
-               // Note: Don't touch the PCF8574 enable bit. If already
-	       // enabled it can be left enabled. If not enabled, the
-	       // PCF8574_init() function in startup code will check if it
-	       // should be enabled or disabled.
-    if (stored_options1 != i) stored_options1 = i;
-    lock_eeprom();
-  }
-#endif // BUILD_TYPE_MQTT_DOMO_UPGRADEABLE == 1
 
-#if BUILD_TYPE_BROWSER_UPGRADEABLE == 1
-  {
-    uint8_t i;
-    unlock_eeprom();
-    // Validate stored_config_settings
-    i = stored_config_settings;
-    i &= 0xd9; // Turn off BME280, Turn off MQTT, Turn off HA
-    if (stored_config_settings != i) stored_config_settings = i;
-    // Validate stored_options
-    i = stored_options1;
-    i &= 0xf9; // Force to Pinout Option 1
-               // Note: Don't touch the PCF8574 enable bit. If already
-	       // enabled it can be left enabled. If not enabled, the
-	       // PCF8574_init() function in startup code will check if it
-	       // should be enabled or disabled.
-    if (stored_options1 != i) stored_options1 = i;
-    lock_eeprom();
-  }
-#endif // BUILD_TYPE_BROWSER_UPGRADEABLE == 1
-
-#if BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE == 1
-  {
-    uint8_t i;
-    unlock_eeprom();
-    // Validate stored_config_settings
-    i = stored_config_settings;
-    i &= 0xf7; // Turn off DS18B20
-    if (stored_config_settings != i) stored_config_settings = i;
-    // Validate stored_options
-    i = stored_options1;
-    i &= 0xf1; // Turn off PCF8574, Force to Pinout Option 1
-    if (stored_options1 != i) stored_options1 = i;
-    lock_eeprom();
-  }
-#endif // BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE == 1
 
   Pending_config_settings = stored_config_settings;
 
-  memcpy(&Pending_uip_ethaddr_oct[0], &stored_uip_ethaddr_oct[0], 6);
+//  memcpy(&Pending_uip_ethaddr_oct[0], &stored_uip_ethaddr_oct[0], 6);
 
-  for (i=0; i<11; i++) {
-    Pending_mqtt_username[i] = stored_mqtt_username[i];
-    Pending_mqtt_password[i] = stored_mqtt_password[i];
-  }
+//  {
+//    int i;
+//    for (i=0; i<11; i++) {
+//      Pending_mqtt_username[i] = stored_mqtt_username[i];
+//      Pending_mqtt_password[i] = stored_mqtt_password[i];
+//    }
+//  }
   
-  // Update the MAC string
+  // Update the MAC string. This updates a global.
   update_mac_string();
-  
-#if BUILD_SUPPORT == MQTT_BUILD
-  // If the MQTT Enable bit is set in the Config settings set the mqtt_enabled
-  // bit so that the MQTT feature is enabled. This is needed even if no pins
-  // are enabled so that the temperature sensor reporting will work.
-  if (stored_config_settings & 0x04) mqtt_enabled = 1;
-#endif // BUILD_SUPPORT == MQTT_BUILD
 }
+
+
+
+
 
 
 void apply_PCF8574_pin_settings(void)
@@ -5145,363 +5570,338 @@ void apply_PCF8574_pin_settings(void)
 // #endif // PCF8574_SUPPORT == 0
 
 #if PCF8574_SUPPORT == 1
-  // If PCF8574 support is in the build this function updates the PCF8574 pin
-  // settings in I2C EEPROM. The check_runtime_chages() function will be
-  // called from the main.c loop to actually write the Output pins on the STM8
-  // and PCF8574.
-  
-  // With the exception of a few lines of code at the very end of this
-  // function this code is ONLY used when PCF8574_SUPPORT is compiled.
-  
-  // PCF8574 pin settings are:
-  //   pin_control bits
-  //   IO_NAMES
-  //   IO_TIMERS
-  // This cannot run until after gpio_init() is run because the PCF8574
-  // function needs to access the I2C EEPROM via the I2C bus on pins 14
-  // and 15.
-  
-  // Some functionality needs to run first if check_eeprom_settings() found
-  // that there was no Magic Number in the EEPROM.
-  
-  if (magic_number_missing_flag == 1) {
-    // check_eeprom_settings() did not find a Magic Number at boot time. The
-    // check_eeprom_settings() function will have established the Magic
-    // Number, but this function still needs to provide initialization of
-    // the PCF8574 settings and variables.
-
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-    // Initialize I2C EEPROM memory that is used to store pin_control
-    // values for PCF8574 pins.
-    // Since the magic number didn't match all pins are set to zero.
-    {
-      int i;
-      I2C_control(I2C_EEPROM2_WRITE);
-      I2C_byte_address(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE, 2);
-      for (i=0; i<8; i++) {
-        I2C_write_byte(0);
-      }
-      I2C_stop(); // Start the EEPROM internal write cycle
-      wait_timer(5000); // Wait 5ms
-    }
-
-
-    // Initialize I2C EEPROM memory that is used to store IO Timers for
-    // PCF8574 output pins.
-    // Since the magic number didn't match all timers are set to zero.
-    // There are 8 timers, 4 bytes each. Write 0 to 32 bytes.
-    {
-      int i;
-      I2C_control(I2C_EEPROM2_WRITE);
-      I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_TIMERS, 2);
-      for (i=0; i<32; i++) {
-        I2C_write_byte(0);
-      }
-      I2C_stop(); // Start the EEPROM internal write cycle
-      wait_timer(5000); // Wait 5ms
-    }
-
-
-    // Initialize I2C EEPROM memory that is used to store IO Names for
-    // PCF8574 output pins.
-    // Since the magic number didn't match all names are set to default.
-    // There are 8 names, 16 bytes each. Write 128 bytes.
-    I2C_control(I2C_EEPROM2_WRITE);
-    I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES, 2);
-    {
-      char temp[16];
-      int i;
-      int j;
-      for (i=16; i<24; i++) {
-        memset(&temp, 0, 16); // Fill temp with null
-        strcpy(temp, "IO");
-        emb_itoa(i+1, OctetArray, 10, 2);
-        strcat(temp, OctetArray);
-	for (j=0; j<16; j++) {
-          I2C_write_byte(temp[j]);
-	}
-      }
-    }
-    I2C_stop(); // Start the EEPROM internal write cycle
-    wait_timer(5000); // Wait 5ms
-#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD        
-  }
-
-
-  // With the exception of a few items the following code runs regardless of
-  // whether a Magic Number was present at boot.
-
-#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
-  if (magic_number_missing_flag == 0) {
-    // Check the IO Names in I2C EEPROM to make sure they are not corrupted. The
-    // names must contain only * - . _ 0-9 A-Z a-z
-    // If any name is corrupted it is replaced with a name of format "IOxx"
-    // where xx is the pin number.
-    //   The IO Names might be corrupted if MQTT code is replaced with Browser
-    //   Code, leaving a Magic Number in place but failing to initialize the
-    //   IO Names storage area.
-    //   If there is already a valid IO Name stored this code will not change
-    //   it.
-    // There are 8 names, 16 bytes each.
-    {
-      int i;
-      int j;
-      int fail;
-      char temp[16];
-      for (i=0; i<8; i++) {
-        // Read NAME and check for corruption
-        fail = 0;
-        for (j=0; j<15; j++) {
-          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + (i * 16), 2);
-          temp[j] = I2C_read_byte(0);
-          if (temp[0] == 0) fail = 1;
-          if (is_allowed_char(temp[i]) == 0) fail = 1;
-        }
-        temp[15] = I2C_read_byte(1);
-        if (is_allowed_char(temp[15]) == 0) fail = 1;
-      
-        if (fail) {
-          // Build the default NAME
-          memset(&temp[0], 0, 16); // Fill temp with null
-          strcpy(temp, "IO");
-          emb_itoa(i+17, OctetArray, 10, 2);
-          strcat(temp, OctetArray);
-          // Write the default NAME to I2C EEPROM      
-          I2C_control(I2C_EEPROM2_WRITE);
-          I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + (i * 16), 2);
-          for (j=0; j<16; j++) {
-            I2C_write_byte(temp[j]);
-          }
-          I2C_stop(); // Start the EEPROM internal write cycle
-          wait_timer(5000); // Wait 5ms
-        }
-      }
-    }
-  }
-
-  // IO_TIMER check: Any 16 bit value is legitimate in the IO_TIMER values so
-  // it is not possible to check for corruption.
-  
-  // Copy I2C EEPROM IO_TIMER values to the Pending IO_TIMER variables for
-  // PCF8574 pins
   {
-    int i;
-    uint8_t j;
-    uint16_t temp;
+    // If PCF8574 support is in the build this function updates the PCF8574 pin
+    // settings in I2C EEPROM. The check_runtime_chages() function will be
+    // called from the main.c loop to actually write the Output pins on the STM8
+    // and PCF8574.
     
-    j = 0;
-    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS, 2);
-    for (i=0; i<8; i++) {
-      temp = I2C_read_byte(j);       // Read upper byte
-      temp = temp << 8;
-      if (i == 7) j = 1;             // Signal read of last byte
-      temp |= I2C_read_byte(j);      // Read lower byte
-      Pending_IO_TIMER[i+16] = temp;
+    // With the exception of a few lines of code at the very end of this
+    // function this code is ONLY used when PCF8574_SUPPORT is compiled.
+    
+    // PCF8574 pin settings are:
+    //   pin_control bits
+    //   IO_NAMES
+    //   IO_TIMERS
+    // This cannot run until after gpio_init() is run because the PCF8574
+    // function needs to access the I2C EEPROM via the I2C bus on pins 14
+    // and 15.
+    
+    // Some functionality needs to run first if check_eeprom_settings() found
+    // that there was no Magic Number in the EEPROM.
+    
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    {
+      if (magic_number_missing_flag == 1) {
+        // check_eeprom_settings() did not find a Magic Number at boot time. The
+        // check_eeprom_settings() function will have established the Magic
+        // Number, but this function still needs to provide initialization of
+        // the PCF8574 settings and variables.
+        
+        // Initialize I2C EEPROM memory that is used to store pin_control
+        // values for PCF8574 pins.
+        // Since the magic number didn't match all pins are set to zero.
+        {
+          uint8_t i = 0;
+          copy_STM8_bytes_to_I2C_EEPROM(&i, 8, I2C_EEPROM_R2_WRITE, PCF8574_I2C_EEPROM_R2_PIN_CONTROL_STORAGE, 2);
+        }
+      
+      
+        // Initialize I2C EEPROM memory that is used to store IO Timers for
+        // PCF8574 output pins.
+        // Since the magic number didn't match all timers are set to zero.
+        // There are 8 timers, 4 bytes each. Write 0 to 32 bytes.
+        {
+          uint8_t i = 0;
+          copy_STM8_bytes_to_I2C_EEPROM(&i, 32, I2C_EEPROM_R2_WRITE, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS, 2);
+        }
+      
+      
+        // Initialize I2C EEPROM memory that is used to store IO Names for
+        // PCF8574 output pins.
+        // Since the magic number didn't match all names are set to default.
+        // There are 8 names, 16 bytes each. Write 128 bytes.
+        I2C_control(I2C_EEPROM_R2_WRITE);
+        I2C_byte_address(PCF8574_I2C_EEPROM_R2_START_IO_NAMES, 2);
+        {
+          char temp[16];
+          int i;
+          int j;
+          for (i=16; i<24; i++) {
+            memset(temp, 0, 16); // Fill temp with null
+            strcpy(temp, "IO");
+            emb_itoa(i+1, OctetArray, 10, 2);
+            strcat(temp, OctetArray);
+            for (j=0; j<16; j++) {
+              I2C_write_byte(temp[j]);
+            }
+          }
+        }
+        I2C_stop(); // Start the EEPROM internal write cycle
+        wait_timer(5000); // Wait 5ms
+      }
     }
-  }
-
-  // Zero out the pin_timer down counters. Leave the counter unit bits as-is.
-  {
-    int i;
-    for (i=16; i<24; i++) {
-      pin_timer[i] = pin_timer[i] & 0xc000;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
+  
+  
+    // With the exception of a few items the following code runs regardless of
+    // whether a Magic Number was present at boot.
+  
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD
+    {
+      // Check the IO Names in I2C EEPROM to make sure they are not corrupted. The
+      // names must contain only * - . _ 0-9 A-Z a-z
+      // If any name is corrupted it is replaced with a name of format "IOxx"
+      // where xx is the pin number.
+      //   The IO Names might be corrupted if MQTT code is replaced with Browser
+      //   Code, leaving a Magic Number in place but failing to initialize the
+      //   IO Names storage area.
+      //   If there is already a valid IO Name stored this code will not change
+      //   it.
+      // There are 8 names, 16 bytes each.
+      {
+        int i;
+        int j;
+        int fail;
+        char temp[16];
+        for (i=0; i<8; i++) {
+          // Read IO_NAME
+          fail = 0;
+          prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + (i * 16), 2);
+          for (j=0; j<15; j++) {
+            temp[j] = I2C_read_byte(0);
+          }
+          temp[15] = I2C_read_byte(1);
+	  
+	  // Validate the IO_NAME
+          if (temp[0] == 0) fail = 1; // Empty name, not allowed.
+          if (temp[15] != 0) fail = 1; // Name too long, not allowed.
+	  for (j = 0; j < 16; j++) {
+	    // All fields must be allowed characters or null
+            if (is_allowed_char(temp[i]) == 0) fail = 1; // Disallowed character
+          }
+          
+          if (fail) {
+            // Build the default NAME
+            memset(temp, 0, 16); // Fill temp with null
+            strcpy(temp, "IO");
+            emb_itoa(i+17, OctetArray, 10, 2);
+            strcat(temp, OctetArray);
+            // Write the default NAME to I2C EEPROM      
+            copy_STM8_bytes_to_I2C_EEPROM(&temp[0], 16, I2C_EEPROM_R2_WRITE, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + (i * 16), 2);
+          }
+        }
+      }
+  
+      // IO_TIMER check: Any 16 bit value is legitimate in the IO_TIMER values so
+      // it is not possible to check for corruption.
+      
+      // Copy I2C EEPROM IO_TIMER values to the Pending IO_TIMER variables for
+      // PCF8574 pins
+      {
+        int i;
+        uint8_t j;
+        uint16_t temp;
+        
+        j = 0;
+        prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS, 2);
+        for (i=0; i<8; i++) {
+          temp = I2C_read_byte(j);       // Read upper byte
+          temp = temp << 8;
+          if (i == 7) j = 1;             // Signal read of last byte
+          temp |= I2C_read_byte(j);      // Read lower byte
+          Pending_IO_TIMER[i+16] = temp;
+        }
+      }
+    
+      // Zero out the pin_timer down counters. Leave the counter unit bits as-is.
+      {
+        int i;
+        for (i=16; i<24; i++) {
+          pin_timer[i] = pin_timer[i] & 0xc000;
+        }
+      }
     }
-  }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD
 
 
 #if DOMOTICZ_SUPPORT == 1
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// If Domoticz Standard this shouldn't run ... run only if OB_EEPROM_SUPPORT
-// enabled. This is wrapped within PCF8574 enabled code ... so I don't think
-// it needs to be qualified.
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  if (magic_number_missing_flag == 0) {
-    // Check the IO Names (used in Domoticz as IDX values) in I2C EEPROM to
-    // make sure they are not corrupted. The names must contain only 0-9.
-    // If any name is corrupted it is replaced with "0".
-    //   The IO Names might be corrupted if MQTT code is replaced with Browser
-    //   Code, leaving a Magic Number in place but failing to initialize the
-    //   IO Names storage area.
-    //   If there is already a valid IO Name stored this code will not change
-    //   it.
-    // There are 8 names, 16 bytes each.
     {
-      int i;
-      int j;
-      int fail;
-      char temp[16];
-      for (i=0; i<8; i++) {
-        // Read NAME and check for corruption
-        fail = 0;
-        for (j=0; j<15; j++) {
-          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_NAMES + (i * 16), 2);
-          temp[j] = I2C_read_byte(0);
-          if (temp[0] == 0) fail = 1;
-          if (is_digit(temp[i]) == 0) fail = 1;
-        }
-        temp[15] = I2C_read_byte(1);
-        if (is_digit(temp[15]) == 0) fail = 1;
-      
-        if (fail) {
-          // Build the default NAME
-          memset(&temp[0], 0, 16); // Fill temp with null
-          strcpy(temp, "0");
-          emb_itoa(i+17, OctetArray, 10, 2);
-          strcat(temp, OctetArray);
-          // Write the default NAME to I2C EEPROM      
-          I2C_control(I2C_EEPROM2_WRITE);
-          I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_NAMES + (i * 16), 2);
-          for (j=0; j<16; j++) {
-            I2C_write_byte(temp[j]);
+      // Validate the PCF8574 IO Names (used in Domoticz as IDX values) that
+      // are stored in I2C EEPROM. The IDX values must contain only digits 0-9
+      // and must not be longer than 6 digits. If any value is invalid it is
+      // replaced with "0".
+      //   The IO Names might be corrupted if Browser code is replaced with
+      //   MQTT code, leaving a Magic Number in place but failing to
+      //   initialize the IO Names storage area.
+      //   If there is already a valid IO Name stored this code will not
+      //   change it.
+      // There are 8 IDX values, each 6 bytes long, stored in IO_NAME fields
+      // that have 16 bytes allocated to each. All 16 bytes are checked to
+      // assure the fields are properly cleared out.
+      {
+        int i;
+        int j;
+        int fail;
+        char temp1[16];
+        char temp2[16];
+	
+        // Build the default IDX value
+        memset(temp1, 0, 16); // Fill temp with null
+        temp1[0] = '0';
+	
+        for (i=0; i<8; i++) {
+          fail = 0;
+          // Read existing IO_NAME fields from I2C EEPROM.
+          prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + (i * 16), 2);
+          for (j=0; j<15; j++) {
+            temp2[j] = I2C_read_byte(0);
           }
-          I2C_stop(); // Start the EEPROM internal write cycle
-          wait_timer(5000); // Wait 5ms
+          temp2[15] = I2C_read_byte(1);
+          // Validate entire field
+          for (j=0; j<16; j++) {
+            if (temp2[0] == 0) fail = 1; // Empty name, not allowed
+            if (temp2[6] != 0) fail = 1; // Name too long, not allowed
+	    if (j < 7) {
+	      // First 7 bytes must all be digits or null
+              if (is_digit(temp2[j]) == 0) fail = 1;
+	    }
+	    if (j > 6) {
+	      // All remaining bytes must be mull
+              if (temp2[j] != 0) fail = 1;
+	    }
+          }
+          
+          if (fail == 1) {
+            // Write the default IDX value to I2C EEPROM      
+            copy_STM8_bytes_to_I2C_EEPROM(&temp1[0], 16, I2C_EEPROM_R2_WRITE, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + (i * 16), 2);
+          }
         }
       }
     }
-  }
 #endif // DOMOTICZ_SUPPORT == 1
-
-
-
-  // Read the pin_control bytes from I2C EEPROM for the PCF8574 pins
-  {
-    int i;
-    prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE, 2);
-    for (i=16; i<23; i++) {
-      pin_control[i] = I2C_read_byte(0);
-    }
-    pin_control[23] = I2C_read_byte(1);
-  }
+    
   
-
+    // Read the pin_control bytes from I2C EEPROM for the PCF8574 pins
+    {
+      int i;
+      prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_PIN_CONTROL_STORAGE, 2);
+      for (i=16; i<23; i++) {
+        pin_control[i] = I2C_read_byte(0);
+      }
+      pin_control[23] = I2C_read_byte(1);
+    }
+    
+  
 #if LINKED_SUPPORT == 1
-  {
-    // Linked pin check:
-    //    Verify that there is no corruption in the EEPROM in the form of
-    //    Linked pins that do not have a partner (for example, pin 1 is
-    //    defined as Linked, but the partner pin 9 is not defined as Linked).
-    //    In such a case the EEPROM should have both pins set to Disabled.
-    //    Note: I think this could only happen if a user made manual edits to
-    //    the EEPROM, or if the GUI update process was interrupted by a power
-    //    fail.
-    int i;
-    uint16_t byte_address_1;
-    uint16_t byte_address_2;
-    uint8_t byte_1;
-    uint8_t byte_2;
-      
-    for (i=0; i<4; i++) {
-      // Read stored_pin_control from I2C EEPROM for the partner input and
-      // output pins.
-      byte_address_1 = (uint16_t)(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE + i);
-      prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, byte_address_1, 2);
-      byte_1 = I2C_read_byte(1);
-      byte_address_2 = (uint16_t)(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE + i + 4);
-      prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, byte_address_2, 2);
-      byte_2 = I2C_read_byte(1);
-
-      if (((byte_1 & 0x03) == 0x02) || ((byte_2 & 0x03) == 0x02)) {
-        // At least one pin is defined as Linked
-        if ((byte_1 & 0x03) != (byte_2 & 0x03)) {
-          // One of the pins is not defined as Linked. Set both pins to Disabled.
-          // Pin is linked. Change it to Disabled.
-          I2C_control(I2C_EEPROM2_WRITE);
-          I2C_byte_address(byte_address_1, 2);
-          I2C_write_byte(0x00);
-          I2C_stop();
-          wait_timer(5000); // Wait 5ms
-          I2C_control(I2C_EEPROM2_WRITE);
-          I2C_byte_address(byte_address_2, 2);
-          I2C_write_byte(0x00);
-          I2C_stop();
-          wait_timer(5000); // Wait 5ms
+    {
+      // Linked pin check:
+      //    Verify that there is no corruption in the EEPROM in the form of
+      //    Linked pins that do not have a partner (for example, pin 1 is
+      //    defined as Linked, but the partner pin 9 is not defined as Linked).
+      //    In such a case the EEPROM should have both pins set to Disabled.
+      //    Note: I think this could only happen if a user made manual edits to
+      //    the EEPROM, or if the GUI update process was interrupted by a power
+      //    fail.
+      int i;
+      uint8_t j;
+      uint16_t byte_address_1;
+      uint16_t byte_address_2;
+      uint8_t byte_1;
+      uint8_t byte_2;
+        
+      for (i=0; i<4; i++) {
+        // Read stored_pin_control from I2C EEPROM for the partner input and
+        // output pins.
+        byte_address_1 = (uint16_t)(PCF8574_I2C_EEPROM_R2_PIN_CONTROL_STORAGE + i);
+        prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, byte_address_1, 2);
+        byte_1 = I2C_read_byte(1);
+        byte_address_2 = (uint16_t)(PCF8574_I2C_EEPROM_R2_PIN_CONTROL_STORAGE + i + 4);
+        prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, byte_address_2, 2);
+        byte_2 = I2C_read_byte(1);
+  
+        if (((byte_1 & 0x03) == 0x02) || ((byte_2 & 0x03) == 0x02)) {
+          // At least one pin is defined as Linked
+          if ((byte_1 & 0x03) != (byte_2 & 0x03)) {
+            // One of the pins is not defined as Linked. Set both pins to Disabled.
+            // Pin is linked. Change it to Disabled.
+	    j = 0;
+            copy_STM8_bytes_to_I2C_EEPROM(&j, 1, I2C_EEPROM_R2_WRITE, byte_address_1, 2);
+            copy_STM8_bytes_to_I2C_EEPROM(&j, 1, I2C_EEPROM_R2_WRITE, byte_address_2, 2);
+         }
+          // else do nothing - the settings are OK.
         }
         // else do nothing - the settings are OK.
       }
-      // else do nothing - the settings are OK.
     }
-  }
 #endif // LINKED_SUPPORT == 1
-
-
+  
+  
 #if LINKED_SUPPORT == 0
-  // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
-  // accordingly. Do this on Outputs only.
-  for (i=16; i<24; i++) {
-    if (((pin_control[i] & 0x08) == 0x00) && ((pin_control[i] & 0x03) == 0x03)) {
-      // Retain is not set and this is an output
-      if ((pin_control[i] & 0x10) == 0x00) {
-        // Force ON/OFF to zero
-        pin_control[i] &= 0x7f;
+    {
+      // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
+      // accordingly. Do this on Outputs only.
+      int i;
+      for (i=16; i<24; i++) {
+        if (((pin_control[i] & 0x08) == 0x00) && ((pin_control[i] & 0x03) == 0x03)) {
+          // Retain is not set and this is an output
+          if ((pin_control[i] & 0x10) == 0x00) {
+            // Force ON/OFF to zero
+            pin_control[i] &= 0x7f;
+          }
+          else if ((pin_control[i] & 0x10) == 0x10) {
+            // Force ON/OFF to one
+            pin_control[i] |= 0x80;
+          }
+          // else Retain the ON/OFF bit
+        }
       }
-      else if ((pin_control[i] & 0x10) == 0x10) {
-        // Force ON/OFF to one
-        pin_control[i] |= 0x80;
-      }
-      // else Retain the ON/OFF bit
     }
-  }
 #endif // LINKED_SUPPORT == 0
-
+  
 #if LINKED_SUPPORT == 1
-  // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
-  // accordingly. Do this on Outputs only.
-  {
-    int i;
-    for (i=16; i<24; i++) {
-      if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
-        // Pin is an Output and Retain is not set
-        if ((pin_control[i] & 0x18) == 0x00) {
-          // Retain is not set, and Force Zero is indicated
-          pin_control[i] &= 0x7f;
+    // Check the "Retain/On/Off at Boot" settings and force the ON/OFF state
+    // accordingly. Do this on Outputs only.
+    {
+      int i;
+      for (i=16; i<24; i++) {
+        if (chk_iotype(pin_control[i], i, 0x0b) == 0x03) {
+          // Pin is an Output and Retain is not set
+          if ((pin_control[i] & 0x18) == 0x00) {
+            // Retain is not set, and Force Zero is indicated
+            pin_control[i] &= 0x7f;
+          }
+          else if ((pin_control[i] & 0x18) == 0x10) {
+            // Retain is not set, and Force One is indicated
+            pin_control[i] |= 0x80;
+          }
         }
-        else if ((pin_control[i] & 0x18) == 0x10) {
-          // Retain is not set, and Force One is indicated
-          pin_control[i] |= 0x80;
-        }
+        // else do nothing so that the ON/OFF bit is retained
       }
-      // else do nothing so that the ON/OFF bit is retained
     }
-  }
 #endif // LINKED_SUPPORT == 1
-
-  // Update PCF8574 Pending_pin_control bytes
-  // Do NOT update the stored_pin_control at this point as we've only
-  // manipulated the output state and we don't want to update the output
-  // state in the stored_pin_control if Retain is turned on. That will be
-  // handled later in the check_runtime_changes() function.
-  {
-    int i;
-    for (i=16; i<24; i++) {
-      Pending_pin_control[i] = pin_control[i];
+  
+    // Update PCF8574 Pending_pin_control bytes
+    // Do NOT update the stored_pin_control at this point as we've only
+    // manipulated the output state and we don't want to update the output
+    // state in the stored_pin_control if Retain is turned on. That will be
+    // handled later in the check_runtime_changes() function.
+    {
+      int i;
+      for (i=16; i<24; i++) {
+        Pending_pin_control[i] = pin_control[i];
+      }
     }
   }
 #endif // PCF8574_SUPPORT == 1
+}
 
 
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-//
-// Might need to do the following for the STM8 pins earlier to avoid relay
-// chatter on those pins. Waiting until this point to settle the STM8 pins
-// means they wait the many milliseconds it takes to do all the I2C bus
-// transactions required to handle the PCF8574 pins.
-//
-// If earlier settling of the STM8 pins needs to be done the functions below
-// may need to be modified so that they know when they are being called to
-// update ONLY the STM8 pins (and NOT the PCF8574 pins.
-//
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
+void initialize_pins(void) {
+  // Initialize pins and IO state trackers for the first time after
+  // validation of EEPROM and I2C EEPROM contents. This operates on
+  // STM8 and PCF8574 pins.
+  
   // Initialize bit register versions of the ON/OFF and Invert pin control
   // information
   encode_bit_registers(1);
@@ -5527,7 +5927,7 @@ uint8_t is_allowed_char(uint8_t character)
    || (character == 95)                     // _ (underbar)
    || (character == 0)) {                   // NULL
     return (1);
-   }
+  }
   else return(0);
 }
 
@@ -5537,7 +5937,7 @@ uint8_t is_digit(uint8_t character)
   // Checks that a character is permissible in a specific string.
   // Return 1 if all digits or null
   // Return 0 if test is not met
-  if ((character >= 48 && character <=57)   // 0 to 9
+  if ((character >= 48 && character <= 57)   // 0 to 9
    || (character == 0)) {                   // NULL
     return (1);
    }
@@ -5679,7 +6079,9 @@ void check_runtime_changes(void)
     pin_control[15] = Pending_pin_control[15] = (uint8_t)0x00;
     // Update the stored_pin_control[] variables
     unlock_eeprom();
-    if (stored_pin_control[15] != pin_control[15]) stored_pin_control[15] = pin_control[15];
+    if (stored_pin_control[15] != pin_control[15]) {
+      stored_pin_control[15] = pin_control[15];
+    }
     lock_eeprom();
   }
 #endif // DS18B20_SUPPORT == 1
@@ -5701,8 +6103,12 @@ void check_runtime_changes(void)
   pin_control[14] = Pending_pin_control[14] = (uint8_t)0x00;
   // Update the stored_pin_control[] variables
   unlock_eeprom();
-  if (stored_pin_control[13] != pin_control[13]) stored_pin_control[13] = pin_control[13];
-  if (stored_pin_control[14] != pin_control[14]) stored_pin_control[14] = pin_control[14];    
+  if (stored_pin_control[13] != pin_control[13]) {
+    stored_pin_control[13] = pin_control[13];
+  }
+  if (stored_pin_control[14] != pin_control[14]) {
+    stored_pin_control[14] = pin_control[14];
+  }
   lock_eeprom();
 #endif // I2C_SUPPORT == 1
 
@@ -5715,7 +6121,9 @@ void check_runtime_changes(void)
   pin_control[10] = Pending_pin_control[10] = (uint8_t)0x00;
   // Update the stored_pin_control[] variables
   unlock_eeprom();
-  if (stored_pin_control[10] != pin_control[10]) stored_pin_control[10] = pin_control[10];
+  if (stored_pin_control[10] != pin_control[10]) {
+    stored_pin_control[10] = pin_control[10];
+  }
   lock_eeprom();
 #endif // DEBUG_SUPPORT == 15
 
@@ -5744,10 +6152,10 @@ void check_runtime_changes(void)
     {
       // Check the PCF8574 pins
       int i;
-      uint16_t byte_address_1;
-      uint16_t byte_address_2;
-      uint8_t byte_1;
-      uint8_t byte_2;
+//      uint16_t byte_address_1;
+//      uint16_t byte_address_2;
+//      uint8_t byte_1;
+//      uint8_t byte_2;
       for (i=16; i<20; i++) {
         if (((Pending_pin_control[i] & 0x03) == 0x02) || ((Pending_pin_control[i+4] & 0x03) == 0x02)) {
           // At least one pin is in the process of being defined as Linked
@@ -5946,7 +6354,7 @@ void check_runtime_changes(void)
 	  // is only applicable to the Browser version of code and will only
 	  // run if parse_complete == 1.
 	  // -------------------------------------------------------------- //
-          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+          prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + ((i - 16) * 2), 2);
           IO_timer_value = read_two_bytes();
           if (IO_timer_value != Pending_IO_TIMER[i]) {
             pin_timer[i] = Pending_IO_TIMER[i];
@@ -5983,7 +6391,7 @@ void check_runtime_changes(void)
 	  // is only applicable to the Browser version of code and will only
 	  // run if parse_complete == 1.
 	  // -------------------------------------------------------------- //
-          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+          prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + ((i - 16) * 2), 2);
           IO_timer_value = read_two_bytes();
           if (IO_timer_value != Pending_IO_TIMER[i]) {
             pin_timer[i] = Pending_IO_TIMER[i];
@@ -6038,19 +6446,19 @@ void check_runtime_changes(void)
           // Update the Output pins
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("pin_control for IO16 = ");
-emb_itoa(pin_control[15], OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("   Invert_word = ");
-emb_itoa(Invert_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   ON_OFF_word = ");
-emb_itoa(ON_OFF_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   stored_config_settings = ");
-emb_itoa(stored_config_settings, OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("pin_control for IO16 = ");
+// emb_itoa(pin_control[15], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   Invert_word = ");
+// emb_itoa(Invert_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   ON_OFF_word = ");
+// emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   stored_config_settings = ");
+// emb_itoa(stored_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 15
 
 
@@ -6075,7 +6483,7 @@ UARTPrintf("\r\n");
 	// value is non-zero. Maybe this could be faster if a byte containing
 	// "non-zero" flags could be used for the PCF8574 timers.
 	// ---------------------------------------------------------------- //
-        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+        prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + ((i - 16) * 2), 2);
         IO_timer_value = read_two_bytes();
         if (((IO_timer_value & 0x3fff) != 0) && ((pin_timer[i] & 0x3fff) == 0)) {
           // Pin has a non-zero TIMER value AND the timer countdown is zero
@@ -6096,19 +6504,19 @@ UARTPrintf("\r\n");
           // Update the Output pins
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("pin_control for IO16 = ");
-emb_itoa(pin_control[15], OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("   Invert_word = ");
-emb_itoa(Invert_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   ON_OFF_word = ");
-emb_itoa(ON_OFF_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   stored_config_settings = ");
-emb_itoa(stored_config_settings, OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("pin_control for IO16 = ");
+// emb_itoa(pin_control[15], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   Invert_word = ");
+// emb_itoa(Invert_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   ON_OFF_word = ");
+// emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   stored_config_settings = ");
+// emb_itoa(stored_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 15
 
 
@@ -6145,19 +6553,19 @@ UARTPrintf("\r\n");
           // Update the Output pins
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("pin_control for IO16 = ");
-emb_itoa(pin_control[15], OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("   Invert_word = ");
-emb_itoa(Invert_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   ON_OFF_word = ");
-emb_itoa(ON_OFF_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   stored_config_settings = ");
-emb_itoa(stored_config_settings, OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("pin_control for IO16 = ");
+// emb_itoa(pin_control[15], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   Invert_word = ");
+// emb_itoa(Invert_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   ON_OFF_word = ");
+// emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   stored_config_settings = ");
+// emb_itoa(stored_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 15
 
 
@@ -6182,7 +6590,7 @@ UARTPrintf("\r\n");
 	// value is non-zero. Maybe this could be faster if a byte containing
 	// "non-zero" flags could be used for the PCF8574 timers.
 	// ---------------------------------------------------------------- //
-        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+        prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + ((i - 16) * 2), 2);
         IO_timer_value = read_two_bytes();
 
         if (((IO_timer_value & 0x3fff) != 0) && ((pin_timer[i] & 0x3fff) == 0)) {
@@ -6204,19 +6612,19 @@ UARTPrintf("\r\n");
           // Update the Output pins
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("pin_control for IO16 = ");
-emb_itoa(pin_control[15], OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("   Invert_word = ");
-emb_itoa(Invert_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   ON_OFF_word = ");
-emb_itoa(ON_OFF_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   stored_config_settings = ");
-emb_itoa(stored_config_settings, OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("pin_control for IO16 = ");
+// emb_itoa(pin_control[15], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   Invert_word = ");
+// emb_itoa(Invert_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   ON_OFF_word = ");
+// emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   stored_config_settings = ");
+// emb_itoa(stored_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 15
 
 
@@ -6242,10 +6650,13 @@ UARTPrintf("\r\n");
 	// compare 4 bytes at a time and if any miscompare write to Flash 4
 	// bytes at a time.
         if (IO_TIMER[i] != Pending_IO_TIMER[i] || IO_TIMER[i+1] != Pending_IO_TIMER[i+1]) {
-          // Enable Word Write Once
+          // Enable Word programming
           FLASH_CR2 |= FLASH_CR2_WPRG;
           FLASH_NCR2 &= (uint8_t)(~FLASH_NCR2_NWPRG);
+	  // Write word to Flash
           memcpy(&IO_TIMER[i], &Pending_IO_TIMER[i], 4);
+          // No "wait_timer" is needed. The spec says the CPU stalls
+          // while the word programming operates (takes about 6ms).
         }
       }
     }
@@ -6269,12 +6680,12 @@ UARTPrintf("\r\n");
 	// is only applicable to the Browser version of code and will only
 	// run if parse_complete == 1.
 	// ---------------------------------------------------------------- //
-        prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+        prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + ((i - 16) * 2), 2);
         IO_timer_value = read_two_bytes();
         if (IO_timer_value != Pending_IO_TIMER[i]) {
           // Write the Pending value to the I2C EEPROM
-          I2C_control(I2C_EEPROM2_WRITE);
-          I2C_byte_address(PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+          I2C_control(I2C_EEPROM_R2_WRITE);
+          I2C_byte_address(PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + ((i - 16) * 2), 2);
 	  IO_timer_value = (Pending_IO_TIMER[i] >> 8);
           I2C_write_byte((uint8_t)IO_timer_value);
 	  IO_timer_value = (Pending_IO_TIMER[i] & 0x00ff);
@@ -6332,7 +6743,7 @@ UARTPrintf("\r\n");
 	  // this code is only applicable to the Browser version of code and
 	  // will only run if parse_complete == 1.
 	  // -------------------------------------------------------------- //
-          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+          prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + ((i - 16) * 2), 2);
           IO_timer_value = read_two_bytes();
           if ((IO_timer_value & 0x3fff) != 0) {
             if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
@@ -6393,7 +6804,7 @@ UARTPrintf("\r\n");
 	  // this code is only applicable to the Browser version of code and
 	  // will only run if parse_complete == 1.
 	  // -------------------------------------------------------------- //
-          prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_START_IO_TIMERS + ((i - 16) * 2), 2);
+          prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_TIMERS + ((i - 16) * 2), 2);
           IO_timer_value = read_two_bytes();
           if ((IO_timer_value & 0x3fff) != 0) {
             if ((Pending_pin_control[i] & 0x80) != (pin_control[i] & 0x80)) {
@@ -6572,7 +6983,9 @@ UARTPrintf("\r\n");
 	    
 	    if (i < 16) {
 	      unlock_eeprom();
-              if (stored_pin_control[i] != pin_control[i]) stored_pin_control[i] = pin_control[i];
+              if (stored_pin_control[i] != pin_control[i]) {
+	        stored_pin_control[i] = pin_control[i];
+	      }
 	      lock_eeprom();
 	    }
 	    
@@ -6581,20 +6994,16 @@ UARTPrintf("\r\n");
 	      {
 	        uint16_t byte_address;
 	        // Read stored_pin_control from I2C EEPROM
-                byte_address = (uint16_t)(PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE + i - 16);
+                byte_address = (uint16_t)(PCF8574_I2C_EEPROM_R2_PIN_CONTROL_STORAGE + i - 16);
 		// -------------------------------------------------------- //
 	        // This is a potential timing problem as reading from the I2C
 		// EEPROM takes so long. I think the problem is mitigated in
 		// that this code will only run if parse_complete == 1.
 		// -------------------------------------------------------- //
-                prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, byte_address, 2);
+                prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, byte_address, 2);
                 if (I2C_read_byte(1) != pin_control[i]) {
                   // Update stored_pin_control in I2C EEPROM.
-	          I2C_control(I2C_EEPROM2_WRITE);
-	          I2C_byte_address(byte_address, 2);
-	          I2C_write_byte(pin_control[i]);
-	          I2C_stop();
-                  wait_timer(5000); // Wait 5ms
+                  copy_STM8_bytes_to_I2C_EEPROM(&pin_control[i], 1, I2C_EEPROM_R2_WRITE, byte_address, 2);
 	        }
 	      }
 	    }
@@ -6611,31 +7020,34 @@ UARTPrintf("\r\n");
     // Update the Output pins
 
 #if DEBUG_SUPPORT == 15
-UARTPrintf("pin_control for IO16 = ");
-emb_itoa(pin_control[15], OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("   Invert_word = ");
-emb_itoa(Invert_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   ON_OFF_word = ");
-emb_itoa(ON_OFF_word, OctetArray, 16, 8);
-UARTPrintf(OctetArray);
-UARTPrintf("   stored_config_settings = ");
-emb_itoa(stored_config_settings, OctetArray, 16, 2);
-UARTPrintf(OctetArray);
-UARTPrintf("\r\n");
+// UARTPrintf("pin_control for IO16 = ");
+// emb_itoa(pin_control[15], OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   Invert_word = ");
+// emb_itoa(Invert_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   ON_OFF_word = ");
+// emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+// UARTPrintf(OctetArray);
+// UARTPrintf("   stored_config_settings = ");
+// emb_itoa(stored_config_settings, OctetArray, 16, 2);
+// UARTPrintf(OctetArray);
+// UARTPrintf("\r\n");
 #endif // DEBUG_SUPPORT == 15
 
 
     write_output_pins();
   }
+  
+  
+  
 
   if (parse_complete) {
     // Only perform the next checks if parse_complete indicates that all
     // HTML POST processing is complete.
 
     unlock_eeprom();
-
+    
     if (stored_config_settings != Pending_config_settings) {
       // Save the "prior" config (Features) setting in case it is needed
       // after boot.
@@ -6656,104 +7068,104 @@ UARTPrintf("\r\n");
       stored_config_settings = Pending_config_settings;
     }
 
-    // Check for changes in the IP Address, Gateway Address,
-    // Netmask, and MQTT Server IP Address. Combined into one
-    // loop for code size reduction.
-    {
-      int i;
-      for (i=0; i<4; i++) {
-        if (stored_hostaddr[i] != Pending_hostaddr[i]) {
-          // Write the new octet to the EEPROM and signal a restart
-          stored_hostaddr[i] = Pending_hostaddr[i];
-          restart_request = 1;
-        }
-        if (stored_draddr[i] != Pending_draddr[i]) {
-          // Write the new octet to the EEPROM and signal a restart
-          stored_draddr[i] = Pending_draddr[i];
-          restart_request = 1;
-        }
-        if (stored_netmask[i] != Pending_netmask[i]) {
-          // Write the new octet to the EEPROM and signal a restart
-          stored_netmask[i] = Pending_netmask[i];
-          restart_request = 1;
-        }
-        if (stored_mqttserveraddr[i] != Pending_mqttserveraddr[i]) {
-          // Write the new octet to the EEPROM and signal a restart
-          stored_mqttserveraddr[i] = Pending_mqttserveraddr[i];
-          restart_request = 1;
-        }
-      }
-    }
-      
-    // Check for changes in the Port number
-    if (stored_port != Pending_port) {
-      // Write the new Port number to the EEPROM
-      stored_port = Pending_port;
-      // A firmware restart will occur to cause this change to take effect.
-      // The restart process will call uip_init() which will zero out all
-      // entries in the uip_listenports table, and will then put the new
-      // listenport number in the table.
-      restart_request = 1;
-    }
-  
-    // Check for changes in the Device Name
-    {
-      int i;
-      for(i=0; i<20; i++) {
-        if (stored_devicename[i] != Pending_devicename[i]) {
-          stored_devicename[i] = Pending_devicename[i];
-          // No restart is required in non-MQTT applications as this does not 
-	  // affect Ethernet operation.
-#if BUILD_SUPPORT == MQTT_BUILD
-          if (mqtt_enabled) {
-            // If MQTT is enabled a restart is required as this affects the
-	    // MQTT topic name.
-            restart_request = 1;
-	  }
-#endif // BUILD_SUPPORT == MQTT_BUILD
-        }
-      }
-    }
-
-    // Check for changes in the MQTT Host Port number
-    if (stored_mqttport != Pending_mqttport) {
-      // Write the new MQTT Host Port number to the EEPROM
-      stored_mqttport = Pending_mqttport;
-      // A firmware restart will occur to cause this change to take effect
-      restart_request = 1;
-    }
-    
-    // Check for changes in the Username or Password
-    // The storage fields are the same length so to condense code
-    // they will be checked in the same loop
-    {
-      int i;
-      for(i=0; i<11; i++) {
-        if (stored_mqtt_username[i] != Pending_mqtt_username[i]) {
-          stored_mqtt_username[i] = Pending_mqtt_username[i];
-          // A firmware restart will occur to cause this change to take effect
-          restart_request = 1;
-        }
-        if (stored_mqtt_password[i] != Pending_mqtt_password[i]) {
-          stored_mqtt_password[i] = Pending_mqtt_password[i];
-          // A firmware restart will occur to cause this change to take effect
-          restart_request = 1;
-        }
-      }
-    }
-    
-    // Check for changes in the MAC
-    if (memcmp(&stored_uip_ethaddr_oct[0], &Pending_uip_ethaddr_oct[0], 6) != 0) {
-      // Write the new MAC to the EEPROM
-      {
-        int i;
-        for (i=0; i<6; i++) stored_uip_ethaddr_oct[i] = Pending_uip_ethaddr_oct[i];
-      }
-      // Update the MAC string
-      update_mac_string();
-      // A firmware restart will occur to cause this change to take effect
-      restart_request = 1;
-    }
+//    // Check for changes in the IP Address, Gateway Address,
+//    // Netmask, and MQTT Server IP Address. Combined into one
+//    // loop for code size reduction.
+//    {
+//      int i;
+//      for (i=0; i<4; i++) {
+//        if (stored_hostaddr[i] != Pending_hostaddr[i]) {
+//          // Write the new octet to the EEPROM and signal a restart
+//          stored_hostaddr[i] = Pending_hostaddr[i];
+//          restart_request = 1;
+//        }
+//        if (stored_draddr[i] != Pending_draddr[i]) {
+//          // Write the new octet to the EEPROM and signal a restart
+//          stored_draddr[i] = Pending_draddr[i];
+//          restart_request = 1;
+//        }
+//        if (stored_netmask[i] != Pending_netmask[i]) {
+//          // Write the new octet to the EEPROM and signal a restart
+//          stored_netmask[i] = Pending_netmask[i];
+//          restart_request = 1;
+//        }
+//        if (stored_mqttserveraddr[i] != Pending_mqttserveraddr[i]) {
+//          // Write the new octet to the EEPROM and signal a restart
+//          stored_mqttserveraddr[i] = Pending_mqttserveraddr[i];
+//          restart_request = 1;
+//        }
+//      }
+//    }
+//      
+//    // Check for changes in the Port number
+//    if (stored_port != Pending_port) {
+//      // Write the new Port number to the EEPROM
+//      stored_port = Pending_port;
+//      // A firmware restart will occur to cause this change to take effect.
+//      // The restart process will call uip_init() which will zero out all
+//      // entries in the uip_listenports table, and will then put the new
+//      // listenport number in the table.
+//      restart_request = 1;
+//    }
+//  
+//    // Check for changes in the Device Name
+//    {
+//      int i;
+//      for(i=0; i<20; i++) {
+//        if (stored_devicename[i] != Pending_devicename[i]) {
+//          stored_devicename[i] = Pending_devicename[i];
+//          // No restart is required in non-MQTT applications as this does not 
+//	  // affect Ethernet operation.
+//#if BUILD_SUPPORT == MQTT_BUILD
+//          if (mqtt_enabled) {
+//            // If MQTT is enabled a restart is required as this affects the
+//	    // MQTT topic name.
+//            restart_request = 1;
+//	  }
+//#endif // BUILD_SUPPORT == MQTT_BUILD
+//        }
+//      }
+//    }
+//
+//    // Check for changes in the MQTT Host Port number
+//    if (stored_mqttport != Pending_mqttport) {
+//      // Write the new MQTT Host Port number to the EEPROM
+//      stored_mqttport = Pending_mqttport;
+//      // A firmware restart will occur to cause this change to take effect
+//      restart_request = 1;
+//    }
+//    
+//    // Check for changes in the MQTT Username or Password
+//    // The storage fields are the same length so to condense code
+//    // they will be checked in the same loop
+//    {
+//      int i;
+//      for(i=0; i<11; i++) {
+//        if (stored_mqtt_username[i] != Pending_mqtt_username[i]) {
+//          stored_mqtt_username[i] = Pending_mqtt_username[i];
+//          // A firmware restart will occur to cause this change to take effect
+//          restart_request = 1;
+//        }
+//        if (stored_mqtt_password[i] != Pending_mqtt_password[i]) {
+//          stored_mqtt_password[i] = Pending_mqtt_password[i];
+//          // A firmware restart will occur to cause this change to take effect
+//          restart_request = 1;
+//        }
+//      }
+//    }
+//    
+//    // Check for changes in the MAC
+//    if (memcmp(&stored_uip_ethaddr_oct[0], &Pending_uip_ethaddr_oct[0], 6) != 0) {
+//      // Write the new MAC to the EEPROM
+//      {
+//        int i;
+//        for (i=0; i<6; i++) stored_uip_ethaddr_oct[i] = Pending_uip_ethaddr_oct[i];
+//      }
+//      // Update the MAC string
+//      update_mac_string();
+//      // A reboot will occur to cause this change to take effect
+//      user_reboot_request = 1;
+//    }
   }
   
   lock_eeprom(); // Make sure eeprom is locked
@@ -6770,11 +7182,15 @@ UARTPrintf("\r\n");
   // Note: To simplify code user_reboot_request is also set when user changes
   // are detected in the check_runtime_changes() function. This eliminates an
   // additional check below.
-  if (restart_request || user_reboot_request) {
+  if (restart_request || user_reboot_request || user_restart_request) {
     // Arm the restart function but first make sure we aren't already
     // performing a restart or reboot so we don't get stuck in a loop.
     if (restart_reboot_step == RESTART_REBOOT_IDLE) {
       restart_reboot_step = RESTART_REBOOT_ARM;
+    }
+    if (user_restart_request) { // Did user request Restart?
+      user_restart_request = 0;
+      restart_request = 1;
     }
     if (user_reboot_request) { // Did user request Reboot?
       user_reboot_request = 0;
@@ -6794,12 +7210,6 @@ UARTPrintf("\r\n");
 
   // Periodic check of the stack overflow guardband
   if (stack_limit1 != 0xaa || stack_limit2 != 0x55) {
-
-#if DEBUG_SUPPORT == 15
-// UARTPrintf("\r\n");
-// UARTPrintf("DETECTED STACK ERROR\r\n");
-#endif // DEBUG_SUPPORT == 15
-
     stack_error = 1;
     fastflash();
     fastflash();
@@ -6846,13 +7256,16 @@ uint8_t chk_iotype(uint8_t pin_byte, int pin_index, uint8_t chk_mask)
     // This is an Input or a Linked pin 1 to 8.
     return 0x01;
   }
+  
 #if PCF8574_SUPPORT == 1
-  // PCF8574 pins: pin_index is 16 to 23 corresponding to pins 17 to 24
-  // If Linked pin_index 16 to 19 must be inputs
-  if (((pin_byte & 0x03) == 0x01)
-  || (((pin_byte & 0x03) == 0x02) && (pin_index>15) && (pin_index<20))) {
-    // This is an Input or a Linked pin 17 to 20.
-    return 0x01;
+  {
+    // PCF8574 pins: pin_index is 16 to 23 corresponding to pins 17 to 24
+    // If Linked pin_index 16 to 19 must be inputs
+    if (((pin_byte & 0x03) == 0x01)
+    || (((pin_byte & 0x03) == 0x02) && (pin_index>15) && (pin_index<20))) {
+      // This is an Input or a Linked pin 17 to 20.
+      return 0x01;
+    }
   }
 #endif // PCF8574_SUPPORT == 1
   
@@ -6868,16 +7281,19 @@ uint8_t chk_iotype(uint8_t pin_byte, int pin_index, uint8_t chk_mask)
       else return 0x03;
     }
   }
+  
 #if PCF8574_SUPPORT == 1
-  // PCF8574 pins: pin_index is 16 to 23 corresponding to pins 17 to 24
-  // If Linked pin_index 20 to 23 must be outputs
-  if (((pin_byte & 0x03) == 0x03)
-  || (((pin_byte & 0x03) == 0x02) && (pin_index>19) && (pin_index<24))) {
-    // This is an output, or an output created by linking
-    if (chk_mask == 0x03) return 0x03;
-    if (chk_mask == 0x0b) {
-      if (pin_byte & 0x08) return 0x0b; // Return with Retain set
-      else return 0x03;
+  {
+    // PCF8574 pins: pin_index is 16 to 23 corresponding to pins 17 to 24
+    // If Linked pin_index 20 to 23 must be outputs
+    if (((pin_byte & 0x03) == 0x03)
+    || (((pin_byte & 0x03) == 0x02) && (pin_index>19) && (pin_index<24))) {
+      // This is an output, or an output created by linking
+      if (chk_mask == 0x03) return 0x03;
+      if (chk_mask == 0x0b) {
+        if (pin_byte & 0x08) return 0x0b; // Return with Retain set
+        else return 0x03;
+      }
     }
   }
 #endif // PCF8574_SUPPORT == 1
@@ -7065,7 +7481,11 @@ void restart(void)
   // We run through the processes to apply IP Address, Gateway Address,
   // Netmask, Port number, MAC, etc, but we don't run the GPIO initialization
   // that would affect the GPIO pin states. This prevents output "chatter"
-  // that a complete hardware reset would cause. 
+  // that a complete hardware reset would cause.
+  // Once restart() is complete code returns to the main while() loop.
+  // Note: A reboot() is run (instead of restart() ) if any pin type changed
+  // (input/output/disabled/etc). reboot() is needed in such a case so that
+  // gpio_init() will run to reconfigure the GPIO hardware.
 
   LEDcontrol(0); // Turn LED off
 
@@ -7081,39 +7501,29 @@ void restart(void)
   mqtt_sanity_ctr = 0;
   MQTT_error_status = 0;
   mqtt_restart_step = MQTT_RESTART_IDLE;
-#endif // BUILD_SUPPORT == MQTT_BUILD
-
   state_request = STATE_REQUEST_IDLE;
+#endif // BUILD_SUPPORT == MQTT_BUILD
   
-  spi_init();              // Initialize the SPI bit bang interface to the
-                           // ENC28J60 and perform hardware reset on ENC28J60
-  check_eeprom_settings(); // Apply settings stored in EEPROM such as IP
-                           // Address, Gateway Address, Netmask, Port number,
-			   // etc. Needed in a restart to make sure all
-			   // changes made on the Configuration page are
-			   // applied.
-  apply_PCF8574_pin_settings(); // Initialize the PCF8574 settings and pin
-                           // values stored in I2C EEPROM. This doesn't
-			   // actually write the pins - that will be done
-			   // by check_runtime_changes() called from the
-			   // main.c loop. This update is needed in a restart
-			   // to make sure all changes made on the PCF8574
-			   // Configuration page are applied to non-volatile
-			   // storage.
-#if PCF8574_SUPPORT == 1
-  PCF8574_init();	   // Initialize the PCF8574. This will not change
-                           // the physical pin states. It primarilly verifies
-			   // the presence of a PCF8574 and updates the
-			   // stored_options1 bit accordingly.
-#endif // PCF8574_SUPPORT == 1
-  Enc28j60Init();          // Initialize the ENC28J60 ethernet interface.
-                           // Needed in a restart to make sure the ENC20J60
-			   // is updated with the correct MAC address.
+  apply_EEPROM_settings(); // Applies the EEPROM settings to runtime variables
+                           // such as IP Address, Gateway Address, Netmask,
+			   // Port number, etc. Needed in a restart to make
+			   // sure all changes made on the Configuration page
+			   // are applied.
+			   
+  initialize_pins();       // Initialize pins and IO state trackers for the
+                           // STM8 and PCF8574 pins. This is done here because
+			   // restart() was called after check_runtime_changes()
+			   // where pin states may have changed due to a Save
+			   // from the IOControl page. This step will make sure
+			   // any pin state changes are properly recorded.
+			   
   uip_arp_init();          // Initialize the ARP module. The only thing this
                            // does is clear the IP addresses in the ARP table.
+			   
   uip_init();              // Initialize uIP. This function call sets all
                            // connections to "CLOSED" and clears out the
 			   // uip_listenports table.
+			   
   HttpDInit();             // Initialize httpd and set up listening port
 
   LEDcontrol(1); // Turn LED on
@@ -7210,12 +7620,7 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit)
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
-#if SUPPORT_174 == 0
-    j = i + io_map_offset;
-#endif // SUPPORT_174 == 0
-#if SUPPORT_174 == 1
     j = calc_PORT_BIT_index((uint8_t)i);
-#endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit)
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint16_t)mask;
@@ -7291,12 +7696,7 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit)
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
-#if SUPPORT_174 == 0
-    j = i + io_map_offset;
-#endif // SUPPORT_174 == 0
-#if SUPPORT_174 == 1
     j = calc_PORT_BIT_index((uint8_t)i);
-#endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit)
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint32_t)mask;
@@ -7385,12 +7785,7 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
-#if SUPPORT_174 == 0
-    j = i + io_map_offset;
-#endif // SUPPORT_174 == 0
-#if SUPPORT_174 == 1
     j = calc_PORT_BIT_index((uint8_t)i);
-#endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint16_t)mask;
@@ -7479,12 +7874,7 @@ void read_input_pins(uint8_t init_flag)
     if ( io_reg[ io_map[i].port ].idr & io_map[i].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 0
 #if PINOUT_OPTION_SUPPORT == 1
-#if SUPPORT_174 == 0
-    j = i + io_map_offset;
-#endif // SUPPORT_174 == 0
-#if SUPPORT_174 == 1
     j = calc_PORT_BIT_index((uint8_t)i);
-#endif // SUPPORT_174 == 1
     if ( io_reg[ io_map[j].port ].idr & io_map[j].bit) {
 #endif // PINOUT_OPTION_SUPPORT == 1
       ON_OFF_word_new1 |= (uint32_t)mask;
@@ -7576,106 +7966,135 @@ void read_input_pins(uint8_t init_flag)
 #endif // LINKED_SUPPORT == 1
 
 
-#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+
 void encode_bit_registers(uint8_t sort_init)
 {
   // Function to sort the pin control bytes into the bit registers.
   // sort_init == 1 indicates the function was called during initialization.
-  int i;
-  uint16_t j;
-  i = 0;
-  j = 0x0001;
-  while( i<16 ) {
-    // Update the Invert_word
-    if (pin_control[i] & 0x04) Invert_word = Invert_word |  j;
-    else                       Invert_word = Invert_word & ~j;
-    
-    // Update the ON_OFF_word. This function can be called during boot
-    // initialization at which time both Input pins and Output pins should
-    // be sorted into the ON_OFF word. All other calls to this function
-    // should only sort the Output pins into the ON_OFF word, as the
-    // read_input_pins() function will handle this for Input pins.
-    if (sort_init == 1) {
-      // All pin states are sorted into the ON_OFF_word.
-      if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
-      else                       ON_OFF_word = ON_OFF_word & ~j;
-    }
-    else {
-      // sort_init indicates the function was called during runtime. During
-      // runtime only the Output pins and Linked pins 9 to 16 are sorted
-      // into the ON_OFF_word. Input pins are handled by the read_input_pins()
-      // function.
-#if LINKED_SUPPORT == 0
-      if ((pin_control[i] & 0x03) == 0x03) {
-        // Only the Output pins are sorted into the ON_OFF_word.
-#endif // LINKED_SUPPORT == 0
-#if LINKED_SUPPORT == 1
-      if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
-        // Pin is an Output. Only the Output pins are sorted into the
-	// ON_OFF_word.
-#endif // LINKED_SUPPORT == 1
+  //
+  // When the PCF8574 and Domoticz are not supported the variables that store
+  // IO bit activity (ON_OFF_word, ON_OFF_word_new1, ON_OFF_word_new2, 
+  // ON_OFF_word_sent, and Invert_word) are all 16 bit entities, thus all
+  // manipulation of those variables must be performed at a 16 bit level. When
+  // the PCF8574 or Domoticz ARE supported then the variables are all 32 bit
+  // entities and all manipulation of those variables must be performed at a
+  // 32 bit level.
+  
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+  {
+    int i;
+    uint16_t j;
+    i = 0;
+    j = 0x0001;
+    while( i<16 ) {
+      // Update the Invert_word
+      if (pin_control[i] & 0x04) Invert_word = Invert_word |  j;
+      else                       Invert_word = Invert_word & ~j;
+      
+      // Update the ON_OFF_word. This function can be called during boot
+      // initialization at which time both Input pins and Output pins should
+      // be sorted into the ON_OFF word. All other calls to this function
+      // should only sort the Output pins into the ON_OFF word, as the
+      // read_input_pins() function will handle this for Input pins.
+      if (sort_init == 1) {
+        // All pin states are sorted into the ON_OFF_word.
         if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
         else                       ON_OFF_word = ON_OFF_word & ~j;
       }
+      else {
+        // sort_init indicates the function was called during runtime. During
+        // runtime only the Output pins and Linked pins 9 to 16 are sorted
+        // into the ON_OFF_word. Input pins are handled by the read_input_pins()
+        // function.
+	
+#if LINKED_SUPPORT == 0
+        {
+          if ((pin_control[i] & 0x03) == 0x03) {
+            // Only the Output pins are sorted into the ON_OFF_word.
+            if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
+            else                       ON_OFF_word = ON_OFF_word & ~j;
+	  }
+        }
+#endif // LINKED_SUPPORT == 0
+
+#if LINKED_SUPPORT == 1
+        {
+          if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+            // Pin is an Output. Only the Output pins are sorted into the
+            // ON_OFF_word.
+            if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
+            else                       ON_OFF_word = ON_OFF_word & ~j;
+	  }
+	}
+#endif // LINKED_SUPPORT == 1
+      }
+      i++;
+      j = j << 1;
     }
-    i++;
-    j = j << 1;
   }
-}
 #endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 
 
-
 #if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
-void encode_bit_registers(uint8_t sort_init)
-{
-  // Function to sort the pin control bytes into the bit registers.
-  int i;
-  uint32_t j;
-  i = 0;
-  j = 0x00000001;
-  while( i<24 ) {
-    // Update the Invert_word
-    if (pin_control[i] & 0x04) Invert_word = Invert_word |  j;
-    else                       Invert_word = Invert_word & ~j;
-    
-    // Update the ON_OFF_word. This function can be called during boot
-    // initialization at which time both Input pins and Output pins should
-    // be sorted into the ON_OFF word. All other calls to this function
-    // should only sort the Output pins into the ON_OFF word, as the
-    // read_input_pins() function will handle this for Input pins.
-    if (sort_init == 1) {
-      // sort_init indicates the function was called during initialization.
-      // All pin states are sorted into the ON_OFF_word.
-      if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
-      else                       ON_OFF_word = ON_OFF_word & ~j;
-    }
-    else {
-      // sort_init indicates the function was called during runtime. During
-      // runtime only the Output pins and STM8 Linked pins 9 to 16 and PCF8574
-      // Linked pins 21 to 24 are sorted into the ON_OFF_word. Input pins are
-      // handled by the read_input_pins() function.
-#if LINKED_SUPPORT == 0
-      if ((pin_control[i] & 0x03) == 0x03) {
-        // Only the Output pins are sorted into the ON_OFF_word.
-#endif // LINKED_SUPPORT == 0
-#if LINKED_SUPPORT == 1
-      if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
-        // Pin is an Output. Only the Output pins are sorted into the
-	// ON_OFF_word.
-#endif // LINKED_SUPPORT == 1
+  {
+    int i;
+    uint32_t j;
+    i = 0;
+    j = 0x00000001;
+    while( i<24 ) {
+      // Update the Invert_word
+      if (pin_control[i] & 0x04) Invert_word = Invert_word |  j;
+      else                       Invert_word = Invert_word & ~j;
+      
+      // Update the ON_OFF_word. This function can be called during boot
+      // initialization at which time both Input pins and Output pins should
+      // be sorted into the ON_OFF word. All other calls to this function
+      // should only sort the Output pins into the ON_OFF word, as the
+      // read_input_pins() function will handle this for Input pins.
+      if (sort_init == 1) {
+        // sort_init indicates the function was called during initialization.
+        // All pin states are sorted into the ON_OFF_word.
         if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
         else                       ON_OFF_word = ON_OFF_word & ~j;
       }
+      else {
+        // sort_init indicates the function was called during runtime. During
+        // runtime only the Output pins and STM8 Linked pins 9 to 16 and PCF8574
+        // Linked pins 21 to 24 are sorted into the ON_OFF_word. Input pins are
+        // handled by the read_input_pins() function.
+	
+#if LINKED_SUPPORT == 0
+        {
+          if ((pin_control[i] & 0x03) == 0x03) {
+            // Only the Output pins are sorted into the ON_OFF_word.
+            if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
+            else                       ON_OFF_word = ON_OFF_word & ~j;
+          }
+	}
+#endif // LINKED_SUPPORT == 0
+
+#if LINKED_SUPPORT == 1
+        {
+          if (chk_iotype(pin_control[i], i, 0x03) == 0x03) {
+            // Pin is an Output. Only the Output pins are sorted into the
+            // ON_OFF_word.
+            if (pin_control[i] & 0x80) ON_OFF_word = ON_OFF_word |  j;
+            else                       ON_OFF_word = ON_OFF_word & ~j;
+          }
+	}
+#endif // LINKED_SUPPORT == 1
+      }
+      i++;
+      j = j << 1;
     }
-    i++;
-    j = j << 1;
   }
-}
 #endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
+}
 
 
-#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+
+
+
 void write_output_pins(void)
 {
   // This function updates the Output GPIO pins to match the output pin
@@ -7686,179 +8105,289 @@ void write_output_pins(void)
   // the associated bit of the ON_OFF_word sets the output pin to 0.
   // If the Invert_word bit associated with a given pin is = 1, then a 0 in
   // the associated bit of the ON_OFF_word sets the output pin to 1.
+  //
+  // When the PCF8574 and Domoticz are not supported the variables that store
+  // IO bit activity (ON_OFF_word, ON_OFF_word_new1, ON_OFF_word_new2, 
+  // ON_OFF_word_sent, and Invert_word) are all 16 bit entities, thus all
+  // manipulation of those variables must be performed at a 16 bit level. When
+  // the PCF8574 or Domoticz ARE supported then the variables are all 32 bit
+  // entities and all manipulation of those variables must be performed at a
+  // 32 bit level.
+  
+#if PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
+  {
+    uint16_t xor_tmp;
+    uint16_t xor_tmp_mask;
+    // it's cheaper in terms of code space using int, instead of uint8_t !
+    int i;
+    int j;
 
-  uint16_t xor_tmp;
-  // it's cheaper in terms of code space using int, instead of uint8_t !
-  int i;
-  int j;
+    // Update the output pins to match the bits in the ON_OFF_word.
+    // To simplify code this function writes all pins. Note that if the pin is
+    // configured as an Input writing the ODR will have no effect, thus the
+    // routine does not need to check if the pin is an input or output.
 
-  // Update the output pins to match the bits in the ON_OFF_word.
-  // To simplify code this function writes all pins. Note that if the pin is
-  // configured as an Input writing the ODR will have no effect, thus the
-  // routine does not need to check if the pin is an input or output.
+    // Invert the output if the Invert_word has the corresponding bit set.
+    xor_tmp = (uint16_t)(Invert_word ^ ON_OFF_word);
 
-  // Invert the output if the Invert_word has the corresponding bit set.
-  xor_tmp = (uint16_t)(Invert_word ^ ON_OFF_word);
-
-  // Loop across all IO and set or clear them according to the mask
-  // Skip IO pins that are being used for UART, I2C or DS18B20  
-  for (i=0; i<16; i++) {
+    // Loop across all IO and set or clear them according to the mask
+    // Skip IO pins that are being used for UART, I2C or DS18B20  
+//    for (i=0; i<16; i++) {
+    for (i=0, xor_tmp_mask=1; i<16; i++, xor_tmp_mask<<=1) {
 #if DEBUG_SUPPORT == 15
-    // If UART support is enabled do not write Output 11
-    if (i == 10) continue; // Output 11
+      {
+        // If UART support is enabled do not write Output 11
+        if (i == 10) continue; // Output 11
+      }
 #endif // DEBUG_SUPPORT == 15
+
 #if I2C_SUPPORT == 1
-    // If I2C support is enabled do not write Output 14 and 15
-    if (i == 13) continue; // Output 14
-    if (i == 14) continue; // Output 15
+      {
+        // If I2C support is enabled do not write Output 14 and 15
+        if (i == 13) continue; // Output 14
+        if (i == 14) continue; // Output 15
+      }
 #endif // I2C_SUPPORT == 1
+
 #if DS18B20_SUPPORT == 1
-    // If DS18B20 mode is enabled do not write Output 16
-    if (i == 15 && (stored_config_settings & 0x08))
-      break;
+      {
+        // If DS18B20 mode is enabled do not write Output 16
+        if (i == 15 && (stored_config_settings & 0x08))
+          break;
+      }
 #endif // DS18B20_SUPPORT == 1
 
 #if PINOUT_OPTION_SUPPORT == 0
-    if (xor_tmp & (1 << i)) {
-      io_reg[ io_map[i].port ].odr |= io_map[i].bit;
-    }
-    else {
-      io_reg[ io_map[i].port ].odr &= (uint8_t)(~io_map[i].bit);
-    }
+      {
+//        if (xor_tmp & (1 << i)) {
+        if (xor_tmp & xor_tmp_mask) {
+          io_reg[ io_map[i].port ].odr |= io_map[i].bit;
+        }
+        else {
+          io_reg[ io_map[i].port ].odr &= (uint8_t)(~io_map[i].bit);
+        }
+      }
 #endif // PINOUT_OPTION_SUPPORT == 0
 
 #if PINOUT_OPTION_SUPPORT == 1
-#if SUPPORT_174 == 0
-    j = i + io_map_offset;
-#endif // SUPPORT_174 == 0
-#if SUPPORT_174 == 1
-    j = calc_PORT_BIT_index((uint8_t)i);
-#endif // SUPPORT_174 == 1
-    if (xor_tmp & (1 << i)) {
-      io_reg[ io_map[j].port ].odr |= io_map[j].bit;
-    }
-    else {
-      io_reg[ io_map[j].port ].odr &= (uint8_t)(~io_map[j].bit);
-    }
+      {
+        j = calc_PORT_BIT_index((uint8_t)i);
+//        if (xor_tmp & (1 << i)) {
+        if (xor_tmp & xor_tmp_mask) {
+          io_reg[ io_map[j].port ].odr |= io_map[j].bit;
+        }
+        else {
+          io_reg[ io_map[j].port ].odr &= (uint8_t)(~io_map[j].bit);
+        }
+      }
 #endif // PINOUT_OPTION_SUPPORT == 1
+    }
   }
-}
 #endif // PCF8574_SUPPORT == 0 && DOMOTICZ_SUPPORT == 0
 
 
 #if PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
-void write_output_pins(void)
-{
-  // This function updates the Output GPIO pins to match the output pin
-  // states.
-  //
-  // xor_temp combines the ON_OFF_word with the Invert_word as follows:
-  //   If the Invert_word bit associated with a given pin is = 0, then a 0 in
-  //   the associated bit of the ON_OFF_word sets the output pin to 0.
-  //   If the Invert_word bit associated with a given pin is = 1, then a 0 in
-  //   the associated bit of the ON_OFF_word sets the output pin to 1.
+  {
+    // This function updates the Output GPIO pins to match the output pin
+    // states.
+    //
+    // xor_temp combines the ON_OFF_word with the Invert_word as follows:
+    //   If the Invert_word bit associated with a given pin is = 0, then a 0 in
+    //   the associated bit of the ON_OFF_word sets the output pin to 0.
+    //   If the Invert_word bit associated with a given pin is = 1, then a 0 in
+    //   the associated bit of the ON_OFF_word sets the output pin to 1.
 
-  uint32_t xor_tmp;
-  uint8_t byte;
-  uint8_t mask;
-  int i;
-  int j;
+    uint32_t xor_tmp;
+    uint32_t xor_tmp_mask;
+    uint8_t byte;
+    uint8_t mask;
+    int i;
+    int j;
 
-  // Update the output pins to match the bits in the ON_OFF_word.
-  //
-  // STM8 pins: To simplify code this function writes all STM8 pins. Note that
-  // if the STM8 pin is configured as an Input writing the ODR will have no
-  // effect, thus the routine does not need to check if the STM8 pin is an
-  // input or output.
-  //
-  // PCF8574 pins: Pins defined as inputs by their respective pin_control[]
-  // byte must NEVER be written with 0. The typical way a PCF8574 IO pin is
-  // handled as an input is to write it to "1" when it is initially defined as
-  // an input, then never write it again. In this application that is a bit
-  // problematic, so this function will write the PCF8574 input pins to "1"
-  // any time the PCF8574 pins are updated. This works because even if the
-  // external driver connected to the input is at a zero state the "1" write
-  // performed here will produce a brief "glitch" on the PCF8574 pin before
-  // the external driver drives the input pin back to the correct input state.
-  // In the manual it is recommended that the signal driving the input pin do
-  // so through a resistor to reduce the current flow during the brief
-  // conflict period when a "1" is written.
+    // Update the output pins to match the bits in the ON_OFF_word.
+    //
+    // STM8 pins: To simplify code this function writes all STM8 pins. Note that
+    // if the STM8 pin is configured as an Input writing the ODR will have no
+    // effect, thus the routine does not need to check if the STM8 pin is an
+    // input or output.
+    //
+    // PCF8574 pins: Pins defined as inputs by their respective pin_control[]
+    // byte must NEVER be written with 0. The typical way a PCF8574 IO pin is
+    // handled as an input is to write it to "1" when it is initially defined as
+    // an input, then never write it again. In this application that is a bit
+    // problematic, so this function will write the PCF8574 input pins to "1"
+    // any time the PCF8574 pins are updated. This works because even if the
+    // external driver connected to the input is at a zero state the "1" write
+    // performed here will produce a brief "glitch" on the PCF8574 pin before
+    // the external driver drives the input pin back to the correct input state.
+    // In the manual it is recommended that the signal driving the input pin do
+    // so through a resistor to reduce the current flow during the brief
+    // conflict period when a "1" is written.
   
-  // Invert the output if the Invert_word has the corresponding bit set.
-  xor_tmp = (uint32_t)(Invert_word ^ ON_OFF_word);
+    // Invert the output if the Invert_word has the corresponding bit set.
+    xor_tmp = (uint32_t)(Invert_word ^ ON_OFF_word);
 
-  // Loop across all IO and set or clear them according to the mask.
-  // Skip IO pins that are being used for UART, I2C or DS18B20.
-  for (i=0; i<16; i++) {
+    // Loop across all IO and set or clear them according to the mask.
+    // Skip IO pins that are being used for UART, I2C or DS18B20.
+//    for (i=0; i<16; i++) {
+    for (i=0, xor_tmp_mask=1; i<16; i++, xor_tmp_mask<<=1) {
 #if DEBUG_SUPPORT == 15
-    // If UART support is enabled do not write Output 11
-    if (i == 10) continue; // Output 11
+      {
+        // If UART support is enabled do not write Output 11
+        if (i == 10) continue; // Output 11
+      }
 #endif // DEBUG_SUPPORT == 15
+
 #if I2C_SUPPORT == 1
-    // If I2C support is enabled do not write Output 14 and 15
-    if (i == 13) continue; // Output 14
-    if (i == 14) continue; // Output 15
+      {
+        // If I2C support is enabled do not write Output 14 and 15
+        if (i == 13) continue; // Output 14
+        if (i == 14) continue; // Output 15
+      }
 #endif // I2C_SUPPORT == 1
+
 #if DS18B20_SUPPORT == 1
-    // If DS18B20 mode is enabled do not write Output 16
-    if ((i == 15) && (stored_config_settings & 0x08)) {
-      break;
-    }
+      {
+        // If DS18B20 mode is enabled do not write Output 16
+        if ((i == 15) && (stored_config_settings & 0x08)) {
+          break;
+        }
+      }
 #endif // DS18B20_SUPPORT == 1
 
 #if PINOUT_OPTION_SUPPORT == 0
-    if (xor_tmp & (1 << i)) {
-      io_reg[ io_map[i].port ].odr |= io_map[i].bit;
-    }
-    else {
-      io_reg[ io_map[i].port ].odr &= (uint8_t)(~io_map[i].bit);
-    }
+      {
+//        if (xor_tmp & (1 << i)) {
+        if (xor_tmp & xor_tmp_mask) {
+          io_reg[ io_map[i].port ].odr |= io_map[i].bit;
+#if DEBUG_SUPPORT == 15
+// if (uart_init_complete == 1) {
+//   if (i == 15) {
+//     UARTPrintf("Write 1 to IO16\r\n");
+//   }
+// }
+#endif // DEBUG_SUPPORT == 15
+        }
+        else {
+          io_reg[ io_map[i].port ].odr &= (uint8_t)(~io_map[i].bit);
+#if DEBUG_SUPPORT == 15
+// if (uart_init_complete == 1) {
+//   if (i == 15) {
+//     UARTPrintf("Write 0 to IO16\r\n");
+//   }
+// }
+#endif // DEBUG_SUPPORT == 15
+        }
+      }
 #endif // PINOUT_OPTION_SUPPORT == 0
 
 #if PINOUT_OPTION_SUPPORT == 1
-#if SUPPORT_174 == 0
-    j = i + io_map_offset;
-#endif // SUPPORT_174 == 0
-#if SUPPORT_174 == 1
-    j = calc_PORT_BIT_index((uint8_t)i);
-#endif // SUPPORT_174 == 1
-    if (xor_tmp & (1 << i)) {
-      io_reg[ io_map[j].port ].odr |= io_map[j].bit;
-    }
-    else {
-      io_reg[ io_map[j].port ].odr &= (uint8_t)(~io_map[j].bit);
-    }
+      {
+        j = calc_PORT_BIT_index((uint8_t)i);
+//        if (xor_tmp & (1 << i)) {
+        if (xor_tmp & xor_tmp_mask) {
+          io_reg[ io_map[j].port ].odr |= io_map[j].bit;
+        }
+        else {
+          io_reg[ io_map[j].port ].odr &= (uint8_t)(~io_map[j].bit);
+        }
+      }
 #endif // PINOUT_OPTION_SUPPORT == 1
-  }
+    }
+
+
+#if DEBUG_SUPPORT == 15
+// if (uart_init_complete == 1) {
+//   if (i == 15) {
+//     UARTPrintf("pin_control IO16 = ");
+//     emb_itoa(pin_control[15], OctetArray, 16, 2);
+//     UARTPrintf(OctetArray);
+//     UARTPrintf("   xor_tmp = ");
+//     emb_itoa(xor_tmp, OctetArray, 16, 8);
+//     UARTPrintf(OctetArray);
+//     UARTPrintf("   PC_DDR = ");
+//     emb_itoa(PC_DDR, OctetArray, 16, 2);
+//     UARTPrintf(OctetArray);
+//     UARTPrintf("   PC_ODR = ");
+//     emb_itoa(PC_ODR, OctetArray, 16, 2);
+//     UARTPrintf(OctetArray);
+//     if (PC_ODR == 0x42) {
+//       UARTPrintf("   X");
+//     }
+//     if (PC_ODR == 0x02) {
+//       UARTPrintf("   XXXXXXXXXXXXXXXX");
+//     }
+//     UARTPrintf("\r\n");
+//   }
+// }
+#endif // DEBUG_SUPPORT == 15
 
 
 #if PCF8574_SUPPORT == 1
-  // Write the PCF8574 pins
-  // Domoticz creates a special case in that the Domoticz non-upgradeable
-  // build will have DOMOTICZ_SUPPORT set to 1, but will have PCF8574_SUPPORT
-  // set to 0. So the PCF8574 pin writes are ommitted in that case.
-  byte = (uint8_t)(xor_tmp >> 16);
-  for (i=16, mask=1; i<24; i++, mask<<=1) {
+    {
+      // Write the PCF8574 pins
+      // Domoticz creates a special case in that the Domoticz non-upgradeable
+      // build will have DOMOTICZ_SUPPORT set to 1, but will have PCF8574_SUPPORT
+      // set to 0. So the PCF8574 pin writes are ommitted in that case.
+      byte = (uint8_t)(xor_tmp >> 16);
+      for (i=16, mask=1; i<24; i++, mask<<=1) {
   
 #if LINKED_SUPPORT == 0
-    if ((pin_control[i] & 0x03) == 0x01) {
+        {
+          if ((pin_control[i] & 0x03) == 0x01) {
+            // Pin is an input. Always set PCF8574 Input pins to "1" so that they
+            // can be driven to the proper state by external hardware logic.
+            if ((byte & mask) == 0) byte |= mask;
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // The above could just be byte |= mask, no need for an if statement
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          }
+        }
 #endif // LINKED_SUPPORT == 0
+
 #if LINKED_SUPPORT == 1
-    if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
+        {
+          if (chk_iotype(pin_control[i], i, 0x03) == 0x01) {
+            // Pin is an input. Always set PCF8574 Input pins to "1" so that they
+            // can be driven to the proper state by external hardware logic.
+            if ((byte & mask) == 0) byte |= mask;
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	    // The above could just be byte |= mask, no need for an if statement
+	    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          }
+        }
 #endif // LINKED_SUPPORT == 1
 
-      // Pin is an input. Always set PCF8574 Input pins to "1" so that they
-      // can be driven to the proper state by external hardware logic.
-      if ((byte & mask) == 0) byte |= mask;
+      }
+      // Write the resulting byte to the PCF8574. Output pins will be written as
+      // defined in xor_temp. Input pins will always be written to "1".
+      PCF8574_write(byte);
     }
-  }
-  // Write the resulting byte to the PCF8574. Output pins will be written as
-  // defined in xor_temp. Input pins will always be written to "1".
-  PCF8574_write(byte);
-#endif // PCF8574_SUPPORT == 1
-}
-#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
 
+#if DEBUG_SUPPORT == 15
+/*
+if (uart_init_complete == 1) {
+  UARTPrintf("pin_control for IO16 = ");
+  emb_itoa(pin_control[15], OctetArray, 16, 2);
+  UARTPrintf(OctetArray);
+  UARTPrintf("   Invert_word = ");
+  emb_itoa(Invert_word, OctetArray, 16, 8);
+  UARTPrintf(OctetArray);
+  UARTPrintf("   ON_OFF_word = ");
+  emb_itoa(ON_OFF_word, OctetArray, 16, 8);
+  UARTPrintf(OctetArray);
+  UARTPrintf("   stored_config_settings = ");
+  emb_itoa(stored_config_settings, OctetArray, 16, 2);
+  UARTPrintf(OctetArray);
+  UARTPrintf("\r\n");
+}
+*/
+#endif // DEBUG_SUPPORT == 15
+
+#endif // PCF8574_SUPPORT == 1
+  }
+#endif // PCF8574_SUPPORT == 1 || DOMOTICZ_SUPPORT == 1
+}
 
 
 
@@ -7972,10 +8501,20 @@ void check_reset_button(void)
 	// If pressed for 1 second (but less than 5 seconds) a
 	// user_reboot_request is signaled to cause a reboot() via the main
 	// loop. This will restart the module without losing settings.
-	//
-	// If pressed for 5 seconds or more this for() loop will exit and
-	// the function will go on to restore the default settings.
-	if (i > 20) user_reboot_request = 1;
+	if (i > 20) {
+	  user_reboot_request = 1;
+#if LOGIN_SUPPORT == 1
+	  // An added requirement is to Disable the Login function. This is
+	  // the only method of fixing a "forgot my Passphrase" situation.
+	  {
+	    uint8_t value;
+	    value = stored_config_settings;
+	    value &= (uint8_t)~0x40;
+	    // Update the stored_config_settings value in EEPROM.
+            update_settings_options(UPDATE_CONFIG_SETTINGS, value);
+	  }
+#endif // LOGIN_SUPPORT == 1
+	}
 	return;
       }
     }
@@ -8020,7 +8559,7 @@ void debugflash(void)
   // DEBUG - BLINK LED ON/OFF
   // Turns LED off for 1/2 second, then on and waits 1/2 second
   
-  uint8_t i;
+  int i;
   
   LEDcontrol(0);     // turn LED off
   for(i=0; i<10; i++) wait_timer((uint16_t)50000); // wait 500ms
@@ -8039,7 +8578,7 @@ void fastflash(void)
   // DEBUG - BLINK LED ON/OFF
   // Makes LED flicker for 1 second then leaves LED ON
   
-  uint8_t i;
+  int i;
 
   for (i=0; i<10; i++) {
     LEDcontrol(0);     // turn LED off
@@ -8072,9 +8611,9 @@ void restore_eeprom_debug_bytes(void)
   debug_bytes[1] = stored_debug_bytes[1]; // debug[1]: Not currently used
   
   // debug[2]: The ENC28J60 revision part of debug[2] is restored in the
-  // Enc28j60Init() function.
-  // Restore the stack_error bit
-  if ((stored_debug_bytes[2] & 0x80) == 0x80) debug_bytes[2] |= 0x80;
+  // Enc28j60Init() function. Only restore the stack_overflow bit.
+//  if ((stored_debug_bytes[2] & 0x80) == 0x80) debug_bytes[2] |= 0x80;
+  debug_bytes[2] = (uint8_t)(stored_debug_bytes[2] & 0x80);
   
   // While the following diagnostic counters are mostly useful for checking
   // for the need for Full Duplex in an MQTT setting, they may still be useful
@@ -8096,10 +8635,34 @@ void update_debug_storage1() {
   // EEPROM writes.
   unlock_eeprom();
   for (i = 0; i < 10; i++) {
-    if (stored_debug_bytes[i] != debug_bytes[i]) stored_debug_bytes[i] = debug_bytes[i];
+    if (stored_debug_bytes[i] != debug_bytes[i]) {
+      stored_debug_bytes[i] = debug_bytes[i];
+    }
   }
   lock_eeprom();  
 }
+
+
+#if DEBUG_SUPPORT == 15
+void check_rst_sr(void)
+{
+  // Check RST_SR (Reset Status Register)
+  if (RST_SR & 0x1f) {
+    // Bit 4 EMCF: EMC reset flag
+    if (RST_SR & 0x10) debug_bytes[5] = (uint8_t)(debug_bytes[5] + 1);
+    // Bit 3 SWIMF: SWIM reset flag
+    if (RST_SR & 0x08) debug_bytes[6] = (uint8_t)(debug_bytes[6] + 1);
+    // Bit 2 ILLOPF: Illegal opcode reset flag
+    if (RST_SR & 0x04) debug_bytes[7] = (uint8_t)(debug_bytes[7] + 1);
+    // Bit 1 IWDGF: Independent Watchdog reset flag
+    if (RST_SR & 0x02) debug_bytes[8] = (uint8_t)(debug_bytes[8] + 1);
+    // Bit 0 WWDGF: Window Watchdog reset flag
+    if (RST_SR & 0x01) debug_bytes[9] = (uint8_t)(debug_bytes[9] + 1);
+    update_debug_storage1();
+    RST_SR = (uint8_t)(RST_SR | 0x1f); // Clear the flags
+  }
+}
+#endif // DEBUG_SUPPORT == 15
 
 
 /*
@@ -8114,7 +8677,7 @@ void PCF8574_display_pin_control(void)
   
 //  UARTPrintf("Called PCF8574_display_pin_control\r\n");
   // Read the pin_control bytes from I2C EEPROM for the PCF8574 pins
-  prep_read(I2C_EEPROM2_WRITE, I2C_EEPROM2_READ, PCF8574_I2C_EEPROM_PIN_CONTROL_STORAGE, 2);
+  prep_read(I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_PIN_CONTROL_STORAGE, 2);
   for (i=0; i<7; i++) {
     byte[i] = I2C_read_byte(0);
   }

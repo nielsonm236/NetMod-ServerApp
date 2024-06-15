@@ -50,7 +50,7 @@
 
 void spi_init(void)
 {
-  uint8_t i;
+  int i;
   
   // Set specific GPIO pins to initial values for use as SPI bit
   // bang. Hold ENC28J60 in reset until SPI pins are set up.

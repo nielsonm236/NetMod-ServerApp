@@ -65,7 +65,6 @@
 // see https://www.bosch-sensortec.com/bst/products/all_products/bme280
 // and https://github.com/BoschSensortec/BME280_driver
 
-
 #ifndef BME280_H_
 #define BME280_H_
 
@@ -338,10 +337,19 @@ void stream_sensor_data_forced_mode(struct bme280_dev *dev, struct bme280_data *
 int32_t altitude_adjustment(void);
 
 
+// Function used to copy calib_data to I2C EEPROM for later transfer to RAM
+// RAM in Runtime code.
+void copy_calib_data_to_I2C(struct bme280_calib_data *calib_data);
+
+
+// Function used to transfer the BME280_found value and the calib_data from
+// I2C EEPROM to RAM for use by the Runtime code.
+void copy_I2C_calib_data_to_RAM(struct bme280_dev *dev);
+
+
 void BME280_temperature_string_C(void);
 void BME280_pressure_string(void);
 void BME280_humidity_string(void);
 
 
 #endif // BME280_H_
-

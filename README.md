@@ -44,33 +44,29 @@ Feature Comparison of the MQTT and Browser builds:
 
 IMPORTANT: "Upgradeable (Ethernet) Install" requires additonal hardware - see Manual
 
-Short summary of recent history:
+Short summary of recent history. See the change log in the manual and the Issues List for full descriptions.
 
-October 9, 2023 - Added Domoticz support and addressed several other Issues: #199, #200, #201, #202, #205, #206, #207. See the Change Log in the manual for Issue titles.
+June 12, 2024 - Addressed several Issues: Maintenance: #193, #208, User Info: #195, #204. Features: #203, #211, #212, #214, Bugs: #210, #217, #218, #219, #220, #222.
 
-August 3, 2023 - Addressed numerous issues, most relatively small. See the change log in the manual for full descriptions of Issues #172, #174, #179, #180, #181, #183, #184, #185, #187, #188, #189, #190, and #191.
+October 9, 2023 - Added Domoticz support and addressed several other Issues: #199, #200, #201, #202, #205, #206, #207.
 
-June 3, 2023 - Addressed Issue #175 "Save on IOControl page has stopped working on Chrome?", Addressed Issue #176 "Saving PCF8574 Configuration can cause the PCF8574 to disappear"
+August 3, 2023 - Addressed numerous issues, most relatively small. Issues: #172, #174, #179, #180, #181, #183, #184, #185, #187, #188, #189, #190, and #191.
 
-April 16, 2023 - Addressed Issue #159 "Boot issue: Sometimes taking 60 to 120 seconds to stabilize the MQTT connection", Addressed Issue #167 "UIP Code Retransmission Timeout problem"
+June 3, 2023 - Addressed Issues: #175, #176.
 
-March 28, 2023 - Addressed Issue #164 "When setting multiple outputs with /51, no status is sent back"
+April 16, 2023 - Addressed Issues: #159, #167.
 
-March 25, 2023 - Addressed Issue #161 "URL ON/OFF Cmds not working right in Release 20230324 1435"
+March 28, 2023 - Addressed Issue #164.
 
-March 24, 2023 - Addressed Issue #147 "Question for team: How to handle the MQTT state-req message with PCF8574", Addressed Issue #158 "BME280 build - all pins are outputs even if defined as an input"
+March 25, 2023 - Addressed Issue #161.
 
-March 12, 2023 - Addressed Issue #115 (added PCF8574 support), Addressed Issue #120 (Alternative Pinout Support), Addressed Issue #152 (Added Short Form Option)
+March 24, 2023 - Addressed Issues: #147, #158.
 
-January 25, 2023 - Addressed Issue #132 “Linked pins Output states not correct after reboot” and Issue #93 “Add BME280 Temperature Humidity Pressure sensor”
+March 12, 2023 - Addressed Issues: #115, #120, #152.
 
-December 17, 2022 - Addressed Issues #113 and #118 both related to Home Assistant Header Toggle, deprecated DS18B20 "hot add", addressed Issue #116 “Link Input pin to an Output pin”, addressed Issue #112 “Request to change output pins in “batch mode””, addressed Issue #126 “Malformed REST commands produce garbage Browser page”, addressed Issue #123 “Allow short press of Reset button to reboot the module", fixed several minor bugs.
+January 25, 2023 - Addressed Issues: #132, #93.
 
-October 9, 2022 - Fixed Issue #94: “ENC28J60 Revision not always reported in Link Error Statistics”. Added Enhancement Issue #100 “Remove Configuration Button”. This is an option to disable the Configuration button on the IOControl page. Fixed Issue #108 "Temperature sensors loose custom names in HA on NetModule boot". Fixed #110 “Can’t enter full 19 character Device name” – a bug made apparent in the 20220921 release. Fixed #109 “Home Assistant Not Showing Sensors in Fahrenheit” -  a bug made apparent in the 20220921 release
-
-August 31,2022 - Added useability enhancement "Make ON/OFF labels clickable"
-
-August 17, 2022 - Fixed "MQTT state-req returning all zeroes".
+December 17, 2022 - Addressed Issues: #113, #118, #116, #112, #126, #123, fixed several minor bugs.
 
 Help is available via a link in the Configuration page that will take you to the GitHub Wiki page. All functionality is described in detail in the "Network Module Manual". I suggest you take a look.
 

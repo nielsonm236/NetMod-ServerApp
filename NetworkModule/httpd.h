@@ -83,7 +83,9 @@
 #define MQTT_WEBPAGE_PCF8574_CONFIGURATION_ADDRESS_LOCATION		0x004e
 #define BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_ADDRESS_LOCATION		0x0050
 #define BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_ADDRESS_LOCATION	0x0052
-#define WEBPAGE_LOADUPLOADER_ADDRESS_LOCATION				0x0054
+#define WEBPAGE_LOGIN_ADDRESS_LOCATION					0x0054
+#define WEBPAGE_SET_PASSPHRASE_ADDRESS_LOCATION				0x0056
+#define WEBPAGE_LOADUPLOADER_ADDRESS_LOCATION				0x0058
 
 #define MQTT_WEBPAGE_IOCONTROL_SIZE_LOCATION				0x0080
 #define MQTT_WEBPAGE_CONFIGURATION_SIZE_LOCATION			0x0082
@@ -95,7 +97,9 @@
 #define MQTT_WEBPAGE_PCF8574_CONFIGURATION_SIZE_LOCATION		0x008e
 #define BROWSER_ONLY_WEBPAGE_PCF8574_IOCONTROL_SIZE_LOCATION		0x0090
 #define BROWSER_ONLY_WEBPAGE_PCF8574_CONFIGURATION_SIZE_LOCATION	0x0092
-#define WEBPAGE_LOADUPLOADER_SIZE_LOCATION				0x0094
+#define WEBPAGE_LOGIN_SIZE_LOCATION					0x0094
+#define WEBPAGE_SET_PASSPHRASE_SIZE_LOCATION				0x0096
+#define WEBPAGE_LOADUPLOADER_SIZE_LOCATION				0x0098
 
 // The MQTT_WEBPAGE_IOCONTROL webpage is the first webpage string stored in
 // I2C EEPROM (EEPROM Region 2) and starts at 0x0100. The .sx file that
@@ -176,7 +180,7 @@ void create_sensor_ID(int8_t sensor);
 char *show_temperature_string(char * pBuffer, uint8_t nParsedNum);
 char *show_BME280_PTH_string(char *pBuffer);
 char *show_INA226_CVW_string(char *pBuffer);
-void FloatToString(float fVal);
+void INAint32ToString(int32_t fVal);
 char *show_space_or_minus(int32_t value, char *pBuffer);
 
 void emb_itoa(uint32_t num, char* str, uint8_t base, uint8_t pad);
@@ -187,7 +191,7 @@ void int2hex(uint8_t i);
 void int16to4hex(uint16_t i);
 
 void HttpDInit(void);
-void init_tHttpD_struct(struct tHttpD* pSocket, int i);
+void init_tHttpD_struct(struct tHttpD* pSocket);
 void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket);
 
 char *read_two_characters(char *pBuffer);
@@ -195,6 +199,11 @@ void parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes);
 void parse_local_buf(struct tHttpD* pSocket, char* local_buf, uint16_t lbi_max);
 void update_ON_OFF(uint8_t i, uint8_t j);
 void parseget(struct tHttpD* pSocket, char *pBuffer);
-void parse_command_abort(struct tHttpD* pSocket);
+// void parse_val_case_0x55(void);
+// void parse_val_case_0x56(void);
+void parse_command_exception(struct tHttpD* pSocket);
+
+void login_timer_management(void);
+int8_t check_login_status(void);
 
 #endif /*HTTPD_H_*/

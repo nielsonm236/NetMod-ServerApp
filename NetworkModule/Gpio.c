@@ -26,63 +26,25 @@
 // All includes are in main.h
 #include "main.h"
  
-// extern uint8_t stored_magic4;		// MSB Magic Number stored in EEPROM
-// extern uint8_t stored_magic3;		// 
-// extern uint8_t stored_magic2;		// 
-// extern uint8_t stored_magic1;		// LSB Magic Number
 extern uint8_t stored_pin_control[16];  // STM8 per pin control settings
                                         // stored in EEPROM
 extern uint8_t stored_options1;         // Additional options stored in EEPROM
 
 
-#if SUPPORT_174 == 0
-// io_map_offset defines the user selected IO pinout map.
-// io_map_offset = 0 for the first 16 io_map definitions
-// io_map_offset = 16 for the second 16 io_map definitions
-// io_map_offset = 32 for the third 16 io_map definitions
-// See the manual for explanation
-extern int8_t io_map_offset;
-#endif // SUPPORT_174 == 0
-
-
-// The following enum PORTS, struct io_registers, struct io_mapping, and
-// struct io_mapping io_map are used to direct the read_input_pins() and
+// The following structs are used to direct the read_input_pins() and
 // write_output_pins() functions to the correct registers and bits for each
 // physical pin that is being read or written. This significantly reduces
 // the code size for these functions. Credit to Carlos Ladeira for this
 // clever implementation. Credit to "peoyli" for the ideas on expanding to
 // user selectable alternative pinouts.
 
-// Ccreate a variable with the structure of the port registers and define
+// Create a variable with the structure of the port registers and define
 // its position on the memory location of the port registers (starting at
-// 0x5000). This way we can manipulate this data as an array of ports.
-volatile struct io_registers io_reg[ NUM_PORTS ] @0x5000; // Make room for PA .. PG starting at 0x5000
+// 0x5000). This way this data can be manipulated as an array of ports.
+// Make room for PA .. PG starting at 0x5000
+volatile struct io_registers io_reg[ NUM_PORTS ] @0x5000;
 
-#if SUPPORT_174 == 0
-#if PINOUT_OPTION_SUPPORT == 0
-// Define the pair PORT:BIT for each of the 16 I/Os
-const struct io_mapping io_map[16] = {
-	{ PA, 0x08 },    // PA bit3, IO1
-	{ PA, 0x20 },    // PA bit5, IO2
-	{ PD, 0x40 },    // PD bit6, IO3
-	{ PD, 0x10 },    // PD bit4, IO4
-	{ PD, 0x04 },    // PD bit2, IO5
-	{ PE, 0x01 },    // PE bit0, IO6
-	{ PG, 0x02 },    // PG bit1, IO7
-	{ PC, 0x80 },    // PC bit7, IO8
-	{ PA, 0x10 },    // PA bit4, IO9
-	{ PD, 0x80 },    // PD bit7, IO10
-	{ PD, 0x20 },    // PD bit5, IO11
-	{ PD, 0x08 },    // PD bit3, IO12
-	{ PD, 0x01 },    // PD bit0, IO13
-	{ PE, 0x08 },    // PE bit3, IO14
-	{ PG, 0x01 },    // PG bit0, IO15
-	{ PC, 0x40 }     // PC bit6, IO16
-};
-#endif // PINOUT_OPTION_SUPPORT == 0
-#endif // SUPPORT_174 == 0
 
-#if SUPPORT_174 == 1
 // Define the pair PORT:BIT for each of the 16 I/Os. This is the default
 // pairing.
 const struct io_mapping io_map[16] = {
@@ -103,110 +65,10 @@ const struct io_mapping io_map[16] = {
 	{ PG, 0x01 },    // PG bit0, IO15
 	{ PC, 0x40 }     // PC bit6, IO16
 };
-#endif // SUPPORT_174 == 1
-
-
-#if SUPPORT_174 == 0
-#if PINOUT_OPTION_SUPPORT == 1
-// Define the pair PORT:BIT for each of the 16 I/Os. Three sets of definition
-// are placed in the table. Only one alternative set is used at any given time
-// as selected by the user.
-// IMPORTANT: The use of alternative pinouts is really only useful in hardware
-// configurations that are "relay driver only". An alternative pinout can be
-// selected to match the pin definitions of a relay module. This is typically
-// needed to match pinouts on 16-relay boards. However, if there is any use of
-// "reserved pins" like DS18B20 or the UART the alternative pinout selected by
-// the user will be over-ridden and the pinout returned to Option 1.
-//
-// Note: The build map in uipopt.h does not allow a build that has both
-// PINOUT_OPTION_SUPPORT and I2C_SUPPORT.
-
-const struct io_mapping io_map[48] = {
-        // Pinout Option 1
-        // The first 16 definitions are for IO locations that match the
-	// silksreen marking on the HW-584 board
-	// HW-584 silkscreen
-	// 5V 16 15 14 13 12 11 10 09 G
-	// 5V 08 07 06 05 04 03 02 01 G
-	// IO numbering in the GUI
-	// 5V 16 15 14 13 12 11 10 09 G
-	// 5V 08 07 06 05 04 03 02 01 G	
-	{ PA, 0x08 },    // PA bit3, IO1, Pin 1
-	{ PA, 0x20 },    // PA bit5, IO2, Pin 2
-	{ PD, 0x40 },    // PD bit6, IO3, Pin 3
-	{ PD, 0x10 },    // PD bit4, IO4, Pin 4
-	{ PD, 0x04 },    // PD bit2, IO5, Pin 5
-	{ PE, 0x01 },    // PE bit0, IO6, Pin 6
-	{ PG, 0x02 },    // PG bit1, IO7, Pin 7
-	{ PC, 0x80 },    // PC bit7, IO8, Pin 8
-	{ PA, 0x10 },    // PA bit4, IO9, Pin 9
-	{ PD, 0x80 },    // PD bit7, IO10, Pin 10
-	{ PD, 0x20 },    // PD bit5, IO11, Pin 11
-	{ PD, 0x08 },    // PD bit3, IO12, Pin 12
-	{ PD, 0x01 },    // PD bit0, IO13, Pin 13
-	{ PE, 0x08 },    // PE bit3, IO14, Pin 14
-	{ PG, 0x01 },    // PG bit0, IO15, Pin 15
-	{ PC, 0x40 },    // PC bit6, IO16, Pin 16
-        // Pinout Option 2
-        // The second 16 definitions are for IO locations that match this
-	// table
-	// HW-584 silkscreen
-	// 5V 16 15 14 13 12 11 10 09 G
-	// 5V 08 07 06 05 04 03 02 01 G
-	// IO numbering in the GUI
-	// 5V 02 04 06 08 10 12 14 16 G
-	// 5V 01 03 05 07 09 11 13 15 G
-	{ PC, 0x80 },    // PC bit7, IO01, Pin 8
-	{ PC, 0x40 },    // PC bit6, IO02, Pin 16
-	{ PG, 0x02 },    // PG bit1, IO03, Pin 7
-	{ PG, 0x01 },    // PG bit0, IO04, Pin 15
-	{ PE, 0x01 },    // PE bit0, IO05, Pin 6
-	{ PE, 0x08 },    // PE bit3, IO06, Pin 14
-	{ PD, 0x04 },    // PD bit2, IO07, Pin 5
-	{ PD, 0x01 },    // PD bit0, IO08, Pin 13
-	{ PD, 0x10 },    // PD bit4, IO09, Pin 4
-	{ PD, 0x08 },    // PD bit3, IO10, Pin 12
-	{ PD, 0x40 },    // PD bit6, IO11, Pin 3
-	{ PD, 0x20 },    // PD bit5, IO12, Pin 11
-	{ PA, 0x20 },    // PA bit5, IO13, Pin 2
-	{ PD, 0x80 },    // PD bit7, IO14, Pin 10
-	{ PA, 0x08 },    // PA bit3, IO15, Pin 1
-	{ PA, 0x10 },    // PA bit4, IO16, Pin 9
-        // Pinout Option 3
-        // The third 16 definitions are for IO locations that match this
-	// table
-	// HW-584 silkscreen
-	// 5V 16 15 14 13 12 11 10 09 G
-	// 5V 08 07 06 05 04 03 02 01 G
-	// IO numbering in the GUI
-	// 5V 08 07 06 05 04 03 02 01 G
-	// 5V 16 15 14 13 12 11 10 09 G
-	{ PA, 0x10 },    // PA bit4, IO01, Pin 9
-	{ PD, 0x80 },    // PD bit7, IO02, Pin 10
-	{ PD, 0x20 },    // PD bit5, IO03, Pin 11
-	{ PD, 0x08 },    // PD bit3, IO04, Pin 12
-	{ PD, 0x01 },    // PD bit0, IO05, Pin 13
-	{ PE, 0x08 },    // PE bit3, IO06, Pin 14
-	{ PG, 0x01 },    // PG bit0, IO07, Pin 15
-	{ PC, 0x40 },    // PC bit6, IO08, Pin 16
-	{ PA, 0x08 },    // PA bit3, IO09, Pin 1
-	{ PA, 0x20 },    // PA bit5, IO10, Pin 2
-	{ PD, 0x40 },    // PD bit6, IO11, Pin 3
-	{ PD, 0x10 },    // PD bit4, IO12, Pin 4
-	{ PD, 0x04 },    // PD bit2, IO13, Pin 5
-	{ PE, 0x01 },    // PE bit0, IO14, Pin 6
-	{ PG, 0x02 },    // PG bit1, IO15, Pin 7
-	{ PC, 0x80 }     // PC bit7, IO16, Pin 9
-};
-#endif // PINOUT_OPTION_SUPPORT == 1
-#endif // SUPPORT_174 == 0
 
 
 void gpio_init(void)
 {
-  uint8_t i;
-  uint8_t j;
-
   // GPIO Definitions for 16 outputs
   //
   // Assumption is that power-on reset has set all GPIO to the default states
@@ -221,48 +83,6 @@ void gpio_init(void)
   //
   // Any pins that are "not used" are set as pulled up inputs.
 
-
-#if SUPPORT_174 == 0
-  // Set Pinout Option
-  // If an alternate Pinout Option is selected it must be selected before any
-  // GPIO settings are applied.
-  //
-  // (stored_options1 & 0x07) = 1 for the first 16 io_map definitions
-  // (stored_options1 & 0x07) = 2 for the second 16 io_map definitions
-  // (stored_options1 & 0x07) = 3 for the third 16 io_map definitions
-  // io_map_offset defines the user selected IO pinout map.
-  // io_map_offset = 0 for the first 16 io_map definitions
-  // io_map_offset = 16 for the second 16 io_map definitions
-  // io_map_offset = 32 for the third 16 io_map definitions
-  // See gpio.c and the manual for explanation
-  // Note: Configuration checks in check_runtime_changes() may over-ride this
-  // setting.
-  {
-    uint8_t i;
-    uint8_t j;
-    i = 0;
-#if I2C_SUPPORT == 1
-    // If ISC_SUPPORT is enabled then Option 1 must be used. Set a flag.
-    i = 1;
-#endif // I2C_SUPPORT == 1
-    j = (uint8_t)(stored_options1 & 0x07);
-    if (j > 0 && j < 4 && i == 0) {
-      // If stored_options1 is valid update io_map_offset
-      io_map_offset = (uint8_t)(((stored_options1 & 0x07) - 1) * 16);
-    }
-    else {
-      // Else use Option 1
-      io_map_offset = 0;
-      j = (uint8_t)(stored_options1 & 0xf8);
-      j |= 0x01;
-      unlock_eeprom();
-      stored_options1 = j;
-      lock_eeprom();
-    }
-  }
-#endif // SUPPORT_174 == 0
-
-#if SUPPORT_174 == 1
   // Set Pinout Option
   // If an alternate Pinout Option is selected it must be selected before any
   // GPIO settings are applied.
@@ -279,7 +99,7 @@ void gpio_init(void)
     uint8_t j;
     i = 0;
 #if I2C_SUPPORT == 1
-    // If ISC_SUPPORT is enabled then Option 1 must be used. Set a flag.
+    // If I2C_SUPPORT is enabled then Option 1 must be used. Set a flag.
     i = 1;
 #endif // I2C_SUPPORT == 1
     j = (uint8_t)(stored_options1 & 0x07);
@@ -290,13 +110,9 @@ void gpio_init(void)
       // Else force Option 1
       j = (uint8_t)(stored_options1 & 0xf8);
       j |= 0x01;
-      unlock_eeprom();
-      stored_options1 = j;
-      lock_eeprom();
+      update_settings_options(UPDATE_OPTIONS1, j);
     }
   }
-#endif // SUPPORT_174 == 1
-
 
   // To reduce the incidence of output pin "chatter" during a reboor (no power
   // loss) the ODR (Output Data Register) for each output pin is pre-written
@@ -312,25 +128,15 @@ void gpio_init(void)
   // tions are asserted as outputs this code will make sure the ODR is already
   // set to the previous state of the output. Doing this in the gpio.c func-
   // tion reduces the time that the pins are in a tri-state condition.
-  //
-  // I AM NOT SURE A MAGIC NUMBER CHECK IS NEEDED HERE. GPIO_INIT() IS RUN
-  // AFTER THE CHECK_EEPROM_SETTINGS() FUNCTION, SO THE MAGIC NUMBER WILL
-  // ALWAYS BE PRESENT BY THE TIME THE GPIO_INIT() FUNCTION RUNS.
-//  if ((stored_magic4 == 0x55) && 
-//      (stored_magic3 == 0xee) && 
-//      (stored_magic2 == 0x0f) && 
-//      (stored_magic1 == 0xf0)) {
 
-    // Create 16bit versions of the pin control information.
-//    encode_16bit_registers(1);
-    encode_bit_registers(1);
-    
-    // Update the output pins
-    // The write_output_pins() function uses the io_map table, which is part
-    // of the reasons that the io_map_offset had to be determined before
-    // reaching this point in the code.
-    write_output_pins(); // Initializes the ODR bits
-//  }
+  // Create register versions of the pin control information.
+  encode_bit_registers(1);
+  
+  // Update the output pins
+  // The write_output_pins() function uses the io_map table, which is the
+  // reason that the io_map_offset had to be determined before reaching this
+  // point in the code.
+  write_output_pins(); // Initializes the ODR bits
 
   // Any IO pin can be an input or output as defined in the
   // stored_pin_control bytes (and the associated 16 bit registers).
@@ -425,65 +231,100 @@ void gpio_init(void)
   // - If an Output the pin is PP (Push Pull) and Low Speed (2MHz).
   // - If an Input the pin is Input with Pull-up and Interrupt Disabled.
   // - Or may be set differently by the "special config settings" below.
-  for (i=PA; i<NUM_PORTS; i++) {
-    io_reg[ i ].cr1 = 0xff;
-    io_reg[ i ].cr2 = 0x00;
+  {
+    int i;
+    for (i=PA; i<NUM_PORTS; i++) {
+      io_reg[ i ].cr1 = 0xff;
+      io_reg[ i ].cr2 = 0x00;
+    }
   }
 
   // Some of the registers need special config settings
   // PA Bit 2 - Pin 03 - Output PP - LED
-  PA_DDR = 0x04;
+//  PA_DDR = 0x04;
+  PA_DDR |= 0x04;
   
   // PC Bit 3 - Pin 28 - Output PP - ENC28J60 SI (SPI SO)
   // PC Bit 2 - Pin 27 - Output PP - ENC28J60 SCK
   // PC Bit 1 - Pin 26 - Output PP - ENC28J60 -CS
-  PC_DDR = 0x0e;
-  PC_CR2 = 0x0e;
+//  PC_DDR = 0x0e;
+//  PC_CR2 = 0x0e;
+  PC_DDR |= 0x0e;
+  PC_CR2 |= 0x0e;
   
   // PE Bit 5 - Pin 25 - Output PP - ENC28J60 -RESET
-  PE_DDR = 0x20;
-  PE_CR2 = 0x20;
+//  PE_DDR = 0x20;
+//  PE_CR2 = 0x20;
+  PE_DDR |= 0x20;
+  PE_CR2 |= 0x20;
   
 
   // All i/o pins defaulted to Inputs. Loop across all i/o's and set the
   // respective bit of the corresponding DDR register to 1 if that i/o is an
   // output.
-  for (i=0; i<16; i++) {
-    // Determine setting from stored_pin_control byte
+  {
+    uint8_t i;
+    uint8_t j;
+    for (i=0; i<16; i++) {
+      // Determine setting from stored_pin_control byte
+
 #if LINKED_SUPPORT == 0
-    if ((stored_pin_control[i] & 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 0
-#if LINKED_SUPPORT == 1
-    if (chk_iotype(stored_pin_control[i], i, 0x03) == 0x03) {
-#endif // LINKED_SUPPORT == 1
-      // Pin is an Output
-      // Set the DDR bit for this i/o in the port DDR register
+      {
+        if ((stored_pin_control[i] & 0x03) == 0x03)
+        {
+          // Pin is an Output
+          // Set the DDR bit for this i/o in the port DDR register
 #if PINOUT_OPTION_SUPPORT == 0
-      io_reg[ io_map[i].port ].ddr |= io_map[i].bit;
+          {
+          io_reg[ io_map[i].port ].ddr |= io_map[i].bit;
+          }
 #endif // PINOUT_OPTION_SUPPORT == 0
 
+#if PINOUT_OPTION_SUPPORT == 1
+          {
+          j = calc_PORT_BIT_index(i);
+          io_reg[ io_map[j].port ].ddr |= io_map[j].bit;
+          }
+#endif // PINOUT_OPTION_SUPPORT == 1
+        }
+      }
+#endif // LINKED_SUPPORT == 0
+
+#if LINKED_SUPPORT == 1
+      {
+        if (chk_iotype(stored_pin_control[i], i, 0x03) == 0x03)
+        {
+          // Pin is an Output
+          // Set the DDR bit for this i/o in the port DDR register
+#if PINOUT_OPTION_SUPPORT == 0
+          {
+            io_reg[ io_map[i].port ].ddr |= io_map[i].bit;
+          }
+#endif // PINOUT_OPTION_SUPPORT == 0
 
 #if PINOUT_OPTION_SUPPORT == 1
-#if SUPPORT_174 == 0
-      j = (int8_t)(i + io_map_offset);
-#endif // SUPPORT_174 == 0
-#if SUPPORT_174 == 1
-      j = calc_PORT_BIT_index(i);
-#endif // SUPPORT_174 == 1
-      io_reg[ io_map[j].port ].ddr |= io_map[j].bit;
+          {
+            j = calc_PORT_BIT_index(i);
+            io_reg[ io_map[j].port ].ddr |= io_map[j].bit;
+          }
 #endif // PINOUT_OPTION_SUPPORT == 1
-
-
+        }
+      }
+#endif // LINKED_SUPPORT == 1
     }
   }
 }
 
 
-#if SUPPORT_174 == 1
+#if PINOUT_OPTION_SUPPORT == 1
 uint8_t calc_PORT_BIT_index(uint8_t IO_index)
 {
   // Function to determine the index into the array of PORT:BIT pairs for the
   // various pinout options. The function returns the index value.
+  //
+  // This function only gets called by code included in builds when
+  // PINOUT_OPTION_SUPPORT == 1, so the compiler will only include thie
+  // function in builds if PINOUT_OPTION_SUPPORT == 1.
   //
   // Explanation:
   // Originally the design had a single array that paired each GUI IO number
@@ -587,7 +428,7 @@ uint8_t calc_PORT_BIT_index(uint8_t IO_index)
 
   return PORT_BIT_index;
 }
-#endif // SUPPORT_174 == 1
+#endif // PINOUT_OPTION_SUPPORT == 1
 
 
 void LEDcontrol(uint8_t state)
@@ -597,5 +438,3 @@ void LEDcontrol(uint8_t state)
   if (state) PA_ODR |= (uint8_t)0x04;
   else PA_ODR &= (uint8_t)(~0x04);
 }
-
-

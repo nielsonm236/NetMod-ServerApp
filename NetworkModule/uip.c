@@ -285,7 +285,11 @@ static uint16_t chksum(uint16_t sum, const uint8_t *data, uint16_t len)
 //---------------------------------------------------------------------------//
 uint16_t uip_chksum(uint16_t *data, uint16_t len)
 {
-  return htons(chksum(0, (uint8_t *)data, len));
+  // Removed "htons" code to reduce Flash usage. This can be done as the
+  // SMT8 is "Big Endian". Keep the commented code in case the application
+  // is ported to a "Little Endian" architecture.
+  // return htons(chksum(0, (uint8_t *)data, len));
+  return (chksum(0, (uint8_t *)data, len));
 }
 
 
@@ -297,7 +301,12 @@ uint16_t uip_ipchksum(void)
 
   sum = chksum(0, &uip_buf[UIP_LLH_LEN], UIP_IPH_LEN);
   // DEBUG_PRINTF("uip_ipchksum: sum 0x%04x\n", sum);
-  return (sum == 0) ? 0xffff : htons(sum);
+  
+  // Removed "htons" code to reduce Flash usage. This can be done as the
+  // SMT8 is "Big Endian". Keep the commented code in case the application
+  // is ported to a "Little Endian" architecture.
+  // return (sum == 0) ? 0xffff : htons(sum);
+  return (sum == 0) ? 0xffff : sum;
 }
 #endif
 
@@ -320,7 +329,11 @@ static uint16_t upper_layer_chksum(uint8_t proto)
   /* Sum TCP header and data. */
   sum = chksum(sum, &uip_buf[UIP_IPH_LEN + UIP_LLH_LEN], upper_layer_len);
 
-  return (sum == 0) ? 0xffff : htons(sum);
+  // Removed "htons" code to reduce Flash usage. This can be done as the
+  // SMT8 is "Big Endian". Keep the commented code in case the application
+  // is ported to a "Little Endian" architecture.
+  // return (sum == 0) ? 0xffff : htons(sum);
+  return (sum == 0) ? 0xffff : sum;
 }
 
 
@@ -778,11 +791,20 @@ void uip_process(uint8_t flag)
 
   ICMPBUF->type = ICMP_ECHO_REPLY;
 
-  if (ICMPBUF->icmpchksum >= HTONS(0xffff - (ICMP_ECHO << 8))) {
-    ICMPBUF->icmpchksum += HTONS(ICMP_ECHO << 8) + 1;
+  // Removed "htons" code to reduce Flash usage. This can be done as the
+  // SMT8 is "Big Endian". Keep the commented code in case the application
+  // is ported to a "Little Endian" architecture.
+  // if (ICMPBUF->icmpchksum >= HTONS(0xffff - (ICMP_ECHO << 8))) {
+  //   ICMPBUF->icmpchksum += HTONS(ICMP_ECHO << 8) + 1;
+  if (ICMPBUF->icmpchksum >= (0xffff - (ICMP_ECHO << 8))) {
+    ICMPBUF->icmpchksum += (ICMP_ECHO << 8) + 1;
   }
   else {
-    ICMPBUF->icmpchksum += HTONS(ICMP_ECHO << 8);
+    // Removed "htons" code to reduce Flash usage. This can be done as the
+    // SMT8 is "Big Endian". Keep the commented code in case the application
+    // is ported to a "Little Endian" architecture.
+    // ICMPBUF->icmpchksum += HTONS(ICMP_ECHO << 8);
+    ICMPBUF->icmpchksum += (ICMP_ECHO << 8);
   }
 
   // Swap IP addresses.
@@ -1810,10 +1832,13 @@ UARTPrintf("  uip.c: UIP_CLOSING\r\n");
 
 
 //---------------------------------------------------------------------------//
-uint16_t htons(uint16_t val)
-{
-  return HTONS(val);
-}
+// Removed "htons" code to reduce Flash usage. This can be done as the
+// SMT8 is "Big Endian". Keep the commented code in case the application
+// is ported to a "Little Endian" architecture.
+// uint16_t htons(uint16_t val)
+// {
+//   return HTONS(val);
+// }
 
 
 //---------------------------------------------------------------------------//

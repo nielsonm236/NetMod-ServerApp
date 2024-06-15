@@ -154,8 +154,8 @@ char *stpcpy(char * dest, char * src)
 
 
 #if HOME_ASSISTANT_SUPPORT == 1
-int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
-  
+int16_t mqtt_pal_sendall(const void* buf, uint16_t len)
+{  
   char* pBuffer;
   char* mBuffer;
   uint8_t template_buf[4];
@@ -320,7 +320,7 @@ int16_t mqtt_pal_sendall(const void* buf, uint16_t len) {
       // Copy 14 characters from mBuffer to payload_buf. This is more than
       // needed if an IO pin, but all are needed if a Temperature Sensor. This
       // data will be sorted out below.
-      memcpy(&payload_buf[0], mBuffer, 14);
+      memcpy(payload_buf, mBuffer, 14);
       
       // Place a NULL terminator in payload_buf to creat the Pin Number /
       // Sensor ID string.

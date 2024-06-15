@@ -65,7 +65,11 @@ extern uint8_t mqtt_close_tcp;
 void uip_TcpAppHubCall(void)
 // We get here via UIP_APPCALL in the uip.c code
 {
-  if(uip_conn->lport == htons(Port_Httpd)) {
+  // Removed "htons" code to reduce Flash usage. This can be done as the
+  // SMT8 is "Big Endian". Keep the commented code in case the application
+  // is ported to a "Little Endian" architecture.
+  // if(uip_conn->lport == htons(Port_Httpd)) {
+  if(uip_conn->lport == Port_Httpd) {
     // This code is called if incoming traffic is HTTP. HttpDCall will read
     // the incoming data from the uip_buf, then create any needed output
     // data and put it in the uip_buf.
@@ -79,7 +83,11 @@ void uip_TcpAppHubCall(void)
   }
 
 #if BUILD_SUPPORT == MQTT_BUILD
-  else if(uip_conn->lport == htons(mqtt_local_port)) {
+  // Removed "htons" code to reduce Flash usage. This can be done as the
+  // SMT8 is "Big Endian". Keep the commented code in case the application
+  // is ported to a "Little Endian" architecture.
+  // else if(uip_conn->lport == htons(mqtt_local_port)) {
+  else if(uip_conn->lport == mqtt_local_port) {
     // This code is called if incoming traffic is MQTT. mqtt_sync will read
     // the incoming data (if any) from the uip_buf, then create any needed
     // ouptut data and put it in the uip_buf.

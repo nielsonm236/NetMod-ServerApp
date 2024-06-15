@@ -98,25 +98,20 @@
 
 // The maximum number of simultaneously open TCP connections. Since the TCP
 // connections are statically allocated, turning this configuration knob down
-// results in less RAM used. Each TCP connection requires approximately 30
+// results in less RAM used. Each TCP connection requires approximately 40
 // bytes of memory.
-//
-// Comment MN: Experiment shows actual RAM consumption per connection to be
-// 40 bytes.
 #define UIP_CONNS       4
 
 
 // The maximum number of simultaneously listening TCP ports. Each listening
 // TCP port requires 2 bytes of memory.
-//
-// Comment MN: Experiment shows the 2 bytes of RAM estimate to be correct.
-// Comment MN: In order to allow multiple browsers on >different< IP
-// addresses to work UIP_LISTENPORTS had to be the same value as UIP_CONNS.
-// Examining the uip.c code did not explain why this is the case.
-// Comment MN: Note that the MQTT port does not require an entry in the
-// listen ports table. It is handled separately. However, MQTT DOES require
-// an entry in the uip_conns table. So, when MQTT is in use there can be a
-// maximum of 3 Browser connections.
+//   Comment MN: In order to allow multiple browsers on >different< IP
+//   addresses to work UIP_LISTENPORTS had to be the same value as UIP_CONNS.
+//   Examining the uip.c code did not explain why this is the case.
+//   Comment MN: Note that the MQTT port does not require an entry in the
+//   listen ports table. It is handled separately. However, MQTT DOES require
+//   an entry in the uip_conns table. So, when MQTT is in use there can be a
+//   maximum of 3 Browser connections.
 #define UIP_LISTENPORTS 4
 
 
@@ -204,7 +199,7 @@
 
 // The size of the ARP table. This option should be set to a larger value if
 // this uIP node will have many connections from the local network.
-// Comment MN: Experimentation shows each ARP table entry uses 11 bytes.
+//   Comment MN: Experimentation shows each ARP table entry uses 11 bytes.
 #define UIP_ARPTAB_SIZE 4
 
 
@@ -295,10 +290,10 @@
 #define BUILD_TYPE_MQTT_DOMO_UPGRADEABLE		0
 #define BUILD_TYPE_BROWSER_UPGRADEABLE			0
 #define BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE		0
-#define BUILD_TYPE_MQTT_DOMO_BME280_UPGRADEABLE		1
+#define BUILD_TYPE_MQTT_DOMO_BME280_UPGRADEABLE		0
 #define BUILD_TYPE_BROWSER_STANDARD_RFA			0
 #define BUILD_TYPE_BROWSER_UPGRADEABLE_RFA		0
-#define BUILD_TYPE_CODE_UPLOADER			0
+#define BUILD_TYPE_CODE_UPLOADER			1
 
 // The following #defines specify the code parts that need to be included in
 // the various BUILE_TYPEs. You shouldn't need to change any of these.
@@ -307,7 +302,7 @@
 #define MQTT_BUILD		1
 #define CODE_UPLOADER_BUILD	2
 
-// MQTT Standard
+// MQTT Home Standard
 #if BUILD_TYPE_MQTT_HOME_STANDARD == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
@@ -330,6 +325,8 @@
   #define SDR_POWER_RELAY_SUPPORT       0
   #define HOME_ASSISTANT_SUPPORT        1
   #define DOMOTICZ_SUPPORT              0
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
 // MQTT Domoticz Standard
@@ -355,6 +352,8 @@
   #define SDR_POWER_RELAY_SUPPORT       0
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              1
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
 // Browser Standard
@@ -380,9 +379,11 @@
   #define SDR_POWER_RELAY_SUPPORT       0
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
-// MQTT Upgradeable
+// MQTT Home Upgradeable
 #if BUILD_TYPE_MQTT_HOME_UPGRADEABLE == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
@@ -405,6 +406,8 @@
   #define SDR_POWER_RELAY_SUPPORT       0
   #define HOME_ASSISTANT_SUPPORT        1
   #define DOMOTICZ_SUPPORT              0
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
 // MQTT Domoticz Upgradeable
@@ -430,6 +433,8 @@
   #define SDR_POWER_RELAY_SUPPORT       0
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              1
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
 // Browser Upgradeable
@@ -455,9 +460,11 @@
   #define SDR_POWER_RELAY_SUPPORT       0
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
-// MQTT Upgradeable w/ BME280
+// MQTT Home Upgradeable w/ BME280
 #if BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE == 1
   #define BUILD_SUPPORT			MQTT_BUILD
   #define DEBUG_SUPPORT			11
@@ -480,6 +487,8 @@
   #define SDR_POWER_RELAY_SUPPORT       0
   #define HOME_ASSISTANT_SUPPORT        1
   #define DOMOTICZ_SUPPORT              0
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
 // MQTT Domoticz Upgradeable w/ BME280
@@ -505,6 +514,8 @@
   #define SDR_POWER_RELAY_SUPPORT       0
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              1
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
 // Code Uploader
@@ -530,6 +541,8 @@
   #define SDR_POWER_RELAY_SUPPORT       0
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
 // Browser (standard) with RF Attenuator
@@ -555,6 +568,8 @@
   #define SDR_POWER_RELAY_SUPPORT       1
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
 // Browser Upgradeable with RF Attenuator
@@ -580,12 +595,14 @@
   #define SDR_POWER_RELAY_SUPPORT       1
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
+  #define LOGIN_SUPPORT                 0
+  #define DEVELOPMENT_TOOLS		0
 #endif
 
 
 // APPROXIMATE sizes of various build options
 //  BUILD_SUPPORT == 15		600 to 900 bytes typical
-//  LINK_STATISTICS		376 bytes
+//  LINK_STATISTICS		456 bytes (82 are the webpage)
 //  NETWORK_STATISTICS		3122 bytes
 //  IWDG_ENABLE			
 //  I2C_SUPPORT			
@@ -600,8 +617,9 @@
 //  PCF8574_SUPPORT             2442 bytes
 //  RF_ATTEN_SUPPORT            961 bytes
 //  RESPONSE_LOCK_SUPPORT       214 bytes
-//  INA226_SUPPORT              2517 bytes + 20 RAM
+//  INA226_SUPPORT              1873 bytes + 20 RAM
 //  SDR_POWER_RELAY_SUPPORT     2554 bytes
+//  LOGIN_SUPPORT		1450 bytes
 
 
 
@@ -636,9 +654,6 @@
 //   #define PINOUT_OPTION_SUPPORT 0
 //
 
-// Temporary #define to experiment with code change for Issue #174
-// This is the algorithmic pinout code
-#define SUPPORT_174 1
 
 
   // The following describes the various #defines used in the above #define
@@ -705,7 +720,7 @@
   // cause a hardware reset after 1 second of the code failing to reset the
   // watchdog, which implies some kind of fatal error occurred. The reset
   // should re-enable access to the Network Module.
-  // For development it may be necessary to prevent the IDWG from operating
+  // For development it may be necessary to prevent the IWDG from operating
   // as it may interfere with debug code.
   // 0 = disable
   // 1 = enable

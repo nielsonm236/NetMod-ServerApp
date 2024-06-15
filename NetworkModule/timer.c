@@ -38,6 +38,8 @@ uint32_t second_counter;      // MQTT timing: 1 second counter
 
 uint16_t ms_counter;          // Free running ms counter
 
+
+
 void clock_init(void)
 {
   // Initialize clock speeds and timers
@@ -287,8 +289,11 @@ void timer_update(void)
   uint16_t time_ms;
   uint16_t remainder;
   
-  // Read the counter
+  // Read the counter. Must assure that the MAByte is read first followed by
+  // the LSByte.
   counter = (uint16_t)(TIM1_CNTRH << 8);
+  nop(); // nop placed here to make sure the compiler doesn't optimize the
+         // read sequence.
   counter = counter | TIM1_CNTRL;
 
   // Check for how many milliseconds have passed since the counter was last
@@ -402,6 +407,7 @@ void wait_timer(uint16_t wait)
   // time. While the counter can count to 65535 it is recommended that a max
   // wait of 50000 be used so that the code has time to evaluate. Call the
   // delay multiple times if more than 50000uS is needed.
+  
   uint16_t counter;
 
   TIM3_CR1 &= (uint8_t)(~0x01);		// Disable counter
@@ -409,9 +415,18 @@ void wait_timer(uint16_t wait)
   TIM3_CNTRL = (uint8_t)0x00;		// Clear counter Low
   TIM3_CR1 |= (uint8_t)0x01;		// Enable counter
   
+//  do {
+//    counter = ((uint16_t)TIM3_CNTRH << 8) | (uint8_t)TIM3_CNTRL;
+//  } while(counter <= wait);
+
   do {
-    counter = ((uint16_t)TIM3_CNTRH << 8) | (uint8_t)TIM3_CNTRL;
+    // Read the counter. Must assure that the MAByte is read first followed by
+    // the LSByte.
+    counter = (uint16_t)(TIM3_CNTRH << 8);
+    nop(); // nop placed here to make sure the compiler doesn't optimize the
+           // read sequence.
+    counter = counter | TIM3_CNTRL;
   } while(counter <= wait);
-  
+
   return;
 }

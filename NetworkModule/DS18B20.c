@@ -25,13 +25,15 @@
 // all includes are in main.h
 #include "main.h"
 
-
 #if DS18B20_SUPPORT == 1
 
-// uint8_t DS18B20_scratch_byte[2];        // Array to store scratchpad bytes
-                                        // read from DS18B20
+#define FIRST	1
+#define NEXT	2
+#define STOP	3
+
 uint8_t DS18B20_scratch[5][2];          // Stores the temperature measurement
-                                        // for the DS18B20s
+                                        // for up to 5 DS18B20s. Must be kept
+					// in RAM due to frequent measurements.
 
 extern uint8_t OctetArray[14];		// Used in emb_itoa conversions and to
                                         // transfer short strings globally
@@ -58,7 +60,7 @@ static const uint8_t dec_temp[] = {
 // GLOBAL VARIABLES FOR MAXIM DS18B20 CODE CONTRIBUTION
 // Derived from Maxim code
 // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
-uint8_t ROM[8];                     // ROM bytes
+// uint8_t ROM[8];                     // ROM bytes
                                     // [0] = Family Code
                                     // [1] = LSByte serial number
                                     // [2] = byte 2 serial number
@@ -67,8 +69,11 @@ uint8_t ROM[8];                     // ROM bytes
                                     // [5] = byte 5 serial number
                                     // [6] = MSByte serial number
                                     // [7] = CRC
-uint8_t lastDiscrep = 0;            // last discrepancy
-uint8_t doneFlag = 0;               // Done flag
+// uint8_t lastDiscrep = 0;            // last discrepancy
+// uint8_t doneFlag = 0;               // Done flag
+
+#if OB_EEPROM_SUPPORT == 0
+// FoundROM is located in a global RAM location if there is no I2C EEPROM
 uint8_t FoundROM[5][8];             // Table of ROM codes
                                     // [x][0] = Family Code
                                     // [x][1] = LSByte serial number
@@ -78,6 +83,7 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
                                     // [x][5] = byte 5 serial number
                                     // [x][6] = MSByte serial number
                                     // [x][7] = CRC
+#endif // OB_EEPROM_SUPPORT == 0
 extern int numROMs;                 // Count of DS18B20 devices found
 
 
@@ -145,6 +151,32 @@ void get_temperature()
   uint8_t j;
   uint8_t device_num;
 
+#if OB_EEPROM_SUPPORT == 1
+// FoundROM is located in I2C EEPROM if I2C EEPROM is supported. So it is
+// copied to a local stack based FoundROM array for use in this case.
+  uint8_t FoundROM[5][8];           // Table of ROM codes
+                                    // [x][0] = Family Code
+                                    // [x][1] = LSByte serial number
+                                    // [x][2] = byte 2 serial number
+                                    // [x][3] = byte 3 serial number
+                                    // [x][4] = byte 4 serial number
+                                    // [x][5] = byte 5 serial number
+                                    // [x][6] = MSByte serial number
+                                    // [x][7] = CRC
+#endif // OB_EEPROM_SUPPORT == 1
+
+      
+#if OB_EEPROM_SUPPORT == 1
+  // If I2C EEPROM is supported then the FoundROM table is stored in the
+  // I2C EEPROM and must be copied to a stack based RAM location for use
+  // here. The I2C EEPROM copy of the FoundROM table starts at
+  // I2C_EEPROM_R1_FOUNDROM. There are 5 entries, each 8 bytes long, for
+  // a total of 40 bytes.
+  copy_I2C_EEPROM_bytes_to_RAM(&FoundROM[0][0], 40, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_READ, I2C_EEPROM_R1_FOUNDROM, 2);
+#endif // OB_EEPROM_SUPPORT == 1
+
+
+
   // Read current temperature from up to 5 devices
   for (device_num = 0; device_num < 5; device_num++) {
     // Attempt to read up to 5 devices. If no devices are present the
@@ -158,7 +190,7 @@ void get_temperature()
     
       transmit_byte(0x55); // match_ROM command. match_ROM must be followed
       // by sending the 8 bytes of the ROM contents previously read in the
-      // search_ROM process, starting with bit 0 of byte 0.
+      // FoundROM process, starting with bit 0 of byte 0.
       for (i = 0; i < 8; i++) transmit_byte(FoundROM[device_num][i]);
       
       // After the match_ROM command only the addressed DS18B20 will respond
@@ -171,7 +203,7 @@ void get_temperature()
       // Actual send from the DS18B20 is triggered by the Master (the Network
       // Module) sending a ~1us low pulse for each bit to be sent by the
       // DS18B20.
-      // The definition of the scratchpad is as follows, HOWEVER we are only
+      // The definition of the scratchpad is as follows, HOWEVER code is only
       // going to read the first two bytes.
       // The scratchpad bytes are received starting with Byte 0 Bit 0.
       //   Byte 0: Temperature LSB
@@ -209,12 +241,15 @@ void get_temperature()
       reset_pulse();
       transmit_byte(0x55); // match_ROM command. match_ROM must be followed
       // by sending the 8 bytes of the ROM contents previously read in the
-      // search_ROM process, starting with bit 0 of byte 0.
+      // FoundROM process, starting with bit 0 of byte 0.      
       for (i = 0; i < 8; i++) transmit_byte(FoundROM[device_num][i]);
       transmit_byte(0x44); // convert_temp command
     }
   }
 }
+
+
+
 
 
 void convert_temperature(uint8_t device_num, uint8_t degCorF)
@@ -390,11 +425,11 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
 	// to the int32 DID work.
         F_temp0 = (int16_t)whole_temp;
         F_temp1 = (int32_t)F_temp0;
-        // Add 55 C to the value so math is always positive
-        // We actually add 55 * 16, or 880, since we are working
+        // Add 55 C to the value so math is always positive.
+        // Code actually adds 55 * 16, or 880, since code is working
 	// with the raw number which includes 4 bits of decimal
 	// This next equation also includes the "9" part of the
-	// "9 / 5" calculation. We use 180 / 100 to avoid loss
+	// "9 / 5" calculation. Code uses 180 / 100 to avoid loss
 	// of precision in the integer arithmetic.
         F_temp1 = (int32_t)((F_temp1 + 880) * 180);
 	// It is necessary to separate the "100" part of the
@@ -403,8 +438,8 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
         F_temp2 = F_temp1 / 100;
 	// Now subtract 1072. This is the combination of the "+32"
 	// part of the C = (F * 9 / 5) + 32 equation, plus the removal
-	// of the 55 C offset. Again we are using values mulitplied
-	// by 16 since we are working with the raw number.
+	// of the 55 C offset. Again code is using values mulitplied
+	// by 16 since it is working with the raw number.
 	// +32 = 32 * 16 = +512
 	// The 55 C offset must be removed in terms of degrees F
 	// F = (-55 * 9 / 5) * 16 = -1584
@@ -460,10 +495,10 @@ int reset_pulse()
   
   // Check for "presence" state on the 1-wire. 0 = device(s) present.
   rtn = 0;
-  if (PC_IDR & 0x40) rtn = 1;
+  if (PC_IDR & 0x40) rtn = 1; // If IO pin is high there is no device
 
   wait_timer(200);          // wait 200us
-  return rtn;
+  return rtn; // rtn = 0 if device is present
 }
 
 
@@ -474,13 +509,13 @@ void transmit_byte(uint8_t transmit_value)
   
   // This function will transmit the byte provided in transmit_value one bit
   // at a time.
-  // To send a 1 bit we need to pulse the output low for a minimum of 5us and
-  //   and max of 15us. Then we release the pin and wait 60us before sending
-  //   the next bit.
-  // To send a 0 bit we need to pulse the ouptut low for a minimum of 60us
+  // To send a 1 bit code needs to pulse the output low for a minimum of 5us
+  //   and max of 15us. Then code releases the pin and waits 60us before
+  //   sending the next bit.
+  // To send a 0 bit code needs to pulse the ouptut low for a minimum of 60us
   //   and max of 120us. Using the wait_timer with a wait of 60us will
-  //   accomplish this. After the output low period we must wait a minimum of
-  //   15us before sending the next bit. To reduce code size we will wait
+  //   accomplish this. After the output low period code must wait a minimum
+  //   of 15us before sending the next bit. To reduce code size code will wait
   //   60us.
 
   while ( 1 ) {
@@ -501,11 +536,11 @@ int read_bit()
   // according to the spec). Actual measurement shows that a read as late as
   // 30us later will still be valid.
   // If the DS18B20 is trasnmitting a zero it will be present for 15us.
-  // If the DS18B20 is transmitting a one we rely on the 4.7K pullup resistor
-  // to pull the wire to a 1 in less than 15 us. Actual measurement shows the
-  // pullup working in about 1/2us with a 12 inch wire lead. Longer leads to
-  // the DS18B20 may result in a slower rise time.
-  // After reading a bit we must wait 60us before reading the next bit.
+  // If the DS18B20 is transmitting a one code relies on the 4.7K pullup
+  // resistor to pull the wire to a 1 in less than 15 us. Actual measurement
+  // shows the pullup working in about 1/2us with a 12 inch wire lead. Longer
+  // leads to the DS18B20 may result in a slower rise time.
+  // After reading a bit code must wait 60us before reading the next bit.
   int nop_cnt;
   int bit;
 
@@ -516,7 +551,7 @@ int read_bit()
   for (nop_cnt=0; nop_cnt<30; nop_cnt++) nop(); // Wait 15us
   if (PC_IDR & 0x40) bit = 1;
   
-  wait_timer(60); // This timer is not critical - but we must wait at
+  wait_timer(60); // This timer is not critical - but code must wait at
                   // least 60 us
   return bit;
 }
@@ -526,13 +561,13 @@ void write_bit(uint8_t transmit_bit)
 {
   int i;
   
-  // To send a 1 bit we need to pulse the output low for a minimum of 5us and
-  //   max of 15us. Then we release the pin and wait 60us before returning to
-  //   the calling function.
-  // To send a 0 bit we need to pulse the ouptut low for a minimum of 60us
+  // To send a 1 bit code needs to pulse the output low for a minimum of 5us
+  //   and max of 15us. Then code releases the pin and waits 60us before
+  //   returning to the calling function.
+  // To send a 0 bit code needs to pulse the ouptut low for a minimum of 60us
   //   and max of 120us. Using the wait_timer with a wait of 60us will
-  //   accomplish this. After the output low period we must wait a minimum of
-  //   15us before returning to the calling routine. To reduce code size we
+  //   accomplish this. After the output low period code must wait a minimum
+  //   of 15us before returning to the calling routine. To reduce code size it
   //   will wait 60us.
   
   one_wire_low(10);            // drive one wire low, wait 5us
@@ -562,7 +597,23 @@ void init_DS18B20(void)
 {
   // Initialize temperature sensor arrays
   memset(&DS18B20_scratch[0][0], 0, 10);
+
+#if OB_EEPROM_SUPPORT == 0
+  // If I2C EEPROM is not supported then the global FoundROM RAM array must
+  // be initialized.
   memset(&FoundROM[0][0], 0, 40);
+#endif // OB_EEPROM_SUPPORT == 0
+
+#if OB_EEPROM_SUPPORT == 1
+  // If I2C EEPROM is supported then the I2C EEPROM FoundROM array must be
+  // initialized.
+  {
+    uint8_t i;
+    i = 0;
+    copy_STM8_bytes_to_I2C_EEPROM(&i, 40, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_FOUNDROM, 2);
+  }
+#endif // OB_EEPROM_SUPPORT == 1
+
   numROMs = -1; // -1 indicates no devices. FindDevices will update this value.
 }
 
@@ -572,11 +623,14 @@ void FindDevices(void)
   // FIND DEVICES
   // Derived from Maxim code
   // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
+  // See the following link for a description of how the FIRST/NEXT search
+  // algorithm works:
+  // https://www.analog.com/en/app-notes/1wire-search-algorithm.html
   //
-  // This function calls First() and Next() to fill the ROM[] array with
-  // the 8 bytes of Family Code, Serial Number, and CRC one device at a
-  // time. This function then copies the ROM[] contents in to the FoundROM[][]
-  // array to collect the information for all attached devices in one array.
+  // This function fills the ROM[] array with the 8 bytes of Family Code,
+  // Serial Number, and CRC one device at a time. This function then copies
+  // the ROM[] contents in to the FoundROM[][] array to collect the
+  // information for all attached devices.
   //
   // When done all found devices will have their ROM contents stored in the
   // Found_ROM table, and numROMs will contain the index of the last device
@@ -589,118 +643,197 @@ void FindDevices(void)
   // ROM code display in the Browser is shown as hex encoded bytes with
   // MSByte on the left and LSByte on the right.
 
-  int i;
-  int m;
+  int break_while;      // Flag to end the while() loop
+  int step;		// State machine step tracker
+  uint8_t ROM[8];       // ROM bytes
+                        //  [0] = Family Code
+                        //  [1] = LSByte serial number
+                        //  [2] = byte 2 serial number
+                        //  [3] = byte 3 serial number
+                        //  [4] = byte 4 serial number
+                        //  [5] = byte 5 serial number
+                        //  [6] = MSByte serial number
+                        //  [7] = CRC
+  uint8_t lastDiscrep;  // last discrepancy
+  uint8_t doneFlag;     // Done flag
+  int i;                // General purpose loop counter
   
-//  numROMs = -1; // -1 indicates no devices
-  if (!reset_pulse()) {  //Begins when a presence is detected
-    if (First()) {       //Begins when at least one part is found
-      do {
-        numROMs++; // On first pass this increments numROMs to index 0
-        for (m=0; m<8; m++) {
-          FoundROM[numROMs][m] = ROM[m]; // Identifies family, serial number, and
-	                                 // CRC on found device
+  uint8_t m;            // NEXT code: ROM Bit index
+  int n;                // NEXT code: ROM Byte index
+  uint8_t k;            // NEXT code: bit mask
+  int x;                // NEXT code: bit complement validation
+  uint8_t discrepMarker; // NEXT code: Discrepancy marker
+  uint8_t g;            // NEXT code: Output bit
+  uint8_t nxt;          // NEXT code: Device search success flag
+  uint8_t crc;          // NEXT code: Result of crc calcuation
+
+
+
+
+#if OB_EEPROM_SUPPORT == 1
+// FoundROM is located in I2C EEPROM if I2C EEPROM is supported. So it is
+// copied to a local stack based FoundROM array for use in this case.
+uint8_t FoundROM[5][8];             // Table of ROM codes
+                                    // [x][0] = Family Code
+                                    // [x][1] = LSByte serial number
+                                    // [x][2] = byte 2 serial number
+                                    // [x][3] = byte 3 serial number
+                                    // [x][4] = byte 4 serial number
+                                    // [x][5] = byte 5 serial number
+                                    // [x][6] = MSByte serial number
+                                    // [x][7] = CRC
+#endif // OB_EEPROM_SUPPORT == 1
+
+      
+#if OB_EEPROM_SUPPORT == 1
+      // If I2C EEPROM is supported then the FoundROM table is stored in the
+      // I2C EEPROM and must be copied to a stack based RAM location for use
+      // here. The I2C EEPROM copy of the FoundROM table starts at
+      // I2C_EEPROM_R1_FOUNDROM. There are 5 entries, each 8 bytes long.
+  copy_I2C_EEPROM_bytes_to_RAM(&FoundROM[0][0], 40, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_READ, I2C_EEPROM_R1_FOUNDROM, 2);
+#endif // OB_EEPROM_SUPPORT == 1
+
+  break_while = 1;
+  lastDiscrep = 0;   // reset the rom search last discrepancy
+  doneFlag = 0;      // False
+  
+  if (!reset_pulse()) { // The reset_pulse function will indicate if there
+                        // are any devices on the 1-wire by returning 0 if
+			// a device is present.
+  
+    step = FIRST; // Set state machine to seek first device
+        
+    while(break_while) {
+      switch (step)
+      {
+      case FIRST:
+        // Attempt detection of first device
+        lastDiscrep = 0;   // Reset the rom search last discrepancy
+        doneFlag = 0;      // False
+        step = NEXT;
+	break;
+	
+      case NEXT:
+        {
+          // NEXT
+          // The Next function searches for the next device on the 1-Wire bus.
+	  // If a device is found nxt is set to 1. If there are no more
+	  // devices on the 1-Wire then nxt is set to 0.
+          
+	  m = 1; // ROM Bit index
+	  n = 0; // ROM Byte index
+	  k = 1; // bit mask
+	  x = 0; // temp device detection
+          discrepMarker = 0; // Discrepancy marker
+	  
+          nxt = 0;       // set the next flag to false
+          crc = 0;
+          
+          if (reset_pulse() || doneFlag) { // Reset the 1-wire. If the reset
+	                                   // indicates no devices, or if the
+					   // doneFlag is set, stop the search.
+            lastDiscrep = 0;       // Reset the search
+	    step = STOP;
+	    break;
+          }
+
+
+          // The following logic is very hard to follow. This link provides
+	  // the best explanation:
+	  // https://www.analog.com/en/app-notes/1wire-search-algorithm.html
+
+          transmit_byte(0xF0); // send SearchROM command
+          
+          do { // do loop to read all eight bytes from a device
+            x = 0;
+            if (read_bit() == 1) x = 2;  // Read bit ...
+            if (read_bit() == 1) x |= 1; // and its complement.
+            if (x == 3) break;           // Break no device responded.
+	    
+            else {
+              if (x > 0) g = (uint8_t)(x >> 1);  // all devices coupled have 0 or 1
+                                                 // bit write value for search
+              else {
+                // If this discrepancy is before the last discrepancy on a
+		// previous pass then pick the same as last time.
+                if(m < lastDiscrep) g = (uint8_t)((ROM[n] & k) > 0);
+                else g = (uint8_t)(m == lastDiscrep);  // if equal to last pick 1
+                                                       // if not then pick 0
+                                                       // if 0 was picked then record
+                                                       // position with mask k
+                if (g == 0) discrepMarker = m;
+              }
+              if (g == 1) ROM[n] |= k;  // isolate bit in ROM[n] with mask k
+              else ROM[n] &= (uint8_t)~k;
+              write_bit(g);             // ROM search write
+              m++;                      // increment bit counter m
+              k = (uint8_t)(k << 1);    // and shift the bit mask k
+              if (k == 0) {             // if the mask is 0 then go to new ROM
+                                        //   byte n and reset mask
+                n++;
+	        k++;
+              }
+            }
+          } while(n < 8); //loop until through all ROM bytes 0-7
+          
+          // Calculate CRC for first 7 ROM bytes
+          crc = dallas_crc8(ROM, 7);
+          
+          if (m < 65 || (crc != ROM[7])) lastDiscrep = 0;
+            // If search was unsuccessful then reset the last discrepancy to 0
+          else {
+            // Else search was successful, so set lastDiscrep, doneFlag, nxt
+            lastDiscrep = discrepMarker;
+            doneFlag = (uint8_t)(lastDiscrep == 0);
+            nxt = 1; // Indicates search is not complete yet, more parts remain
+          }
         }
-      } while (Next() && (numROMs < 5)); // Continues until no additional
-                                         // devices are found
-    }
+	
+	if (nxt == 0) {
+	  // Finished search. This might occur while seeking the very first
+	  // device (indicating there are no devices, in which case numROMs
+	  // remains at -1).
+	  step = STOP;
+	  break;
+	}
+	
+	// If code got to this point then a device was found and content
+	// copied to the ROM[] array. Copy ROM[] to the FoundROM table and
+	// continue looking for more devices.
+        numROMs++; // On first pass this increments numROMs to index 0
+        for (i=0; i<8; i++) {
+          FoundROM[numROMs][i] = ROM[i]; // Identifies family, serial
+	                                 // number, and CRC on found device
+        }
+	
+        if (numROMs < 5) {
+	  break; // Continues until no additional devices are found
+	}
+	else {
+	  step = STOP;
+	  break;
+	}
+	
+      case STOP:
+        break_while = 0; // Break out of while() loop
+	break;
+      } // end of switch
+    } // end of while() loop
+
     for (i=0; i<5; i++) {
       if (i > numROMs) {
-        memset(&FoundROM[i][0], 0, 8); // Zero out empty fields - this is done
-	                               // to make sure devices that go missing
-				       // during runtime are removed.
+        memset(&FoundROM[i][0], 0, 8); // Zero out empty fields - this is
+                                       // done to make sure devices that go
+                                       // missing during runtime are removed.
       }
     }
+    
+#if OB_EEPROM_SUPPORT == 1
+    // If I2C EEPROM is supported then the stack FoundROM table must be
+    // copied to the I2C EEPROM FoundROM table.
+    copy_STM8_bytes_to_I2C_EEPROM(&FoundROM[0][0], 40, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_FOUNDROM, 2);
+#endif // OB_EEPROM_SUPPORT == 1    
   }
-}
-
-
-uint8_t First(void)
-{
-  // FIRST
-  // The First function resets the current state of a ROM search and calls
-  // Next to find the first device on the 1-Wire bus.
-  // Derived from Maxim code
-  // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
-  //
-  lastDiscrep = 0;   // reset the rom search last discrepancy global
-  doneFlag = 0;      // False
-  return Next();     // call Next and return its return value
-}
-
-
-uint8_t Next(void)
-{
-  // NEXT
-  // The Next function searches for the next device on the 1-Wire bus. If
-  // there are no more devices on the 1-Wire then false is returned.
-  // Derived from Maxim code
-  // https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/162.html
-  //
-  uint8_t m = 1; // ROM Bit index
-  int n = 0;     // ROM Byte index
-  uint8_t k = 1; // bit mask
-  int x = 0;
-  uint8_t discrepMarker = 0; // discrepancy marker
-  uint8_t g;     // Output bit
-  uint8_t nxt;   // return value
-  uint8_t crc;
-  
-  nxt = 0;       // set the next flag to false
-  crc = 0;
-  
-  if (reset_pulse() || doneFlag) { // Reset the 1-wire, make sure there
-                                   // are parts, and verify that we are
-				   // not done yet.
-    lastDiscrep = 0;       // Reset the search
-    return 0;
-  }
-  
-  transmit_byte(0xF0); // send SearchROM command
-  
-  do { // for all eight bytes
-    x = 0;
-    if (read_bit() == 1) x = 2;
-    if (read_bit() == 1) x |= 1; // and its complement
-    if (x == 3) break;           // there are no devices on the 1-Wire
-    else {
-      if (x > 0) g = (uint8_t)(x >> 1);  // all devices coupled have 0 or 1
-                                         // bit write value for search
-      else {
-        // if this discrepancy is before the last
-        // discrepancy on a previous Next then pick
-        // the same as last time
-        if(m < lastDiscrep) g = (uint8_t)((ROM[n] & k) > 0);
-        else g = (uint8_t)(m == lastDiscrep);  // if equal to last pick 1
-                                               // if not then pick 0
-                                               // if 0 was picked then record
-                                               // position with mask k
-        if (g == 0) discrepMarker = m;
-      }
-      if (g == 1) ROM[n] |= k;  // isolate bit in ROM[n] with mask k
-      else ROM[n] &= (uint8_t)~k;
-      write_bit(g);             // ROM search write
-      m++;                      // increment bit counter m
-      k = (uint8_t)(k << 1);    // and shift the bit mask k
-      if (k == 0) {             // if the mask is 0 then go to new ROM
-                                //   byte n and reset mask
-      n++; k++;
-      }
-    }
-  } while(n < 8); //loop until through all ROM bytes 0-7
-
-  // Calculate CRC for first 7 ROM bytes
-  crc = dallas_crc8(ROM, 7);
-  
-  if (m < 65 || (crc != ROM[7])) lastDiscrep = 0;
-    // if search was unsuccessful then reset the last discrepancy to 0
-  else {
-    // Else search was successful, so set lastDiscrep, lastOne, nxt
-    lastDiscrep = discrepMarker;
-    doneFlag = (uint8_t)(lastDiscrep == 0);
-    nxt = 1; // indicates search is not complete yet, more parts remain
-  }
-  return nxt;
 }
 
 

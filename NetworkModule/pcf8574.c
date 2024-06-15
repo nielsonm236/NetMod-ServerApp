@@ -112,21 +112,17 @@ void PCF8574_init()
     
     // Update the stored_options1 byte in EEPROM. Only perform the eeprom
     // write if the value changed.
-    if (stored_options1 != j) {
-      unlock_eeprom();
-      stored_options1 = j;
-      lock_eeprom();
-    }
+    update_settings_options(UPDATE_OPTIONS1, j);
 
 #if DEBUG_SUPPORT == 15
-//    if ((stored_options1 & 0x08) == 0x08) {
-//      UARTPrintf("\r\n");
-//      UARTPrintf("PCF8574 found\r\n");
-//    }
-//    else {
-//      UARTPrintf("\r\n");
-//      UARTPrintf("PCF8574 not found\r\n");
-//    }
+    if ((stored_options1 & 0x08) == 0x08) {
+      UARTPrintf("\r\n");
+      UARTPrintf("PCF8574 found\r\n");
+    }
+    else {
+      UARTPrintf("\r\n");
+      UARTPrintf("PCF8574 not found\r\n");
+    }
 #endif // DEBUG_SUPPORT == 15
 
   }

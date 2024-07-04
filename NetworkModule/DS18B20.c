@@ -252,11 +252,22 @@ void get_temperature()
 
 
 
-void convert_temperature(uint8_t device_num, uint8_t degCorF)
+void convert_temperature(uint8_t device_num, uint8_t degCorF, uint8_t method)
 {
   // This function will convert a temperature value stored in the
   // DS18B20_scratch array into a string in degrees C or degrees F. The
   // function leaves the converted result in the global OctetArray string.
+  //
+  // "method" identifies whether the call is for display in the IOControl
+  // page or in the Short Form Temperature page.
+  // If for the IOControl page (method = 0):
+  //   The return value uses a space for positive numbers and a minus for
+  //   negative numbers.
+  //   If no sensor is present the fields are filled with "-----".
+  // If for the Short Form Temperature page (method = 1):
+  //   The return value uses a plus for positive numbers and a minus for
+  //   negative numbers.
+  //   If no sensor is present the fields are filled with "000.0".  
   // 
   int16_t whole_temp;
   uint8_t decimal_temp;
@@ -389,7 +400,13 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
     whole_temp = whole_temp << 8;
     whole_temp |= DS18B20_scratch[device_num][0];
     // Default is Positive number
+#if SHORT_TEMPERATURE_SUPPORT == 0
     sign_char = ' ';
+#endif SHORT_TEMPERATURE_SUPPORT == 0
+#if SHORT_TEMPERATURE_SUPPORT == 1
+    if (method == 0) sign_char = ' ';
+    else sign_char = '+';
+#endif // SHORT_TEMPERATURE_SUPPORT == 1
       
     if (degCorF == 0) {
       // Convert to degrees C
@@ -469,10 +486,24 @@ void convert_temperature(uint8_t device_num, uint8_t degCorF)
     OctetArray[5] = dec_temp[decimal_temp];
     OctetArray[6] = '\0';
   }
+#if SHORT_TEMPERATURE_SUPPORT == 0
   else {
     // Sensor does not exist - return " -----" string
     strcpy(OctetArray, " -----");
   }
+#endif SHORT_TEMPERATURE_SUPPORT == 0
+#if SHORT_TEMPERATURE_SUPPORT == 1
+  else {
+    if (method == 0) {
+      // Sensor does not exist - return " -----" string
+      strcpy(OctetArray, " -----");
+    }
+    else {
+      // Sensor does not exist - return "+000.0" string
+      strcpy(OctetArray, "+000.0");
+    }
+  }
+#endif SHORT_TEMPERATURE_SUPPORT == 1
 }
 
 

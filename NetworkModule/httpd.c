@@ -325,6 +325,7 @@ uint16_t HtmlPagePCFIOControl_size;     // Size of the PCF8574 IOControl templat
 uint16_t HtmlPagePCFConfiguration_size; // Size of the PCF8574 Configuration template
 #endif // PCF8574_SUPPORT == 1
 
+
 #if LOGIN_SUPPORT == 1
 uint16_t HtmlPageLogin_size;           // Size of the Login template
 uint16_t HtmlPageSetPassphrase_size;   // Size of the Set Passphrase template
@@ -3336,6 +3337,34 @@ const m = (data => {
 
 
 
+
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD && SHORT_TEMPERATURE_SUPPORT == 1
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// **                                                                      * //
+// ** Short Temperature Response Template                                  * //
+// **                                                                      * //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+// ************************************************************************* //
+//
+// This template provides a response containing only the DS18B20 temperature
+// sensor data in a compact form.
+// URL /97
+//
+#define WEBPAGE_SHORT_TEMPERATURE		23
+static const char g_HtmlPageShortTemperature[] =
+  "%t20%t21%t22%t23%t24";
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD && SHORT_TEMPERATURE_SUPPORT == 1
+
+
+
+
+
+
 #if LOGIN_SUPPORT == 1
 // ************************************************************************* //
 // ************************************************************************* //
@@ -5058,6 +5087,10 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
 
 
+
+
+
+
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
   //-------------------------------------------------------------------------//
@@ -5438,6 +5471,76 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
   }
 #endif // PCF8574_SUPPORT == 1
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD || HOME_ASSISTANT_SUPPORT == 1
+
+
+
+
+
+
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  // Adjust the size reported by the WEBPAGE_SHORT_TEMPERATURE template
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+  //-------------------------------------------------------------------------//
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD && SHORT_TEMPERATURE_SUPPORT == 1
+  else if (pSocket->current_webpage == WEBPAGE_SHORT_TEMPERATURE) {
+    size = (uint16_t)(sizeof(g_HtmlPageShortTemperature) -1);
+    // Account for Temperature Sensor insertion %t00 to %t04
+    // If DS18B20 is NOT enabled code only needs to subtract the size of the
+    // 5 placeholders.
+    //
+    if (stored_config_settings & 0x08) {
+      //  %t00 "xxxxxxxxxxxx"
+      //      plus 7 bytes of data (,-000.0)
+      //      plus 7 bytes of data (,-000.0)
+      //    12 bytes of text plus 14 bytes of data = 26
+      //    size = size + 26 - 4
+      size = size + 22;
+      //
+      //  %t01 ",xxxxxxxxxxxx"
+      //      plus 7 bytes of data (,-000.0)
+      //      plus 7 bytes of data (,-000.0)
+      //    13 bytes of text plus 14 bytes of data = 27
+      //    size = size + 27 - 4
+      size = size + 23;
+      //
+      //  %t02 ",xxxxxxxxxxxx"
+      //      plus 7 bytes of data (,-000.0)
+      //      plus 7 bytes of data (,-000.0)
+      //    13 bytes of text plus 14 bytes of data = 27
+      //    size = size + 27 - 4
+      size = size + 23;
+      //
+      //  %t03 ",xxxxxxxxxxxx"
+      //      plus 7 bytes of data (,-000.0)
+      //      plus 7 bytes of data (,-000.0)
+      //    13 bytes of text plus 14 bytes of data = 27
+      //    size = size + 27 - 4
+      size = size + 23;
+      //
+      //  %t04 ",xxxxxxxxxxxx"
+      //      plus 7 bytes of data (,-000.0)
+      //      plus 7 bytes of data (,-000.0)
+      //    13 bytes of text plus 14 bytes of data = 27
+      //    size = size + 27 - 4
+      size = size + 23;
+    }
+    else {
+      // Subtract the size of the placeholders as they won't be used
+      // size = size - (5 x 4)
+      size = size - 20;
+    }
+  }
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD && SHORT_TEMPERATURE_SUPPORT == 1
+
+
+
+
+
 
 
   //-------------------------------------------------------------------------//
@@ -6426,7 +6529,16 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
 	//        03 - DS18B20 Temperature Sensor 4 data. Output only.
 	//        04 - DS18B20 Temperature Sensor 5 data. Output only.
 	//        05 - BME280 Temperature, Humidity, Pressure sensor data. Output only.
-	//        06 - INA226 Current, Voltage, Wattage sensor data. Output only.
+	//        06 - INA226 Sensor 1 Current, Voltage, Wattage sensor data. Output only.
+	//        07 - INA226 Sensor 2 Current, Voltage, Wattage sensor data. Output only.
+	//        08 - INA226 Sensor 3 Current, Voltage, Wattage sensor data. Output only.
+	//        09 - INA226 Sensor 4 Current, Voltage, Wattage sensor data. Output only.
+	//        10 - INA226 Sensor 5 Current, Voltage, Wattage sensor data. Output only.
+	//        20 - DS18B20 Temperature Sensor 1 short form data. Output only.
+	//        21 - DS18B20 Temperature Sensor 2 short form data. Output only.
+	//        22 - DS18B20 Temperature Sensor 3 short form data. Output only.
+	//        23 - DS18B20 Temperature Sensor 4 short form data. Output only.
+	//        24 - DS18B20 Temperature Sensor 5 short form data. Output only.
 	// %T - I2C Sensor Serial Number and IDX (IDX used in Domoticz builds only).
 	//        00 - DS18B20 Sensor 1 Serial Number (MAC)
 	//        01 - DS18B20 Sensor 2 Serial Number (MAC)
@@ -7515,14 +7627,15 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
 
 #if DS18B20_SUPPORT == 1
         else if ((nParsedMode == 't') && (nParsedNum < 5) && (stored_config_settings & 0x08)) {
-	  // This displays temperature sensor data for 5 sensors and the
-	  // text fields around that data IF DS18B20 mode is enabled. The
-	  // possible nParsedNum values for DS18B20 sensors are 0, 1, 2, 3, 4.
+	  // This displays temperature sensor data on the IOControl page for 5
+	  // sensors and the text fields around that data if DS18B20 mode is
+	  // enabled. The  possible nParsedNum values for DS18B20 sensors are
+	  // 0, 1, 2, 3, 4.
 	  // %txx
 	  
 	  if (nParsedNum == 0) {
 	    #define TEMPTEXT "<p>Temperature Sensors<br>"
-// THE NEXT DEFINES WERE PART OF AN ATTEMPT TO GIVE A "HEADER" LOOP TO THE
+// THE NEXT DEFINES WERE PART OF AN ATTEMPT TO GIVE A "HEADER" LOOK TO THE
 // TEMPERATURE SENSOR TEXT IN THE IOCONTROL PAGE.
 //	    #define TEMPTEXT "<p style='hh'>Temperature Sensors</p><p><br>"
 //	    #define TEMPTEXT "<p style='{height:32px;}'>Temperature Sensors</p><p><br>" 
@@ -7530,7 +7643,8 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
 	    #undef TEMPTEXT
 	  }
 	  
-	  // Output the sensor ID numbers
+	  // Output the sensor ID numbers in long format. This applies to %t00
+	  // through %t04.
 	  // For display we output the MSByte first followed by remaining
 	  // bytes. A total of 6 bytes are displayed in hex encoded format.
 	  if (nParsedNum <= numROMs) {
@@ -7545,10 +7659,10 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
 	    }
 	  }
 	  // If the sensor does not exist ...
-	  else if (nParsedNum <= 4) {
+	  else if (nParsedNum < 5) {
 	    pBuffer = stpcpy(pBuffer, " ------------ ");
 	  }
-	  if (nParsedNum <= 4) {
+	  if (nParsedNum < 5) {
 	    // Output temperature data
             pBuffer = show_temperature_string(pBuffer, nParsedNum);
 	    if (nParsedNum == 4) {
@@ -7558,6 +7672,44 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
 	    }
 	  }
 	}
+
+
+
+#if SHORT_TEMPERATURE_SUPPORT == 1
+        else if ((nParsedMode == 't') && (nParsedNum >= 20) && (nParsedNum < 25) && (stored_config_settings & 0x08)) {
+	  // This displays temperature sensor data on the Short Form
+	  // Temperature page for 5 sensors plus the comma delimiters for
+	  // the if DS18B20 mode is enabled. The  possible nParsedNum values
+	  // for DS18B20 sensors are 20, 21, 22, 23, 24 (for sensors 0, 1, 2,
+	  // 3, 4).
+	  // %txx
+	  // Output the sensor ID numbers in short format for the Short Form
+	  // Temperature page. This applies to %t20 through %t24.
+	  // For display we output the MSByte first followed by remaining
+	  // bytes. A total of 6 bytes are displayed in hex encoded format.
+	  if (nParsedNum <= (numROMs + 20)) {
+	    if (nParsedNum > 20) *pBuffer++ = ',';
+	    {
+	      int i;
+	      int j;
+	      j = (uint8_t)(nParsedNum - 20);
+	      for (i=6; i>0; i--) {
+	        int2hex(FoundROM[j][i]);
+	        pBuffer = stpcpy(pBuffer, OctetArray);
+	      }
+	    }
+	  }
+	  // If the sensor does not exist ...
+	  else if (nParsedNum < 25) {
+	    if (nParsedNum > 20) pBuffer = stpcpy(pBuffer, ",");
+	    pBuffer = stpcpy(pBuffer, "000000000000");
+	  }
+	  if (nParsedNum < 25) {
+	    // Output temperature data
+            pBuffer = show_temperature_string_short_form(pBuffer, nParsedNum);
+	  }
+	}
+#endif // SHORT_TEMPERATURE_SUPPORT == 1
 #endif // DS18B20_SUPPORT == 1
 
 
@@ -7833,21 +7985,45 @@ char *show_temperature_string(char *pBuffer, uint8_t nParsedNum)
   // Note: &#8451; inserts a degree symbol followed by C.
   // Note: &#8457; inserts a degree symbol followed by F.
   
-  convert_temperature(nParsedNum, 0);      // Convert to degrees C in OctetArray
-  pBuffer = stpcpy(pBuffer, OctetArray);     // Display sensor value
-  #define TEMPTEXT "&#8451; "              // Display degress C symbol
+  convert_temperature(nParsedNum, 0, 0);	// Convert to degrees C in OctetArray
+  pBuffer = stpcpy(pBuffer, OctetArray);	// Insert sensor value
+  #define TEMPTEXT "&#8451; "			// Insert degress C symbol
   pBuffer = stpcpy(pBuffer, TEMPTEXT);
   #undef TEMPTEXT
   
-  convert_temperature(nParsedNum, 1);      // Convert to degrees F in OctetArray
-  pBuffer = stpcpy(pBuffer, OctetArray);     // Display sensor value
-  #define TEMPTEXT "&#8457;<br>"           // Display degress F symbol
+  convert_temperature(nParsedNum, 1, 0);	// Convert to degrees F in OctetArray
+  pBuffer = stpcpy(pBuffer, OctetArray);	// Insert sensor value
+  #define TEMPTEXT "&#8457;<br>"		// Insert degress F symbol
   pBuffer = stpcpy(pBuffer, TEMPTEXT);
   #undef TEMPTEXT
   
   return pBuffer;
 }
 #endif // DS18B20_SUPPORT == 1
+
+
+#if SHORT_TEMPERATURE_SUPPORT == 1
+#if DS18B20_SUPPORT == 1
+char *show_temperature_string_short_form(char *pBuffer, uint8_t nParsedNum)
+{
+  // Display temperature strings in degrees C and degrees F in the short form
+  // format.
+  uint8_t i;
+ 
+  i = (uint8_t)(nParsedNum - 20);
+  
+  convert_temperature(i, 0, 1);			// Convert to degrees C in OctetArray
+  pBuffer = stpcpy(pBuffer, ",");		// Insert comma delimiter
+  pBuffer = stpcpy(pBuffer, OctetArray);	// Insert sensor value
+  
+  convert_temperature(i, 1, 1);			// Convert to degrees F in OctetArray
+  pBuffer = stpcpy(pBuffer, ",");		// Insert comma delimiter
+  pBuffer = stpcpy(pBuffer, OctetArray);	// Insert sensor value
+  
+  return pBuffer;
+}
+#endif // DS18B20_SUPPORT == 1
+#endif // SHORT_TEMPERATURE_SUPPORT == 1
 
 
 #if BME280_SUPPORT == 1
@@ -13243,16 +13419,18 @@ UARTPrintf("\r\n");
 	  break;
         
 	
+#if BUILD_SUPPORT == BROWSER_ONLY_BUILD && SHORT_TEMPERATURE_SUPPORT ==1
+        case 0x97: // Show Short Form Temperature sensor page
+	  pSocket->current_webpage = WEBPAGE_SHORT_TEMPERATURE;
+          pSocket->pData = g_HtmlPageShortTemperature;
+          pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageShortTemperature) - 1);
+	  break;
+#endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD && SHORT_TEMPERATURE_SUPPORT ==1
+        
+	
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD || BUILD_SUPPORT == MQTT_BUILD
         case 0x98: // Show Very Short Form IO state page
         case 0x99: // Show Short Form IO state page
-	  // Normally when a page is transmitted the "current_webpage" is
-	  // updated to reflect the page just transmitted. This is not
-	  // done for this case as the page is very short (only requires
-	  // one packet to send) and not changing the current_webpage
-	  // pointer prevents "page interference" between normal browser
-	  // activity and the automated functions that normally use this
-	  // page.
 	  pSocket->current_webpage = WEBPAGE_SSTATE;
           pSocket->pData = g_HtmlPageSstate;
           pSocket->nDataLeft = (uint16_t)(sizeof(g_HtmlPageSstate) - 1);

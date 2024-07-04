@@ -286,14 +286,14 @@
 #define BUILD_TYPE_MQTT_HOME_STANDARD			0
 #define BUILD_TYPE_MQTT_DOMO_STANDARD			0
 #define BUILD_TYPE_BROWSER_STANDARD			0
-#define BUILD_TYPE_MQTT_HOME_UPGRADEABLE		0
+#define BUILD_TYPE_MQTT_HOME_UPGRADEABLE		1
 #define BUILD_TYPE_MQTT_DOMO_UPGRADEABLE		0
 #define BUILD_TYPE_BROWSER_UPGRADEABLE			0
 #define BUILD_TYPE_MQTT_HOME_BME280_UPGRADEABLE		0
 #define BUILD_TYPE_MQTT_DOMO_BME280_UPGRADEABLE		0
 #define BUILD_TYPE_BROWSER_STANDARD_RFA			0
 #define BUILD_TYPE_BROWSER_UPGRADEABLE_RFA		0
-#define BUILD_TYPE_CODE_UPLOADER			1
+#define BUILD_TYPE_CODE_UPLOADER			0
 
 // The following #defines specify the code parts that need to be included in
 // the various BUILE_TYPEs. You shouldn't need to change any of these.
@@ -326,6 +326,8 @@
   #define HOME_ASSISTANT_SUPPORT        1
   #define DOMOTICZ_SUPPORT              0
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     0
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -353,6 +355,8 @@
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              1
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     0
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -380,6 +384,8 @@
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     1
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -407,6 +413,8 @@
   #define HOME_ASSISTANT_SUPPORT        1
   #define DOMOTICZ_SUPPORT              0
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     0
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -434,6 +442,8 @@
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              1
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     0
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -461,6 +471,8 @@
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     1
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -488,6 +500,8 @@
   #define HOME_ASSISTANT_SUPPORT        1
   #define DOMOTICZ_SUPPORT              0
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     0
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -515,6 +529,8 @@
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              1
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     0
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -542,6 +558,8 @@
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     0
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -569,6 +587,8 @@
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     0
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -596,6 +616,8 @@
   #define HOME_ASSISTANT_SUPPORT        0
   #define DOMOTICZ_SUPPORT              0
   #define LOGIN_SUPPORT                 0
+  #define SHORT_TEMPERATURE_SUPPORT     0
+  #define STM8S_ADC_SUPPORT		0
   #define DEVELOPMENT_TOOLS		0
 #endif
 
@@ -619,6 +641,7 @@
 //  RESPONSE_LOCK_SUPPORT       214 bytes
 //  INA226_SUPPORT              1873 bytes + 20 RAM
 //  SDR_POWER_RELAY_SUPPORT     2554 bytes
+//  SHORT_TEMPERATURE_SUPPORT   389 bytes
 //  LOGIN_SUPPORT		1450 bytes
 
 

@@ -178,6 +178,7 @@ static uint16_t CopyHttpData(uint8_t* pBuffer,
 			     struct tHttpD* pSocket);
 void create_sensor_ID(int8_t sensor);
 char *show_temperature_string(char * pBuffer, uint8_t nParsedNum);
+char *show_temperature_string_short_form(char *pBuffer, uint8_t nParsedNum);
 char *show_BME280_PTH_string(char *pBuffer);
 char *show_INA226_CVW_string(char *pBuffer);
 void INAint32ToString(int32_t fVal);

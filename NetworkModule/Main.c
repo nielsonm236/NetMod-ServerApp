@@ -37,7 +37,7 @@
 //---------------------------------------------------------------------------//
 // IMPORTANT: The code_revision must be exactly 13 characters. A Space
 // character is allowed, but there cannot be two or more consecutive spaces.
-const char code_revision[] = "20240612 0226"; // Normal Release Revision
+const char code_revision[] = "20240701 TEST"; // Normal Release Revision
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -4151,7 +4151,7 @@ void publish_temperature(uint8_t sensor)
     }
     
     // Build the application message
-    convert_temperature(sensor, 0); // Convert to degress C in OctetArray
+    convert_temperature(sensor, 0, 0); // Convert to degress C in OctetArray
     
     // Queue publish message
     // This message is always published with QOS 0
@@ -4201,7 +4201,7 @@ void publish_temperature(uint8_t sensor)
     strcat(app_message, ",\"nvalue\":0,\"svalue\":\"");
     
     // Add sensor temperature value
-    convert_temperature(sensor, 0); // Convert to degress C in OctetArray
+    convert_temperature(sensor, 0, 0); // Convert to degress C in OctetArray
     if (OctetArray[0] == ' ') OctetArray[0] = '0';
     strcat(app_message, OctetArray);
     strcat(app_message, "\",\"parse\":true}");

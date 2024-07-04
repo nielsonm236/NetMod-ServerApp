@@ -23,7 +23,7 @@
 #define __DS18B20_H__
 
 void get_temperature(void);
-void convert_temperature(uint8_t device_num, uint8_t degCorF);
+void convert_temperature(uint8_t device_num, uint8_t degCorF, uint8_t method);
 int reset_pulse(void);
 uint8_t check_CRC(void);
 void transmit_byte(uint8_t transmit_value);

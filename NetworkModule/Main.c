@@ -6217,7 +6217,10 @@ void check_runtime_changes(void)
         // Sweep through the first 8 pins
         if (mask & linked_edge) {
 	  // Found an edge
-	  linked_edge &= ~mask; // Clear the linked_edge bit
+	  // Clear the linked_edge bit. The bit is known to be set, so XOR
+	  // clears it without truncating linked_edge bits 8-15 when it is
+	  // 16 bits wide.
+	  linked_edge ^= (uint8_t)mask;
           if ((Pending_pin_control[i] & 0x03) == 0x02) {
 	    // Verify that the pin is a Linked pin. The Pending_pin_control
 	    // is used because: a) If the pin was previously set to Linked

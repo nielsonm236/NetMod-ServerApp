@@ -237,8 +237,12 @@ int16_t mqtt_sync(struct mqtt_client *client)
         // decrement the current_msg_length with each additional byte read.
         if ((mqtt_partial_buffer_length == 3) && (uip_buf[MQTT_PBUF + 1] & 0x80)) {
           // Second Remaining Length byte. Lengths needing more than two
-          // bytes (over 16383) are not supported.
-          if (uip_buf[MQTT_PBUF + 2] & 0x80) return MQTT_ERROR_MALFORMED_RESPONSE;
+          // bytes (over 16383) are not supported. Set client->error so the
+          // MQTT sanity check restarts the connection and resyncs framing.
+          if (uip_buf[MQTT_PBUF + 2] & 0x80) {
+            client->error = MQTT_ERROR_MALFORMED_RESPONSE;
+            return MQTT_ERROR_MALFORMED_RESPONSE;
+          }
           current_msg_length += (uint16_t)((uint16_t)uip_buf[MQTT_PBUF + 2] << 7);
         }
         current_msg_length--;

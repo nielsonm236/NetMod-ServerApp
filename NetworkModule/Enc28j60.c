@@ -940,7 +940,7 @@ void reset_transmit_logic(void)
   // Clear TXRST
   Enc28j60ClearMaskReg(BANKX_ECON1, (1<<BANKX_ECON1_TXRST));
   // Clear TXABRT
-  Enc28j60ClearMaskReg(BANKX_ESTAT, (1<<BANKX_ESTAT_TXABRT));
+  Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_ESTAT_TXABRT));
   // Clear TXERIF
   Enc28j60ClearMaskReg(BANKX_EIR, (1<<BANKX_EIR_TXERIF));
   // Clear TXIF

@@ -437,7 +437,7 @@ extern uint16_t Pending_IO_TIMER[24];
 
 
 
-#if INA226_SUPPORT == 1
+#if INA226_SUPPORT == 1;
 // INA226 variables. Special Software Defined Radio build only.
 extern int32_t voltage;       // Voltage value x1000 reported by the INA226
 extern int32_t current;       // Current value x1000 reported by the INA226 x1000

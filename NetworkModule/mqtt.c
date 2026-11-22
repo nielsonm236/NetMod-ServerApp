@@ -1374,8 +1374,6 @@ int16_t mqtt_recv(struct mqtt_client *client)
         client->error = consumed;
         return consumed;
     }
-    // Incomplete message: response was not filled in, so don't process it.
-    if (consumed == 0) return MQTT_OK;
 
     // response was unpacked successfully
 

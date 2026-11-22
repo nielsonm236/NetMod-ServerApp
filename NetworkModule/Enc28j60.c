@@ -683,6 +683,7 @@ uint16_t Enc28j60Receive(uint8_t* pBuffer)
 #if DEBUG_SUPPORT == 15
 // UARTPrintf("Enc28j60Receive MAXFRAME exceeded\r\n");
 #endif // || DEBUG_SUPPORT == 15
+    nBytes = 0; // Discard the frame (also catches nBytes < 4 underflow)
   }
 
   deselect();
@@ -897,7 +898,7 @@ wait_timer(10);  // Wait 10 uS
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX 
       late_collision = 0;
       // ESTAT.LATECOL is the Late Collision bit
-      if (Enc28j60ReadReg(BANKX_EIR) & (1<<BANKX_ESTAT_LATECOL)) late_collision = 1;
+      if (Enc28j60ReadReg(BANKX_ESTAT) & (1<<BANKX_ESTAT_LATECOL)) late_collision = 1;
       else break; // If no Late Collision error leave the for loop
 	
       // If a TXERIF error is present AND there was a late collision retry the

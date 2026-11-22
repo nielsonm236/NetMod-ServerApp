@@ -252,7 +252,7 @@ void ina226_read_measurements(uint8_t write_command, uint8_t read_command)
   
   uint16_t voltage_reg;
   int16_t current_reg;
-  int16_t power_reg;
+  uint16_t power_reg;
   uint16_t mfg_id_reg;
 
   // Read the Mfg ID
@@ -297,8 +297,9 @@ void ina226_read_measurements(uint8_t write_command, uint8_t read_command)
     // Integer version of equation
     //   Caution when rearranging the following equation. It is giving the
     //   correct result, but any other arrangement of the equation produces
-    //   larger code.
-    power = (int32_t)((power_reg * 25 * current_lsb) / 1000); // x1000 of float version
+    //   larger code. The factor 25 / 1000 is applied as / 40 so the
+    //   intermediate product can't overflow int32_t.
+    power = (((int32_t)power_reg * current_lsb) / 40); // x1000 of float version
   }
   
   else {

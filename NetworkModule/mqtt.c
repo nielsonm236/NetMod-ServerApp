@@ -65,7 +65,7 @@ extern uint8_t OctetArray[14];    // Used in emb_itoa conversions and to
                                   // transfer short strings globally
 
 #if HOME_ASSISTANT_SUPPORT == 1
-uint8_t current_msg_length;		// Contains the length of the MQTT
+uint16_t current_msg_length;		// Contains the length of the MQTT
 					// message currently being extracted
 					// from the uip_buf.
 #endif // HOME_ASSISTANT_SUPPORT == 1
@@ -213,22 +213,38 @@ int16_t mqtt_sync(struct mqtt_client *client)
       // messages are less than 60 bytes in length (at least for the Home
       // Assistant environment).
       
-      // Capture a byte from the uip_buf
-      uip_buf[MQTT_PBUF + pbi++] = *msgBuffer;
-      mqtt_partial_buffer_length++;
+      // Capture a byte from the uip_buf. Bytes beyond the MQTT Partial
+      // Buffer are dropped (and the message discarded below) to avoid
+      // overrunning uip_buf.
+      if (pbi < MQTT_PBUF_SIZE) uip_buf[MQTT_PBUF + pbi++] = *msgBuffer;
+      // Saturate so an oversize message can't wrap back to pbi.
+      if (mqtt_partial_buffer_length < 255) mqtt_partial_buffer_length++;
       msgBuffer++;
       total_msg_length--;
       
       if (mqtt_partial_buffer_length == 2) {
         // If mqtt_partial_buffer_length == 2 a new current_msg_length
-        // (Remaining Length) is in the second byte.
-        current_msg_length = uip_buf[MQTT_PBUF + 1];
+        // (Remaining Length) is in the second byte. If its continuation bit
+        // is set a second Remaining Length byte follows; count that byte
+        // here so the message isn't seen as complete before it arrives.
+        current_msg_length = (uint16_t)(uip_buf[MQTT_PBUF + 1] & 0x7f);
+        if (uip_buf[MQTT_PBUF + 1] & 0x80) current_msg_length++;
       }
       
       if (mqtt_partial_buffer_length > 2) {
         // If mqtt_partial_buffer_length > 2 then the Control Byte and
         // Remaining Length Byte have both been captured and we must 
         // decrement the current_msg_length with each additional byte read.
+        if ((mqtt_partial_buffer_length == 3) && (uip_buf[MQTT_PBUF + 1] & 0x80)) {
+          // Second Remaining Length byte. Lengths needing more than two
+          // bytes (over 16383) are not supported. Set client->error so the
+          // MQTT sanity check restarts the connection and resyncs framing.
+          if (uip_buf[MQTT_PBUF + 2] & 0x80) {
+            client->error = MQTT_ERROR_MALFORMED_RESPONSE;
+            return MQTT_ERROR_MALFORMED_RESPONSE;
+          }
+          current_msg_length += (uint16_t)((uint16_t)uip_buf[MQTT_PBUF + 2] << 7);
+        }
         current_msg_length--;
       }
       
@@ -247,7 +263,8 @@ int16_t mqtt_sync(struct mqtt_client *client)
         // Captured a complete message. Call mqtt_recv() then clear the
         // MQTT Partial Buffer handling variables in case there are more
         // MQTT messages in the uip_buf after this message.
-        err = mqtt_recv(client);
+        if (pbi == mqtt_partial_buffer_length) err = mqtt_recv(client);
+        else err = MQTT_OK; // Oversize message was truncated; discard it
         mqtt_partial_buffer_length = 0;
         pbi = 0;
         if (err != MQTT_OK) {

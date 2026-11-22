@@ -613,8 +613,8 @@ void uip_process(uint8_t flag)
           // Exponential backoff. The timer got to zero, but the exponential
 	  // backoff will cause it to take longer to get to zero if another
 	  // retransmit will be needed.
-	  if (uip_connr->nrtx > 4) uip_connr->nrtx = 4;
-	  uip_connr->timer = (uint8_t)(UIP_RTO << uip_connr->nrtx);
+	  // Cap the shift, not nrtx, so nrtx can still reach UIP_MAXRTX.
+	  uip_connr->timer = (uint8_t)(UIP_RTO << (uip_connr->nrtx > 4 ? 4 : uip_connr->nrtx));
 
 #if DEBUG_SUPPORT == 15
 // UARTPrintf("uip_connr->timer = ");
@@ -825,6 +825,7 @@ void uip_process(uint8_t flag)
   UIP_STAT(++uip_stat.tcp.recv);
 
   // Start of TCP input header processing code.
+  if (uip_len < UIP_IPTCPH_LEN) goto drop; // Too short for a TCP header
   if (uip_tcpchksum() != 0xffff) { /* Compute and check the TCP checksum. */
     UIP_STAT(++uip_stat.tcp.drop);
     UIP_STAT(++uip_stat.tcp.chkerr);
@@ -1225,6 +1226,7 @@ void uip_process(uint8_t flag)
   // uip_len will contain the length of the actual TCP data. This is
   // calculated by subtracting the length of the TCP header (in c) and the
   // length of the IP header (20 bytes).
+  if (c < UIP_TCPH_LEN || uip_len < c + UIP_IPH_LEN) goto drop; // Bad TCP header length
   uip_len = uip_len - c - UIP_IPH_LEN;
   
   // First, check if the sequence number of the incoming packet is what we're
@@ -1453,8 +1455,10 @@ void uip_process(uint8_t flag)
       // Check the URG flag. If this is set, the segment carries urgent data
       // that we must pass to the application.
       if ((BUF->flags & TCP_URG) != 0) {
-        uip_appdata = ((char *)uip_appdata) + ((BUF->urgp[0] << 8) | BUF->urgp[1]);
-        uip_len -= (BUF->urgp[0] << 8) | BUF->urgp[1];
+        uint16_t urgp = (BUF->urgp[0] << 8) | BUF->urgp[1];
+        if (urgp > uip_len) goto drop; // Urgent pointer beyond the data
+        uip_appdata = ((char *)uip_appdata) + urgp;
+        uip_len -= urgp;
       }
 
       // If uip_len > 0 we have TCP data in the packet, and we flag this by

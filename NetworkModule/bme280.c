@@ -806,9 +806,8 @@ int32_t altitude_adjustment(void)
   for (i = 19; i > -2; i--) {
     j = i * 1000;
     k = bar_table[i+1] - bar_table[i+2];
-    if (i == -1) k = k * -1;
     if (stored_altitude > j) {
-      offset = 1013 - (bar_table[i+1] - (((stored_altitude - j) * k) / 1000));
+      offset = 1013 - (bar_table[i+1] - (int16_t)(((int32_t)(stored_altitude - j) * k) / 1000));
       break;
     }
   }

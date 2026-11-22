@@ -6318,8 +6318,10 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
   // of the loop below. This causes most packet transmissions to be smaller,
   // but accomodates those that have the extra bytes inserted.
 #if BME280_SUPPORT == 1
-  // A BME280 insertion can add ~180 bytes in a single pass of the loop
-  nMaxBytes = UIP_TCP_MSS - 120;
+  // A BME280 insertion can add ~180 bytes in a single pass of the loop.
+  // Reserve enough that the packet stays within UIP_TCP_MSS and does not
+  // overwrite the MQTT partial buffer at the end of uip_buf.
+  nMaxBytes = UIP_TCP_MSS - 180;
 #else
   nMaxBytes = UIP_TCP_MSS - 40;
 #endif // BME280_SUPPORT == 1
@@ -8407,9 +8409,11 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   i = 0;
   j = 0;
 
-  if ((uip_flags & (UIP_ABORT | UIP_TIMEDOUT | UIP_CLOSE)) && pSocket->nState == STATE_GOTGET2) {
+  if ((uip_flags & (UIP_ABORT | UIP_TIMEDOUT | UIP_CLOSE)) && !uip_newdata() && pSocket->nState == STATE_GOTGET2) {
     // A GET was interrupted before parseget() completed. Clear the pending
-    // GET command so later GETs are not rejected with 429 forever.
+    // GET command so later GETs are not rejected with 429 forever. A FIN
+    // that carries the end of the GET (UIP_CLOSE with UIP_NEWDATA) is let
+    // through so the GET is still parsed.
     parse_GETcmd[0] = '\0';
   }
 

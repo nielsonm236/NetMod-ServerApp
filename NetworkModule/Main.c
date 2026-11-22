@@ -3800,8 +3800,8 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
   
   int size;
   int i;
-  unsigned char app_message[4];       // Stores the application message (the
-                                      // payload) that will be sent in an
+  const char *app_message;            // Points to the application message
+                                      // (the payload) that will be sent in an
 				      // MQTT message.
   unsigned char topic_base[55]; // Used for building connect, subscribe,
                                 // and publish topic strings.
@@ -3827,8 +3827,6 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
 				//  homeassistant/sensor/macaddressxx/BME280-0xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-1xxxx/config
 				//  homeassistant/sensor/macaddressxx/BME280-2xxxx/config
-  
-  app_message[0] = '\0';
   
   strcpy(topic_base, devicetype);
   strcat(topic_base, stored_devicename);
@@ -3861,11 +3859,11 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
   
   // Build the application message
   if (value & mask) {
-    strcpy(app_message, "ON");
+    app_message = "ON";
     size = 2;
   }
   else {
-    strcpy(app_message, "OFF");
+    app_message = "OFF";
     size = 3;
   }
 
@@ -3897,13 +3895,9 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
                                  // {"command":"switchlight","idx":xxxx,"switchcmd":"on"}
 				 // or
                                  // {"command":"switchlight", "idx": xxxx, "switchcmd":"off"}
-  unsigned char topic_base[12];  // topic_base for Domoticz is always
-                                 //   domoticz/in
   unsigned char temp_idx[8];     // temp storage for idx value when read from I2C EEPROM
   
   
-  strcpy(topic_base, "domoticz/in");
-
   // If we are sending an Input message invert the value if the Invert_word
   // bit associated with the pin is 1
   if (direction == 'I') {
@@ -3948,7 +3942,7 @@ void publish_pinstate(uint8_t direction, uint8_t pin, uint32_t value, uint32_t m
   // Queue publish message
   // This message is always published with QOS 0
   mqtt_publish(&mqttclient,
-               topic_base,
+               "domoticz/in",
 	       app_message,
 	       size,
 	       MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
@@ -4173,8 +4167,6 @@ void publish_temperature(uint8_t sensor)
   // This function is called to Publish a temperature value collected from
   // a DS18B20 connected to IO 16.
   
-  unsigned char topic_base[12]; // Used for building connect, subscribe,
-                                // and publish topic strings.
   unsigned char app_message[90]; // app_message (payload) is always of the form
     // {"command": "udevice", "idx": 321, "nvalue": 0, "svalue": "22.7", "parse": true}
   
@@ -4187,9 +4179,6 @@ void publish_temperature(uint8_t sensor)
     // as a value from 0 to 4 (for the five sensors).
     //
     // The "numROMs" value is also a value from 0 to 4 (for the five sensors).
-    
-    // Build the topic string
-    strcpy(topic_base, "domoticz/in");
     
     // Build the Payload message
     // {"command":"udevice","idx":321,"nvalue":0,"svalue":"22.77","parse":true}
@@ -4209,7 +4198,7 @@ void publish_temperature(uint8_t sensor)
     // Queue publish message
     // This message is always published with QOS 0
     mqtt_publish(&mqttclient,
-                 topic_base,
+                 "domoticz/in",
                  app_message,
                  strlen(app_message),
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);
@@ -4307,8 +4296,6 @@ void publish_BME280(int8_t sensor)
   // a BME280 temperature, pressure, humidity sensor.
   
   int8_t i;
-  unsigned char topic_base[12]; // Used for building connect, subscribe,
-                                // and publish topic strings.
   unsigned char app_message[90]; // app_message (payload) is always of the form
   // {"command":"udevice","idx":321,"svalue":"8.8;91;3;1029;0"}
   // The svalue consists of fields in this order;
@@ -4389,9 +4376,6 @@ void publish_BME280(int8_t sensor)
 //  if (BME280_found == 1) {
   if (stored_config_settings & 0x20) { // BME280 enabled?
 
-    // Build the topic string
-    strcpy(topic_base, "domoticz/in");
-
     // Build the Payload message
     // {"command":"udevice","idx":321,"svalue":"8.8;91;3;1029;0"}
     
@@ -4448,7 +4432,7 @@ void publish_BME280(int8_t sensor)
     // Queue publish message
     // This message is always published with QOS 0
     mqtt_publish(&mqttclient,
-                 topic_base,
+                 "domoticz/in",
                  app_message,
                  strlen(app_message),
                  MQTT_PUBLISH_QOS_0 | MQTT_PUBLISH_RETAIN);

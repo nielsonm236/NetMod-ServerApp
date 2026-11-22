@@ -3272,12 +3272,13 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
       // Parse one's digit
       ParseNum += (uint8_t)(*pBuffer - '0');
 
-      // Verify ParseNum is in the correct range
+      // Verify ParseNum is in the correct range and the one's digit is a
+      // digit (a single digit topic like "output/1/set" is rejected).
 #if PCF8574_SUPPORT == 0
-      if (ParseNum > 0 && ParseNum < 17) {
+      if (ParseNum > 0 && ParseNum < 17 && (uint8_t)(*pBuffer - '0') < 10) {
 #endif // PCF8574_SUPPORT == 0
 #if PCF8574_SUPPORT == 1
-      if (ParseNum > 0 && ParseNum < 25) {
+      if (ParseNum > 0 && ParseNum < 25 && (uint8_t)(*pBuffer - '0') < 10) {
 #endif // PCF8574_SUPPORT == 1
         // Adjust Parsenum to match 0 to 15 numbering (instead of 1 to 16)
         ParseNum--;
@@ -6216,7 +6217,7 @@ void check_runtime_changes(void)
         // Sweep through the first 8 pins
         if (mask & linked_edge) {
 	  // Found an edge
-	  linked_edge &= (uint8_t)(~mask); // Clear the linked_edge bit
+	  linked_edge &= ~mask; // Clear the linked_edge bit
           if ((Pending_pin_control[i] & 0x03) == 0x02) {
 	    // Verify that the pin is a Linked pin. The Pending_pin_control
 	    // is used because: a) If the pin was previously set to Linked
@@ -6245,7 +6246,7 @@ void check_runtime_changes(void)
         // Sweep through the first 4 pins
         if (mask & linked_edge) {
 	  // Found an edge
-	  linked_edge &= (uint8_t)(~mask); // Clear the linked_edge bit
+	  linked_edge &= ~mask; // Clear the linked_edge bit
           if ((Pending_pin_control[i] & 0x03) == 0x02) {
 	    // Verify that the pin is a Linked pin. The Pending_pin_control
 	    // is used because: a) If the pin was previously set to Linked

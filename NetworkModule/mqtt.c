@@ -213,8 +213,10 @@ int16_t mqtt_sync(struct mqtt_client *client)
       // messages are less than 60 bytes in length (at least for the Home
       // Assistant environment).
       
-      // Capture a byte from the uip_buf
-      uip_buf[MQTT_PBUF + pbi++] = *msgBuffer;
+      // Capture a byte from the uip_buf. Bytes beyond the MQTT Partial
+      // Buffer are dropped (and the message discarded below) to avoid
+      // overrunning uip_buf.
+      if (pbi < MQTT_PBUF_SIZE) uip_buf[MQTT_PBUF + pbi++] = *msgBuffer;
       mqtt_partial_buffer_length++;
       msgBuffer++;
       total_msg_length--;
@@ -247,7 +249,8 @@ int16_t mqtt_sync(struct mqtt_client *client)
         // Captured a complete message. Call mqtt_recv() then clear the
         // MQTT Partial Buffer handling variables in case there are more
         // MQTT messages in the uip_buf after this message.
-        err = mqtt_recv(client);
+        if (pbi == mqtt_partial_buffer_length) err = mqtt_recv(client);
+        else err = MQTT_OK; // Oversize message was truncated; discard it
         mqtt_partial_buffer_length = 0;
         pbi = 0;
         if (err != MQTT_OK) {
@@ -1371,6 +1374,8 @@ int16_t mqtt_recv(struct mqtt_client *client)
         client->error = consumed;
         return consumed;
     }
+    // Incomplete message: response was not filled in, so don't process it.
+    if (consumed == 0) return MQTT_OK;
 
     // response was unpacked successfully
 

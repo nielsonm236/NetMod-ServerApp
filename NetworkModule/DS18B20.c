@@ -639,9 +639,14 @@ void init_DS18B20(void)
   // If I2C EEPROM is supported then the I2C EEPROM FoundROM array must be
   // initialized.
   {
+    // Write 40 zero bytes. copy_STM8_bytes_to_I2C_EEPROM() can't be used
+    // with a single zero byte as it advances the source pointer.
     uint8_t i;
-    i = 0;
-    copy_STM8_bytes_to_I2C_EEPROM(&i, 40, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_FOUNDROM, 2);
+    I2C_control(I2C_EEPROM_R1_WRITE);
+    I2C_byte_address(I2C_EEPROM_R1_FOUNDROM, 2);
+    for (i=0; i<40; i++) I2C_write_byte(0);
+    I2C_stop();
+    wait_timer(5000);
   }
 #endif // OB_EEPROM_SUPPORT == 1
 
@@ -837,7 +842,7 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
 	                                 // number, and CRC on found device
         }
 	
-        if (numROMs < 5) {
+        if (numROMs < 4) {
 	  break; // Continues until no additional devices are found
 	}
 	else {

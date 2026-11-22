@@ -437,7 +437,7 @@ extern uint16_t Pending_IO_TIMER[24];
 
 
 
-#if INA226_SUPPORT == 1;
+#if INA226_SUPPORT == 1
 // INA226 variables. Special Software Defined Radio build only.
 extern int32_t voltage;       // Voltage value x1000 reported by the INA226
 extern int32_t current;       // Current value x1000 reported by the INA226 x1000
@@ -5070,7 +5070,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
       char temp_string[16];
       for (i=16; i<24; i++) {
         // Read a PCF8574_IO_NAMES value from I2C EEPROM
-        copy_I2C_EEPROM_bytes_to_RAM(&temp_string[0], 16, I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES, 2);
+        copy_I2C_EEPROM_bytes_to_RAM(&temp_string[0], 16, I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + ((i - 16) * 16), 2);
         size = size + (strlen(temp_string) - 4);
       }
     }
@@ -5291,7 +5291,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
       char temp_string[16];
       for (i=16; i<24; i++) {
         // Read a PCF8574_IO_NAMES value from I2C EEPROM
-        copy_I2C_EEPROM_bytes_to_RAM(&temp_string[0], 16, I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES, 2);
+        copy_I2C_EEPROM_bytes_to_RAM(&temp_string[0], 16, I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + ((i - 16) * 16), 2);
         size = size + (strlen(temp_string) - 4);
       }
     }
@@ -5446,7 +5446,7 @@ uint16_t adjust_template_size(struct tHttpD* pSocket)
       char temp_string[16];
       for (i=16; i<24; i++) {
         // Read a PCF8574_IO_NAMES value from I2C EEPROM
-        copy_I2C_EEPROM_bytes_to_RAM(&temp_string[0], 16, I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES, 2);
+        copy_I2C_EEPROM_bytes_to_RAM(&temp_string[0], 16, I2C_EEPROM_R2_WRITE, I2C_EEPROM_R2_READ, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + ((i - 16) * 16), 2);
         size = size + (strlen(temp_string) - 4);
       }
     }
@@ -6317,7 +6317,12 @@ uint8_t FoundROM[5][8];             // Table of ROM codes
   // function to account for extra bytes that might be sent in a single pass
   // of the loop below. This causes most packet transmissions to be smaller,
   // but accomodates those that have the extra bytes inserted.
+#if BME280_SUPPORT == 1
+  // A BME280 insertion can add ~180 bytes in a single pass of the loop
+  nMaxBytes = UIP_TCP_MSS - 120;
+#else
   nMaxBytes = UIP_TCP_MSS - 40;
+#endif // BME280_SUPPORT == 1
   //-------------------------------------------------------------------------//
 
 
@@ -8402,6 +8407,12 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
   i = 0;
   j = 0;
 
+  if ((uip_flags & (UIP_ABORT | UIP_TIMEDOUT | UIP_CLOSE)) && pSocket->nState == STATE_GOTGET2) {
+    // A GET was interrupted before parseget() completed. Clear the pending
+    // GET command so later GETs are not rejected with 429 forever.
+    parse_GETcmd[0] = '\0';
+  }
+
   if (uip_connected()) {
     // uip_connected() will occur when a connection is established after being
     // requested by a Browser.
@@ -8568,7 +8579,7 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
     // If we are in STATE_CONNECTED (meaning we are reading the first and
     // perhaps only packet in a series) check the first five characters of the
     // uip_buf to see if this is a POST or GET request.
-    if (pSocket->nState == STATE_CONNECTED) {
+    if (pSocket->nState == STATE_CONNECTED && nBytes > 3) {
       if (memcmp("POST", &pBuffer[0], 4) == 0) pSocket->nState = STATE_GOTPOST;
       if (memcmp("GET", &pBuffer[0], 3) == 0)  pSocket->nState = STATE_GOTGET;
       pBuffer += 4;
@@ -9243,8 +9254,11 @@ rexmit_count = 0; // Used only for sending the rexmit count via UART
 		    for (i=0; i<256; i++) {
 		      // Write 256 blocks of 128 bytes each with zero
 		      temp_eeprom_address_index = i * 128;
-		      j = 0;
-                      copy_STM8_bytes_to_I2C_EEPROM(&j, 128, I2C_EEPROM_R0_WRITE, temp_eeprom_address_index, 2);
+		      I2C_control(I2C_EEPROM_R0_WRITE);
+		      I2C_byte_address(temp_eeprom_address_index, 2);
+		      for (j=0; j<128; j++) I2C_write_byte(0);
+		      I2C_stop();
+		      wait_timer(5000);
                       IWDG_KR = 0xaa; // Prevent the IWDG from firing.
                     }
 		  }
@@ -10346,7 +10360,7 @@ void parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
   // the local_buf so that additional data will be added to it.
   strcpy(local_buf, parse_tail);
   i = strlen(parse_tail);
-  j = 0;
+  j = i; // Continue adding to any restored parse_tail
   
   while (1) {
     // Here we start copying data from the uip_buf to the local_buf. Remember
@@ -10366,13 +10380,16 @@ void parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
     //    removed.
     local_buf[i] = *pBuffer;
     local_buf[i+1] = '\0';
-    parse_tail[j] = *pBuffer;
-    parse_tail[j+1] = '\0';
+    if (j < sizeof(parse_tail) - 1) {
+      // Don't overrun parse_tail if a malformed POST component is too long
+      parse_tail[j] = *pBuffer;
+      parse_tail[j+1] = '\0';
+      j++;
+    }
     temp_char = *pBuffer;
     pBuffer++;
     nBytes--;
     i++;
-    j++;
 
 #if DEBUG_SUPPORT == 15
 // Debug notes:
@@ -11215,7 +11232,7 @@ UARTPrintf("<\r\n");
 	      
 #if BUILD_SUPPORT == BROWSER_ONLY_BUILD
 	    case 'j':
-	      if (strcmp(IO_NAME[pSocket->ParseNum], tmp_Pending) != 0) {
+	      if (pSocket->ParseNum < 16 && strcmp(IO_NAME[pSocket->ParseNum], tmp_Pending) != 0) {
 	        // IO_NAME in Flash is updated only if it changed.
 	        // The write to Flash will occur 4 bytes at a time to
 		// reduce Flash wear. All 16 bytes reserved in the Flash
@@ -11242,6 +11259,7 @@ UARTPrintf("<\r\n");
               // There is not much concern for I2C EEPROM write wearout, so
 	      // the name is written regardless of whether is it already the
 	      // same. This saves code space in Flash.
+              if ((uint8_t)(pSocket->ParseNum - 16) < 8)
               copy_STM8_bytes_to_I2C_EEPROM(&tmp_Pending[0], 16, I2C_EEPROM_R2_WRITE, PCF8574_I2C_EEPROM_R2_START_IO_NAMES + ((pSocket->ParseNum - 16) * 16), 2);
 	      break;
 #endif // PCF8574_SUPPORT == 1
@@ -11285,7 +11303,7 @@ UARTPrintf("<\r\n");
 #endif // DEBUG_SUPPORT == 15
 	      }
 
-	      if (pSocket->ParseNum > 15) {
+	      if (pSocket->ParseNum > 15 && pSocket->ParseNum < 24) {
 	        // If PCF8574 is supported it implies that the I2C EEPROM is
 		// present. In that case the received values are written to
 		// the I2C EEPROM. If PCF8574 is not supported nothing needs
@@ -11831,7 +11849,7 @@ UARTPrintf("<\r\n");
 	  lbi += 2;
           pSocket->nParseLeft -= 2;
 	  // Store in Pending_IO_TIMER array
-	  Pending_IO_TIMER[pSocket->ParseNum] = temp;
+	  if (pSocket->ParseNum < sizeof(Pending_IO_TIMER) / 2) Pending_IO_TIMER[pSocket->ParseNum] = temp;
         }
       }
 #endif // BUILD_SUPPORT == BROWSER_ONLY_BUILD

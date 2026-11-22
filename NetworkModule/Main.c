@@ -2730,27 +2730,17 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
 
 #if OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
   // If I2C EEPROM is supported the FoundROM[][] table is located in I2C
-  // EEPROM. In this case a stack based FoundROM[][] array is created and the
-  // data is copied to that array.
-  uint8_t FoundROM[5][8];           // Table of ROM codes
-                                    // [x][0] = Family Code
-                                    // [x][1] = LSByte serial number
-                                    // [x][2] = byte 2 serial number
-                                    // [x][3] = byte 3 serial number
-                                    // [x][4] = byte 4 serial number
-                                    // [x][5] = byte 5 serial number
-                                    // [x][6] = MSByte serial number
-                                    // [x][7] = CRC
-#endif // OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
-
-      
-#if OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
-  // If I2C EEPROM is supported the FoundROM[][] array is stored in the I2C
-  // EEPROM and must be copied to a stack based FoundROM[][] array for use
-  // here. The I2C EEPROM copy of the FoundROM table starts at
-  // I2C_EEPROM_R1_FOUNDROM. There are 5 entries, each 8 bytes long, for a
-  // total of 40 bytes.
-  copy_I2C_EEPROM_bytes_to_RAM(&FoundROM[0][0], 40, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_READ, I2C_EEPROM_R1_FOUNDROM, 2);
+  // EEPROM. In this case only the ROM code of the sensor being messaged is
+  // copied to a stack based ROM[] array.
+  uint8_t ROM[8];                   // ROM code of one sensor
+                                    // [0] = Family Code
+                                    // [1] = LSByte serial number
+                                    // [2] = byte 2 serial number
+                                    // [3] = byte 3 serial number
+                                    // [4] = byte 4 serial number
+                                    // [5] = byte 5 serial number
+                                    // [6] = MSByte serial number
+                                    // [7] = CRC
 #endif // OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
 
   // Create the % marker in the payload template
@@ -2802,9 +2792,19 @@ void send_IOT_msg(uint8_t IOT_ptr, uint8_t IOT, uint8_t DefOrDel)
     {
       int i;
       int j;
+#if OB_EEPROM_SUPPORT == 1
+      // The FoundROM table is stored in the I2C EEPROM starting at
+      // I2C_EEPROM_R1_FOUNDROM. There are 5 entries, each 8 bytes long.
+      // Copy only the entry for this sensor.
+      copy_I2C_EEPROM_bytes_to_RAM(&ROM[0], 8, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_READ, I2C_EEPROM_R1_FOUNDROM + (IOT_ptr * 8), 2);
+#endif // OB_EEPROM_SUPPORT == 1
       j = 2;
       for (i=6; i>0; i--) {
+#if OB_EEPROM_SUPPORT == 1
+        int2hex(ROM[i]);
+#else // OB_EEPROM_SUPPORT == 0
         int2hex(FoundROM[IOT_ptr][i]);
+#endif // OB_EEPROM_SUPPORT == 1
         app_message[j++] = OctetArray[0];
         app_message[j++] = OctetArray[1];
       }
@@ -4100,27 +4100,17 @@ void publish_temperature(uint8_t sensor)
 
 #if OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
   // The FoundROM[][] array is located in I2C EEPROM if I2C EEPROM is
-  // supported. So it is copied to a local stack based FoundROM[][] array
-  // for use in this case.
-  uint8_t FoundROM[5][8];           // Table of ROM codes
-                                    // [x][0] = Family Code
-                                    // [x][1] = LSByte serial number
-                                    // [x][2] = byte 2 serial number
-                                    // [x][3] = byte 3 serial number
-                                    // [x][4] = byte 4 serial number
-                                    // [x][5] = byte 5 serial number
-                                    // [x][6] = MSByte serial number
-                                    // [x][7] = CRC
-#endif // OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
-
-      
-#if OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
-  // If I2C EEPROM is supported then the FoundROM table is stored in the
-  // I2C EEPROM and must be copied to a stack based RAM location for use
-  // here. The I2C EEPROM copy of the FoundROM table starts at
-  // I2C_EEPROM_R1_FOUNDROM. There are 5 entries, each 8 bytes long, for
-  // a total of 40 bytes.
-  copy_I2C_EEPROM_bytes_to_RAM(&FoundROM[0][0], 40, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_READ, I2C_EEPROM_R1_FOUNDROM, 2);
+  // supported. So the ROM code of the sensor being published is copied to
+  // a local stack based ROM[] array for use in this case.
+  uint8_t ROM[8];                   // ROM code of one sensor
+                                    // [0] = Family Code
+                                    // [1] = LSByte serial number
+                                    // [2] = byte 2 serial number
+                                    // [3] = byte 3 serial number
+                                    // [4] = byte 4 serial number
+                                    // [5] = byte 5 serial number
+                                    // [6] = MSByte serial number
+                                    // [7] = CRC
 #endif // OB_EEPROM_SUPPORT == 1 && DS18B20_SUPPORT == 1
 
   if (sensor <= numROMs) {
@@ -4141,9 +4131,19 @@ void publish_temperature(uint8_t sensor)
     {
       int i;
       int j;
+#if OB_EEPROM_SUPPORT == 1
+      // The FoundROM table is stored in the I2C EEPROM starting at
+      // I2C_EEPROM_R1_FOUNDROM. There are 5 entries, each 8 bytes long.
+      // Copy only the entry for this sensor.
+      copy_I2C_EEPROM_bytes_to_RAM(&ROM[0], 8, I2C_EEPROM_R1_WRITE, I2C_EEPROM_R1_READ, I2C_EEPROM_R1_FOUNDROM + (sensor * 8), 2);
+#endif // OB_EEPROM_SUPPORT == 1
       j = (uint8_t)strlen(topic_base);
       for (i=6; i>0; i--) {
+#if OB_EEPROM_SUPPORT == 1
+        int2hex(ROM[i]);
+#else // OB_EEPROM_SUPPORT == 0
         int2hex(FoundROM[sensor][i]);
+#endif // OB_EEPROM_SUPPORT == 1
         topic_base[j++] = OctetArray[0];
         topic_base[j++] = OctetArray[1];
       }

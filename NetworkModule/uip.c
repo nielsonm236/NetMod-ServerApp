@@ -1226,7 +1226,7 @@ void uip_process(uint8_t flag)
   // uip_len will contain the length of the actual TCP data. This is
   // calculated by subtracting the length of the TCP header (in c) and the
   // length of the IP header (20 bytes).
-  if (uip_len < c + UIP_IPH_LEN) goto drop; // Bad TCP header length
+  if (c < UIP_TCPH_LEN || uip_len < c + UIP_IPH_LEN) goto drop; // Bad TCP header length
   uip_len = uip_len - c - UIP_IPH_LEN;
   
   // First, check if the sequence number of the incoming packet is what we're

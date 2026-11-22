@@ -8413,8 +8413,10 @@ void HttpDCall(uint8_t* pBuffer, uint16_t nBytes, struct tHttpD* pSocket)
     // A GET was interrupted before parseget() completed. Clear the pending
     // GET command so later GETs are not rejected with 429 forever. A FIN
     // that carries the end of the GET (UIP_CLOSE with UIP_NEWDATA) is let
-    // through so the GET is still parsed.
+    // through so the GET is still parsed. nState is reset so a second close
+    // notification (uIP LAST_ACK) can't clear another socket's GET.
     parse_GETcmd[0] = '\0';
+    pSocket->nState = STATE_NULL;
   }
 
   if (uip_connected()) {
@@ -10352,7 +10354,6 @@ void parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
 
   uint16_t i;
   uint16_t j;
-  char temp_char;
   char local_buf[300];
   uint16_t local_buf_index_max;
 
@@ -10384,13 +10385,21 @@ void parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
     //    removed.
     local_buf[i] = *pBuffer;
     local_buf[i+1] = '\0';
-    if (j < sizeof(parse_tail) - 1) {
+    if (*pBuffer == '&') {
+      // Starting a new POST component collection.
+      // Reset j so the parse_tail will fill with the new POST component (less
+      // the & ). The previous POST component (including the & if it had one)
+      // is stored as received in the local_buf. This is done before the end
+      // of packet check so a packet ending on '&' leaves parse_tail empty.
+      j = 0;
+      parse_tail[0] = '\0';
+    }
+    else if (j < sizeof(parse_tail) - 1) {
       // Don't overrun parse_tail if a malformed POST component is too long
       parse_tail[j] = *pBuffer;
       parse_tail[j+1] = '\0';
       j++;
     }
-    temp_char = *pBuffer;
     pBuffer++;
     nBytes--;
     i++;
@@ -10569,16 +10578,6 @@ void parsepost(struct tHttpD* pSocket, char *pBuffer, uint16_t nBytes) {
       // Note: the "j" index into parse_tail is not reset in this
       // case as the packet might end before the parse_tail is
       // completely collected.
-      continue;
-    }
-    
-    if (temp_char == '&') {
-      // Starting a new POST component collection.
-      // Reset j so the parse_tail will fill with the new POST component (less
-      // the & ). The previous POST component (including the & if it had one)
-      // is stored as received in the local_buf.
-      j = 0;
-      parse_tail[0] = '\0';
       continue;
     }
   }
